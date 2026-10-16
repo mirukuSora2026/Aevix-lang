@@ -129,9 +129,30 @@ int main(int argc, char** argv)
     }
     {
         Fixture neverCall("never stop() { while (true) {} } i32 main() { stop(); return 0; }");
-        bool rejected = false;
-        for (const auto& diagnostic : neverCall.diagnostics) rejected = rejected || diagnostic.message.find("never-returning calls require") != std::string::npos;
-        expect(neverCall.types.succeeded && !neverCall.air && rejected, "never call is rejected before invalid LLVM emission");
+        expect(neverCall.types.succeeded && neverCall.air && neverCall.llvm
+            && neverCall.llvm->find("noreturn") != std::string::npos,
+            "never-returning calls lower to explicit unreachable control flow");
+    }
+    expect(Fixture("type Id = i32; T identity<T>(T value) where T implements Copy { return value; } i32 main() { Id value = 42; return identity(value); }").run(clang, 42), "transparent numeric aliases participate in generic inference");
+    expect(Fixture("struct Point implements Copy { public i32 x; }; type Alias = Point; i32 main() { Alias value = Alias { x = 42 }; return value.x; }").run(clang, 42), "transparent nominal alias initializer executes");
+    expect(Fixture("struct Pair<T> { public T first; public T second; }; type Alias = Pair<i32>; i32 main() { Alias a = Alias { first = 20, second = 22 }; return a.first + a.second; }").run(clang, 42), "alias of generic specialization initializes canonical storage");
+    expect(Fixture("never stop() { Never.unreachable(); } i32 pick(bool alive) { return alive ? 42 : stop(); } i32 left(bool alive) { return alive ? stop() : 42; } i32 main() { return pick(true) + left(false) == 84 ? 42 : 1; }").run(clang, 42), "never branches coerce in both conditional positions");
+    expect(Fixture("never stop() { Never.unreachable(); } i32 main() { bool a = false && stop(); bool b = true || stop(); return !a && b ? 42 : 1; }").run(clang, 42), "short circuit does not execute never branches");
+    {
+        Fixture both("never stop() { Never.unreachable(); } never choose(bool left) { return left ? stop() : stop(); } i32 main() { return 42; }");
+        expect(both.llvm && both.llvm->find("alloca void") == std::string::npos,
+            "two divergent conditional alternatives require no impossible value storage");
+        Fixture storage("i32 main() { never value; return 0; }");
+        expect(!storage.types.succeeded && !storage.diagnostics.empty(), "never cannot be stored as a local value");
+        Fixture inferred("i32 main() { rsn value = Never.unreachable(); return 0; }");
+        expect(!inferred.types.succeeded && !inferred.diagnostics.empty(), "inferred never storage is rejected");
+        Fixture fallsThrough("never stop() {} i32 main() { return 0; }");
+        expect(!fallsThrough.air && !fallsThrough.diagnostics.empty(), "never functions cannot fall through");
+    }
+    for (const auto level : {0u, 2u})
+    {
+        expect(Fixture("never stop() { Never.unreachable(); } i32 main() { stop(); return 42; }").run(clang, 0, true, level), "never function safely traps at O" + std::to_string(level));
+        expect(Fixture("never stop() { Never.unreachable(); } i32 main() { i32 value = 1 + stop(); return value; }").run(clang, 0, true, level), "nested never arithmetic safely traps at O" + std::to_string(level));
     }
     const std::vector<std::pair<std::string, std::string>> traps{
         {"signed addition overflow", "i32 main() { i32 a = 2147483647; return a + 1; }"},

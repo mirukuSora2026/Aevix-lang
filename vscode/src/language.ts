@@ -12,7 +12,7 @@
 
 export type TokenKind = 'identifier' | 'number' | 'string' | 'comment' | 'symbol';
 export interface Token { kind: TokenKind; text: string; start: number; end: number }
-export type SymbolKind = 'struct' | 'enum' | 'interface' | 'function' | 'method' | 'variable' | 'constant' | 'field' | 'parameter' | 'typeParameter' | 'variant';
+export type SymbolKind = 'struct' | 'enum' | 'interface' | 'typeAlias' | 'function' | 'method' | 'variable' | 'constant' | 'field' | 'parameter' | 'typeParameter' | 'variant';
 export interface LanguageSymbol {
     id: string; uri: string; name: string; kind: SymbolKind; type: string;
     start: number; end: number; declarationStart: number; declarationEnd: number;
@@ -33,7 +33,7 @@ export interface DocumentAnalysis {
 export interface WorkspaceIndex { documents: Map<string, DocumentAnalysis>; modules: Map<string, DocumentAnalysis[]> }
 
 export const keywords = [
-    'import', 'public', 'private', 'struct', 'enum', 'interface', 'implements', 'where',
+    'import', 'public', 'private', 'type', 'struct', 'enum', 'interface', 'implements', 'where',
     'override', 'mut', 'const', 'persist', 'rsn', 'dyn', 'extern', 'if', 'else', 'while',
     'for', 'in', 'switch', 'case', 'default', 'break', 'continue', 'return', 'move', 'true', 'false'
 ] as const;
@@ -41,26 +41,38 @@ const reserved = new Set<string>(keywords);
 export const builtinDocs: Readonly<Record<string, string>> = {
     i8: 'Signed 8-bit integer: -128 to 127.', i16: 'Signed 16-bit integer: -32768 to 32767.',
     i32: 'Signed 32-bit integer. The default integer type.', i64: 'Signed 64-bit integer.',
+    i128: 'Signed 128-bit integer with checked arithmetic on every supported 64-bit target.',
     u8: 'Unsigned 8-bit integer: 0 to 255.', u16: 'Unsigned 16-bit integer.', u32: 'Unsigned 32-bit integer.', u64: 'Unsigned 64-bit integer.',
-    isize: 'Signed pointer-sized integer; 64 bits on the Aevix 0.1 targets.', usize: 'Unsigned pointer-sized integer; 64 bits on the Aevix 0.1 targets.',
+    u128: 'Unsigned 128-bit integer: 0 to 340282366920938463463374607431768211455.',
+    isize: 'Signed pointer-sized integer; 64 bits on supported Aevix targets.', usize: 'Unsigned pointer-sized integer; 64 bits on supported Aevix targets.',
     int: 'Alias of i32.', f16: 'IEEE binary16 floating-point value.', bf16: 'Bfloat16 floating-point value, distinct from f16.',
     f32: 'IEEE binary32 floating-point value.', f64: 'IEEE binary64 floating-point value. The default floating-point type.', float: 'Alias of f64.',
     bool: 'Boolean value: true or false.', char: 'One Unicode scalar value.', byte: 'An 8-bit byte, distinct from u8.',
-    string: 'An owned UTF-8 string. Full allocation APIs depend on standard-library support.', string_view: 'A borrowed UTF-8 string view.',
+    string: 'An owned UTF-8 string. from_view/from_utf8 allocate explicitly and return Result<string, TextError>. Mutation requires an exclusive borrow.', string_view: 'An allocation-free borrowed UTF-8 string view. String literals are string_view values; byte lengths and Unicode scalar counts are distinct.',
     void: 'A function with no return value.', unit: 'A value type with one possible value.', never: 'A computation that does not return.',
     rsn: 'Infer a binding type from its initializer. Example: rsn value = 10;',
     Array: 'A fixed-size array: Array<T, N>. Declaration shorthand: i32 values[3] = [1, 2, 3];',
     Vector: 'A growable native owner. i32 values[] = [1, 2]?; uses a CollectionError Result; nested [] forms jagged vectors. Growth requires an exclusive borrow.',
     Slice: 'A borrowed read-only sequence of contiguous elements.', MutSlice: 'A borrowed mutable sequence with exclusive access.',
-    Tuple: 'A fixed collection of potentially different element types.', Range: 'An allocation-free integer range; start..end is half-open, start..=end is inclusive. Iteration safely stops at integer endpoints.',
+    Tuple: 'An owned collection of different field types. Tuple.make creates a value; get<I>/get_mut<I> borrow a compile-time field index.', Range: 'An allocation-free integer range; start..end is half-open, start..=end is inclusive. Iteration safely stops at integer endpoints.',
     Optional: 'A value that is present or absent; no unchecked null dereference.', Result: 'A success value or an error value. Postfix ? propagates failure.',
     CollectionError: 'Core collection error: AllocationFailure or SizeOverflow. Inspect its Result or propagate the exact error type with ?.',
     InputError: 'InputError<T> preserves an accepted input owner on AllocationFailure or SizeOverflow. Used by Vector.push and Box.new.',
     RangeError: 'Core range error: InvalidStep or CountOverflow. InvalidStep rejects zero step; len can fail even when iteration is valid.',
+    TextError: 'UTF-8 text creation and mutation error; allocation and invalid UTF-8 or byte boundaries are explicit Result failures.',
+    BoundsError: 'A checked slice operation rejected an invalid start or end index.',
+    IntegerError: 'A checked integer conversion rejected an out-of-range input.',
+    FloatError: 'A checked floating-point conversion rejected an unsupported or inexact value.',
+    Integer: 'Integer conversion namespace. convert<Destination>(value) returns a checked Result.',
+    Float: 'Floating-point conversion namespace. convert permits rounding; convert_exact and to_integer_exact require exact values.',
+    Fn: 'Callable constraint Fn<Tuple<Arguments...>, Output>: a closure callable through a shared borrow.',
+    FnMut: 'Callable constraint FnMut<Tuple<Arguments...>, Output>: a closure callable through an exclusive borrow.',
+    FnOnce: 'Callable constraint FnOnce<Tuple<Arguments...>, Output>: a closure callable by consuming its environment.',
     Self: 'The concrete implementing type within an interface.', Copy: 'Explicit permission for implicit bitwise value copying; every field must also support Copy.'
 };
 
 export const keywordDocs: Readonly<Record<string, string>> = {
+    type: 'Declare a transparent type alias: type UserId = u64; The alias retains the original type identity.',
     mut: 'Bindings are immutable by default. mut explicitly permits mutation.',
     const: 'A compile-time constant whose initializer must be evaluable at compile time.',
     persist: 'Persistent storage. Module values initialize before entry; local values initialize on first use.',
@@ -78,6 +90,139 @@ export const keywordDocs: Readonly<Record<string, string>> = {
     return: 'Return explicitly from every returning path in a non-void function. Returning a dangling borrow is rejected.',
     extern: 'Declare a C function with extern "C" ReturnType name(...);. The compiler enforces its supported ABI boundary.'
 };
+
+export const builtinAPIs: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+    string: {
+        byte_len: 'Return the UTF-8 byte length of a string_view or borrowed string.',
+        scalar_count: 'Count Unicode scalar values; this is not the count of displayed grapheme clusters.',
+        is_empty: 'Test whether the UTF-8 view or borrowed owner contains no bytes.',
+        view: 'Borrow a string as string_view without allocating or copying.',
+        as_bytes: 'Borrow UTF-8 storage as a read-only Slice<byte>.',
+        equals: 'Compare UTF-8 text without allocating.',
+        from_view: 'Create an owned string from a view; returns Result<string, TextError>.',
+        from_utf8: 'Validate and copy a Slice<byte> into an owned string; returns Result<string, TextError>.',
+        slice_bytes: 'Check byte bounds and UTF-8 scalar boundaries; returns Result<string_view, TextError>.',
+        append: 'Append a string_view through &mut string; returns Result<unit, TextError>.',
+        push_char: 'Append one Unicode scalar through &mut string; returns Result<unit, TextError>.',
+        clear: 'Clear an exclusively borrowed string while retaining its capacity.'
+    },
+    Tuple: {
+        make: 'Create a Tuple from ordered values using normal move/Copy rules.',
+        get: 'get<I>(&tuple) borrows a field with a compile-time checked index.',
+        get_mut: 'get_mut<I>(&mut tuple) exclusively borrows a field with a compile-time checked index.',
+        len: 'Return the number of fields in a borrowed tuple.',
+        is_empty: 'Test whether a borrowed tuple has zero fields.',
+        copy: 'Copy all fields; every field must implement Copy.'
+    },
+    Integer: { convert: 'convert<Destination>(value) performs a checked integer conversion and returns Result<Destination, IntegerError>.' },
+    Float: {
+        convert: 'convert<Destination>(value) converts to a float destination and explicitly permits rounding.',
+        convert_exact: 'convert_exact<Destination>(value) requires exact representation in the float destination.',
+        to_integer_exact: 'to_integer_exact<Destination>(value) requires a finite, integral, in-range float input.'
+    },
+    Never: { unreachable: 'Stop execution safely. This expression has type never and does not return.' }
+};
+
+const complexAPIs: Readonly<Record<string, string>> = {
+    new: 'Construct matching real and imaginary components without allocating.',
+    zero: 'Construct zero real and imaginary components.', one: 'Construct one plus zero imaginary.',
+    imaginary_unit: 'Construct zero plus one imaginary.',
+    add: 'Add matching complex components.', sub: 'Subtract matching complex components.',
+    mul: 'Multiply two complex values using ordinary component-format operations.',
+    neg: 'Negate both components.', conjugate: 'Negate the imaginary component.',
+    eq: 'Compare both components using ordinary floating equality.',
+    is_nan: 'Test whether either component is NaN.', is_finite: 'Test whether both components are finite.',
+    norm_squared: 'Return real*real + imag*imag; ordinary intermediate rounding and overflow apply.',
+    magnitude: 'Compute a stable magnitude through the numeric runtime and round to the component format.',
+    norm: 'Return the magnitude.',
+    div: 'Return Result<Self, ComplexError>; a zero divisor returns ZeroDivisor.',
+    reciprocal: 'Return one divided by the input with explicit zero-divisor failure.'
+};
+
+const importedTypes: Readonly<Record<string, { module: string; description: string }>> = {
+    Simd: { module: 'simd', description: 'Fixed CPU SIMD lanes up to 128 bits; requires an explicit simd import.' },
+    SimdMask: { module: 'simd', description: 'One boolean per fixed CPU SIMD lane; requires an explicit simd import.' },
+    Floating: { module: 'numeric', description: 'Sealed scalar-format capability for f16, bf16, f32 and f64. Import from numeric; user structs cannot implement it.' },
+    Complex: { module: 'complex', description: 'Complex<T = f64> owns two matching floating components. Import explicitly from complex.' },
+    complex: { module: 'complex', description: 'Alias of Complex<f64>; requires import complex { complex };.' },
+    ComplexError: { module: 'complex', description: 'The imported complex error has ZeroDivisor; ordinary nonfinite floating results are not separate error variants.' }
+};
+
+const importedAPIs: Readonly<Record<string, { module: string; selection?: string; members: Readonly<Record<string, string>> }>> = {
+    Complex: { module: 'complex', selection: 'Complex', members: complexAPIs },
+    complex: { module: 'complex', selection: 'complex', members: complexAPIs },
+    Simd: { module: 'simd', selection: 'Simd', members: {
+        splat: 'Repeat one scalar into fixed CPU lanes without allocating.',
+        from_array: 'Copy a fixed array into a matching SIMD value.',
+        to_array: 'Copy SIMD lanes into a fixed array.',
+        load: 'Read contiguous lanes from a borrowed fixed array after a bounds check.',
+        store: 'Write contiguous lanes through an exclusive fixed-array borrow after a bounds check.',
+        add: 'Add matching lanes; integer overflow stops execution.',
+        sub: 'Subtract matching lanes; integer overflow stops execution.',
+        mul: 'Multiply matching lanes; integer overflow stops execution.',
+        div: 'Divide matching lanes; integer zero and signed overflow are checked.',
+        eq: 'Compare matching lanes for equality and return a mask.',
+        ne: 'Compare matching lanes for inequality and return a mask.',
+        lt: 'Compare matching lanes for less-than and return a mask.',
+        le: 'Compare matching lanes for less-than-or-equal and return a mask.',
+        gt: 'Compare matching lanes for greater-than and return a mask.',
+        ge: 'Compare matching lanes for greater-than-or-equal and return a mask.',
+        select: 'Select lanes from two eagerly evaluated values using a matching mask.',
+        sum: 'Fold lanes from left to right, checking every integer addition; no reassociation.',
+        sqrt: 'Compute the floating-point square root in every lane.',
+        extract: 'Read one scalar lane after checking its usize index.',
+        lanes: 'Return the compile-time lane count as usize.'
+    } },
+    SimdMask: { module: 'simd', selection: 'SimdMask', members: {
+        any: 'Return whether at least one lane is true.', all: 'Return whether every lane is true.',
+        and: 'Combine matching boolean lanes with logical AND.', or: 'Combine matching boolean lanes with logical OR.',
+        xor: 'Combine matching boolean lanes with logical XOR.', not: 'Invert each boolean lane.',
+        lanes: 'Return the number of mask lanes as usize.'
+    } },
+    parallel: { module: 'parallel', members: {
+        for_each: 'Visit disjoint scalar MutSlice elements with a validated named worker; join every worker before returning.',
+        worker_count: 'Return the native worker limit, capped at 32. This does not predict a speedup.'
+    } }
+};
+
+export function namespaceAPIs(doc: DocumentAnalysis, receiver: string): Readonly<Record<string, string>> | undefined {
+    if (builtinAPIs[receiver]) return builtinAPIs[receiver];
+    for (const [name, specification] of Object.entries(importedAPIs)) {
+        const qualified = specification.selection ? `${specification.module}.${name}` : specification.module;
+        if (receiver !== name && receiver !== qualified) continue;
+        const imported = doc.imports.some(item => item.path === specification.module
+            && (!specification.selection || (receiver === qualified && item.names === undefined)
+                || item.wildcard || item.names?.includes(specification.selection)));
+        if (imported) return specification.selection ? specification.members : Object.fromEntries(
+            Object.entries(specification.members).filter(([member]) => doc.imports.some(item => item.path === specification.module
+                && (item.names === undefined || item.wildcard || item.names.includes(member)))));
+    }
+    return undefined;
+}
+
+export function importedTypeDocumentation(doc: DocumentAnalysis, offset: number): string | undefined {
+    const token = tokenAt(doc, offset);
+    if (token?.kind !== 'identifier') return undefined;
+    const entry = importedTypes[token.text];
+    if (!entry) return undefined;
+    const qualifier = /([A-Za-z_][A-Za-z_0-9.]*)\s*\.\s*$/.exec(doc.text.slice(0, token.start));
+    const imported = doc.imports.some(item => item.path === entry.module
+        && (!qualifier || qualifier[1] === entry.module)
+        && ((qualifier && item.names === undefined) || item.wildcard || item.names?.includes(token.text)));
+    return imported ? entry.description : undefined;
+}
+
+export function importedTypeCompletions(doc: DocumentAnalysis): { name: string; description: string }[] {
+    return Object.entries(importedTypes).filter(([name, entry]) => doc.imports.some(item => item.path === entry.module
+        && (item.wildcard || item.names?.includes(name)))).map(([name, entry]) => ({ name, description: entry.description }));
+}
+
+export function builtinMemberDocumentation(doc: DocumentAnalysis, offset: number): string | undefined {
+    const token = tokenAt(doc, offset);
+    if (token?.kind !== 'identifier') return undefined;
+    const receiver = /([A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*)\s*\.\s*$/.exec(doc.text.slice(0, token.start));
+    return receiver ? namespaceAPIs(doc, receiver[1])?.[token.text] : undefined;
+}
 
 // UTF-16 오프셋을 유지해 VS Code 위치와 일치시킨다.
 // Preserve UTF-16 offsets so editor positions match the original document.
@@ -116,7 +261,7 @@ export function tokenize(text: string): Token[] {
                 ++at; while (at < text.length && /[A-Za-z_0-9]/.test(text[at])) { ++at; }
             }
             if (/[eE]/.test(text[at - 1] ?? '') && /[+-]/.test(text[at] ?? '')) {
-                ++at; while (at < text.length && /[0-9_]/.test(text[at])) { ++at; }
+                ++at; while (at < text.length && /[A-Za-z_0-9]/.test(text[at])) { ++at; }
             }
             push('number', start, at); continue;
         }
@@ -133,7 +278,7 @@ function angleEnd(tokens: Token[], begin: number): number {
         else if (tokens[i].text === '>') { --depth; }
         else if (tokens[i].text === '>>') { depth -= 2; }
         if (depth <= 0) { return i; }
-        if ([';', '{', '}', '='].includes(tokens[i].text)) { return -1; }
+        if ([';', '{', '}'].includes(tokens[i].text)) { return -1; }
     }
     return -1;
 }
@@ -218,10 +363,21 @@ export function analyzeDocument(uri: string, text: string, moduleName?: string):
     const addTypeParameters = (begin: number, scope: number) => {
         if (code[begin]?.text !== '<') { return; }
         const end = angleEnd(code, begin); if (end < 0) { return; }
-        for (let i = begin + 1; i < end; ++i) {
-            if (code[i].kind === 'identifier' && (i === begin + 1 || code[i - 1].text === ',')) {
-                add(i, 'typeParameter', code[i].text, scope, i, code[i].end, []); skipped.add(i);
+        for (let i = begin + 1; i < end;) {
+            const constant = code[i].text === 'const';
+            const nameAt = constant ? typeEnd(code, i + 1) : i;
+            if (nameAt < end && code[nameAt].kind === 'identifier' && !reserved.has(code[nameAt].text)) {
+                add(nameAt, 'typeParameter', constant ? normalizedType(text.slice(code[i + 1].start, code[nameAt].start)) : code[nameAt].text,
+                    scope, i, code[nameAt].end, constant ? ['const'] : []);
+                skipped.add(nameAt);
             }
+            let next = nameAt + 1;
+            while (next < end && code[next].text !== ',') {
+                if (['(', '[', '{'].includes(code[next].text) && pairs.has(next)) next = pairs.get(next)! + 1;
+                else if (code[next].text === '<' && angleEnd(code, next) >= next) next = angleEnd(code, next) + 1;
+                else ++next;
+            }
+            i = next + 1;
         }
     };
     for (let i = 0; i < code.length; ++i) {
@@ -249,6 +405,15 @@ export function analyzeDocument(uri: string, text: string, moduleName?: string):
             }
             if (pieces.length > 0) { result.imports.push({ path: pieces.join('.'), names, wildcard, public: flags.includes('public'), start: code[i].start, end: code[next]?.end ?? text.length, selections }); }
             for (let j = i; j <= next; ++j) { skipped.add(j); } continue;
+        }
+        if (first.text === 'type' && code[at + 1]?.kind === 'identifier' && code[at + 2]?.text === '=') {
+            let end = at + 3;
+            while (end < code.length && code[end].text !== ';') ++end;
+            if (end === at + 3 || !code[end]) continue;
+            add(at + 1, 'typeAlias', normalizedType(text.slice(code[at + 3].start, code[end].start)),
+                scopeAt(result, first.start), i, code[end].end, flags);
+            skipped.add(at + 1);
+            continue;
         }
         if (['struct', 'enum', 'interface'].includes(first.text) && code[at + 1]?.kind === 'identifier') {
             let body = at + 2; while (body < code.length && !['{', ';'].includes(code[body].text)) { ++body; }
@@ -303,6 +468,32 @@ export function analyzeDocument(uri: string, text: string, moduleName?: string):
         }
         add(nameAt, owner ? 'field' : flags.includes('const') ? 'constant' : 'variable', type, scope, i, code[end]?.end ?? name.end, flags);
         for (let j = i; j <= nameAt; ++j) { skipped.add(j); }
+    }
+    // 람다의 명시적 매개변수는 해당 본문에서만 선언으로 연결한다.
+    // Bind explicit lambda parameters only within their own body scope.
+    for (let i = 1; i < code.length; ++i) {
+        if (code[i].text !== '(' || code[i - 1].text !== ']' || !pairs.has(i)) continue;
+        const end = pairs.get(i)!;
+        if (code[end + 1]?.text !== '->' && !(code[end + 1]?.text === '-' && code[end + 2]?.text === '>')) continue;
+        let body = end + (code[end + 1].text === '->' ? 2 : 3);
+        while (body < code.length && !['{', ';'].includes(code[body].text)) ++body;
+        const scope = braceScopes.get(body);
+        if (scope === undefined) continue;
+        scopes[scope].start = code[i].start;
+        for (let param = i + 1; param < end;) {
+            const start = code[param].text === 'mut' ? param + 1 : param;
+            const nameAt = typeEnd(code, start);
+            if (nameAt > start && nameAt < end && code[nameAt].kind === 'identifier') {
+                add(nameAt, 'parameter', normalizedType(text.slice(code[start].start, code[nameAt].start)),
+                    scope, param, code[nameAt].end, start === param ? [] : ['mut']);
+            }
+            let next = Math.max(nameAt + 1, start + 1);
+            while (next < end && code[next].text !== ',') {
+                if (['(', '[', '{'].includes(code[next].text) && pairs.has(next)) next = pairs.get(next)! + 1;
+                else ++next;
+            }
+            param = next + 1;
+        }
     }
     // case의 필드 바인딩은 패턴 중괄호가 아니라 해당 분기 끝까지 살아 있다.
     // Case payload bindings live through the branch rather than just the pattern braces.

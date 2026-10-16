@@ -1,0 +1,150 @@
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : INSTALL.txt
+#
+# Description :
+#     플랫폼별 설치·PATH 설정·제거 방법과 배포물 생성 방법을 설명한다.
+#     Explain platform installation, PATH setup, removal, and installer builds.
+#
+# ========================
+
+Aevix 0.2 installers
+====================
+
+These installers include aevixc, the matching Aevix runtime, and the bundled
+numeric/complex library modules. When required,
+the macOS and Linux packages also carry the compiler's shared LLVM dependencies
+and their license notices. Debian-based bundles record each dependency's package
+owner, verbatim copyright notice and referenced common license texts in
+share/aevix/licenses/dependency-notices.tsv. They do not install Clang, a system linker,
+or an operating-system SDK. Run aevixc --check-deps after installation for a
+target-aware report. GNU GCC is not a universal requirement.
+
+macOS on Apple Silicon
+----------------------
+
+Open Aevix-0.2.0-macOS-arm64.pkg and follow Apple's Installer. The package installs
+under /Library/Aevix and adds /Library/Aevix/bin to /etc/paths.d/aevix. No personal
+shell configuration is changed by the PKG. Open a new terminal after installing.
+
+Apple Silicon alone does not determine compatibility. Each package records the
+highest minimum macOS version required by its compiler and bundled libraries in
+its runtime-requirements.txt metadata and matching installer sidecar. Both the
+PKG and per-user installer reject older macOS versions before changing an
+installation. M1, M2, M3, M4 and later chips require the recorded macOS version.
+
+The locally produced package is unsigned and is not notarized. The compiler and
+bundled libraries are ad-hoc signed so they can load after relocation. This does
+not constitute a Developer ID signature or Apple's notarization.
+
+Remove the system installation by opening /Library/Aevix/uninstall.command.
+It asks for administrator access and removes only the managed installation and
+its matching paths.d entry.
+
+A per-user .run alternative is also generated. It follows the Linux procedure
+below and does not require administrator access.
+
+Linux on ARM64 or x86-64
+------------------------
+
+Use the installer matching the machine architecture:
+
+    sh Aevix-0.2.0-Linux-arm64.run
+    sh Aevix-0.2.0-Linux-x86_64.run
+
+Only run one of those commands, according to the machine. The default install
+directory is ~/.local/share/aevix. The command ~/.local/bin/aevixc is a symlink
+to that installation. The installer adds one marked PATH block to .profile,
+.bashrc, .zprofile, and .zshrc, and supplies a dedicated fish configuration.
+Existing user configuration is preserved. Open a new terminal after installing.
+
+An existing unrelated aevixc command or unmanaged installation directory causes
+an error rather than an overwrite. Running the same installer again upgrades a
+managed installation without duplicating PATH blocks.
+
+Optional arguments:
+
+    sh Aevix.run --prefix /absolute/per-user/path
+    sh Aevix.run --no-modify-path
+
+Remove the default per-user installation with:
+
+    sh "$HOME/.local/share/aevix/uninstall.sh"
+
+Removal deletes the installer-owned command link and marked PATH blocks; it does
+not remove other PATH entries. For another installation prefix, run uninstall.sh
+inside that prefix instead.
+
+The package uses the host system's C runtime. Build Linux packages on the oldest
+supported distribution when wider glibc compatibility is needed. An ARM64 build
+does not run on x86-64, and an x86-64 build does not run natively on ARM64.
+
+Windows on x86-64
+-----------------
+
+The current Windows development compiler is AOT-only. Its package does not
+include an LLVM-enabled Windows JIT build.
+This MinGW-w64 build needs Clang and a matching MinGW-w64 linker/runtime for AOT
+execution. Run aevixc --check-deps to diagnose missing tools after installation.
+
+Open Aevix-0.2.0-Windows-x86_64-Setup.exe. The native installer needs no separate
+NSIS, Inno Setup, PowerShell package, or administrator account. It installs under
+%LOCALAPPDATA%\Programs\Aevix, adds its bin directory to the current user's PATH,
+and broadcasts the Windows environment-change notification. Open a new terminal
+to use the updated environment; already-running shells retain their old PATH.
+
+Remove Aevix from Settings > Apps, or run Uninstall.exe --uninstall in the install
+directory. The uninstaller removes its PATH entry only if setup originally added
+that entry. Other user PATH entries and additional user files are preserved.
+Uninstalling uses a temporary copy of the setup executable so that the installed
+Uninstall.exe can be deleted; the temporary copy may remain in Windows TEMP.
+
+The installer executable is unsigned. A local cross-build verifies compilation
+and PE format, but does not establish successful execution on a Windows machine.
+Native Windows installation and uninstall checks remain a release requirement.
+
+For unattended use, pass --silent. Uninstallation uses --uninstall --silent.
+The installed share/aevix/licenses directory includes the GCC runtime exception,
+GPLv3 text, MinGW-w64 notice, and their source references. Aevix's own Apache
+license is supplied separately.
+
+Building installers
+-------------------
+
+Build the compiler with AEVIX_PORTABLE_PACKAGE=ON first. This prevents package
+defaults from embedding machine-specific build runtime and Clang locations.
+
+    cmake -S . -B build-package -DCMAKE_BUILD_TYPE=Release -DAEVIX_PORTABLE_PACKAGE=ON
+    cmake --build build-package --parallel
+    sh tools/packaging/build-installers.sh --build-dir build-package --version 0.2.0
+
+For a multi-configuration generator, select the same configuration for building
+and packaging. The optional --config value is passed to cmake --install; without
+it, CMake uses its default install configuration. For example:
+
+    cmake --build build-package --config Release --parallel
+    sh tools/packaging/build-installers.sh --build-dir build-package --config Release --version 0.2.0
+
+macOS packaging needs Apple's pkgbuild, install_name_tool, codesign, CMake, tar,
+and a SHA-256 utility. Linux uses CMake's runtime dependency discovery; patchelf
+is used when present, with a shell launcher fallback when absent. Build each Linux
+architecture on a matching host or VM.
+
+For the Windows setup, supply an existing x86-64 Windows cross-build:
+
+    sh tools/packaging/build-windows-installer.sh --build-dir WINDOWS_BUILD --version 0.2.0
+
+For a multi-configuration Windows build, add --config Release. The script first
+looks for WINDOWS_BUILD/Release/aevixc.exe and
+WINDOWS_BUILD/runtime-payload/Release/libaevix_runtime.a. The single-configuration
+locations aevixc.exe and runtime-payload/libaevix_runtime.a remain supported.
+
+That command uses x86_64-w64-mingw32-g++ and x86_64-w64-mingw32-windres. Override
+them with AEVIX_WINDOWS_CXX and AEVIX_WINDOWS_WINDRES if needed. The compiler
+payload must be statically linked; the setup does not currently bundle DLLs.
+
+Outputs default to releases/0.2V/installers. SHA256SUMS records installer checksums.
+Generated installers are local artifacts and are not published automatically.
+CPack source packaging is disabled; use the repository's public GitHub source archives.

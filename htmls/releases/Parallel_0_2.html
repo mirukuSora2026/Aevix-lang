@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Scoped, disjoint mutation of scalar elements through an explicit parallel module.">
+  <title>CPU parallel iteration — Aevix 0.2</title>
+  <link rel="stylesheet" href="../css/root.css?v=3">
+  <link rel="preload" href="../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../js/docs.js?v=3" defer></script>
+<link rel="icon" type="image/png" href="../images/aevix-logo.png">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header">
+  <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+  <nav class="header-nav" aria-label="Documentation"><a href="0_2.html">0.2 profile</a><a href="../data_type/index.html">Types</a><a href="../grammar/index.html">Grammar</a><a href="../errors/index.html">Errors</a></nav>
+  <span class="draft-badge">0.2 DEVELOPMENT</span>
+</div></header>
+<main id="main-content" class="page-shell">
+  <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Documentation</a><span class="separator" aria-hidden="true">/</span><a href="0_2.html">0.2</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">CPU parallel iteration</span></nav>
+  <header class="doc-intro"><div><p class="eyebrow">IMPLEMENTED LANGUAGE PROFILE</p><h1>CPU parallel iteration</h1><p class="doc-subtitle">Scoped, disjoint mutation of scalar elements through an explicit parallel module.</p><div class="doc-meta"><span class="meta-chip">0.2 development</span><span class="meta-chip">AOT / ORC JIT</span><a href="0_2.html#limits">Release boundaries</a></div></div><div class="type-mark" aria-hidden="true"><strong>CPU</strong><span>0.2 reference</span></div></header>
+  <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#start"><span class="toc-number">01</span><span>Start with a mutable slice</span></a></li><li><a href="#api"><span class="toc-number">02</span><span>Implemented API</span></a></li><li><a href="#worker"><span class="toc-number">03</span><span>Worker safety is checked transitively</span></a></li><li><a href="#lifecycle"><span class="toc-number">04</span><span>Disjoint work and scoped completion</span></a></li><li><a href="#failure"><span class="toc-number">05</span><span>Thread creation failure and cost</span></a></li><li><a href="#checks"><span class="toc-number">06</span><span>Checked behavior</span></a></li></ol></details><nav class="family-nav" aria-label="0.2 reference"><h2>0.2 reference</h2><div class="family-links"><a href="0_2.html">0.2 implementation profile</a><a href="Closures_0_2.html">Closures and callable contracts</a><a href="Parallel_0_2.html" aria-current="page">CPU parallel iteration</a><a href="Bench_0_2.html">Function measurements</a></div></nav></aside><article class="content">
+<section id="start" aria-labelledby="start-heading"><h2 id="start-heading">Start with a mutable slice</h2>
+<p>Import <code>parallel</code> explicitly, provide a named worker, and pass an exclusive slice. The function finishes all element work before returning to its caller.</p><pre class="code-block"><code id="Aevix">import parallel;
+
+void transform(&amp;mut i32 item) {
+    *item += 3;
+    return;
+}
+
+i32 main() {
+    mut i32 values[1025] = [1; 1025];
+    parallel.for_each(Slice.from_array_mut(&amp;mut values), transform);
+    for (i32 value : values) {
+        if (value != 4) return 1;
+    }
+    return 0;
+}</code></pre><p><code>Slice.from_vector_mut(&amp;mut owner)</code> can provide the same kind of view over a vector. The owner remains protected by the exclusive loan while parallel work is using its storage.</p>
+</section>
+<section id="api" aria-labelledby="api-heading"><h2 id="api-heading">Implemented API</h2>
+<div class="table-scroll" role="region" aria-label="Reference table"><table><thead><tr><th>Call</th><th>Result</th><th>Contract</th></tr></thead><tbody><tr><td><code>parallel.for_each(MutSlice&lt;T&gt; items, worker)</code></td><td><code>unit</code></td><td>Process each element exactly once on normal completion, using a validated <code>void worker(&amp;mut T item)</code>.</td></tr><tr><td><code>parallel.worker_count()</code></td><td><code>usize</code></td><td>Return the runtime worker limit, between 1 and 32, based on available logical CPUs.</td></tr></tbody></table></div><p><code>T</code> is limited to supported scalar numeric types, bool, char and byte. A shared Slice cannot be passed where a MutSlice is required. The writable view is passed directly; callers do not take an additional address of the view.</p><p>The reported worker count is an upper bound. Actual worker use is also bounded by the slice length, and thread creation failure can reduce it. A nonempty call includes work performed by the calling thread.</p>
+</section>
+<section id="worker" aria-labelledby="worker-heading"><h2 id="worker-heading">Worker safety is checked transitively</h2>
+<p>A worker must be a named, module-level, non-generic function with exactly one exclusive scalar reference parameter and a void return type. Overloaded or captured callable values do not serve as workers in this profile.</p><p>The checker follows calls made by the worker. Each reachable helper needs an inspectable Aevix body and must obey the same restrictions.</p><ul><li>No access to module variables, persist storage or captured storage, including reads of global values.</li><li>No external C functions, dynamic calls, nested parallel work or unvalidated compiler intrinsics.</li><li>Local variables and parameters are limited to scalars and scalar borrows.</li><li>Helper return values are limited to scalars, scalar borrows, unit, void or never.</li></ul><p>These restrictions provide a bounded 0.2 safety model. They do not claim general Send/Sync checking for arbitrary user-defined owners or foreign code.</p><pre class="code-block"><code class="language-aevix">import parallel;
+
+void add_three(&amp;mut i32 item) {
+    *item += 3;
+    return;
+}
+
+void transform(&amp;mut i32 item) {
+    add_three(&amp;mut *item);
+    *item *= 2;
+    return;
+}</code></pre>
+</section>
+<section id="lifecycle" aria-labelledby="lifecycle-heading"><h2 id="lifecycle-heading">Disjoint work and scoped completion</h2>
+<p>The runtime partitions the slice into contiguous, nonoverlapping chunks. Each worker receives elements from its own chunk, so safe worker code cannot obtain a second alias to another worker’s element.</p><p>Element execution order is unspecified. The caller must not depend on a particular thread identity or on one index finishing before another. For an empty slice, the worker is not called.</p><p>All started worker threads are joined before a normal return. No work is detached, and the call does not extend the slice loan into a background task. Once the loan is no longer live, normal owner access can resume.</p><div class="callout warning"><strong>Completion is not rollback.</strong> A worker that never returns prevents completion. A checked arithmetic trap or another fatal runtime failure terminates the process; it does not undo elements already modified.</div>
+</section>
+<section id="failure" aria-labelledby="failure-heading"><h2 id="failure-heading">Thread creation failure and cost</h2>
+<p>If the operating system refuses a new worker thread, the calling thread processes only the chunks that have not started. Already started threads continue and are joined. This fallback avoids duplicate element calls and requires no ParallelError result.</p><p>The runtime uses bounded stack bookkeeping rather than allocating a collection of tasks. The operating system still supplies thread resources. Creating and joining threads has a real cost on each call, so small or inexpensive workloads can be slower than a sequential loop.</p><p>There is no guaranteed speedup, reusable task pool, user-selected scheduling policy or GPU dispatch in this API. SIMD is a separate explicit module; see the <a href="../data_type/Simd/Simd_02.html">implemented SIMD reference</a>.</p>
+</section>
+<section id="checks" aria-labelledby="checks-heading"><h2 id="checks-heading">Checked behavior</h2>
+<p>Native runtime tests check exactly-once processing, multiple worker participation, scalar strides, empty and single-element slices, and a forced thread-creation-failure fallback. Compiler integration tests execute the same element transformation through AOT at two optimization levels and through ORC JIT.</p><p>Negative compiler checks cover missing import, a shared slice, the wrong worker signature, direct and indirect global access, persist access and external calls. Final native validation of each release platform is tracked in the <a href="0_2.html#limits">0.2 implementation profile</a>.</p>
+</section>
+<nav class="page-navigation" aria-label="Related documentation"><a href="0_2.html"><span>Release reference</span>Back to the 0.2 implementation profile</a></nav>
+  </article></div>
+  <footer class="page-footer"><span>Aevix · 0.2 development</span><span>Implementation reference · platform qualification in progress</span></footer>
+</main>
+</body>
+</html>

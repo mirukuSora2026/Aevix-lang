@@ -5,8 +5,8 @@
 // File name : main.cpp
 //
 // Description :
-//     구문·타입·소유권 검사와 AIR·LLVM 출력, AOT 빌드 및 호스트 실행을 제공한다.
-//     Provide syntax, type, and ownership checks, AIR and LLVM output, AOT builds, and host execution.
+//     구문·타입·소유권 검사, AOT·JIT 실행과 외부 도구 의존성 진단을 제공한다.
+//     Provide syntax, type, and ownership checks, AOT/JIT execution, and external dependency diagnostics.
 //
 // ========================
 
@@ -29,6 +29,7 @@
 
 #include <filesystem>
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -63,11 +64,12 @@
 
 namespace
 {
-    enum class Mode { Ast, Tokens, Check, AIR, LLVM, Build, Run, JIT, Starter };
+    enum class Mode { Ast, Tokens, Check, AIR, LLVM, Build, Run, JIT, Starter, Dependencies };
 
     void usage(std::ostream& output)
     {
         output << "usage: aevixc [mode] [options] file.avx\n"
+               << "       aevixc --check-deps [--clang FILE] [--target TRIPLE] [-c] [--runtime FILE]\n"
                << "  file.avx               Compile and execute without keeping build outputs (default)\n"
                << "  --with-starter         Save a native executable beside the source and a POSIX .sh launcher\n"
                << "  --tokens | --ast       Inspect syntax\n"
@@ -75,6 +77,7 @@ namespace
                << "  --emit-air | --emit-llvm  Print checked intermediate code\n"
                << "  --build | --run        Compile an executable or compile and run on the host\n"
                << "  --jit                  Execute checked code using the native ORC JIT\n"
+               << "  --check-deps           Probe Clang, target linking/SDK, and the Aevix runtime without source\n"
                << "  --stdin                Read entry contents from stdin (preserves module path)\n"
                << "  --link FILE            Link an external object, archive, or shared library\n"
                << "  --load FILE            Load a shared library into the JIT session\n"
@@ -208,6 +211,52 @@ namespace
         return AEVIX_DEFAULT_RUNTIME;
     }
 
+    void printDependencyWarnings(const aevix::AOTResult& result)
+    {
+        for (const auto& warning : result.dependencyWarnings)
+            std::cerr << "warning: dependency: " << warning << '\n';
+    }
+
+    // 점검용 프로그램은 실행하지 않으며 임시 출력과 제한 시간으로 도구 체인을 검증한다.
+    // Validate the toolchain with temporary output and a timeout, without running the probe program.
+    int checkDependencies(aevix::AOTOptions options)
+    {
+        if (!options.objectOnly && options.runtimeObjects.empty() && !hostTarget(options.targetTriple))
+        {
+            std::cerr << "warning: dependency: A cross-target executable probe requires the target's Aevix runtime archive; select it with --runtime FILE, or use -c to check object generation only.\n"
+                      << "error: dependency check failed for " << options.targetTriple << '\n';
+            return 1;
+        }
+        std::string error;
+        auto temporary = aevix::TemporaryDirectory::create("aevix-deps-", error);
+        if (!temporary) { std::cerr << "error: " << error << '\n'; return 2; }
+        options.output = temporary->path() / (options.objectOnly ? "probe.o" : "probe.exe");
+        options.timeout = std::chrono::seconds(15);
+        if (!options.objectOnly && options.runtimeObjects.empty()) options.runtimeObjects.push_back(runtimeArchive());
+        const std::string probe = options.objectOnly ? "define i32 @main() {\nentry:\n  ret i32 0\n}\n"
+            : "@probe_domain = internal global ptr null\ndeclare void @aevix_persist_shutdown(ptr)\n"
+              "define i32 @main() {\nentry:\n  call void @aevix_persist_shutdown(ptr @probe_domain)\n  ret i32 0\n}\n";
+        const auto result = aevix::compileAOT(probe, options);
+        printDependencyWarnings(result);
+        std::error_code filesystemError;
+        const bool producedOutput = std::filesystem::is_regular_file(options.output, filesystemError)
+            && !filesystemError && std::filesystem::file_size(options.output, filesystemError) > 0 && !filesystemError;
+        if (!result.succeeded || !producedOutput)
+        {
+            if (result.dependencyWarnings.empty())
+                std::cerr << "warning: dependency: The selected toolchain could not produce the test "
+                          << (options.objectOnly ? "object" : "executable")
+                          << ". Check --clang, --target, and the target linker/SDK installation.\n";
+            std::cerr << "error: dependency check failed for " << options.targetTriple << '\n'
+                      << result.message << (result.message.empty() || result.message.back() != '\n' ? "\n" : "");
+            return 1;
+        }
+        std::cout << "Dependency check passed for " << options.targetTriple
+                  << (options.objectOnly ? " (object generation only; linker/runtime not checked).\n"
+                                         : " (compile and link; runtime archive checked; test program not executed).\n");
+        return 0;
+    }
+
     std::string shellQuote(const std::string& text)
     {
         std::string result = "'";
@@ -312,6 +361,7 @@ int compilerMain(int argc, char** argv)
         else if (argument == "--with-starter") mode = Mode::Starter;
         else if (argument == "--run") mode = Mode::Run;
         else if (argument == "--jit") mode = Mode::JIT;
+        else if (argument == "--check-deps") mode = Mode::Dependencies;
         else if (argument == "--stdin") stdinSource = true;
         else if (argument == "-c") { backend.objectOnly = true; backendOptions = true; }
         else if (argument.size() == 3 && argument.starts_with("-O") && argument[2] >= '0' && argument[2] <= '3')
@@ -357,15 +407,17 @@ int compilerMain(int argc, char** argv)
         else return invalidUsage();
     }
 
-    if (path.empty()) { usage(std::cerr); return 2; }
+    if (path.empty() && mode != Mode::Dependencies) { usage(std::cerr); return 2; }
+    if (mode == Mode::Dependencies && (!path.empty() || stdinSource || moduleOptions
+        || !output.empty() || !backend.linkInputs.empty() || !jit.sharedLibraries.empty())) return invalidUsage();
     const bool syntax = mode == Mode::Ast || mode == Mode::Tokens;
     if (moduleOptions && syntax) return invalidUsage();
     if (stdinSource && syntax) return invalidUsage();
     if (backendOptions && (syntax || mode == Mode::Check || mode == Mode::AIR)) return invalidUsage();
-    if (backend.objectOnly && mode != Mode::Build) return invalidUsage();
+    if (backend.objectOnly && mode != Mode::Build && mode != Mode::Dependencies) return invalidUsage();
     if (!output.empty() && mode != Mode::Build) return invalidUsage();
     if (!backend.linkInputs.empty() && mode != Mode::Build && mode != Mode::Run && mode != Mode::Starter) return invalidUsage();
-    if (!backend.runtimeObjects.empty() && mode != Mode::Build && mode != Mode::Run && mode != Mode::Starter) return invalidUsage();
+    if (!backend.runtimeObjects.empty() && mode != Mode::Build && mode != Mode::Run && mode != Mode::Starter && mode != Mode::Dependencies) return invalidUsage();
     if (!jit.sharedLibraries.empty() && mode != Mode::JIT) return invalidUsage();
     if (mode == Mode::JIT && clangSpecified) return invalidUsage();
     if (backend.targetTriple.empty()) backend.targetTriple = nativeTarget();
@@ -374,6 +426,7 @@ int compilerMain(int argc, char** argv)
         std::cerr << "error: supported targets are Apple Silicon macOS, ARM64/x86-64 Linux, and x86-64 Windows\n";
         return 2;
     }
+    if (mode == Mode::Dependencies) return checkDependencies(backend);
     if ((mode == Mode::Run || mode == Mode::JIT) && !hostTarget(backend.targetTriple))
     {
         std::cerr << "error: --run requires a host-compatible target; use --build -c for cross-target objects\n";
@@ -469,7 +522,19 @@ int compilerMain(int argc, char** argv)
         }
         else backend.output = output.empty() ? (backend.objectOnly ? (windowsTarget ? "a.obj" : "a.o") : (windowsTarget ? "a.exe" : "a.out")) : output;
         bool needsRuntime = false;
+        needsRuntime = llvm->find("@aevix_integer128_") != std::string::npos
+            || llvm->find("@aevix_complex_") != std::string::npos;
         for (const auto& global : air->globals) needsRuntime = needsRuntime || global.isPersist;
+        for (const auto& function : air->functions)
+        {
+            if (function.source)
+                needsRuntime = needsRuntime || std::any_of(function.source->children.begin(), function.source->children.end(),
+                    [](const auto& marker) { return marker->kind == "Bench"; });
+            for (const auto& block : function.blocks)
+                for (const auto& instruction : block.instructions)
+                    needsRuntime = needsRuntime || instruction.opcode == aevix::AIROpcode::TextIntrinsic
+                        || instruction.opcode == aevix::AIROpcode::ParallelIntrinsic;
+        }
         if (needsRuntime && !backend.objectOnly && backend.runtimeObjects.empty())
         {
             if (!hostTarget(backend.targetTriple))
@@ -477,6 +542,7 @@ int compilerMain(int argc, char** argv)
             backend.runtimeObjects.push_back(runtimeArchive());
         }
         const auto compiled = aevix::compileAOT(*llvm, backend);
+        printDependencyWarnings(compiled);
         if (!compiled.succeeded)
         {
             std::cerr << "error: AOT compilation failed\n" << compiled.message;

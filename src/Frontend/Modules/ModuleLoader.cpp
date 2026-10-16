@@ -25,6 +25,10 @@
 #include <system_error>
 #include <utility>
 
+#ifndef AEVIX_INSTALL_LANGUAGE_DIR
+#define AEVIX_INSTALL_LANGUAGE_DIR "share/aevix/library/Math"
+#endif
+
 namespace aevix
 {
     namespace
@@ -214,6 +218,18 @@ namespace aevix
                             if (byName_.contains("memory"))
                             { diagnose(child->range, "Ambiguous module path 'memory': project module and builtin standard module."); continue; }
                             target = registerMemoryModule();
+                        }
+                        else if (child->value == "parallel" || child->value == "simd")
+                        {
+                            if (byName_.contains(child->value))
+                            { diagnose(child->range, "Ambiguous module path '" + child->value + "': project module and builtin standard module."); continue; }
+                            target = registerCpuModule(child->value);
+                        }
+                        else if (child->value == "numeric" || child->value == "complex")
+                        {
+                            if (byName_.contains(child->value))
+                            { diagnose(child->range, "Ambiguous module path '" + child->value + "': project module and builtin standard module."); continue; }
+                            target = registerLibraryModule(child->value, child->range);
                         }
                         else
                         {
@@ -417,6 +433,83 @@ namespace aevix
                     return nullptr;
                 }
                 return &candidates_[found->second.front()];
+            }
+
+            ModuleId registerLibraryModule(const std::string& name, SourceRange range)
+            {
+                if (const auto found = loaded_.find(name); found != loaded_.end()) return found->second;
+                std::string executableError;
+                const auto executable = currentExecutable(executableError);
+                if (executable.empty())
+                { diagnose(range, "Cannot locate standard library relative to aevixc: " + executableError); return InvalidModuleId; }
+                const auto development = fs::path("share") / "aevix" / "library" / "Math" / (name + ".avx");
+                auto path = executable.parent_path() / development;
+                std::error_code error;
+                if (!fs::is_regular_file(path, error))
+                {
+                    path = executable.parent_path().parent_path() / AEVIX_INSTALL_LANGUAGE_DIR / (name + ".avx");
+                    if (!fs::is_regular_file(path, error))
+                        path = executable.parent_path().parent_path() / development;
+                }
+                std::string text;
+                if (!read(path, range, text)) return InvalidModuleId;
+                const auto source = sources_.add(utf8Path(path), std::move(text));
+                auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
+                auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
+                if (!ast) return InvalidModuleId;
+                if (name == "numeric")
+                    for (auto& declaration : ast->children)
+                        if (declaration->kind == "Interface" && declaration->value == "Floating")
+                        {
+                            auto marker = std::make_unique<Node>(); marker->kind = "CompilerNumericContract";
+                            marker->value = "float"; marker->range = declaration->range;
+                            declaration->children.push_back(std::move(marker));
+                        }
+                if (name == "complex")
+                    for (auto& declaration : ast->children)
+                        if (declaration->kind == "Struct" && declaration->value == "Complex")
+                            for (auto& method : declaration->children)
+                                if (method->kind == "Function" && (method->value == "magnitude" || method->value == "divide_components"))
+                                {
+                                    auto marker = std::make_unique<Node>(); marker->kind = "CompilerComplexMath";
+                                    marker->value = method->value; marker->range = method->range;
+                                    method->children.push_back(std::move(marker));
+                                }
+                const auto id = graph_.modules.size();
+                auto module = std::make_unique<SourceModule>();
+                module->name = name; module->package = "$" + name; module->path = std::move(path);
+                module->source = source; module->ast = std::move(ast);
+                graph_.modules.push_back(std::move(module)); loaded_[name] = id;
+                return id;
+            }
+
+            ModuleId registerCpuModule(const std::string& name)
+            {
+                if (const auto found = loaded_.find(name); found != loaded_.end()) return found->second;
+                const auto source = sources_.add("<aevix-" + name + ">", name == "simd"
+                    ? "public struct Simd {}; public struct SimdMask {};"
+                    : "public void for_each() {} public usize worker_count() { return 0; }");
+                auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
+                auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
+                if (!ast) return InvalidModuleId;
+                for (auto& declaration : ast->children)
+                {
+                    auto marker = std::make_unique<Node>();
+                    marker->kind = name == "simd" ? "CompilerSimd" : "CompilerParallel";
+                    marker->value = declaration->value; marker->range = declaration->range;
+                    declaration->children.push_back(std::move(marker));
+                    if (name == "parallel")
+                    {
+                        auto intrinsic = std::make_unique<Node>(); intrinsic->kind = "CompilerIntrinsic";
+                        intrinsic->range = declaration->range; declaration->children.push_back(std::move(intrinsic));
+                    }
+                }
+                const auto id = graph_.modules.size();
+                auto module = std::make_unique<SourceModule>();
+                module->name = name; module->package = "$" + name; module->path = "<aevix-" + name + ">";
+                module->source = source; module->ast = std::move(ast);
+                graph_.modules.push_back(std::move(module)); loaded_[name] = id;
+                return id;
             }
 
             ModuleId registerMemoryModule()

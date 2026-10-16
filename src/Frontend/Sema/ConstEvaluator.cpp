@@ -11,6 +11,7 @@
 // ========================
 
 #include "aevix/Frontend/Sema/ConstEvaluator.hpp"
+#include "aevix/Frontend/Sema/NumericLiteral.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -43,7 +44,7 @@ namespace aevix
         }
         bool floatingSpelling(std::string_view text)
         {
-            return !text.starts_with("0x") && !text.starts_with("0X") && text.find_first_of(".eE") != std::string_view::npos;
+            return numericFloating(text);
         }
         ConstEvaluation invalid(const Node& node, std::string message)
         {
@@ -53,22 +54,18 @@ namespace aevix
         {
             return {ConstStatus::Constant, std::move(constant), {}, {}};
         }
-        std::uint64_t mask(std::size_t bits)
+        UInt128 mask(std::size_t bits) { return UInt128::mask(static_cast<unsigned>(bits)); }
+        UInt128 representation(const ConstantValue& constant, std::size_t bits)
         {
-            return bits >= 64 ? std::numeric_limits<std::uint64_t>::max() : (std::uint64_t{1} << bits) - 1;
+            const auto magnitude = constant.integerMagnitude();
+            return (constant.negative ? UInt128{} - magnitude : magnitude) & mask(bits);
         }
-        std::uint64_t representation(const ConstantValue& constant, std::size_t bits)
+        ConstantValue fromRepresentation(UInt128 data, TypeId type, const Type& target)
         {
-            return (constant.negative ? std::uint64_t{0} - constant.magnitude : constant.magnitude) & mask(bits);
-        }
-        ConstantValue fromRepresentation(std::uint64_t data, TypeId type, const Type& target)
-        {
-            ConstantValue result;
-            result.kind = ConstantKind::Integer;
-            result.type = type;
-            data &= mask(target.bits);
-            result.negative = target.isSigned && (data & (std::uint64_t{1} << (target.bits - 1))) != 0;
-            result.magnitude = result.negative ? (std::uint64_t{0} - data) & mask(target.bits) : data;
+            ConstantValue result; result.kind = ConstantKind::Integer; result.type = type;
+            data = data & mask(target.bits);
+            result.negative = target.isSigned && static_cast<bool>(data & (UInt128{1} << (target.bits - 1)));
+            result.setIntegerMagnitude(result.negative ? (UInt128{} - data) & mask(target.bits) : data);
             return result;
         }
 
@@ -127,12 +124,12 @@ namespace aevix
                     if (node.value == "!" && result.kind == ConstantKind::Boolean) result.boolean = !result.boolean;
                     else if (node.value == "+" && (result.kind == ConstantKind::Integer || result.kind == ConstantKind::Float)) {}
                     else if (node.value == "-" && result.kind == ConstantKind::Integer)
-                        result.negative = result.magnitude && !result.negative;
+                        result.negative = static_cast<bool>(result.integerMagnitude()) && !result.negative;
                     else if (node.value == "-" && result.kind == ConstantKind::Float) result.floating = -result.floating;
                     else if (node.value == "~" && result.kind == ConstantKind::Integer)
                     {
                         const auto& target = types_.get(result.type);
-                        if (!target.bits || target.bits > 64) return invalid(node, "Invalid integer width in constant operation.");
+                        if (!target.bits || target.bits > 128) return invalid(node, "Invalid integer width in constant operation.");
                         result = fromRepresentation(~representation(result, target.bits), result.type, target);
                     }
                     else return {};
@@ -183,7 +180,7 @@ namespace aevix
                 if (node.kind == "Group") return rawSigned(*node.children[0], expected, negative);
                 if (node.kind == "Prefix") return rawSigned(*node.children[0], expected, node.value == "-" ? !negative : negative);
                 auto answer = integerLiteral(node, expected);
-                answer.value.negative = negative && answer.value.magnitude != 0;
+                answer.value.negative = negative && static_cast<bool>(answer.value.integerMagnitude());
                 return answer;
             }
             ConstEvaluation integerLiteral(const Node& node, TypeId expected)
@@ -192,7 +189,9 @@ namespace aevix
                 result.kind = ConstantKind::Integer;
                 const auto kind = types_.get(expected).kind;
                 result.type = kind == TypeKind::Integer || kind == TypeKind::Byte ? expected : types_.builtin("i32");
-                std::string spelling = node.value;
+                const auto suffix = numericSuffix(node.value);
+                if (!suffix.empty()) result.type = types_.builtin(suffix);
+                std::string spelling(numericSpelling(node.value));
                 spelling.erase(std::remove(spelling.begin(), spelling.end(), '_'), spelling.end());
                 unsigned base = 10;
                 std::size_t index = 0;
@@ -202,16 +201,10 @@ namespace aevix
                     else if (spelling[1] == 'b' || spelling[1] == 'B') { base = 2; index = 2; }
                     else if (spelling[1] == 'o' || spelling[1] == 'O') { base = 8; index = 2; }
                 }
-                for (; index < spelling.size(); ++index)
-                {
-                    const auto digit = spelling[index];
-                    const unsigned number = digit >= '0' && digit <= '9' ? static_cast<unsigned>(digit - '0')
-                        : digit >= 'a' && digit <= 'f' ? static_cast<unsigned>(digit - 'a' + 10)
-                        : digit >= 'A' && digit <= 'F' ? static_cast<unsigned>(digit - 'A' + 10) : base;
-                    if (number >= base || result.magnitude > (std::numeric_limits<std::uint64_t>::max() - number) / base)
-                        return invalid(node, "Compile-time integer literal overflow.");
-                    result.magnitude = result.magnitude * base + number;
-                }
+                UInt128 parsed;
+                if (!UInt128::parse(std::string_view(spelling).substr(index), parsed, base))
+                    return invalid(node, "Compile-time integer literal overflow.");
+                result.setIntegerMagnitude(parsed);
                 return value(std::move(result));
             }
             ConstEvaluation literal(const Node& node, TypeId expected)
@@ -266,10 +259,10 @@ namespace aevix
                     return answer.status == ConstStatus::Constant ? bounded(node, std::move(answer.value)) : answer;
                 }
                 std::string spelling;
-                for (char character : node.value) if (character != '_') spelling += character;
+                for (char character : numericSpelling(node.value)) if (character != '_') spelling += character;
                 char* end = nullptr;
                 result.kind = ConstantKind::Float;
-                result.type = types_.get(expected).kind == TypeKind::Float ? expected : types_.builtin("f64");
+                result.type = !numericSuffix(node.value).empty() ? types_.builtin(numericSuffix(node.value)) : types_.get(expected).kind == TypeKind::Float ? expected : types_.builtin("f64");
                 result.floating = std::strtold(spelling.c_str(), &end);
                 if (!end || *end || !std::isfinite(result.floating)) return invalid(node, "Invalid or out-of-range floating literal.");
                 const auto& target = types_.get(result.type);
@@ -286,12 +279,13 @@ namespace aevix
                 if (result.kind == ConstantKind::Integer)
                 {
                     const auto bits = type.kind == TypeKind::Byte ? 8 : type.bits;
-                    if (!bits || bits > 64) return invalid(node, "Invalid integer type in constant expression.");
-                    const auto bound = type.isSigned ? std::uint64_t{1} << (bits - 1) : mask(bits);
-                    if ((!type.isSigned && result.negative) || result.magnitude > bound
-                        || (type.isSigned && !result.negative && result.magnitude == bound))
+                    if (!bits || bits > 128) return invalid(node, "Invalid integer type in constant expression.");
+                    const auto magnitude = result.integerMagnitude();
+                    const auto bound = type.isSigned ? UInt128{1} << (bits - 1) : mask(bits);
+                    if ((!type.isSigned && result.negative) || magnitude > bound
+                        || (type.isSigned && !result.negative && magnitude == bound))
                         return invalid(node, "Compile-time integer overflow for " + types_.display(result.type) + ".");
-                    if (!result.magnitude) result.negative = false;
+                    if (!result.integerMagnitude()) result.negative = false;
                 }
                 if (result.kind == ConstantKind::Float)
                 {
@@ -347,8 +341,8 @@ namespace aevix
                 if (left.kind == ConstantKind::Integer)
                 {
                     order = left.negative != right.negative ? (left.negative ? -1 : 1)
-                        : left.magnitude == right.magnitude ? 0
-                        : (left.magnitude < right.magnitude ? -1 : 1) * (left.negative ? -1 : 1);
+                        : left.integerMagnitude() == right.integerMagnitude() ? 0
+                        : (left.integerMagnitude() < right.integerMagnitude() ? -1 : 1) * (left.negative ? -1 : 1);
                 }
                 else if (left.kind == ConstantKind::Float)
                 {
@@ -391,56 +385,54 @@ namespace aevix
             {
                 const auto& operation = node.value;
                 const auto& type = types_.get(left.type);
+                auto a = left.integerMagnitude(), b = right.integerMagnitude();
                 if (operation == "+" || operation == "-")
                 {
-                    if (operation == "-" && right.magnitude) right.negative = !right.negative;
+                    if (operation == "-" && b) right.negative = !right.negative;
                     if (left.negative == right.negative)
                     {
-                        if (left.magnitude > std::numeric_limits<std::uint64_t>::max() - right.magnitude)
-                            return invalid(node, "Compile-time integer overflow.");
-                        left.magnitude += right.magnitude;
+                        const auto sum = a + b;
+                        if (sum < a) return invalid(node, "Compile-time integer overflow.");
+                        a = sum;
                     }
-                    else if (left.magnitude >= right.magnitude) left.magnitude -= right.magnitude;
-                    else { left.magnitude = right.magnitude - left.magnitude; left.negative = right.negative; }
+                    else if (a >= b) a = a - b;
+                    else { a = b - a; left.negative = right.negative; }
                 }
                 else if (operation == "*")
                 {
-                    if (right.magnitude && left.magnitude > std::numeric_limits<std::uint64_t>::max() / right.magnitude)
-                        return invalid(node, "Compile-time integer overflow.");
-                    left.magnitude *= right.magnitude;
-                    left.negative = left.negative != right.negative;
+                    UInt128 product;
+                    if (UInt128::multiply(a, b, product)) return invalid(node, "Compile-time integer overflow.");
+                    a = product; left.negative = left.negative != right.negative;
                 }
                 else if (operation == "/" || operation == "%")
                 {
-                    if (!right.magnitude) return invalid(node, "Division by zero in compile-time constant.");
-                    if (type.isSigned && left.negative && left.magnitude == (std::uint64_t{1} << (type.bits - 1)) && right.negative && right.magnitude == 1)
+                    if (!b) return invalid(node, "Division by zero in compile-time constant.");
+                    if (type.isSigned && left.negative && a == (UInt128{1} << (type.bits - 1)) && right.negative && b == UInt128{1})
                         return invalid(node, "Compile-time integer overflow.");
-                    if (operation == "/") { left.magnitude /= right.magnitude; left.negative = left.negative != right.negative; }
-                    else left.magnitude %= right.magnitude;
+                    if (operation == "/") { a = a / b; left.negative = left.negative != right.negative; }
+                    else a = a % b;
                 }
                 else if (operation == "&" || operation == "|" || operation == "^")
                 {
-                    const auto a = representation(left, type.bits), b = representation(right, type.bits);
-                    left = fromRepresentation(operation == "&" ? a & b : operation == "|" ? a | b : a ^ b, left.type, type);
+                    const auto x = representation(left, type.bits), y = representation(right, type.bits);
+                    left = fromRepresentation(operation == "&" ? x & y : operation == "|" ? x | y : x ^ y, left.type, type);
+                    return bounded(node, std::move(left));
                 }
                 else if (operation == "<<" || operation == ">>")
                 {
-                    if (right.negative || right.magnitude >= type.bits) return invalid(node, "Invalid shift count in compile-time constant.");
-                    const auto count = static_cast<unsigned>(right.magnitude);
+                    if (right.negative || b.high || b.low >= type.bits) return invalid(node, "Invalid shift count in compile-time constant.");
+                    const auto count = static_cast<unsigned>(b.low);
                     if (operation == "<<")
                     {
-                        // 유효한 이동 횟수에서는 폭 밖 비트를 버리고 결과 비트를 해석한다.
-                        // With a valid count, discard bits outside the width and interpret the remaining bits.
                         left = fromRepresentation(representation(left, type.bits) << count, left.type, type);
+                        return bounded(node, std::move(left));
                     }
-                    else
-                    {
-                        const bool remainder = (left.magnitude & mask(count)) != 0;
-                        left.magnitude >>= count;
-                        if (left.negative && remainder) ++left.magnitude;
-                    }
+                    const bool remainder = static_cast<bool>(a & mask(count));
+                    a = a >> count;
+                    if (left.negative && remainder) a = a + UInt128{1};
                 }
                 else return {};
+                left.setIntegerMagnitude(a);
                 return bounded(node, std::move(left));
             }
         };
@@ -448,7 +440,7 @@ namespace aevix
 
     std::string ConstantValue::key() const
     {
-        if (kind == ConstantKind::Integer) return "integer:" + std::string(negative ? "-" : "") + std::to_string(magnitude);
+        if (kind == ConstantKind::Integer) return "integer:" + integerSpelling();
         if (kind == ConstantKind::Boolean) return boolean ? "bool:true" : "bool:false";
         if (kind == ConstantKind::Character) return "char:" + std::to_string(magnitude);
         if (kind == ConstantKind::String) return "string:" + text;

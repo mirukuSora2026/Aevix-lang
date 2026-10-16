@@ -64,13 +64,20 @@ export function verifyVsix(filename: string): void {
         }
     }
     const manifest = JSON.parse(files.get('extension/package.json')!.toString('utf8'));
-    assert.equal(manifest.version, '0.1.0');
+    const sourceManifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../package.json'), 'utf8'));
+    assert.equal(manifest.version, sourceManifest.version);
+    assert.equal(manifest.license, 'Apache-2.0');
+    const license = files.get('extension/LICENSE.txt') ?? files.get('extension/LICENSE');
+    assert.ok(license, 'Apache license is packaged');
+    assert.match(license.toString('utf8'), /Apache License\s+Version 2\.0/);
     assert.equal(manifest.publisher, 'miruku-sora2026');
     const main = path.posix.normalize(`extension/${manifest.main}`);
     assert.ok(files.has(main), `compiled entry point ${main}`);
     for (const [name, data] of files) {
-        assert.ok(!/(^|\/)(node_modules|tests|\.vscode-test)(\/|$)/.test(name), `no development tree ${name}`);
+        assert.ok(!/(^|\/)(node_modules|tests|dist|\.vscode-test)(\/|$)/.test(name), `no development tree or local artifacts ${name}`);
         assert.ok(!name.endsWith('.vsix') && !name.endsWith('.map'), `no recursive artifact ${name}`);
+        assert.ok(!name.endsWith('.log') && !name.endsWith('/verification.json'), `no local validation output ${name}`);
+        assert.doesNotMatch(data.toString('utf8'), /\/Users\/[A-Za-z0-9_][^\s"'<>]*|\/private\/tmp\/|\/var\/folders\//, `no personal local paths ${name}`);
         if (name.endsWith('.json')) JSON.parse(data.toString('utf8'));
         if (name.startsWith('extension/out/src/') && name.endsWith('.js')) {
             for (const match of data.toString('utf8').matchAll(/require\(["'](\.[^"']+)["']\)/g)) {
@@ -83,6 +90,7 @@ export function verifyVsix(filename: string): void {
 }
 
 if (require.main === module) {
-    const filename = process.argv[2] ?? path.resolve(__dirname, '../../dist/aevix-0.1.0.vsix');
+    const manifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../package.json'), 'utf8'));
+    const filename = process.argv[2] ?? path.resolve(__dirname, `../../dist/aevix-${manifest.version}.vsix`);
     verifyVsix(filename);
 }

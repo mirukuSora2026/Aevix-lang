@@ -13,7 +13,7 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { access, constants, realpath } from 'node:fs/promises';
-import { analyzeDocument, baseType, buildIndex, builtinDocs, canAccessMember, DocumentAnalysis, keywordDocs, keywords, LanguageSymbol, rebuildReferences, referencesTo, scopeAt, symbolAt, tokenAt, WorkspaceIndex } from './language';
+import { analyzeDocument, baseType, buildIndex, builtinDocs, builtinMemberDocumentation, canAccessMember, DocumentAnalysis, importedTypeCompletions, importedTypeDocumentation, keywordDocs, keywords, namespaceAPIs, LanguageSymbol, rebuildReferences, referencesTo, scopeAt, symbolAt, tokenAt, WorkspaceIndex } from './language';
 import { byteColumnToCharacter, parseCompilerDiagnostics } from './diagnostics';
 import { runCompiler } from './compiler';
 import { findWorkspaceCompiler } from './compilerSearch';
@@ -26,7 +26,7 @@ function kind(symbol: LanguageSymbol): vscode.SymbolKind {
         struct: vscode.SymbolKind.Struct, enum: vscode.SymbolKind.Enum, interface: vscode.SymbolKind.Interface,
         function: vscode.SymbolKind.Function, method: vscode.SymbolKind.Method, variable: vscode.SymbolKind.Variable,
         constant: vscode.SymbolKind.Constant, field: vscode.SymbolKind.Field, parameter: vscode.SymbolKind.Variable,
-        typeParameter: vscode.SymbolKind.TypeParameter, variant: vscode.SymbolKind.EnumMember
+        typeParameter: vscode.SymbolKind.TypeParameter, variant: vscode.SymbolKind.EnumMember, typeAlias: vscode.SymbolKind.TypeParameter
     };
     return kinds[symbol.kind];
 }
@@ -35,7 +35,7 @@ function completionKind(symbol: LanguageSymbol): vscode.CompletionItemKind {
         struct: vscode.CompletionItemKind.Struct, enum: vscode.CompletionItemKind.Enum, interface: vscode.CompletionItemKind.Interface,
         function: vscode.CompletionItemKind.Function, method: vscode.CompletionItemKind.Method, variable: vscode.CompletionItemKind.Variable,
         constant: vscode.CompletionItemKind.Constant, field: vscode.CompletionItemKind.Field, parameter: vscode.CompletionItemKind.Variable,
-        typeParameter: vscode.CompletionItemKind.TypeParameter, variant: vscode.CompletionItemKind.EnumMember
+        typeParameter: vscode.CompletionItemKind.TypeParameter, variant: vscode.CompletionItemKind.EnumMember, typeAlias: vscode.CompletionItemKind.TypeParameter
     };
     return kinds[symbol.kind];
 }
@@ -222,7 +222,7 @@ class LanguageTools implements vscode.Disposable {
         const checked = await runCompiler({ executable, args: ['--check', '--stdin', document.uri.fsPath, ...this.args(document)], input: document.getText(), cwd: vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath ?? path.dirname(document.uri.fsPath), timeoutMs: vscode.workspace.getConfiguration('aevix', document.uri).get<number>('diagnostics.timeout', 15000), signal: job.controller.signal });
         if (this.disposed || checked.cancelled || this.jobs.get(uri) !== job || document.version !== version || !vscode.workspace.isTrusted) { return; }
         if (checked.error || checked.timedOut || checked.outputLimited) {
-            const message = checked.error ? `Could not start ${executable}. Set aevix.compilerPath to an Aevix 0.1 compiler. ${checked.error.message}` : checked.timedOut ? 'Aevix checking exceeded its time limit. Increase aevix.diagnostics.timeout if needed.' : 'Aevix compiler output exceeded the 1 MiB limit.';
+            const message = checked.error ? `Could not start ${executable}. Set aevix.compilerPath to an Aevix compiler. ${checked.error.message}` : checked.timedOut ? 'Aevix checking exceeded its time limit. Increase aevix.diagnostics.timeout if needed.' : 'Aevix compiler output exceeded the 1 MiB limit.';
             this.output.appendLine(message); this.checkDiagnostics.delete(uri); this.publishDiagnostics();
             if (explicit || !this.reportedMissing) { this.reportedMissing = true; void vscode.window.showWarningMessage(message, 'Show Output').then(action => { if (action) { this.output.show(); } }); }
             return;
@@ -297,7 +297,7 @@ export function activate(context: vscode.ExtensionContext): { refreshIndex(): Pr
             const analysis = tools.analysis(document); const token = tokenAt(analysis, document.offsetAt(position)); if (!token || token.kind !== 'identifier') { return undefined; }
             const symbol = symbolAt(analysis, token.start, tools.index);
             if (symbol) { return new vscode.Hover(markdown(symbol), range(document, token.start, token.end)); }
-            const description = builtinDocs[token.text] ?? keywordDocs[token.text];
+            const description = builtinMemberDocumentation(analysis, token.start) ?? importedTypeDocumentation(analysis, token.start) ?? builtinDocs[token.text] ?? keywordDocs[token.text];
             return description ? new vscode.Hover(new vscode.MarkdownString().appendCodeblock(token.text, 'aevix').appendText(description), range(document, token.start, token.end)) : undefined;
         }
     }));
@@ -326,8 +326,16 @@ export function activate(context: vscode.ExtensionContext): { refreshIndex(): Pr
                     return (tools.index.modules.get(imported.path) ?? []).flatMap(doc => doc.symbols.filter(symbol => symbol.scope === 0 && symbol.public && (imported.names === undefined || imported.wildcard || imported.names.includes(symbol.name))).map(symbol => { const item = new vscode.CompletionItem(symbol.name, completionKind(symbol)); item.detail = symbol.signature; item.documentation = markdown(symbol); return item; }));
                 }
             }
-            const member = /([A-Za-z_][A-Za-z_0-9]*)\.([A-Za-z_0-9]*)$/.exec(line);
+            const member = /([A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*)\.([A-Za-z_0-9]*)$/.exec(line);
             if (member) {
+                const available = namespaceAPIs(analysis, member[1]);
+                if (available) {
+                    return Object.entries(available).map(([name, description]) => {
+                        const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Function);
+                        item.documentation = description;
+                        return item;
+                    });
+                }
                 const receiverOffset = document.offsetAt(new vscode.Position(position.line, position.character - member[0].length));
                 const receiver = symbolAt(analysis, receiverOffset, tools.index);
                 const typeName = receiver ? ['struct', 'enum', 'interface'].includes(receiver.kind) ? receiver.name : baseType(receiver.type) : member[1];
@@ -336,6 +344,7 @@ export function activate(context: vscode.ExtensionContext): { refreshIndex(): Pr
             }
             const suggestions: vscode.CompletionItem[] = [];
             for (const [name, description] of Object.entries(builtinDocs)) { const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.TypeParameter); item.documentation = description; suggestions.push(item); }
+            for (const { name, description } of importedTypeCompletions(analysis)) { const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.TypeParameter); item.documentation = description; suggestions.push(item); }
             for (const name of keywords) { const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Keyword); item.documentation = keywordDocs[name]; suggestions.push(item); }
             const visibleScopes = new Set<number>(); let current: number | undefined = scopeAt(analysis, offset);
             while (current !== undefined) { visibleScopes.add(current); current = analysis.scopes[current].parent; }

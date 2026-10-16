@@ -32,10 +32,12 @@ namespace aevix
         addBuiltin("i16", TypeKind::Integer, 16, true);
         addBuiltin("i32", TypeKind::Integer, 32, true);
         addBuiltin("i64", TypeKind::Integer, 64, true);
+        addBuiltin("i128", TypeKind::Integer, 128, true);
         addBuiltin("u8", TypeKind::Integer, 8);
         addBuiltin("u16", TypeKind::Integer, 16);
         addBuiltin("u32", TypeKind::Integer, 32);
         addBuiltin("u64", TypeKind::Integer, 64);
+        addBuiltin("u128", TypeKind::Integer, 128);
 
         // 초기 대상인 ARM64와 x86-64에서는 포인터 크기 정수의 논리 폭이 64비트다.
         // Pointer-sized integers have a logical width of 64 bits on the initial ARM64 and x86-64 targets.
@@ -199,11 +201,50 @@ namespace aevix
         return types_[id < types_.size() ? id : error()];
     }
 
+    TypeId TypeContext::tuple(const std::vector<TypeId>& fields)
+    {
+        for (const auto field : fields)
+            if (get(field).kind == TypeKind::Error || get(field).kind == TypeKind::Void || get(field).kind == TypeKind::Never) return error();
+        if (const auto found = tuples_.find(fields); found != tuples_.end()) return found->second;
+        Type type; type.kind = TypeKind::Tuple; type.parameters = fields;
+        const auto id = add(std::move(type)); tuples_.emplace(fields, id); return id;
+    }
+
+    TypeId TypeContext::simd(TypeId element, std::size_t lanes)
+    {
+        const auto& scalar = get(element);
+        if ((lanes != 2 && lanes != 4 && lanes != 8 && lanes != 16)
+            || (scalar.kind != TypeKind::Integer && scalar.kind != TypeKind::Float)
+            || (scalar.kind == TypeKind::Float && scalar.bits != 32 && scalar.bits != 64)
+            || scalar.bits * lanes > 128) return error();
+        const auto key = std::make_pair(element, lanes);
+        if (const auto found = simd_.find(key); found != simd_.end()) return found->second;
+        Type type; type.kind = TypeKind::Simd; type.element = element; type.extent = lanes;
+        const auto result = add(std::move(type)); simd_[key] = result; return result;
+    }
+
+    TypeId TypeContext::simdMask(std::size_t lanes)
+    {
+        if (lanes != 2 && lanes != 4 && lanes != 8 && lanes != 16) return error();
+        if (const auto found = simdMasks_.find(lanes); found != simdMasks_.end()) return found->second;
+        Type type; type.kind = TypeKind::SimdMask; type.element = builtin("bool"); type.extent = lanes;
+        const auto result = add(std::move(type)); simdMasks_[lanes] = result; return result;
+    }
+
     std::string TypeContext::display(TypeId id) const
     {
         const Type& type = get(id);
         switch (type.kind)
         {
+            case TypeKind::Simd: return "Simd<" + display(type.element) + ", " + std::to_string(type.extent) + ">";
+            case TypeKind::SimdMask: return "SimdMask<" + std::to_string(type.extent) + ">";
+            case TypeKind::Tuple:
+            {
+                std::string text = "Tuple<";
+                for (std::size_t index = 0; index < type.parameters.size(); ++index)
+                { if (index) text += ", "; text += display(type.parameters[index]); }
+                return text + ">";
+            }
             case TypeKind::Box:
                 return "Box<" + display(type.element) + ">";
             case TypeKind::Dynamic:

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Const generic extents, trailing type and value defaults, transparent aliases, and sealed numeric capabilities in Aevix 0.2.">
+  <title>Generics in 0.2 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-logo.png">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Generics reference"><a href="Generic_Types.html">Design reference</a><a href="Generics_02.html" aria-current="page">0.2 profile</a><a href="../../errors/index.html">Errors</a></nav>
+    <span class="draft-badge">0.2 PROFILE</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Generic_Types.html">Generics</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">0.2 profile</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">IMPLEMENTED LANGUAGE PROFILE</p><h1>Generics in 0.2</h1><p class="doc-subtitle">Trailing defaults, constant extents, transparent aliases, and explicit numeric contracts.</p><div class="doc-meta"><span class="meta-chip">Buffer&lt;T, const usize N&gt;</span><span class="meta-chip">type Id = u64</span><span class="meta-chip">Static specialization · AOT / JIT</span></div></div></header>
+    <div class="docs-layout">
+      <aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#defaults">Defaults and inference</a></li><li><a href="#constants">Const generic extents</a></li><li><a href="#aliases">Transparent aliases</a></li><li><a href="#floating">Sealed Floating contract</a></li><li><a href="#scope">Compiler scope</a></li></ol></details><nav class="family-nav"><h2>Related reference</h2><div class="family-links"><a href="Generic_Types.html">Generic type rules</a><a href="Type_Constraints.html">Interface constraints</a><a href="../../data_type/Complex/Complex_02.html">Complex library</a></div></nav></aside>
+      <article class="content" aria-label="Implemented generics reference">
+<section id="defaults"><h2>Trailing defaults and inference</h2>
+<p>Struct, enum, interface, and function generic parameter lists may provide trailing type and constant defaults. A default may use earlier parameters. Required parameters cannot follow a defaulted parameter; a default cannot refer to itself or a later parameter.</p>
+<pre><code id="Aevix">struct Pair&lt;T = i32, U = T&gt; {
+    public T first;
+    public U second;
+};
+
+T identity&lt;T = i32&gt;(T value) {
+    return value;
+}
+
+i32 main() {
+    Pair value = Pair { first = 20, second = 22 };
+    i32 result = identity(value.first + value.second);
+    return result;
+}</code></pre>
+<p>Function arguments contribute to inference. Explicit function arguments may supply a leading portion of the generic list, with inference or trailing defaults completing it. Bare generic type names use their defaults; the compiler does not infer an arbitrary generic struct type from its field initializer values.</p>
+</section>
+<section id="constants"><h2>Compile-time constant extents</h2>
+<p>Value parameters use <code>const usize N</code>. The current compiler accepts usize constant parameters. Arguments must be nonnegative compile-time values fitting usize. Runtime variables, negative values, and larger unsigned values are rejected.</p>
+<pre><code id="Aevix">struct Buffer&lt;T = i32, const usize N = 4&gt; {
+    public Array&lt;T, N&gt; values;
+    public usize len(&amp;Self self) {
+        return N;
+    }
+};
+
+usize width&lt;T, const usize N&gt;(&amp;Array&lt;T, N&gt; values) {
+    return N;
+}
+
+i32 main() {
+    i32 items[4] = [1, 2, 3, 4];
+    usize count = width(&amp;items);
+    Buffer buffer = Buffer { values = items };
+    return buffer.len() == count ? 42 : 1;
+}</code></pre>
+<p>The same extent can be written as an integer literal or a visible const name. The compiler normalizes their values, so 4 and a constant evaluating to 2 * 2 identify the same specialization. Zero-length fixed arrays are permitted. Defaults may contain constant expressions; parenthesize an expression containing a greater-than or shift operator to distinguish it from the closing angle bracket.</p>
+<p>Array extents can be inferred through Array types, fixed array declarators, borrows, and generic container fields. A const parameter controls a static type or compile-time value; it does not create a runtime dimension-varying type.</p>
+</section>
+<section id="aliases"><h2>Transparent type aliases</h2>
+<pre><code id="Aevix">public type UserId = u64;
+type Samples = Array&lt;f32, 4&gt;;
+
+UserId identity(UserId value) {
+    return value;
+}</code></pre>
+<p>An alias is another spelling of the same type. It does not create a new nominal type or change ownership, representation, overload identity, interface satisfaction, or conversion rules. Alias cycles are compile errors. Imported aliases retain normal public/private access rules. Generic alias declarations are not part of this profile.</p>
+</section>
+<section id="floating"><h2>The sealed Floating contract</h2>
+<pre><code id="Aevix">import numeric { Floating };
+
+T twice&lt;T&gt;(T value) where T implements Floating {
+    return value + value;
+}
+
+i32 main() {
+    f32 result = twice(21.0f32);
+    return result == 42.0f32 ? 42 : 1;
+}</code></pre>
+<p>The actual numeric module exports <code>Floating</code>. It is a compiler-recognized scalar-format contract implemented only by builtin f16, bf16, f32, and f64. Transparent aliases of those formats satisfy it. Floating guarantees Copy behavior, arithmetic +, -, *, /, comparisons, and unary signs. It does not promise exact arithmetic, total ordering in the presence of NaN, bitwise operations, or new user-defined operator overloads.</p>
+<p>Users cannot implement this sealed contract on a struct or enum. A custom interface named Floating remains an ordinary interface and receives no builtin numerical privileges. The compiler checks the imported contract's original identity, not just its spelling. Copy alone does not grant arithmetic, and an unbounded T still cannot use +.</p>
+</section>
+<section id="scope"><h2>Compiler scope</h2>
+<p>Concrete type and constant arguments determine a static specialization. AOT and JIT reuse canonical identities within a compilation. Inference errors and unsupported capability uses are diagnosed before machine code generation.</p>
+<p>Shape parameters, arbitrary const-parameter types, associated types, lifetime parameter syntax, variance, and user-defined operator contracts remain outside this implemented profile. CPU SIMD and Complex use explicit imports and their own documented constraints.</p>
+</section>
+      </article>
+    </div>
+    <footer class="page-footer"><span>Aevix 0.2 · Generics</span><span>Implemented language profile</span></footer>
+  </main>
+</body>
+</html>

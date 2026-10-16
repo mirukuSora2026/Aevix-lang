@@ -1,0 +1,30 @@
+#!/bin/sh
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : preinstall
+#
+# Description :
+#     지원하지 않는 CPU·macOS 버전과 소유권 없는 설치 경로의 덮어쓰기를 방지한다.
+#     Reject unsupported CPUs or macOS versions and replacement of unmanaged installation paths.
+#
+# ========================
+
+set -eu
+if [ "$(uname -m)" != arm64 ]; then
+    echo 'Aevix for macOS requires Apple Silicon (ARM64).' >&2; exit 1
+fi
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+if [ -f "$script_dir/runtime-requirements.txt" ]; then
+    /bin/sh "$script_dir/check-runtime-requirements.sh" "$script_dir/runtime-requirements.txt"
+fi
+target="${3:-/}"
+prefix="${target%/}/Library/Aevix"
+if { [ -e "$prefix" ] || [ -L "$prefix" ]; } && { [ -L "$prefix" ] || [ ! -f "$prefix/.aevix-system-install" ] || [ "$(cat "$prefix/.aevix-system-install")" != 'Aevix system package v1' ]; }; then
+    echo 'Refusing to overwrite an unmanaged /Library/Aevix directory.' >&2; exit 1
+fi
+path_file="${target%/}/etc/paths.d/aevix"
+if [ -f "$path_file" ] && [ "$(cat "$path_file")" != '/Library/Aevix/bin' ]; then
+    echo 'Refusing to replace an existing unrelated /etc/paths.d/aevix entry.' >&2; exit 1
+fi

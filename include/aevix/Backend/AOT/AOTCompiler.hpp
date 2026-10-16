@@ -10,6 +10,7 @@
 //
 // ========================
 #pragma once
+#include <chrono>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -25,12 +26,14 @@ namespace aevix
         unsigned optimization = 0;
         std::vector<std::filesystem::path> runtimeObjects;
         std::vector<std::filesystem::path> linkInputs;
+        std::chrono::milliseconds timeout{0};
     };
     struct AOTResult final
     {
         bool succeeded = false;
         int exitCode = -1;
         std::string message;
+        std::vector<std::string> dependencyWarnings;
     };
     AOTResult compileAOT(const std::string& llvmIR, const AOTOptions& options);
 }

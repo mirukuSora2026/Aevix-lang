@@ -94,6 +94,13 @@ namespace aevix
         std::unordered_map<const Node*, DynViewInfo> boxDynViews;
         std::unordered_map<const Node*, std::string> boxIntrinsics;
         std::unordered_map<const Node*, DynCallInfo> dynCalls;
+        std::unordered_map<const Node*, std::string> valueIntrinsics;
+        std::unordered_map<const Node*, std::size_t> tupleIndices;
+        std::unordered_map<const Node*, TypeId> iterationViews;
+        std::unordered_map<const Node*, TypeId> simdTypes;
+        // InvalidSymbolId는 worker_count이며 나머지는 검증한 정적 작업 함수다.
+        // InvalidSymbolId denotes worker_count; other entries identify validated static workers.
+        std::unordered_map<const Node*, SymbolId> parallelCalls;
         bool succeeded = false;
     };
 

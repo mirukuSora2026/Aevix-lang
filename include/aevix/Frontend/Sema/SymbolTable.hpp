@@ -53,6 +53,9 @@ namespace aevix
     {
         std::vector<ResolvedSymbol> symbols;
         std::unordered_map<const Node*, std::vector<SymbolId>> references;
+        // 별칭은 새 명목 타입을 만들지 않고 대상 타입 구문을 가리킨다.
+        // Aliases point to target type syntax without introducing nominal types.
+        std::unordered_map<const Node*, const Node*> aliasTargets;
         bool succeeded = false;
     };
 }

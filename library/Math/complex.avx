@@ -1,0 +1,75 @@
+import numeric { Floating };
+
+/* A complex value has two independently rounded floating-point components. */
+public enum ComplexError implements Copy {
+    ZeroDivisor;
+};
+
+public struct Complex<T = f64> implements Copy where T implements Floating {
+    public T real;
+    public T imag;
+
+    public Self new(T real, T imag) {
+        return Self { real = real, imag = imag };
+    }
+    public Self zero() {
+        return Self { real = 0.0, imag = 0.0 };
+    }
+    public Self one() {
+        return Self { real = 1.0, imag = 0.0 };
+    }
+    public Self imaginary_unit() {
+        return Self { real = 0.0, imag = 1.0 };
+    }
+    public Self add(Self left, Self right) {
+        return Self { real = left.real + right.real, imag = left.imag + right.imag };
+    }
+    public Self sub(Self left, Self right) {
+        return Self { real = left.real - right.real, imag = left.imag - right.imag };
+    }
+    public Self mul(Self left, Self right) {
+        return Self {
+            real = left.real * right.real - left.imag * right.imag,
+            imag = left.real * right.imag + left.imag * right.real
+        };
+    }
+    public Self neg(Self value) {
+        return Self { real = -value.real, imag = -value.imag };
+    }
+    public Self conjugate(Self value) {
+        return Self { real = value.real, imag = -value.imag };
+    }
+    public bool eq(Self left, Self right) {
+        return left.real == right.real && left.imag == right.imag;
+    }
+    public bool is_nan(Self value) {
+        return value.real != value.real || value.imag != value.imag;
+    }
+    public bool is_finite(Self value) {
+        return value.real - value.real == 0.0 && value.imag - value.imag == 0.0;
+    }
+    public T norm_squared(Self value) {
+        return value.real * value.real + value.imag * value.imag;
+    }
+    /* The compiler binds this body to the stable numeric runtime helper. */
+    public T magnitude(Self value) {
+        return value.real;
+    }
+    public T norm(Self value) {
+        return Self.magnitude(value);
+    }
+    /* This private helper returns components using the target's scalar layout. */
+    Self divide_components(Self numerator, Self denominator) {
+        return numerator;
+    }
+    public Result<Self, ComplexError> div(Self numerator, Self denominator) {
+        if (denominator.real == 0.0 && denominator.imag == 0.0)
+            return Result.err(ComplexError.ZeroDivisor);
+        return Result.ok(Self.divide_components(numerator, denominator));
+    }
+    public Result<Self, ComplexError> reciprocal(Self value) {
+        return Self.div(Self.one(), value);
+    }
+};
+
+public type complex = Complex<f64>;

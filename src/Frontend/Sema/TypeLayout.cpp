@@ -57,12 +57,18 @@ namespace aevix
                     const auto bytes = element.layout.size * 3 + 3;
                     result = {bytes + (alignment - bytes % alignment) % alignment, alignment, {}};
                 }
+                else if (type.kind == TypeKind::Simd || type.kind == TypeKind::SimdMask)
+                {
+                    const auto bytes = type.kind == TypeKind::SimdMask ? (type.extent + 7) / 8
+                        : type.extent * ((types_.get(type.element).bits + 7) / 8);
+                    result = {bytes, std::max<std::size_t>(1, bytes), {}};
+                }
                 else if (type.kind == TypeKind::Bool || type.kind == TypeKind::Byte) result = {1, 1, {}};
                 else if (type.kind == TypeKind::Char) result = {4, 4, {}};
                 else if (type.kind == TypeKind::Integer || type.kind == TypeKind::Float)
                 {
                     result.size = (type.bits + 7) / 8;
-                    result.alignment = std::min<std::size_t>(result.size, 8);
+                    result.alignment = std::min<std::size_t>(result.size, 16);
                     if (!result.alignment) return failure(declaration, "Invalid scalar width in type layout.");
                 }
                 else if (type.kind == TypeKind::Array)
@@ -74,6 +80,23 @@ namespace aevix
                     result.alignment = element.layout.alignment;
                     if (type.extent && element.layout.size > maximum() / type.extent) return failure(declaration, "Fixed array storage size overflows the 64-bit target address space.");
                     result.size = element.layout.size * type.extent;
+                }
+                else if (type.kind == TypeKind::Tuple)
+                {
+                    active_.insert(id);
+                    for (const auto field : type.parameters)
+                    {
+                        const auto layout = run(field, depth + 1);
+                        if (!layout.succeeded) { active_.erase(id); return layout; }
+                        const auto padding = (layout.layout.alignment - result.size % layout.layout.alignment) % layout.layout.alignment;
+                        if (result.size > maximum() - padding || result.size + padding > maximum() - layout.layout.size)
+                        { active_.erase(id); return failure(nullptr, "Tuple storage size overflows the target address space."); }
+                        result.size += padding + layout.layout.size;
+                        result.alignment = std::max(result.alignment, layout.layout.alignment);
+                    }
+                    const auto padding = (result.alignment - result.size % result.alignment) % result.alignment;
+                    if (result.size > maximum() - padding) { active_.erase(id); return failure(nullptr, "Tuple tail padding overflows the target address space."); }
+                    result.size += padding; active_.erase(id);
                 }
                 else if (type.kind == TypeKind::Nominal)
                 {

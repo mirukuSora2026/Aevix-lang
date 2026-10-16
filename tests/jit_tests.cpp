@@ -230,6 +230,104 @@ namespace
         expect(persistDrops == 1, "persist cleanup runs before JIT session unload");
     }
 
+    void trackedModules()
+    {
+        auto engine = create();
+        if (!engine) return;
+        std::string error;
+        const auto base = engine->addModuleTracked(R"(
+            @tracked_value = global i32 40
+            define i32 @tracked_base() { %v = load i32, ptr @tracked_value ret i32 %v }
+        )", error);
+        expect(base.has_value() && error.empty(), "tracked module returns a session module ID", error);
+        if (!base) return;
+        result(*engine, "tracked_base", 40, "tracked module entry can be cached and called");
+        const auto consumer = engine->addModuleTracked(R"(
+            declare i32 @tracked_base()
+            define i32 @tracked_consumer() { %v = call i32 @tracked_base() %r = add i32 %v, 2 ret i32 %r }
+        )", error);
+        expect(consumer.has_value(), "tracked dependent module is linked", error);
+        if (!consumer) return;
+        result(*engine, "tracked_consumer", 42, "tracked dependency executes");
+        expect(!engine->removeModule(*base, error) && error.find("referenced") != std::string::npos,
+            "unloading referenced code is rejected before pointers become stale", error);
+        result(*engine, "tracked_consumer", 42, "rejected unload preserves existing code and cache");
+        expect(engine->removeModule(*consumer, error), "dependent leaf module can be unloaded", error);
+        expect(!engine->invokeI32("tracked_consumer").succeeded, "unloaded entry is absent from invocation metadata");
+        expect(engine->removeModule(*base, error), "base module unload succeeds after its dependent", error);
+        expect(!engine->invokeI32("tracked_base").succeeded, "cached base address is invalidated on unload");
+        expect(!engine->removeModule(*base, error), "stale module handle is rejected");
+        if (add(*engine, "define i32 @tracked_base() { ret i32 7 }"))
+            result(*engine, "tracked_base", 7, "reloaded name resolves fresh code instead of stale cached address");
+        expect(!engine->removeModule(aevix::InvalidJITModuleId, error), "invalid module handle is rejected");
+    }
+
+    void transactions()
+    {
+        auto engine = create();
+        if (!engine) return;
+        if (!add(*engine, "@stable_global = global i32 5\ndefine i32 @stable() { %v = load i32, ptr @stable_global ret i32 %v }")) return;
+        std::string error;
+        expect(!engine->addModuleTracked("@stable_global = global i32 99\ndefine i32 @fresh() { ret i32 99 }", error)
+            && error.find("already defined") != std::string::npos,
+            "global collisions reject the entire module transaction", error);
+        expect(!engine->invokeI32("fresh").succeeded, "failed add does not register unrelated functions");
+        result(*engine, "stable", 5, "failed add preserves preexisting global storage");
+        if (add(*engine, "define i32 @fresh() { ret i32 42 }")) result(*engine, "fresh", 42, "failed add does not reserve symbols");
+        expect(!engine->defineSymbol("stable_global", reinterpret_cast<std::uintptr_t>(&hostAdd), error)
+            && error.find("already defined") != std::string::npos,
+            "host symbols cannot collide with a defined global", error);
+        expect(engine->defineSymbol("tracked_host", reinterpret_cast<std::uintptr_t>(&hostAdd), error), "register host symbol for collision checks", error);
+        expect(!engine->addModule("define i32 @tracked_host(i32 %x) { ret i32 %x }", error)
+            && error.find("already defined") != std::string::npos,
+            "module symbols cannot silently replace registered host addresses", error);
+        const auto pinned = engine->addModuleTracked(R"(
+            @llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @tracked_init, ptr null }]
+            define internal void @tracked_init() { ret void }
+            define i32 @pinned() { ret i32 8 }
+        )", error);
+        expect(pinned.has_value(), "lifecycle module is tracked", error);
+        if (pinned) expect(!engine->removeModule(*pinned, error) && error.find("callbacks") != std::string::npos,
+            "lifecycle code remains loaded through normal session cleanup", error);
+        aevix::JITOptions options;
+        options.processSymbols = false;
+        auto recovery = create(options);
+        if (!recovery) return;
+        const auto broken = recovery->addModuleTracked("declare i32 @missing_transaction_symbol()\ndefine i32 @broken() { %v = call i32 @missing_transaction_symbol() ret i32 %v }", error);
+        expect(broken.has_value(), "lazy external references can be added before materialization", error);
+        if (broken)
+        {
+            expect(!recovery->invokeI32("broken").succeeded, "missing external returns a materialization diagnostic");
+            if (add(*recovery, "define i32 @healthy() { ret i32 42 }")) result(*recovery, "healthy", 42, "failed materialization does not poison independent module execution");
+            expect(recovery->removeModule(*broken, error), "failed materialization resources can be removed", error);
+            if (add(*recovery, "define i32 @broken() { ret i32 17 }")) result(*recovery, "broken", 17, "failed module can be replaced after explicit unload");
+        }
+    }
+
+    void optimization()
+    {
+        for (const auto level : {0u, 1u, 2u, 3u})
+        {
+            aevix::JITOptions options;
+            options.optimization = level;
+            auto engine = create(options);
+            if (!engine) continue;
+            if (add(*engine, R"(
+                define i32 @optimized() {
+                    %slot = alloca i32
+                    store i32 41, ptr %slot
+                    %v = load i32, ptr %slot
+                    %r = add i32 %v, 1
+                    ret i32 %r
+                }
+            )"))
+            {
+                result(*engine, "optimized", 42, "LLVM optimization pipeline preserves computation");
+                result(*engine, "optimized", 42, "optimized entry address is reusable");
+            }
+        }
+    }
+
     bool compileLibrary(const std::string& compiler, const std::filesystem::path& source,
                         const std::filesystem::path& output)
     {
@@ -304,6 +402,7 @@ int main(int argc, char** argv)
     else
     {
         basic(); storage(); errors(); ffi(); initialization();
+        trackedModules(); transactions(); optimization();
         sharedLibrary(argc > 1 ? argv[1] : "clang");
     }
     std::cout << checks << " JIT checks, " << failures << " failures\n";

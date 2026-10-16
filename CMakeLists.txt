@@ -5,17 +5,18 @@
 # File name : CMakeLists.txt
 #
 # Description :
-#     컴파일러·런타임·검사 대상과 선택적 예제 설치를 구성한다.
-#     Configure compiler, runtime, test targets, and optional example installation.
+#     컴파일러·런타임·검사 대상과 공개 배포물 설치를 구성한다.
+#     Configure compiler, runtime, test targets, and installation of public distribution files.
 #
 # ========================
 
 cmake_minimum_required(VERSION 3.20)
-project(Aevix VERSION 0.1.0 LANGUAGES C CXX)
+project(Aevix VERSION 0.2.0 LANGUAGES C CXX)
 set(CMAKE_CXX_EXTENSIONS OFF)
 include(GNUInstallDirs)
 find_package(Threads REQUIRED)
 option(AEVIX_ENABLE_JIT "Enable LLVM ORC JIT when LLVM 22 or newer is available" ON)
+option(AEVIX_PORTABLE_PACKAGE "Avoid machine-specific fallback paths in distributable compilers" OFF)
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Aevix targets require 64-bit pointers")
 endif()
@@ -49,6 +50,7 @@ add_library(aevix_frontend
         src/IR/AIR/Module.cpp
         src/IR/Lowering/ASTLowering.cpp
         src/Backend/LLVM/LLVMCodeGen.cpp
+        src/Backend/LLVM/SimdCodeGen.cpp
         src/Backend/AOT/AOTCompiler.cpp
 )
 
@@ -57,17 +59,22 @@ target_include_directories(aevix_frontend PUBLIC
 )
 
 target_compile_features(aevix_frontend PUBLIC cxx_std_20)
+target_compile_definitions(aevix_frontend PRIVATE
+    AEVIX_INSTALL_LANGUAGE_DIR="${CMAKE_INSTALL_DATADIR}/aevix/library/Math")
 target_link_libraries(aevix_frontend PUBLIC aevix_support)
 set_target_properties(aevix_frontend PROPERTIES CXX_EXTENSIONS OFF)
 
-add_library(aevix_runtime STATIC runtime/Initialization/PersistRuntime.cpp)
+add_library(aevix_runtime STATIC runtime/Initialization/PersistRuntime.cpp runtime/Text/TextRuntime.cpp runtime/Profiling/BenchRuntime.cpp runtime/Threading/ParallelRuntime.cpp runtime/Numeric/Integer128Runtime.cpp runtime/Numeric/ComplexRuntime.cpp)
 target_include_directories(aevix_runtime PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(aevix_runtime PUBLIC cxx_std_20)
 target_link_libraries(aevix_runtime PUBLIC Threads::Threads)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(aevix_runtime PUBLIC m)
+endif()
 
 # 생성 프로그램에는 컴파일러의 sanitizer 설정을 전파하지 않는 별도 런타임을 연결한다.
 # Link generated programs to a separate runtime without propagating compiler sanitizers.
-add_library(aevix_target_runtime STATIC runtime/Initialization/PersistRuntime.cpp)
+add_library(aevix_target_runtime STATIC runtime/Initialization/PersistRuntime.cpp runtime/Text/TextRuntime.cpp runtime/Profiling/BenchRuntime.cpp runtime/Threading/ParallelRuntime.cpp runtime/Numeric/Integer128Runtime.cpp runtime/Numeric/ComplexRuntime.cpp)
 target_include_directories(aevix_target_runtime PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(aevix_target_runtime PRIVATE cxx_std_20)
 set_target_properties(aevix_target_runtime PROPERTIES OUTPUT_NAME aevix_runtime
@@ -100,9 +107,12 @@ endif()
 add_executable(aevixc tools/aevixc/main.cpp)
 target_link_libraries(aevixc PRIVATE aevix_frontend aevix_jit aevix_runtime)
 add_dependencies(aevixc aevix_target_runtime)
-target_compile_definitions(aevixc PRIVATE AEVIX_DEFAULT_RUNTIME="$<TARGET_FILE:aevix_target_runtime>"
+target_compile_definitions(aevixc PRIVATE
     AEVIX_RUNTIME_FILENAME="$<TARGET_FILE_NAME:aevix_target_runtime>"
     AEVIX_VERSION="${PROJECT_VERSION}" AEVIX_INSTALL_RUNTIME_DIR="${CMAKE_INSTALL_LIBDIR}/aevix")
+if(NOT AEVIX_PORTABLE_PACKAGE)
+    target_compile_definitions(aevixc PRIVATE AEVIX_DEFAULT_RUNTIME="$<TARGET_FILE:aevix_target_runtime>")
+endif()
 set_target_properties(aevixc PROPERTIES CXX_EXTENSIONS OFF)
 set_target_properties(aevixc PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(MINGW)
@@ -111,9 +121,20 @@ endif()
 
 install(TARGETS aevixc RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(FILES "$<TARGET_FILE:aevix_target_runtime>" DESTINATION "${CMAKE_INSTALL_LIBDIR}/aevix")
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/examples")
-    install(DIRECTORY examples/ DESTINATION "${CMAKE_INSTALL_DATADIR}/aevix/examples" FILES_MATCHING PATTERN "*.avx")
+install(FILES LICENSE CONTRIBUTING.md DESTINATION "${CMAKE_INSTALL_DATADIR}/aevix")
+install(FILES design/logo/aevix-logo.png DESTINATION "${CMAKE_INSTALL_DATADIR}/aevix")
+if(MINGW)
+    # 정적 MinGW 배포물에도 도구체인의 저작권 고지와 런타임 예외를 함께 보관한다.
+    # Keep toolchain notices and the runtime exception in static MinGW distributions.
+    install(DIRECTORY packaging/licenses/ DESTINATION "${CMAKE_INSTALL_DATADIR}/aevix/licenses"
+        FILES_MATCHING PATTERN "*.txt")
 endif()
+# 명시적으로 가져오는 언어 모듈을 실행 파일 기준 경로에도 함께 배치한다.
+# Stage explicitly imported language modules beside the executable and in the install prefix.
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/share/aevix/library/Math")
+configure_file(library/Math/numeric.avx share/aevix/library/Math/numeric.avx COPYONLY)
+configure_file(library/Math/complex.avx share/aevix/library/Math/complex.avx COPYONLY)
+install(FILES library/Math/numeric.avx library/Math/complex.avx DESTINATION "${CMAKE_INSTALL_DATADIR}/aevix/library/Math")
 set(CPACK_PACKAGE_NAME Aevix)
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_GENERATOR TGZ)
@@ -125,7 +146,7 @@ include(CPack)
 
 find_program(AEVIX_CLANG_EXECUTABLE NAMES clang
     HINTS /opt/homebrew/opt/llvm/bin /usr/lib/llvm-22/bin /usr/lib/llvm-21/bin "C:/Program Files/LLVM/bin")
-if(AEVIX_CLANG_EXECUTABLE)
+if(AEVIX_CLANG_EXECUTABLE AND NOT AEVIX_PORTABLE_PACKAGE)
     target_compile_definitions(aevixc PRIVATE AEVIX_DEFAULT_CLANG="${AEVIX_CLANG_EXECUTABLE}")
 endif()
 
@@ -141,6 +162,83 @@ endif()
 include(CTest)
 
 if(BUILD_TESTING)
+    add_executable(aevix_v02_syntax_tests tests/v02_syntax_tests.cpp)
+    target_link_libraries(aevix_v02_syntax_tests PRIVATE aevix_frontend)
+    add_test(NAME v02_syntax COMMAND aevix_v02_syntax_tests)
+    add_executable(aevix_v02_numeric_tests tests/v02_numeric_tests.cpp)
+    target_link_libraries(aevix_v02_numeric_tests PRIVATE aevix_frontend aevix_jit)
+    add_test(NAME v02_numeric COMMAND aevix_v02_numeric_tests "${AEVIX_CLANG_EXECUTABLE}")
+    set_tests_properties(v02_numeric PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    add_executable(aevix_integer128_runtime_tests tests/integer128_runtime_tests.cpp)
+    target_link_libraries(aevix_integer128_runtime_tests PRIVATE aevix_runtime)
+    add_test(NAME integer128_runtime COMMAND aevix_integer128_runtime_tests)
+    set_tests_properties(integer128_runtime PROPERTIES TIMEOUT 60)
+    add_test(NAME integer128_cli
+        COMMAND "${CMAKE_COMMAND}"
+            "-DAEVIXC=$<TARGET_FILE:aevixc>" "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/integer128-cli-fixtures"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/i128_cli_tests.cmake")
+    set_tests_properties(integer128_cli PROPERTIES TIMEOUT 240)
+    add_test(NAME const_generics_cli
+        COMMAND "${CMAKE_COMMAND}"
+            "-DAEVIXC=$<TARGET_FILE:aevixc>" "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/const-generics-cli-fixtures"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/const_generics_cli_tests.cmake")
+    add_test(NAME closure_cli
+        COMMAND "${CMAKE_COMMAND}"
+            "-DAEVIXC=$<TARGET_FILE:aevixc>" "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/closure-cli-fixtures"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/closure_cli_tests.cmake")
+    set_tests_properties(const_generics_cli closure_cli PROPERTIES TIMEOUT 180)
+    add_test(NAME closure_parser
+        COMMAND "${CMAKE_COMMAND}"
+            "-DAEVIXC=$<TARGET_FILE:aevixc>" "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/closure-parser-fixtures"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/closure_parser_tests.cmake")
+    set_tests_properties(closure_parser PROPERTIES TIMEOUT 180)
+    add_executable(aevix_complex_runtime_tests tests/complex_runtime_tests.cpp)
+    target_link_libraries(aevix_complex_runtime_tests PRIVATE aevix_runtime)
+    add_test(NAME complex_runtime COMMAND aevix_complex_runtime_tests)
+    add_test(NAME complex_cli
+        COMMAND "${CMAKE_COMMAND}"
+            "-DAEVIXC=$<TARGET_FILE:aevixc>" "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/complex-cli-fixtures"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/complex_cli_tests.cmake")
+    set_tests_properties(complex_runtime complex_cli PROPERTIES TIMEOUT 180)
+    add_executable(aevix_bench_runtime_tests tests/bench_runtime_tests.cpp)
+    target_link_libraries(aevix_bench_runtime_tests PRIVATE aevix_runtime aevix_support)
+    add_test(NAME bench_runtime COMMAND aevix_bench_runtime_tests)
+    set_tests_properties(bench_runtime PROPERTIES TIMEOUT 60)
+    add_test(NAME bench_cli COMMAND "${CMAKE_COMMAND}"
+        "-DAEVIXC=$<TARGET_FILE:aevixc>" "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+        "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/bench-cli-fixtures"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/bench_cli_tests.cmake")
+    set_tests_properties(bench_cli PROPERTIES TIMEOUT 120)
+    add_executable(aevix_v02_values_tests tests/v02_values_tests.cpp)
+    target_link_libraries(aevix_v02_values_tests PRIVATE aevix_frontend aevix_jit)
+    target_compile_definitions(aevix_v02_values_tests PRIVATE AEVIX_TEST_RUNTIME_ARCHIVE="$<TARGET_FILE:aevix_target_runtime>")
+    add_test(NAME v02_values COMMAND aevix_v02_values_tests "${AEVIX_CLANG_EXECUTABLE}")
+    set_tests_properties(v02_values PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+    add_executable(aevix_parallel_runtime_tests tests/parallel_runtime_tests.cpp)
+    target_link_libraries(aevix_parallel_runtime_tests PRIVATE aevix_runtime)
+    add_test(NAME parallel_runtime COMMAND aevix_parallel_runtime_tests)
+    add_executable(aevix_parallel_fallback_tests tests/parallel_runtime_tests.cpp runtime/Threading/ParallelRuntime.cpp)
+    target_include_directories(aevix_parallel_fallback_tests PRIVATE include)
+    target_compile_features(aevix_parallel_fallback_tests PRIVATE cxx_std_20)
+    target_compile_definitions(aevix_parallel_fallback_tests PRIVATE AEVIX_PARALLEL_TEST_CREATE_FAILURE=1)
+    target_link_libraries(aevix_parallel_fallback_tests PRIVATE Threads::Threads)
+    add_test(NAME parallel_fallback COMMAND aevix_parallel_fallback_tests)
+    foreach(profile IN ITEMS simd parallel slice)
+        add_test(NAME ${profile}_cli COMMAND "${CMAKE_COMMAND}"
+            "-DAEVIXC=$<TARGET_FILE:aevixc>" "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/${profile}-cli-fixtures"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/${profile}_cli_tests.cmake")
+        set_tests_properties(${profile}_cli PROPERTIES TIMEOUT 180)
+    endforeach()
+    if(UNIX)
+        add_test(NAME installer COMMAND /bin/sh "${CMAKE_CURRENT_SOURCE_DIR}/tests/installer_tests.sh")
+        set_tests_properties(installer PROPERTIES TIMEOUT 60)
+    endif()
     add_executable(aevix_frontend_tests tests/frontend_tests.cpp)
     target_link_libraries(aevix_frontend_tests PRIVATE aevix_frontend)
     add_test(NAME frontend COMMAND aevix_frontend_tests)
@@ -253,6 +351,13 @@ if(BUILD_TESTING)
     endif()
     add_test(NAME process COMMAND aevix_process_tests)
     set_tests_properties(process PROPERTIES TIMEOUT 30)
+    add_test(NAME dependency_cli
+        COMMAND "${CMAKE_COMMAND}"
+            "-DAEVIXC=$<TARGET_FILE:aevixc>"
+            "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
+            "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/dependency-cli-fixtures"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/dependency_cli_tests.cmake")
+    set_tests_properties(dependency_cli PROPERTIES TIMEOUT 120)
     if(AEVIX_CLANG_EXECUTABLE)
         add_test(NAME compiler_cli
             COMMAND "${CMAKE_COMMAND}"
@@ -269,6 +374,8 @@ if(BUILD_TESTING)
         add_test(NAME installed_package
             COMMAND "${CMAKE_COMMAND}"
                 "-DBUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+                "-DCONFIG=$<CONFIG>"
+                "-DAEVIX_VERSION=${PROJECT_VERSION}"
                 "-DCLANG=${AEVIX_CLANG_EXECUTABLE}"
                 "-DTEST_DIR=${CMAKE_CURRENT_BINARY_DIR}/installed-fixtures"
                 -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/install_tests.cmake")

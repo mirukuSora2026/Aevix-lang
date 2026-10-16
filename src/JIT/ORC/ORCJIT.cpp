@@ -18,6 +18,11 @@
 
 #if AEVIX_HAS_LLVM_ORC
 #include "aevix/Runtime/PersistRuntime.hpp"
+#include "aevix/Runtime/TextRuntime.hpp"
+#include "aevix/Runtime/Integer128Runtime.hpp"
+#include "aevix/Runtime/ComplexRuntime.hpp"
+#include "aevix/Runtime/BenchRuntime.hpp"
+#include "aevix/Runtime/ParallelRuntime.hpp"
 
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>
@@ -27,6 +32,10 @@
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
 #include <llvm/IR/CallingConv.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/GlobalAlias.h>
+#include <llvm/IR/PassManager.h>
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Passes/OptimizationLevel.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
@@ -37,6 +46,7 @@
 
 #include <map>
 #include <mutex>
+#include <set>
 #include <utility>
 #endif
 
@@ -76,6 +86,18 @@ namespace aevix
         std::mutex errors;
         std::string asynchronousErrors;
         std::map<std::string, CallableSignature, std::less<>> signatures;
+        struct Module final
+        {
+            llvm::orc::ResourceTrackerSP resources;
+            std::set<std::string, std::less<>> definitions;
+            std::set<std::string, std::less<>> references;
+            bool hasExitCallbacks = false;
+        };
+        unsigned optimization = 0;
+        JITModuleId nextModule = 1;
+        std::map<JITModuleId, Module> modules;
+        std::map<std::string, JITModuleId, std::less<>> definitions;
+        std::map<std::string, std::uintptr_t, std::less<>> addresses;
         // 엔진을 마지막에 선언하여 엔진 종료 중 오류 콜백의 저장소가 아직 살아 있게 한다.
         // Declare the engine last so error-callback storage survives engine shutdown.
         std::unique_ptr<llvm::orc::LLJIT> engine;
@@ -85,6 +107,9 @@ namespace aevix
             if (engine)
                 if (auto error = engine->deinitialize(engine->getMainJITDylib()))
                     llvm::consumeError(std::move(error));
+            // 추적기의 마지막 참조도 ExecutionSession이 살아 있는 동안 해제한다.
+            // Release final tracker references while their ExecutionSession is still alive.
+            modules.clear();
         }
 
         std::string errorMessage(llvm::Error error)
@@ -110,11 +135,16 @@ namespace aevix
                     : "JIT invocation requires a defined C-convention void function with no parameters."};
             if (auto error = engine->initialize(engine->getMainJITDylib()))
                 return {false, 0, errorMessage(std::move(error))};
-            auto address = engine->lookup(llvm::StringRef(function.data(), function.size()));
-            if (!address) return {false, 0, errorMessage(address.takeError())};
+            auto cached = addresses.find(function);
+            if (cached == addresses.end())
+            {
+                auto address = engine->lookup(llvm::StringRef(function.data(), function.size()));
+                if (!address) return {false, 0, errorMessage(address.takeError())};
+                cached = addresses.emplace(std::string(function), static_cast<std::uintptr_t>(address->getValue())).first;
+            }
             if (wanted == CallableSignature::I32)
-                return {true, address->toPtr<std::int32_t (*)()>()(), {}};
-            address->toPtr<void (*)()>()();
+                return {true, reinterpret_cast<std::int32_t (*)()>(cached->second)(), {}};
+            reinterpret_cast<void (*)()>(cached->second)();
             return {true, 0, {}};
         }
     };
@@ -146,6 +176,7 @@ namespace aevix
         if (!built) { error = llvm::toString(built.takeError()); return nullptr; }
         auto implementation = std::make_unique<Impl>();
         implementation->engine = std::move(*built);
+        implementation->optimization = options.optimization;
         auto* state = implementation.get();
         implementation->engine->getExecutionSession().setErrorReporter([state](llvm::Error failure)
         {
@@ -174,10 +205,35 @@ namespace aevix
                 reinterpret_cast<std::uintptr_t>(&aevix_persist_ensure), error)
             || !session->defineSymbol("aevix_persist_shutdown",
                 reinterpret_cast<std::uintptr_t>(&aevix_persist_shutdown), error)) return nullptr;
+        for (const auto& [name, address] : std::initializer_list<std::pair<const char*, std::uintptr_t>>{
+            {"aevix_parallel_for_each", reinterpret_cast<std::uintptr_t>(&aevix_parallel_for_each)},
+            {"aevix_integer128_binary", reinterpret_cast<std::uintptr_t>(&aevix_integer128_binary)},
+            {"aevix_integer128_to_float", reinterpret_cast<std::uintptr_t>(&aevix_integer128_to_float)},
+            {"aevix_integer128_from_float", reinterpret_cast<std::uintptr_t>(&aevix_integer128_from_float)},
+            {"aevix_integer128_range_count", reinterpret_cast<std::uintptr_t>(&aevix_integer128_range_count)},
+            {"aevix_complex_magnitude", reinterpret_cast<std::uintptr_t>(&aevix_complex_magnitude)},
+            {"aevix_complex_divide", reinterpret_cast<std::uintptr_t>(&aevix_complex_divide)},
+            {"aevix_parallel_worker_count", reinterpret_cast<std::uintptr_t>(&aevix_parallel_worker_count)},
+            {"aevix_bench_begin", reinterpret_cast<std::uintptr_t>(&aevix_bench_begin)},
+            {"aevix_bench_end", reinterpret_cast<std::uintptr_t>(&aevix_bench_end)},
+            {"aevix_bench_report", reinterpret_cast<std::uintptr_t>(&aevix_bench_report)},
+            {"aevix_text_copy", reinterpret_cast<std::uintptr_t>(&aevix_text_copy)},
+            {"aevix_text_append", reinterpret_cast<std::uintptr_t>(&aevix_text_append)},
+            {"aevix_text_push_char", reinterpret_cast<std::uintptr_t>(&aevix_text_push_char)},
+            {"aevix_text_count", reinterpret_cast<std::uintptr_t>(&aevix_text_count)},
+            {"aevix_text_decode", reinterpret_cast<std::uintptr_t>(&aevix_text_decode)},
+            {"aevix_text_boundary", reinterpret_cast<std::uintptr_t>(&aevix_text_boundary)},
+            {"aevix_text_equal", reinterpret_cast<std::uintptr_t>(&aevix_text_equal)}})
+            if (!session->defineSymbol(name, address, error)) return nullptr;
         return session;
     }
 
     bool JITEngine::addModule(std::string_view llvmIR, std::string& error)
+    {
+        return addModuleTracked(llvmIR, error).has_value();
+    }
+
+    std::optional<JITModuleId> JITEngine::addModuleTracked(std::string_view llvmIR, std::string& error)
     {
         error.clear();
         std::lock_guard guard(implementation_->operations);
@@ -188,7 +244,7 @@ namespace aevix
         {
             llvm::raw_string_ostream output(error);
             diagnostic.print("Aevix JIT", output);
-            return false;
+            return std::nullopt;
         }
         const auto& native = implementation_->engine->getTargetTriple();
         const auto& requested = module->getTargetTriple();
@@ -198,37 +254,116 @@ namespace aevix
                 || (requested.getOS() != native.getOS() && !(requested.isOSDarwin() && native.isOSDarwin()))))
         {
             error = "JIT modules must target the running host (" + native.str() + ").";
-            return false;
+            return std::nullopt;
         }
         const auto& layout = implementation_->engine->getDataLayout();
         if (!module->getDataLayoutStr().empty() && module->getDataLayout() != layout)
         {
             error = "JIT module data layout does not match the native target.";
-            return false;
+            return std::nullopt;
         }
         module->setTargetTriple(native);
         module->setDataLayout(layout);
         llvm::raw_string_ostream verification(error);
-        if (llvm::verifyModule(*module, &verification)) return false;
-        std::map<std::string, CallableSignature, std::less<>> added;
-        for (const auto& function : *module)
+        if (llvm::verifyModule(*module, &verification)) return std::nullopt;
+        // 기계어 생성 수준뿐 아니라 실제 LLVM IR 최적화 파이프라인도 적용한다.
+        // Apply a real LLVM IR optimization pipeline in addition to code-generation tuning.
+        if (implementation_->optimization != 0)
         {
-            if (function.isDeclaration() || function.hasLocalLinkage()) continue;
-            const auto name = function.getName().str();
-            if (implementation_->signatures.contains(name))
-            {
-                error = "JIT function is already defined in this session: " + name;
-                return false;
-            }
-            added.emplace(name, signature(function));
+            llvm::LoopAnalysisManager loops;
+            llvm::FunctionAnalysisManager functions;
+            llvm::CGSCCAnalysisManager calls;
+            llvm::ModuleAnalysisManager modules;
+            llvm::PassBuilder builder;
+            builder.registerModuleAnalyses(modules);
+            builder.registerCGSCCAnalyses(calls);
+            builder.registerFunctionAnalyses(functions);
+            builder.registerLoopAnalyses(loops);
+            builder.crossRegisterProxies(loops, functions, calls, modules);
+            const auto level = implementation_->optimization == 1 ? llvm::OptimizationLevel::O1
+                : implementation_->optimization == 2 ? llvm::OptimizationLevel::O2 : llvm::OptimizationLevel::O3;
+            auto pipeline = builder.buildPerModuleDefaultPipeline(level);
+            pipeline.run(*module, modules);
+            if (llvm::verifyModule(*module, &verification)) return std::nullopt;
         }
-        if (auto failure = implementation_->engine->addIRModule(
+        std::map<std::string, CallableSignature, std::less<>> added;
+        Impl::Module tracked;
+        for (const auto& symbol : module->global_values())
+        {
+            const auto name = symbol.getName().str();
+            if (name.starts_with("llvm."))
+            {
+                if (name == "llvm.global_ctors" || name == "llvm.global_dtors") tracked.hasExitCallbacks = true;
+                continue;
+            }
+            if (symbol.hasLocalLinkage()) continue;
+            if (symbol.isDeclarationForLinker())
+            {
+                tracked.references.insert(name);
+                if (name == "atexit" || name == "__cxa_atexit" || name == "__cxa_thread_atexit")
+                    tracked.hasExitCallbacks = true;
+                continue;
+            }
+            if (implementation_->definitions.contains(name))
+            {
+                error = "JIT symbol is already defined in this session: " + name;
+                return std::nullopt;
+            }
+            tracked.definitions.insert(name);
+            if (const auto* function = llvm::dyn_cast<llvm::Function>(&symbol)) added.emplace(name, signature(*function));
+        }
+        tracked.resources = implementation_->engine->getMainJITDylib().createResourceTracker();
+        if (auto failure = implementation_->engine->addIRModule(tracked.resources,
             llvm::orc::ThreadSafeModule(std::move(module), std::move(context))))
+        {
+            error = implementation_->errorMessage(std::move(failure));
+            if (auto cleanup = tracked.resources->remove()) error += "\n" + implementation_->errorMessage(std::move(cleanup));
+            return std::nullopt;
+        }
+        const auto id = implementation_->nextModule++;
+        for (const auto& name : tracked.definitions) implementation_->definitions.emplace(name, id);
+        implementation_->signatures.insert(added.begin(), added.end());
+        implementation_->modules.emplace(id, std::move(tracked));
+        return id;
+    }
+
+    bool JITEngine::removeModule(JITModuleId id, std::string& error)
+    {
+        error.clear();
+        std::lock_guard guard(implementation_->operations);
+        const auto found = implementation_->modules.find(id);
+        if (id == InvalidJITModuleId || found == implementation_->modules.end())
+        {
+            error = "JIT module is not loaded in this session.";
+            return false;
+        }
+        if (found->second.hasExitCallbacks)
+        {
+            error = "JIT module owns initialization or exit callbacks and must remain until session teardown.";
+            return false;
+        }
+        for (const auto& [other, module] : implementation_->modules)
+        {
+            if (other == id) continue;
+            for (const auto& name : found->second.definitions)
+                if (module.references.contains(name))
+                {
+                    error = "JIT module is still referenced by module " + std::to_string(other) + " through symbol '" + name + "'.";
+                    return false;
+                }
+        }
+        if (auto failure = found->second.resources->remove())
         {
             error = implementation_->errorMessage(std::move(failure));
             return false;
         }
-        implementation_->signatures.insert(added.begin(), added.end());
+        for (const auto& name : found->second.definitions)
+        {
+            implementation_->definitions.erase(name);
+            implementation_->signatures.erase(name);
+            implementation_->addresses.erase(name);
+        }
+        implementation_->modules.erase(found);
         return true;
     }
 
@@ -245,6 +380,11 @@ namespace aevix
             return false;
         }
         std::lock_guard guard(implementation_->operations);
+        if (implementation_->definitions.contains(name))
+        {
+            error = "JIT symbol is already defined in this session: " + std::string(name);
+            return false;
+        }
         auto& engine = *implementation_->engine;
         llvm::orc::MangleAndInterner mangle(engine.getExecutionSession(), engine.getDataLayout());
         llvm::orc::SymbolMap symbols;
@@ -255,6 +395,7 @@ namespace aevix
             error = implementation_->errorMessage(std::move(failure));
             return false;
         }
+        implementation_->definitions.emplace(std::string(name), InvalidJITModuleId);
         return true;
     }
     JITInvocationResult JITEngine::invokeVoid(std::string_view function)
@@ -274,6 +415,16 @@ namespace aevix
         return nullptr;
     }
     bool JITEngine::addModule(std::string_view, std::string& error)
+    {
+        error = "LLVM ORC JIT is unavailable in this build.";
+        return false;
+    }
+    std::optional<JITModuleId> JITEngine::addModuleTracked(std::string_view, std::string& error)
+    {
+        error = "LLVM ORC JIT is unavailable in this build.";
+        return std::nullopt;
+    }
+    bool JITEngine::removeModule(JITModuleId, std::string& error)
     {
         error = "LLVM ORC JIT is unavailable in this build.";
         return false;

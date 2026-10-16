@@ -42,13 +42,14 @@ namespace aevix
         {
             return node.kind == "Struct" || node.kind == "Enum"
                 || node.kind == "Interface" || node.kind == "Function"
-                || node.kind == "Variable" || node.kind == "Variant";
+                || node.kind == "Variable" || node.kind == "Variant"
+                || node.kind == "TypeAlias";
         }
 
         bool typeDeclaration(const Node& node)
         {
             return node.kind == "Struct" || node.kind == "Enum"
-                || node.kind == "Interface";
+                || node.kind == "Interface" || node.kind == "TypeAlias";
         }
 
         bool append(Candidates& destination, const Candidates& source)
@@ -128,7 +129,7 @@ namespace aevix
                 if (coreEnabled_)
                     for (ModuleId module = 0; module < graph_.modules.size(); ++module)
                         if (graph_.modules[module]->name == "$core")
-                            for (const auto* name : {"Optional", "Result", "CollectionError", "InputError", "RangeError"})
+                            for (const auto* name : {"Optional", "Result", "CollectionError", "InputError", "RangeError", "TextError", "IntegerError", "FloatError", "BoundsError"})
                                 if (modules_[module].direct.contains(name)) prelude_[name] = modules_[module].direct.at(name);
                 linkReexports();
                 linkImports();
@@ -141,6 +142,8 @@ namespace aevix
                         if (declaration(*node)) walkDeclaration(*node, context, false);
                 }
 
+                validateAliasCycles();
+                if (diagnostics_.empty()) validateAliasOverloads();
                 result_.succeeded = diagnostics_.empty();
                 return std::move(result_);
             }
@@ -155,6 +158,8 @@ namespace aevix
             std::unordered_map<const Node*, SymbolId> declarationIds_;
             std::unordered_map<const Node*, SymbolTable> members_;
             std::unordered_map<const Node*, const Node*> owners_;
+            std::set<const Node*> resolvingAliases_;
+            std::set<const Node*> resolvedAliases_;
 
             void error(const Node& node, std::string message)
             {
@@ -175,11 +180,11 @@ namespace aevix
                 for (const auto& module : graph_.modules)
                     if (module && module->name == "$core") coreEnabled_ = true;
                 for (const auto* name : {
-                    "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64",
+                    "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128",
                     "isize", "usize", "f16", "bf16", "f32", "f64", "int", "float",
                     "bool", "char", "byte", "unit", "never", "void", "string",
                     "string_view", "Array", "Vector", "Slice", "MutSlice", "Tuple",
-                    "Range", "Optional", "Result", "Copy"
+                    "Range", "Optional", "Result", "Copy", "Fn", "FnMut", "FnOnce"
                 })
                 {
                     if (coreEnabled_ && (std::string_view(name) == "Result" || std::string_view(name) == "Optional")) continue;
@@ -248,7 +253,7 @@ namespace aevix
                     ? !hasModifier(node, "private") : hasModifier(node, "public");
                 const SymbolId id = addSymbol(&node, module, node.value, kind, visible);
                 if (owner) owners_[&node] = owner;
-                if (!owner && (prelude_.contains(node.value) || (coreEnabled_ && graph_.modules[module]->name != "$core" && (node.value == "Result" || node.value == "Optional" || node.value == "CollectionError" || node.value == "InputError" || node.value == "RangeError"))))
+                if (!owner && (prelude_.contains(node.value) || (coreEnabled_ && graph_.modules[module]->name != "$core" && (node.value == "Result" || node.value == "Optional" || node.value == "CollectionError" || node.value == "InputError" || node.value == "RangeError" || node.value == "TextError" || node.value == "IntegerError" || node.value == "FloatError" || node.value == "BoundsError"))))
                     error(node, "Cannot redeclare prelude name '" + node.value + "'.");
 
                 auto& existing = table[node.value];
@@ -269,6 +274,8 @@ namespace aevix
                 }
                 existing.push_back(id);
                 result_.references[&node] = {id};
+                if (node.kind == "TypeAlias" && !node.children.empty())
+                    result_.aliasTargets[&node] = node.children.front().get();
 
                 if (typeDeclaration(node) || node.kind == "Variant")
                     for (const auto& child : node.children)
@@ -442,7 +449,17 @@ namespace aevix
                     return {};
                 }
                 if (!symbol.declaration || symbol.declaration->kind == "TypeParameter") return {};
-                auto owner = members_.find(symbol.declaration);
+                const auto* declaration = canonicalDeclaration(symbol.declaration);
+                if (!declaration) return {};
+                if (childOf(*declaration, "CompilerSimd"))
+                {
+                    const Node* path = &use;
+                    if (path->kind == "GenericName" && !path->children.empty()) path = path->children[0].get();
+                    if (path->kind == "Member" && path->value == name && !path->children.empty())
+                        result_.references[path->children[0].get()] = {symbol.id};
+                    return {};
+                }
+                auto owner = members_.find(declaration);
                 if (owner == members_.end()) return {};
                 auto found = owner->second.find(name);
                 if (found == owner->second.end())
@@ -581,7 +598,19 @@ namespace aevix
             {
                 if (const auto* parameters = childOf(node, "GenericParameters"))
                     for (const auto& parameter : parameters->children)
-                        bind(*parameter, context, SymbolKind::Type);
+                    {
+                        const bool constant = parameter->kind == "ConstParameter";
+                        if (constant && !parameter->children.empty()) walkType(*parameter->children[0], context);
+                        if (const auto* initial = childOf(*parameter, "GenericDefault"))
+                        {
+                            for (const auto& value : initial->children)
+                            {
+                                if (constant) walkExpression(*value, context, false);
+                                else walkType(*value, context);
+                            }
+                        }
+                        bind(*parameter, context, constant ? SymbolKind::Value : SymbolKind::Type);
+                    }
             }
 
             void walkGenericArgument(const Node& argument, const Node& owner,
@@ -589,20 +618,50 @@ namespace aevix
             {
                 std::vector<std::string> parts;
                 bool lengthSlot = false;
-                if (index == 1 && flatten(owner, parts) && parts.size() == 1 && parts.front() == "Array")
+                if (flatten(owner, parts))
                 {
-                    const auto ids = lookup("Array", context);
-                    lengthSlot = ids.size() == 1
-                        && result_.symbols[ids.front()].module == InvalidModuleId;
+                    if (index == 1 && parts.size() == 1 && parts.front() == "Array")
+                    {
+                        const auto ids = lookup("Array", context);
+                        lengthSlot = ids.size() == 1 && result_.symbols[ids.front()].module == InvalidModuleId;
+                    }
+                    const auto reference = result_.references.find(&owner);
+                    if (reference != result_.references.end() && reference->second.size() == 1)
+                    {
+                        const auto* declaration = result_.symbols[reference->second[0]].declaration;
+                        if (declaration && childOf(*declaration, "CompilerSimd"))
+                            lengthSlot = index == (declaration->value == "SimdMask" ? 0u : 1u);
+                    }
+                    if (!lengthSlot && owner.kind == "Member" && !owner.children.empty())
+                    {
+                        const auto receiver = result_.references.find(owner.children[0].get());
+                        if (receiver != result_.references.end() && receiver->second.size() == 1)
+                        {
+                            const auto* declaration = result_.symbols[receiver->second[0]].declaration;
+                            if (declaration && childOf(*declaration, "CompilerSimd")) lengthSlot = index == 1;
+                        }
+                    }
                 }
 
+                if (!lengthSlot)
+                    if (const auto known = result_.references.find(&owner); known != result_.references.end() && !known->second.empty())
+                    {
+                        lengthSlot = true;
+                        for (const auto id : known->second)
+                        {
+                            const auto* declaration = result_.symbols[id].declaration;
+                            const auto* parameters = declaration ? childOf(*declaration, "GenericParameters") : nullptr;
+                            if (!parameters || index >= parameters->children.size() || parameters->children[index]->kind != "ConstParameter")
+                                lengthSlot = false;
+                        }
+                    }
                 // Array의 두 번째 인수는 타입이 아니라 상수 길이 이름이다.
                 // Array's second argument names a constant extent rather than a type.
                 if (lengthSlot && (argument.kind == "Type" || argument.kind == "QualifiedType"))
                 {
                     auto ids = pathReference(argument, context, false);
                     if (!ids.empty() && result_.symbols[ids.front()].kind != SymbolKind::Value)
-                        error(argument, "An Array extent must name a value, not a type or function.");
+                        error(argument, "A collection or SIMD extent must name a value, not a type or function.");
                     walkTypeArguments(argument, context);
                 }
                 else walkType(argument, context);
@@ -635,7 +694,9 @@ namespace aevix
 
             void walkType(const Node& node, Context& context)
             {
-                if (node.kind == "ConstantTypeArgument" || node.kind == "InferredType") return;
+                if (node.kind == "ConstantTypeArgument")
+                { for (const auto& expression : node.children) walkExpression(*expression, context, false); return; }
+                if (node.kind == "InferredType") return;
                 if (node.kind == "ReferenceType" || node.kind == "DynamicType")
                 {
                     for (const auto& child : node.children) walkType(*child, context);
@@ -652,8 +713,190 @@ namespace aevix
                 walkTypeArguments(node, context);
             }
 
+            // 선행 별칭의 대상도 선언 위치의 모듈에서 해석한다.
+            // Resolve forward alias targets in their declaration module.
+            void resolveAlias(const Node& node, Context& context)
+            {
+                if (resolvedAliases_.contains(&node) || node.children.empty()) return;
+                if (!resolvingAliases_.insert(&node).second) return;
+                if (resolvingAliases_.size() > 256)
+                    error(node, "Type alias expansion exceeds the limit of 256.");
+                else
+                    walkType(*node.children.front(), context);
+                resolvingAliases_.erase(&node);
+                resolvedAliases_.insert(&node);
+            }
+
+            const Node* canonicalDeclaration(const Node* declaration)
+            {
+                std::set<const Node*> visited;
+                while (declaration && declaration->kind == "TypeAlias")
+                {
+                    if (!visited.insert(declaration).second) return nullptr;
+                    if (!resolvedAliases_.contains(declaration))
+                    {
+                        Context context{result_.symbols[declarationIds_.at(declaration)].module,
+                                        nullptr, {SymbolTable{}}};
+                        if (const auto owner = owners_.find(declaration); owner != owners_.end())
+                        {
+                            context.owner = owner->second;
+                            context.scopes.back()["Self"] = {declarationIds_.at(owner->second)};
+                            if (const auto* parameters = childOf(*owner->second, "GenericParameters"))
+                                for (const auto& parameter : parameters->children)
+                                    if (const auto id = declarationIds_.find(parameter.get()); id != declarationIds_.end())
+                                        context.scopes.back()[parameter->value] = {id->second};
+                        }
+                        resolveAlias(*declaration, context);
+                    }
+                    if (declaration->children.empty()) return nullptr;
+                    const auto target = result_.references.find(declaration->children.front().get());
+                    if (target == result_.references.end() || target->second.size() != 1) return nullptr;
+                    declaration = result_.symbols[target->second.front()].declaration;
+                }
+                return declaration;
+            }
+
+            void validateAliasCycles()
+            {
+                std::map<const Node*, unsigned> states;
+                std::vector<const Node*> stack;
+                const auto visit = [&](const auto& self, const Node& node) -> void
+                {
+                    if (states[&node] == 2) return;
+                    if (states[&node] == 1)
+                    {
+                        std::string cycle;
+                        const auto begin = std::find(stack.begin(), stack.end(), &node);
+                        for (auto item = begin; item != stack.end(); ++item)
+                        {
+                            if (!cycle.empty()) cycle += " -> ";
+                            cycle += (*item)->value;
+                        }
+                        error(node, "Cyclic type alias: " + cycle + " -> " + node.value + ".");
+                        return;
+                    }
+                    if (stack.size() >= 256)
+                    {
+                        error(node, "Type alias expansion exceeds the limit of 256.");
+                        return;
+                    }
+                    states[&node] = 1;
+                    stack.push_back(&node);
+                    const auto inspect = [&](const auto& inspectSelf, const Node& syntax) -> void
+                    {
+                        if (const auto reference = result_.references.find(&syntax);
+                            reference != result_.references.end())
+                            for (const auto id : reference->second)
+                            {
+                                const auto* target = result_.symbols[id].declaration;
+                                if (target && target->kind == "TypeAlias") self(self, *target);
+                            }
+                        for (const auto& nested : syntax.children) inspectSelf(inspectSelf, *nested);
+                    };
+                    if (!node.children.empty()) inspect(inspect, *node.children.front());
+                    stack.pop_back();
+                    states[&node] = 2;
+                };
+                for (const auto& symbol : result_.symbols)
+                    if (symbol.declaration && symbol.declaration->kind == "TypeAlias")
+                        visit(visit, *symbol.declaration);
+            }
+
+            std::string canonicalSyntaxKey(const Node& node,
+                const std::map<std::string, std::string>& parameters,
+                std::set<const Node*>& aliases) const
+            {
+                if (node.kind == "Type" || node.kind == "QualifiedType")
+                    if (const auto reference = result_.references.find(&node);
+                        reference != result_.references.end() && reference->second.size() == 1)
+                    {
+                        const auto& symbol = result_.symbols[reference->second.front()];
+                        if (symbol.declaration && symbol.declaration->kind == "TypeAlias")
+                        {
+                            if (!aliases.insert(symbol.declaration).second) return "<cyclic>";
+                            auto key = canonicalSyntaxKey(*symbol.declaration->children.front(), parameters, aliases);
+                            aliases.erase(symbol.declaration);
+                            return key;
+                        }
+                        if (symbol.declaration && symbol.declaration->kind != "TypeParameter")
+                        {
+                            std::string key = "nominal:" + std::to_string(symbol.id);
+                            const std::size_t first = node.kind == "QualifiedType" ? 1 : 0;
+                            for (std::size_t i = first; i < node.children.size(); ++i)
+                                key += "," + canonicalSyntaxKey(*node.children[i], parameters, aliases);
+                            return key;
+                        }
+                    }
+                auto value = node.value;
+                if (node.kind == "Type")
+                {
+                    if (const auto found = parameters.find(value); found != parameters.end()) value = found->second;
+                    if (value == "int") value = "i32";
+                    if (value == "float") value = "f64";
+                }
+                std::string key = node.kind + "(" + value;
+                for (const auto& nested : node.children)
+                    if (nested->kind != "Modifier" && nested->kind != "Default")
+                        key += "," + canonicalSyntaxKey(*nested, parameters, aliases);
+                return key + ")";
+            }
+
+            std::string canonicalSignature(const Node& function) const
+            {
+                std::map<std::string, std::string> parameters;
+                if (const auto* generics = childOf(function, "GenericParameters"))
+                    for (std::size_t i = 0; i < generics->children.size(); ++i)
+                        parameters[generics->children[i]->value] = "$" + std::to_string(i);
+                std::string key = std::to_string(parameters.size()) + "(";
+                std::set<const Node*> aliases;
+                if (const auto* arguments = childOf(function, "Parameters"))
+                    for (const auto& argument : arguments->children)
+                    {
+                        key += argument->kind == "VariadicParameter" ? "..." : "";
+                        for (const auto& nested : argument->children)
+                            if (nested->kind != "Modifier" && nested->kind != "Default")
+                                key += canonicalSyntaxKey(*nested, parameters, aliases);
+                        key += ";";
+                    }
+                return key + ")";
+            }
+
+            void validateAliasOverloads()
+            {
+                // 별칭 철자가 달라도 같은 매개변수 타입이면 중복 오버로드다.
+                // Different alias spellings still denote duplicate parameter types.
+                const auto inspect = [&](const SymbolTable& table)
+                {
+                    for (const auto& [name, candidates] : table)
+                        for (std::size_t i = 0; i < candidates.size(); ++i)
+                        {
+                            const auto& left = result_.symbols[candidates[i]];
+                            if (left.kind != SymbolKind::Function) continue;
+                            for (std::size_t j = 0; j < i; ++j)
+                            {
+                                const auto& right = result_.symbols[candidates[j]];
+                                if (right.kind != SymbolKind::Function
+                                    || signature(*left.declaration) == signature(*right.declaration)) continue;
+                                if (canonicalSignature(*left.declaration) == canonicalSignature(*right.declaration))
+                                {
+                                    error(*left.declaration, "Duplicate overload signature for '" + name
+                                        + "' after transparent type alias expansion.");
+                                    break;
+                                }
+                            }
+                        }
+                };
+                for (const auto& module : modules_) inspect(module.direct);
+                for (const auto& [owner, members] : members_) { (void)owner; inspect(members); }
+            }
+
             void walkDeclaration(const Node& node, Context& context, bool local)
             {
+                if (node.kind == "TypeAlias")
+                {
+                    resolveAlias(node, context);
+                    return;
+                }
                 if (typeDeclaration(node))
                 {
                     Context nested = context;
@@ -746,12 +989,34 @@ namespace aevix
 
             void walkExpression(const Node& node, Context& context, bool typeOperand)
             {
+                if (node.kind == "Closure")
+                {
+                    const auto* captures = childOf(node, "Captures");
+                    std::set<std::string> selected;
+                    if (captures) for (const auto& capture : captures->children)
+                    {
+                        if (!selected.insert(capture->value).second) error(*capture, "A closure capture cannot appear more than once.");
+                        if (capture->children.size() > 1) walkExpression(*capture->children[1], context, false);
+                    }
+                    Context function = context; function.scopes.emplace_back();
+                    if (const auto* parameters = childOf(node, "Parameters"))
+                        for (const auto& parameter : parameters->children)
+                        {
+                            if (!parameter->children.empty()) walkType(*parameter->children[0], function);
+                            bind(*parameter, function, SymbolKind::Value);
+                        }
+                    if (node.children.size() > 2) walkType(*node.children[2], function);
+                    if (const auto* body = childOf(node, "Block")) walkStatement(*body, function);
+                    return;
+                }
                 if (node.kind == "CompilerArrayResult") { for (const auto& value : node.children) walkType(*value, context); return; }
                 if (node.kind == "Literal" || node.kind == "ConstantTypeArgument") return;
-                if (node.kind == "CompilerBoxExpression")
+                if (node.kind == "CompilerBoxExpression" || node.kind == "CompilerNumericExpression"
+                    || node.kind == "CompilerTextExpression" || node.kind == "CompilerSliceExpression")
                 {
                     if (!node.children.empty()) walkType(*node.children[0], context);
-                    if (node.children.size() > 1) walkExpression(*node.children[1], context, false);
+                    for (std::size_t i = 1; i < node.children.size(); ++i)
+                        walkExpression(*node.children[i], context, false);
                     return;
                 }
                 if (node.kind == "Name" || node.kind == "Member" || node.kind == "GenericName")
@@ -802,7 +1067,7 @@ namespace aevix
                         if (!ownerIds.empty())
                         {
                             const auto& symbol = result_.symbols[ownerIds.front()];
-                            auto owner = members_.find(symbol.declaration);
+                            auto owner = members_.find(canonicalDeclaration(symbol.declaration));
                             if (owner != members_.end())
                             {
                                 auto member = owner->second.find(field.value);

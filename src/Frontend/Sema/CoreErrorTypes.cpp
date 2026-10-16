@@ -21,8 +21,12 @@ namespace aevix
         for (const auto& module : graph.modules) if (module && module->name == "$core") return true;
         if (!diagnostics.empty()) return false;
         const std::string source = R"(
+public enum IntegerError { OutOfRange; };
+public enum FloatError { OutOfRange; NonFinite; NonExact; };
 public enum CollectionError { AllocationFailure; SizeOverflow; };
 public enum RangeError { InvalidStep; CountOverflow; };
+public enum BoundsError { OutOfBounds; ReversedRange; };
+public enum TextError { AllocationFailure; SizeOverflow; InvalidUtf8; InvalidBoundary; };
 public enum InputError<T> {
     AllocationFailure { public T input; };
     SizeOverflow { public T input; };

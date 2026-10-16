@@ -13,6 +13,9 @@
       "include": "#numbers"
     },
     {
+      "include": "#annotations"
+    },
+    {
       "include": "#keywords"
     },
     {
@@ -82,18 +85,29 @@
     "numbers": {
       "patterns": [
         {
-          "name": "invalid.illegal.numeric-suffix.aevix",
-          "match": "\\b(?:0[xX][0-9A-Fa-f_]*[G-Zg-z][A-Za-z0-9_]*|0[bB][01_]*[2-9A-Za-z][A-Za-z0-9_]*|0[oO][0-7_]*[89A-Za-z][A-Za-z0-9_]*|(?!0[xXbBoO])[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?[A-DF-Za-df-z][A-Za-z0-9_]*)\\b"
-        },
-        {
           "name": "constant.numeric.float.aevix",
-          "match": "\\b[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*(?:[eE][+-]?[0-9](?:_?[0-9])*)?|[eE][+-]?[0-9](?:_?[0-9])*)\\b"
+          "match": "\\b[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?(?:f16|bf16|f32|f64)\\b"
         },
         {
           "name": "constant.numeric.integer.aevix",
-          "match": "\\b(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[bB][01](?:_?[01])*|0[oO][0-7](?:_?[0-7])*|[0-9](?:_?[0-9])*)\\b"
+          "match": "\\b(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[bB][01](?:_?[01])*|0[oO][0-7](?:_?[0-7])*|[0-9](?:_?[0-9])*)(?:i8|i16|i32|i64|i128|u8|u16|u32|u64|u128|isize|usize)\\b"
+        },
+        {
+          "name": "constant.numeric.float.aevix",
+          "match": "\\b[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*(?:[eE][+-]?[0-9](?:_?[0-9])*)?|(?:[eE][+-]?[0-9](?:_?[0-9])*))\\b(?![A-Za-z_0-9])"
+        },
+        {
+          "name": "constant.numeric.integer.aevix",
+          "match": "\\b(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[bB][01](?:_?[01])*|0[oO][0-7](?:_?[0-7])*|[0-9](?:_?[0-9])*)\\b(?![A-Za-z_0-9])(?!\\.[0-9])"
+        },
+        {
+          "name": "invalid.illegal.numeric-suffix.aevix",
+          "match": "\\b[0-9][A-Za-z_0-9]*(?:\\.[0-9][A-Za-z_0-9]*)?(?:[eE][+-]?[A-Za-z_0-9]+)?\\b"
         }
       ]
+    },
+    "annotations": {
+      "patterns": [{ "name": "storage.modifier.annotation.aevix", "match": "@bench\\b" }]
     },
     "keywords": {
       "patterns": [
@@ -111,7 +125,7 @@
         },
         {
           "name": "keyword.declaration.aevix",
-          "match": "\\b(?:struct|enum|interface|implements|where)\\b"
+          "match": "\\b(?:type|struct|enum|interface|implements|where)\\b"
         },
         {
           "name": "constant.language.boolean.aevix",
@@ -127,18 +141,18 @@
         },
         {
           "name": "storage.type.aevix",
-          "match": "\\b(?:i8|i16|i32|i64|u8|u16|u32|u64|isize|usize|int|float|f16|bf16|f32|f64|bool|char|byte|string|string_view|unit|never|void|rsn)\\b"
+          "match": "\\b(?:i8|i16|i32|i64|i128|u8|u16|u32|u64|u128|isize|usize|int|float|f16|bf16|f32|f64|bool|char|byte|string|string_view|unit|never|void|rsn)\\b"
         },
         {
           "name": "support.type.aevix",
-          "match": "\\b(?:Array|Vector|Slice|MutSlice|Tuple|Range|Optional|Result|CollectionError|InputError|RangeError|Box|Shared|Weak|Tensor|Shape|Map|Set|Atomic|Mutex|RwLock|Copy)\\b"
+          "match": "\\b(?:Array|Vector|Slice|MutSlice|Tuple|Range|Optional|Result|CollectionError|TextError|BoundsError|IntegerError|FloatError|Integer|Float|InputError|RangeError|Box|Shared|Weak|Tensor|Shape|Map|Set|Atomic|Mutex|RwLock|Copy|Fn|FnMut|FnOnce|Simd|SimdMask|Complex|ComplexError|complex)\\b"
         }
       ]
     },
     "declarations": {
       "patterns": [
         {
-          "match": "\\b(struct|enum|interface)\\s+([A-Za-z_][A-Za-z_0-9]*)",
+          "match": "\\b(type|struct|enum|interface)\\s+([A-Za-z_][A-Za-z_0-9]*)",
           "captures": {
             "1": {
               "name": "keyword.declaration.aevix"

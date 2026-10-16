@@ -65,7 +65,8 @@ async function assertScope(source: string, needle: string, expected: RegExp): Pr
 }
 
 test('manifest registers .avx, portable runtime and trusted compiler execution', () => {
-    assert.equal(manifest.version, '0.1.0');
+    assert.equal(manifest.version, '0.2.0');
+    assert.equal(manifest.license, 'Apache-2.0');
     assert.equal(manifest.name, 'aevix');
     assert.equal(manifest.contributes.languages[0].id, 'aevix');
     assert.ok(manifest.contributes.languages[0].extensions.includes('.avx'));
@@ -85,7 +86,7 @@ test('manifest registers .avx, portable runtime and trusted compiler execution',
 });
 
 test('every compiler keyword receives keyword or storage highlighting', async () => {
-    const keywords = 'import public private struct enum interface implements where override mut const persist rsn dyn extern if else while for in switch case default break continue return move'.split(' ');
+    const keywords = 'type import public private struct enum interface implements where override mut const persist rsn dyn extern if else while for in switch case default break continue return move'.split(' ');
     for (const keyword of keywords) await assertScope(`${keyword} name;`, keyword, /\b(?:keyword|storage)\./);
     for (const literal of ['true', 'false']) await assertScope(`bool value = ${literal};`, literal, /constant\.language/);
 });
@@ -143,8 +144,14 @@ test('all snippet JSON is valid and insertion bodies have no legacy variable syn
     }
 });
 
-test('numeric suffixes are visibly invalid rather than accepted builtin literal syntax', async () => {
-    for (const value of ['42i32', '1.0f32', '0xG0', '0b102', '0o89']) {
+test('typed numeric suffixes receive numeric highlighting', async () => {
+    for (const value of ['42i32', '255u8', '0xffu8', '0b101i16', '0o755usize', '1.0f32', '1f32', '1.25bf16', '1e-3f64', '42i128', '340282366920938463463374607431768211455u128']) {
+        await assertScope(`rsn value = ${value};`, value, /constant\.numeric/);
+    }
+});
+
+test('unsupported numeric suffixes and malformed bases remain visibly invalid', async () => {
+    for (const value of ['42i256', '1.0f128', '42_i32', '0xG0', '0b102', '0o89']) {
         await assertScope(`rsn value = ${value};`, value, /invalid\.illegal/);
     }
 });
@@ -157,7 +164,7 @@ test('snippet defaults are accepted by the real Aevix parser', async (context) =
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'aevix-snippet-tests-'));
     const snippets = JSON.parse(fs.readFileSync(path.join(root, manifest.contributes.snippets[0].path), 'utf8'));
     const declarations = new Set(['Function', 'Void function', 'Main', 'Struct', 'Enum', 'Interface', 'Generic function', 'Variadic function', 'Result propagation function',
-        'Import', 'Selective import', 'Re-export', 'Documentation comment', 'Deprecated documentation', 'C external declaration']);
+        'Import', 'Selective import', 'Re-export', 'Documentation comment', 'Deprecated documentation', 'C external declaration', 'Type alias', 'Owned string function', 'Bench function', 'Generic fixed buffer', 'CPU SIMD import', 'CPU parallel import', 'Complex import']);
     try {
         for (const [name, value] of Object.entries(snippets)) {
             const item = value as { body: string | string[] };
@@ -186,4 +193,11 @@ test('core error carriers and dynamic views use type and storage scopes', async 
         await assertScope(`${type} value;`, type, /support\.type/);
     }
     await assertScope('&mut dyn Readable view = &mut value;', 'dyn', /storage\.modifier/);
+});
+
+test('CPU specialist types and bench annotation have distinct scopes', async () => {
+    for (const type of ['Simd', 'SimdMask', 'Fn', 'FnMut', 'FnOnce', 'Complex', 'complex']) {
+        await assertScope(`${type} value;`, type, /support\.type/);
+    }
+    await assertScope('@bench i32 main() { return 0; }', '@bench', /annotation/);
 });

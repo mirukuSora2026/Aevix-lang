@@ -48,7 +48,8 @@ namespace aevix
         Constant, Read, Move, Write, BorrowShared, BorrowMut,
         Unary, Binary, Call, Aggregate, EnumConstruct, EnumTag, EnsurePersist, ScopeBegin, ScopeEnd, Drop,
         RangeConstruct, RangeTest, RangeNext, RangeValue, RangeWithStep, RangeCount, RangeCountFits, SliceConstruct, SliceLength,
-        VectorAllocate, VectorAvailable, VectorAppend, VectorLength, VectorReserve
+        VectorAllocate, VectorAvailable, VectorAppend, VectorLength, VectorReserve, NumericStatus, NumericConvert, Simd,
+        ArrayRepeat, TextIntrinsic, ParallelIntrinsic, SliceSubview, ComplexIntrinsic
     };
     struct AIRInstruction final
     {
@@ -65,7 +66,7 @@ namespace aevix
         const Node* source = nullptr;
         SourceRange range{};
     };
-    enum class AIRTerminatorKind { Unreachable, Jump, Branch, Return };
+    enum class AIRTerminatorKind { Unreachable, Jump, Branch, Return, Trap, NoReturn };
     struct AIRTerminator final
     {
         AIRTerminatorKind kind = AIRTerminatorKind::Unreachable;
@@ -130,6 +131,7 @@ namespace aevix
         bool isPersist = false;
         bool isLocalPersist = false;
         bool isConstant = false;
+        bool isStaticText = false;
         SymbolId initializerFunction = InvalidSymbolId;
         std::string initializationOrderKey;
         std::vector<SymbolId> dependencies;

@@ -50,7 +50,10 @@ namespace aevix
         Vector,
         Slice,
         Dynamic,
-        Box
+        Box,
+        Tuple,
+        Simd,
+        SimdMask
     };
 
     /// 타입 ID는 해당 TypeContext 안에서만 의미를 가지며 별칭은 같은 ID를 사용한다.
@@ -85,6 +88,9 @@ namespace aevix
         TypeId range(TypeId element);
         TypeId vector(TypeId element);
         TypeId slice(TypeId element, bool isMutable = false);
+        TypeId tuple(const std::vector<TypeId>& fields);
+        TypeId simd(TypeId element, std::size_t lanes);
+        TypeId simdMask(std::size_t lanes);
         TypeId dynamic(SymbolId declaration, std::string name);
         TypeId boxed(SymbolId declaration, std::string name, TypeId element);
 
@@ -108,5 +114,8 @@ namespace aevix
         std::map<TypeId, TypeId> ranges_;
         std::map<TypeId, TypeId> vectors_;
         std::map<std::pair<TypeId, bool>, TypeId> slices_;
+        std::map<std::vector<TypeId>, TypeId> tuples_;
+        std::map<std::pair<TypeId, std::size_t>, TypeId> simd_;
+        std::map<std::size_t, TypeId> simdMasks_;
     };
 }

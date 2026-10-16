@@ -325,7 +325,7 @@ namespace aevix
             {
                 const auto& type = types_.types.get(id);
                 if (type.kind == TypeKind::String || type.kind == TypeKind::Array || type.kind == TypeKind::Vector || type.kind == TypeKind::Box
-                    || type.kind == TypeKind::Void || type.kind == TypeKind::Error) return false;
+                    || type.kind == TypeKind::Tuple || type.kind == TypeKind::Void || type.kind == TypeKind::Error) return false;
                 if (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice) return !type.isMutable;
                 if (type.kind != TypeKind::Nominal) return true;
                 if (!visiting.insert(id).second || type.declaration >= names_.symbols.size()) return false;
@@ -364,9 +364,10 @@ namespace aevix
             bool containsReference(TypeId id, std::unordered_set<TypeId>& visiting) const
             {
                 const auto& type = types_.types.get(id);
-                if (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice) return true;
+                if (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice || type.kind == TypeKind::StringView) return true;
                 if (!visiting.insert(id).second) return false;
                 bool answer = (type.kind == TypeKind::Array || type.kind == TypeKind::Vector || type.kind == TypeKind::Box) && containsReference(type.element, visiting);
+                if (type.kind == TypeKind::Tuple) for (const auto field : type.parameters) answer = answer || containsReference(field, visiting);
                 if (type.kind == TypeKind::Box && types_.types.get(type.element).kind == TypeKind::Dynamic) answer = true;
                 if (const auto found = records_.find(id); found != records_.end())
                 {
@@ -581,6 +582,11 @@ namespace aevix
             void access(const AIRInstruction& instruction, const State& state, bool exclusive,
                         bool moving = false)
             {
+                // 이동한 뷰를 통한 원소 쓰기는 원래 바인딩의 재초기화가 아니다.
+                // Writing through a moved view does not reinitialize the original binding.
+                if (instruction.place.local < state.live.size() && state.live[instruction.place.local] != 1
+                    && (instruction.opcode != AIROpcode::Write || !instruction.place.projections.empty()))
+                    error(instruction.range, "Use of a moved or unavailable value.");
                 const auto view = place(instruction.place, state);
                 for (const auto& target : view.targets)
                 {
@@ -708,7 +714,11 @@ namespace aevix
                 IdSet result;
                 if (instruction.opcode == AIROpcode::Read || instruction.opcode == AIROpcode::Move)
                 {
-                    if (instruction.place.global != InvalidSymbolId && containsReference(instruction.type))
+                    const bool staticText = instruction.place.global != InvalidSymbolId
+                        && std::any_of(module_.globals.begin(), module_.globals.end(), [&](const AIRGlobal& global) {
+                        return global.symbol == instruction.place.global && global.isStaticText;
+                    });
+                    if (instruction.place.global != InvalidSymbolId && containsReference(instruction.type) && !staticText)
                         error(instruction.range, "Reading global reference-containing values requires initialization provenance analysis.");
                     const bool moved = instruction.opcode == AIROpcode::Move && !copy(instruction.type);
                     const bool extract = moved && instruction.operation == "enum.extract"
@@ -735,7 +745,7 @@ namespace aevix
                 }
                 else if (instruction.opcode == AIROpcode::BorrowShared || instruction.opcode == AIROpcode::BorrowMut || instruction.opcode == AIROpcode::SliceConstruct)
                 {
-                    const bool exclusive = instruction.opcode == AIROpcode::BorrowMut;
+                    const bool exclusive = instruction.opcode == AIROpcode::BorrowMut || (instruction.opcode == AIROpcode::SliceConstruct && types_.types.get(instruction.type).isMutable);
                     access(instruction, state, exclusive);
                     const auto target = place(instruction.place, state);
                     const auto id = loanIds_[block][index];
@@ -829,11 +839,12 @@ namespace aevix
 
                 }
                 else if (instruction.opcode == AIROpcode::Aggregate || instruction.opcode == AIROpcode::EnumConstruct
-                    || instruction.opcode == AIROpcode::Unary)
+                    || instruction.opcode == AIROpcode::Unary || instruction.opcode == AIROpcode::TextIntrinsic || instruction.opcode == AIROpcode::ArrayRepeat
+                    || instruction.opcode == AIROpcode::SliceSubview)
                 {
                     // 길이 같은 스칼라 계산 결과에는 원본 뷰의 대여 수명이 포함되지 않는다.
                     // Scalar computations such as lengths do not retain their source view lifetime.
-                    if (instruction.opcode != AIROpcode::Unary || containsReference(instruction.type))
+                    if ((instruction.opcode != AIROpcode::Unary && instruction.opcode != AIROpcode::TextIntrinsic) || containsReference(instruction.type))
                         for (const auto operand : instruction.operands) unite(result, value(state, operand));
                 }
                 else if (instruction.opcode == AIROpcode::ScopeEnd)

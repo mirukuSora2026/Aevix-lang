@@ -99,6 +99,23 @@ namespace aevix
 
             Choices* choices_ = nullptr;
             bool structures_ = true;
+            bool genericDefault_ = false;
+
+            struct BooleanScope final
+            {
+                bool& value;
+                bool previous;
+                BooleanScope(bool& target, bool replacement) : value(target), previous(target) { value = replacement; }
+                ~BooleanScope() { value = previous; }
+            };
+
+            struct ChoicesScope final
+            {
+                Choices*& value;
+                Choices* previous;
+                explicit ChoicesScope(Choices*& target) : value(target), previous(target) { value = nullptr; }
+                ~ChoicesScope() { value = previous; }
+            };
 
             struct Depth final
             {
@@ -162,7 +179,7 @@ namespace aevix
             {
                 static const std::set<std::string_view> reserved = {
                     "import", "public", "private",
-                    "struct", "enum", "interface",
+                    "struct", "enum", "interface", "type",
                     "implements", "where", "override",
                     "mut", "const", "persist", "rsn", "dyn", "extern",
                     "if", "else", "while", "for", "in",
@@ -445,12 +462,13 @@ namespace aevix
             void genericTypeArguments(Node& owner)
             {
                 if (!take("<")) return;
+                if (owner.value == "Tuple" && take(">")) return;
 
                 do
                 {
                     attach(owner, typeArgument());
                 }
-                while (take(","));
+                while (take(",") && !is(">"));
 
                 expect(">");
             }
@@ -462,16 +480,35 @@ namespace aevix
 
                 if (!take("<")) return result;
 
+                bool defaultSeen = false;
                 do
                 {
                     const auto parameterStart = position_;
-
-                    attach(
-                        *result,
-                        node("TypeParameter", name(), parameterStart)
-                    );
+                    NodePtr parameter;
+                    if (take("const"))
+                    {
+                        auto parameterType = type();
+                        parameter = node("ConstParameter", name(), parameterStart);
+                        attach(*parameter, std::move(parameterType));
+                    }
+                    else parameter = node("TypeParameter", name(), parameterStart);
+                    if (take("="))
+                    {
+                        auto initial = node("GenericDefault", "", position_ - 1);
+                        if (parameter->kind == "ConstParameter")
+                        {
+                            BooleanScope delimiter(genericDefault_, true);
+                            attach(*initial, expression({",", ">"}));
+                        }
+                        else attach(*initial, type());
+                        attach(*parameter, std::move(initial));
+                        defaultSeen = true;
+                    }
+                    else if (defaultSeen) fail("A required generic parameter cannot follow a defaulted parameter.");
+                    parameter->range = span(parameterStart);
+                    attach(*result, std::move(parameter));
                 }
-                while (take(","));
+                while (take(",") && !is(">"));
 
                 expect(">");
 
@@ -629,6 +666,16 @@ namespace aevix
                 Depth depth(*this);
 
                 const auto start = position_;
+                NodePtr bench;
+                while (take("@"))
+                {
+                    const auto annotationStart = position_ - 1;
+                    const auto annotation = name();
+                    if (annotation != "bench")
+                        fail("Unknown function annotation '@" + annotation + "'.");
+                    if (bench) fail("Repeated @bench annotation.");
+                    bench = node("Bench", "", annotationStart);
+                }
                 const auto flags = modifiers();
 
                 if (
@@ -643,8 +690,27 @@ namespace aevix
                     fail("Visibility and override modifiers are not allowed on local declarations.");
                 }
 
+                if (take("type"))
+                {
+                    if (bench) fail("@bench only applies to functions with a body.");
+                    if (local)
+                        fail("Type aliases belong at module or type scope.");
+                    if (!flags.empty() && flags != "public" && flags != "private")
+                        fail("Type aliases only accept public or private visibility.");
+                    auto result = node("TypeAlias", name(), start);
+                    expect("=");
+                    attach(*result, type());
+                    expect(";");
+                    if (!flags.empty())
+                        attach(*result, node("Modifier", flags, start));
+                    result->range = span(start);
+                    comments(*result, start);
+                    return result;
+                }
+
                 if (is("struct") || is("enum") || is("interface"))
                 {
+                    if (bench) fail("@bench only applies to functions with a body.");
                     if (flags.find("extern") != std::string::npos)
                         fail("extern C declarations must be module-level function prototypes.");
                     const std::string category(tokens_[position_++].text);
@@ -696,6 +762,7 @@ namespace aevix
                     && (is(";", 1) || is("{", 1))
                 )
                 {
+                    if (bench) fail("@bench only applies to functions with a body.");
                     auto result = node("Variant", name(), start);
 
                     if (take("{"))
@@ -782,7 +849,7 @@ namespace aevix
                             defaultSeen = defaultSeen || hasDefault;
                             attach(*parameters, std::move(item));
                         }
-                        while (take(","));
+                        while (take(",") && !is(")"));
                     }
 
                     expect(")");
@@ -793,6 +860,7 @@ namespace aevix
 
                     if (take(";"))
                     {
+                        if (bench) fail("@bench requires a function body; extern and abstract declarations cannot be benchmarked.");
                         if (!interfaceMember && flags.find("extern") == std::string::npos)
                         {
                             fail("Only interface requirements may omit a function body.");
@@ -807,6 +875,7 @@ namespace aevix
                 }
                 else
                 {
+                    if (bench) fail("@bench only applies to functions with a body.");
                     if (flags.find("extern") != std::string::npos)
                         fail("extern C declarations must be module-level function prototypes.");
                     attach(*result, suffixes());
@@ -831,6 +900,7 @@ namespace aevix
 
                 if (!flags.empty())
                     attach(*result, node("Modifier", flags, start));
+                if (bench) attach(*result, std::move(bench));
 
                 result->range = span(start);
                 comments(*result, start);
@@ -841,9 +911,9 @@ namespace aevix
             bool beginsDeclaration()
             {
                 if (
-                    is("mut") || is("const") || is("persist") || is("rsn") || is("extern")
+                    is("mut") || is("const") || is("persist") || is("rsn") || is("extern") || is("@")
                     || is("public") || is("private")
-                    || is("struct") || is("enum") || is("interface")
+                    || is("struct") || is("enum") || is("interface") || is("type")
                 )
                 {
                     return true;
@@ -1454,6 +1524,7 @@ namespace aevix
 
                 while (true)
                 {
+                    if (genericDefault_ && is(">")) break;
                     if (minimum <= 1 && is("?"))
                     {
                         // 후위 해석은 prefix/postfix 단계에서 이미 소비한다.
@@ -1575,7 +1646,7 @@ namespace aevix
                             {
                                 attach(*arguments, typeArgument());
                             }
-                            while (take(","));
+                            while (take(",") && !is(">"));
 
                             expect(">");
 
@@ -1644,7 +1715,7 @@ namespace aevix
 
                                 attach(*call, std::move(argument));
                             }
-                            while (take(","));
+                            while (take(",") && !is(")"));
                         }
 
                         expect(")");
@@ -1802,6 +1873,7 @@ namespace aevix
                 if (take("("))
                 {
                     auto result = node("Group", "", start);
+                    BooleanScope delimiter(genericDefault_, false);
 
                     attach(*result, parseExpression(1));
                     expect(")");
@@ -1812,15 +1884,60 @@ namespace aevix
 
                 if (take("["))
                 {
+                    std::size_t end = position_;
+                    while (end < tokens_.size() && tokens_[end].text != "]" && tokens_[end].text != ";"
+                        && tokens_[end].text != "[") ++end;
+                    if (end + 1 < tokens_.size() && tokens_[end].text == "]" && tokens_[end + 1].text == "(")
+                    {
+                        // 클로저의 문장과 기본 인수는 바깥 식과 독립적으로 ?를 해석한다.
+                        // Resolve ? in closure statements and default arguments independently of the enclosing expression.
+                        ChoicesScope closureChoices(choices_);
+                        auto result = node("Closure", "", start);
+                        auto captures = node("Captures", "", start);
+                        if (!is("]")) do
+                        {
+                            const auto captureStart = position_;
+                            std::string mode = "value";
+                            if (take("&")) mode = take("mut") ? "mut" : "read";
+                            const auto captureName = name();
+                            auto capture = node("Capture", captureName, captureStart);
+                            attach(*capture, node("CaptureMode", mode, captureStart));
+                            attach(*capture, node("Name", captureName, captureStart));
+                            attach(*captures, std::move(capture));
+                        } while (take(",") && !is("]"));
+                        expect("]"); expect("(");
+                        auto parameters = node("Parameters", "", position_ - 1);
+                        bool defaultSeen = false;
+                        if (!is(")")) do
+                        {
+                            auto argument = parameter();
+                            if (argument->value == "self") fail("Closure parameters cannot use the reserved receiver name self.");
+                            if (argument->kind == "VariadicParameter") fail("Closure parameters have fixed arity in 0.2.");
+                            const bool hasDefault = std::any_of(argument->children.begin(), argument->children.end(), [](const auto& item) { return item->kind == "Default"; });
+                            if (defaultSeen && !hasDefault) fail("A required parameter cannot follow a defaulted parameter.");
+                            defaultSeen = defaultSeen || hasDefault;
+                            attach(*parameters, std::move(argument));
+                        } while (take(",") && !is(")"));
+                        expect(")"); expect("->");
+                        auto returned = type();
+                        attach(*result, std::move(captures)); attach(*result, std::move(parameters)); attach(*result, std::move(returned));
+                        attach(*result, block()); result->range = span(start); return result;
+                    }
                     auto result = node("ArrayLiteral", "", start);
 
                     if (!is("]"))
                     {
-                        do
+                        attach(*result, parseExpression(1));
+                        if (take(";"))
                         {
+                            result->kind = "ArrayRepeat";
                             attach(*result, parseExpression(1));
                         }
-                        while (take(",") && !is("]"));
+                        else
+                        {
+                            while (take(",") && !is("]"))
+                                attach(*result, parseExpression(1));
+                        }
                     }
 
                     expect("]");

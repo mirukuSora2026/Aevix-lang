@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="The implemented Aevix 0.2 complex library: explicit imports, floating component formats, stable magnitude, and fallible division.">
+  <title>Complex numbers in 0.2 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-logo.png">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Complex reference"><a href="Complex.html">Design reference</a><a href="Complex_02.html" aria-current="page">0.2 profile</a><a href="../../errors/index.html">Errors</a></nav>
+    <span class="draft-badge">0.2 PROFILE</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Complex.html">Complex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">0.2 profile</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">IMPLEMENTED LANGUAGE PROFILE</p><h1>Complex numbers in 0.2</h1><p class="doc-subtitle">Two floating-point components, explicit imports, and fallible division.</p><div class="doc-meta"><span class="meta-chip">Complex&lt;T = f64&gt;</span><span class="meta-chip">complex = Complex&lt;f64&gt;</span><span class="meta-chip">Scalar values · AOT / JIT</span></div></div></header>
+    <div class="docs-layout">
+      <aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#start">Import and construction</a></li><li><a href="#functions">Available functions</a></li><li><a href="#numerics">Numerical behavior</a></li><li><a href="#errors">Errors and ownership</a></li><li><a href="#formats">Formats and scope</a></li></ol></details><nav class="family-nav"><h2>Related reference</h2><div class="family-links"><a href="Complex.html">Full design catalog</a><a href="../../grammar/generics/Generics_02.html">0.2 generics and Floating</a></div></nav></aside>
+      <article class="content" aria-label="Implemented Complex reference">
+<section id="start"><h2>Import and construction</h2>
+<p>This page lists the implemented 0.2 profile. The larger design catalog includes future APIs. Complex values are ordinary generic library structs, loaded only when imported.</p>
+<pre><code id="Aevix">import complex { Complex, complex, ComplexError };
+
+i32 main() {
+    complex value = complex.new(3.0, 4.0);
+    Complex&lt;f32&gt; single = Complex&lt;f32&gt;.new(3.0f32, 4.0f32);
+    return complex.magnitude(value) == 5.0 ? 42 : 1;
+}</code></pre>
+<p><code>Complex&lt;T = f64&gt;</code> has public <code>T real</code> and <code>T imag</code> fields. The transparent alias <code>complex</code> means <code>Complex&lt;f64&gt;</code>. With a whole-module <code>import complex;</code>, use <code>complex.Complex&lt;f64&gt;</code>. No ambiguous c-width aliases or imaginary literal suffixes are assigned.</p>
+</section>
+<section id="functions"><h2>Available type functions</h2>
+<p>In the table, <code>C</code> means the chosen concrete type, such as <code>Complex&lt;f32&gt;</code>. Call functions through that type. Arguments are values; the two-component struct implements <code>Copy</code>.</p>
+<table><thead><tr><th>Call</th><th>Result and behavior</th></tr></thead><tbody>
+<tr><td><code>C.new(T real, T imag)</code></td><td>C with the supplied, already typed components.</td></tr>
+<tr><td><code>C.zero()</code>, <code>C.one()</code>, <code>C.imaginary_unit()</code></td><td>C representing 0, 1, or i.</td></tr>
+<tr><td><code>C.add(C left, C right)</code>, <code>C.sub(C left, C right)</code></td><td>Component addition or subtraction.</td></tr>
+<tr><td><code>C.mul(C left, C right)</code></td><td>Ordinary complex multiplication; intermediate component arithmetic can overflow.</td></tr>
+<tr><td><code>C.neg(C value)</code>, <code>C.conjugate(C value)</code></td><td>Negate both components, or only the imaginary component.</td></tr>
+<tr><td><code>C.eq(C left, C right)</code></td><td>bool, using component equality; NaN remains unequal.</td></tr>
+<tr><td><code>C.is_nan(C value)</code>, <code>C.is_finite(C value)</code></td><td>bool; respectively any NaN component, or both components finite.</td></tr>
+<tr><td><code>C.norm_squared(C value)</code></td><td>T, real² + imag² using ordinary component arithmetic.</td></tr>
+<tr><td><code>C.magnitude(C value)</code>, <code>C.norm(C value)</code></td><td>T, stable Euclidean magnitude. These two names have the same meaning.</td></tr>
+<tr><td><code>C.div(C numerator, C denominator)</code></td><td><code>Result&lt;C, ComplexError&gt;</code>.</td></tr>
+<tr><td><code>C.reciprocal(C value)</code></td><td><code>Result&lt;C, ComplexError&gt;</code>, equivalent to dividing one by value.</td></tr>
+</tbody></table>
+</section>
+<section id="numerics"><h2>Numerical behavior</h2>
+<p>Each component has its own format and rounding. Ordinary arithmetic uses that component format. Stable magnitude and division promote the already rounded input components to f64 and round each final result back to T. They do not create extra input precision.</p>
+<p>Magnitude uses a scaled standard numerical implementation, avoiding an unnecessary overflow from explicitly forming real² + imag². Infinity dominates a NaN component in magnitude; otherwise a NaN component produces NaN. A zero magnitude is positive zero.</p>
+<p>Finite division keeps product mantissas and binary exponents separate before forming each output component. This avoids unnecessary overflow in a product and preserves a tiny imaginary component beside a huge real component. Nonfinite inputs use the platform standard complex recovery rules. No correctly rounded result, NaN payload preservation, or identical last bit across all platform math libraries is promised.</p>
+<p>NaN and infinity are numerical values, not automatic Result errors. Complex numbers have no implicit ordering and no new operator overloads in this profile.</p>
+</section>
+<section id="errors"><h2>Errors and ownership</h2>
+<p>A denominator with both components equal to zero, including signed zeros, returns <code>ComplexError.ZeroDivisor</code>. Check the Result or propagate it with <code>?</code>. <code>ComplexError</code> implements Copy.</p>
+<pre><code id="Aevix">import complex { complex, ComplexError };
+
+Result&lt;complex, ComplexError&gt; quotient() {
+    complex a = complex.new(3.0, 4.0);
+    complex b = complex.new(1.0, -2.0);
+    complex result = complex.div(a, b)?;
+    return Result.ok(result);
+}</code></pre>
+<p>Complex values contain no owned heap allocation. A value copy copies two components. Runtime numerical helpers use scalar arguments and caller-provided output storage; they do not allocate memory or throw exceptions. Private implementation helpers are inaccessible from user modules.</p>
+</section>
+<section id="formats"><h2>Formats and scope</h2>
+<p>Supported component formats are <code>f16</code>, <code>bf16</code>, <code>f32</code>, and <code>f64</code>, including transparent aliases of those types. The struct requires the sealed <code>numeric.Floating</code> contract. Integer, user-defined, and unrelated same-named interfaces do not satisfy it.</p>
+<p>AOT and JIT use the same checked language pipeline. Runtime support must match the target platform. Transcendental complex functions, polar conversions, complex SIMD, and GPU execution remain future work.</p>
+</section>
+      </article>
+    </div>
+    <footer class="page-footer"><span>Aevix 0.2 · Complex library</span><span>Implemented profile · platform execution requires its runtime</span></footer>
+  </main>
+</body>
+</html>

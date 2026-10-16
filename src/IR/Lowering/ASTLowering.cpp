@@ -65,7 +65,7 @@ namespace aevix
                 {
                     globalSymbols_.insert(global.symbol);
                     std::unordered_set<TypeId> visiting;
-                    if (containsReference(global.type, visiting) && global.source)
+                    if (containsReference(global.type, visiting) && !global.isStaticText && global.source)
                         error(*global.source, "reference-containing global storage requires initialization provenance analysis and is not supported in this stage.");
                 }
                 for (auto& global : result_.globals)
@@ -99,6 +99,7 @@ namespace aevix
             Diagnostics& diagnostics_;
             AIRModule result_;
             AIRFunction* function_ = nullptr;
+            AIRInstruction discardedInstruction_;
             AIRBlockId block_ = 0;
             std::vector<AIRScopeId> scopes_;
             std::unordered_map<const Node*, SymbolId> declarations_;
@@ -188,6 +189,16 @@ namespace aevix
                 global.symbol = id(node); global.name = node.value; global.type = type(node);
                 global.isMutable = flag(node, "mut"); global.initializer = initializer(node); global.source = &node;
                 global.isConstant = flag(node, "const"); global.isLocalPersist = localPersist;
+                // 정적 문자열 상수는 지역 대여를 저장하지 않는다는 사실을 기록한다.
+                // Record that a static text constant stores no borrow of local storage.
+                if (global.isConstant && !global.isMutable && global.initializer
+                    && typed_.types.get(global.type).kind == TypeKind::StringView)
+                {
+                    const auto evaluated = ConstEvaluator(names_, typed_.types, typed_.nodeTypes, typed_.symbolTypes)
+                        .evaluate(*global.initializer, global.type);
+                    global.isStaticText = evaluated.status == ConstStatus::Constant
+                        && evaluated.value.kind == ConstantKind::String;
+                }
                 global.isPersist = !global.isConstant && (global.initializer || flag(node, "persist"));
                 std::ostringstream key;
                 const auto module = global.symbol < names_.symbols.size() ? names_.symbols[global.symbol].module : InvalidModuleId;
@@ -234,11 +245,14 @@ namespace aevix
                 if (storage && storage->initializer)
                 {
                     const auto value = expression(*storage->initializer);
-                    write(symbolPlace(storage->symbol, storage->type), value, *storage->source);
-                    function_->blocks[block_].instructions.back().operation = "persist.initialize";
+                    if (!terminated())
+                    {
+                        write(symbolPlace(storage->symbol, storage->type), value, *storage->source);
+                        function_->blocks[block_].instructions.back().operation = "persist.initialize";
+                    }
                 }
                 leave(function_->source);
-                function_->blocks[block_].terminator.kind = AIRTerminatorKind::Return;
+                if (!terminated()) function_->blocks[block_].terminator.kind = AIRTerminatorKind::Return;
                 scopes_.clear();
             }
             void insertGlobalEnsures()
@@ -321,6 +335,15 @@ namespace aevix
             }
             AIRInstruction& instruction(AIROpcode opcode, const Node* source = nullptr, TypeId valueType = InvalidTypeId, bool result = false)
             {
+                // 종료된 경로의 바깥 표현식은 값이나 부수 효과를 더 만들지 않는다.
+                // Enclosing expressions emit no further values or effects after divergence.
+                if (terminated())
+                {
+                    discardedInstruction_ = {};
+                    discardedInstruction_.opcode = opcode;
+                    discardedInstruction_.type = valueType;
+                    return discardedInstruction_;
+                }
                 AIRInstruction value;
                 value.opcode = opcode;
                 value.type = valueType;
@@ -348,6 +371,7 @@ namespace aevix
             }
             void branch(AIRValueId condition, AIRBlockId yes, AIRBlockId no, const Node& source)
             {
+                if (terminated()) return;
                 auto& end = function_->blocks[block_].terminator;
                 end.kind = AIRTerminatorKind::Branch;
                 end.value = condition;
@@ -458,10 +482,12 @@ namespace aevix
             bool containsReference(TypeId valueType, std::unordered_set<TypeId>& visiting) const
             {
                 const auto& value = typed_.types.get(valueType);
-                if (value.kind == TypeKind::Reference || value.kind == TypeKind::Slice) return true;
+                if (value.kind == TypeKind::Reference || value.kind == TypeKind::Slice || value.kind == TypeKind::StringView) return true;
                 if (!visiting.insert(valueType).second) return false;
                 if (value.kind == TypeKind::Box && typed_.types.get(value.element).kind == TypeKind::Dynamic) return true;
                 if (value.kind == TypeKind::Array || value.kind == TypeKind::Vector || value.kind == TypeKind::Box) return containsReference(value.element, visiting);
+                if (value.kind == TypeKind::Tuple)
+                { for (const auto field : value.parameters) if (containsReference(field, visiting)) return true; return false; }
                 if (value.kind != TypeKind::Nominal) return false;
                 const auto* description = record(valueType);
                 if (!description) return false;
@@ -474,7 +500,7 @@ namespace aevix
             {
                 const auto& value = typed_.types.get(valueType);
                 if (value.kind == TypeKind::Reference || value.kind == TypeKind::Slice) return !value.isMutable;
-                if (value.kind == TypeKind::Array || value.kind == TypeKind::Vector || value.kind == TypeKind::Box || value.kind == TypeKind::String) return false;
+                if (value.kind == TypeKind::Array || value.kind == TypeKind::Tuple || value.kind == TypeKind::Vector || value.kind == TypeKind::Box || value.kind == TypeKind::String) return false;
                 if (value.kind != TypeKind::Nominal) return true;
                 if (value.declaration >= names_.symbols.size()) return false;
                 const auto* declaration = names_.symbols[value.declaration].declaration;
@@ -509,8 +535,10 @@ namespace aevix
             }
             AIRValueId condition(const Node& node, bool logical)
             {
-                const auto slot = local(nullptr, type(node), "$conditional");
+                const bool diverges = typed_.types.get(type(node)).kind == TypeKind::Never;
+                const auto slot = diverges ? InvalidAIRId : local(nullptr, type(node), "$conditional");
                 const auto left = expression(*node.children[0]);
+                if (terminated()) return InvalidAIRId;
                 const auto yes = block("conditional.yes");
                 const auto no = block("conditional.no");
                 const auto done = block("conditional.end");
@@ -518,14 +546,19 @@ namespace aevix
                 block_ = yes;
                 const auto yesValue = logical && node.value == "||" ? constant(type(node), "true", &node)
                     : expression(*node.children[1]);
-                write(localPlace(slot), yesValue, node);
+                if (slot != InvalidAIRId) write(localPlace(slot), yesValue, node);
                 jump(done);
                 block_ = no;
                 const auto noValue = logical ? (node.value == "&&" ? constant(type(node), "false", &node)
                     : expression(*node.children[1])) : expression(*node.children[2]);
-                write(localPlace(slot), noValue, node);
+                if (slot != InvalidAIRId) write(localPlace(slot), noValue, node);
                 jump(done);
                 block_ = done;
+                if (diverges)
+                {
+                    function_->blocks[block_].terminator.kind = AIRTerminatorKind::Trap;
+                    return InvalidAIRId;
+                }
                 return read(localPlace(slot), node);
             }
             AIRValueId argumentExpression(const Node& node, TypeId expected)
@@ -551,11 +584,6 @@ namespace aevix
             {
                 const auto selected = typed_.calls.find(&node);
                 if (selected == typed_.calls.end()) { error(node, "call has no selected target."); return InvalidAIRId; }
-                if (typed_.types.get(type(node)).kind == TypeKind::Never)
-                {
-                    error(node, "never-returning calls require bottom-value control-flow lowering and are not supported in this stage.");
-                    return InvalidAIRId;
-                }
                 const auto target = selected->second;
                 const auto* declaration = names_.symbols[target].declaration;
                 const auto* parameters = declaration ? child(*declaration, "Parameters") : nullptr;
@@ -652,7 +680,10 @@ namespace aevix
                     }
                 for (std::size_t index = 0; index < argumentOwners.size(); ++index)
                     if (argumentOwners[index] != InvalidAIRId) arguments[index] = read(localPlace(argumentOwners[index]), node, true);
-                auto& item = instruction(AIROpcode::Call, &node, type(node), typed_.types.get(type(node)).kind != TypeKind::Void);
+                if (terminated()) { if (variadic) leave(&node); return InvalidAIRId; }
+                const auto resultKind = typed_.types.get(type(node)).kind;
+                auto& item = instruction(AIROpcode::Call, &node, type(node),
+                    resultKind != TypeKind::Void && resultKind != TypeKind::Never);
                 item.callee = target;
                 if (const auto found = typed_.dynCalls.find(&node); found != typed_.dynCalls.end())
                 {
@@ -662,6 +693,13 @@ namespace aevix
                 }
                 item.operands = std::move(arguments);
                 const auto result = item.result;
+                if (resultKind == TypeKind::Never)
+                {
+                    auto& end = function_->blocks[block_].terminator;
+                    end.kind = AIRTerminatorKind::NoReturn;
+                    end.source = &node;
+                    end.range = node.range;
+                }
                 if (variadic) leave(&node);
                 return result;
             }
@@ -701,6 +739,79 @@ namespace aevix
                 write(localPlace(resultSlot), fail, node); jump(done, &node); block_ = done;
                 return read(localPlace(resultSlot), node, true);
             }
+            AIRValueId sliceExpression(const Node& node)
+            {
+                const auto& carrier = typed_.carriers.at(type(node));
+                const auto source = expression(*node.children[1]);
+                const auto start = expression(*node.children[2]);
+                const auto end = expression(*node.children[3]);
+                auto& lengthInstruction = instruction(AIROpcode::SliceLength, &node, typed_.types.builtin("usize"), true);
+                lengthInstruction.operands = {source}; const auto length = lengthInstruction.result;
+                const auto reversed = binary(">", start, end, typed_.types.builtin("bool"), node);
+                const auto slot = local(nullptr, type(node), "$slice.result");
+                const auto reverseBlock = block("slice.reversed"), boundsBlock = block("slice.bounds"), badBlock = block("slice.outofbounds"), goodBlock = block("slice.ok"), done = block("slice.done");
+                const auto failure = [&](std::string_view name)
+                {
+                    SymbolId selected = InvalidSymbolId;
+                    for (const auto& [candidate, information] : typed_.enumVariants)
+                        if (information.type == carrier.error && names_.symbols[candidate].name == name) selected = candidate;
+                    if (selected == InvalidSymbolId) { error(node, "Missing BoundsError variant."); return; }
+                    auto& reason = instruction(AIROpcode::EnumConstruct, &node, carrier.error, true); reason.callee = selected; const auto reasonValue = reason.result;
+                    auto& bad = instruction(AIROpcode::EnumConstruct, &node, type(node), true); bad.callee = carrier.failure; bad.operands = {reasonValue}; const auto value = bad.result;
+                    write(localPlace(slot), value, node); jump(done, &node);
+                };
+                branch(reversed, reverseBlock, boundsBlock, node); block_ = reverseBlock; failure("ReversedRange");
+                block_ = boundsBlock;
+                const auto within = binary("<=", end, length, typed_.types.builtin("bool"), node);
+                branch(within, goodBlock, badBlock, node); block_ = badBlock; failure("OutOfBounds");
+                block_ = goodBlock;
+                auto& subview = instruction(AIROpcode::SliceSubview, &node, carrier.value, true); subview.operands = {source, start, end};
+                const auto payload = subview.result;
+                auto& good = instruction(AIROpcode::EnumConstruct, &node, type(node), true); good.callee = carrier.success; good.operands = {payload}; const auto value = good.result;
+                write(localPlace(slot), value, node); jump(done, &node); block_ = done;
+                return read(localPlace(slot), node, true);
+            }
+            AIRValueId numericExpression(const Node& node)
+            {
+                const auto& carrier = typed_.carriers.at(type(node));
+                const auto source = expression(*node.children[1]);
+                auto& statusInstruction = instruction(AIROpcode::NumericStatus, &node, typed_.types.builtin("i32"), true);
+                statusInstruction.operands = {source}; statusInstruction.operation = node.value; statusInstruction.dynamicSignature = carrier.value;
+                const auto status = statusInstruction.result;
+                const auto zero = constant(typed_.types.builtin("i32"), "0", &node);
+                const auto success = binary("==", status, zero, typed_.types.builtin("bool"), node);
+                const auto slot = local(nullptr, type(node), "$numeric.result");
+                const auto yes = block("numeric.ok"), no = block("numeric.error"), done = block("numeric.done");
+                branch(success, yes, no, node); block_ = yes;
+                auto& conversion = instruction(AIROpcode::NumericConvert, &node, carrier.value, true);
+                conversion.operands = {source}; conversion.operation = node.value; const auto converted = conversion.result;
+                auto& ok = instruction(AIROpcode::EnumConstruct, &node, type(node), true);
+                ok.callee = carrier.success; ok.operands = {converted}; const auto result = ok.result;
+                write(localPlace(slot), result, node); jump(done, &node); block_ = no;
+                const auto fail = [&](std::string_view name)
+                {
+                    SymbolId selected = InvalidSymbolId;
+                    for (const auto& [candidate, description] : typed_.enumVariants)
+                        if (description.type == carrier.error && names_.symbols[candidate].name == name) selected = candidate;
+                    if (selected == InvalidSymbolId) { error(node, "Missing numeric error variant."); return; }
+                    auto& reason = instruction(AIROpcode::EnumConstruct, &node, carrier.error, true); reason.callee = selected; const auto errorValue = reason.result;
+                    auto& bad = instruction(AIROpcode::EnumConstruct, &node, type(node), true); bad.callee = carrier.failure; bad.operands = {errorValue}; const auto errorResult = bad.result;
+                    write(localPlace(slot), errorResult, node); jump(done, &node);
+                };
+                if (node.value == "Integer.convert") fail("OutOfRange");
+                else
+                {
+                    const auto nonfinite = block("numeric.nonfinite"), remaining = block("numeric.remaining");
+                    const auto two = constant(typed_.types.builtin("i32"), "2", &node);
+                    const auto notFinite = binary("==", status, two, typed_.types.builtin("bool"), node);
+                    branch(notFinite, nonfinite, remaining, node); block_ = nonfinite; fail("NonFinite"); block_ = remaining;
+                    const auto nonexact = block("numeric.nonexact"), range = block("numeric.range");
+                    const auto three = constant(typed_.types.builtin("i32"), "3", &node);
+                    const auto notExact = binary("==", status, three, typed_.types.builtin("bool"), node);
+                    branch(notExact, nonexact, range, node); block_ = nonexact; fail("NonExact"); block_ = range; fail("OutOfRange");
+                }
+                block_ = done; return read(localPlace(slot), node, true);
+            }
             AIRValueId collectionIntrinsic(const Node& node, const std::string& operation)
             {
                 if (operation == "range.with_step" || operation == "range.len") return rangeResult(node, operation == "range.len");
@@ -716,6 +827,53 @@ namespace aevix
                 else for (std::size_t i = 1; i < node.children.size(); ++i) operands.push_back(expression(*node.children[i]->children[0]));
                 auto& item = instruction(AIROpcode::RangeConstruct, &node, type(node), true);
                 item.operation = operation; item.operands = std::move(operands); return item.result;
+            }
+            AIRValueId valueIntrinsic(const Node& node, const std::string& operation)
+            {
+                const auto input = [&](std::size_t index) -> const Node&
+                { return node.kind == "CompilerTextExpression" ? *node.children[index] : *node.children[index]->children[0]; };
+                if (operation == "byte.from_u8" || operation == "byte.to_u8")
+                {
+                    const auto source = expression(input(1));
+                    auto& item = instruction(AIROpcode::Unary, &node, type(node), true);
+                    item.operands = {source}; item.operation = operation; return item.result;
+                }
+                if (operation == "tuple.make")
+                {
+                    std::vector<AIRValueId> values;
+                    std::vector<AIRLocalId> owners;
+                    for (std::size_t index = 1; index < node.children.size(); ++index)
+                    {
+                        const auto& field = input(index); const auto value = expression(field);
+                        if (!copyType(type(field)))
+                        { const auto owner = local(nullptr, type(field), "$tuplefield"); write(localPlace(owner), value, field); owners.push_back(owner); values.push_back(InvalidAIRId); }
+                        else { owners.push_back(InvalidAIRId); values.push_back(value); }
+                    }
+                    for (std::size_t index = 0; index < owners.size(); ++index) if (owners[index] != InvalidAIRId) values[index] = read(localPlace(owners[index]), node, true);
+                    auto& item = instruction(AIROpcode::Aggregate, &node, type(node), true); item.operands = std::move(values); return item.result;
+                }
+                if (operation.starts_with("tuple.") || operation == "slice.view"
+                    || ((operation == "text.view" || operation == "text.as_bytes") && typed_.types.get(type(input(1))).kind == TypeKind::Reference))
+                {
+                    const auto& source = input(1); AIRPlace address;
+                    if (source.kind == "Prefix" && (source.value == "&" || source.value == "&mut")) address = place(*source.children[0]);
+                    else { address.pointer = pointerExpression(source); address.type = typed_.types.get(type(source)).element; }
+                    if (operation == "tuple.len" || operation == "tuple.is_empty")
+                        return constant(type(node), operation == "tuple.len" ? std::to_string(typed_.types.get(address.type).parameters.size()) : typed_.types.get(address.type).parameters.empty() ? "true" : "false", &node);
+                    if (operation == "tuple.copy") return read(address, node, false);
+                    if (operation == "tuple.get" || operation == "tuple.get_mut")
+                    {
+                        const auto index = typed_.tupleIndices.at(&node);
+                        const auto field = typed_.types.get(address.type).parameters[index];
+                        address.projections.push_back({AIRProjectionKind::Field, index, InvalidAIRId, field, 0}); address.type = field;
+                        auto& loan = instruction(operation == "tuple.get_mut" ? AIROpcode::BorrowMut : AIROpcode::BorrowShared, &node, type(node), true);
+                        loan.place = address; return loan.result;
+                    }
+                    auto& loan = instruction(AIROpcode::SliceConstruct, &node, type(node), true); loan.place = address; loan.operation = operation; return loan.result;
+                }
+                std::vector<AIRValueId> values;
+                for (std::size_t index = 1; index < node.children.size(); ++index) values.push_back(expression(input(index)));
+                auto& item = instruction(AIROpcode::TextIntrinsic, &node, type(node), true); item.operands = std::move(values); item.operation = operation; return item.result;
             }
             AIRValueId aggregate(const Node& node)
             {
@@ -928,6 +1086,7 @@ namespace aevix
             }
             AIRValueId expression(const Node& node)
             {
+                if (terminated()) return InvalidAIRId;
                 if (const auto found = typed_.dynamicLiterals.find(&node); found != typed_.dynamicLiterals.end()) return dynamicLiteral(node, found->second);
                 if (typed_.collectionCalls.contains(&node))
                 {
@@ -981,11 +1140,45 @@ namespace aevix
                     }
                     return item.result;
                 }
+                if (const auto parallel = typed_.parallelCalls.find(&node); parallel != typed_.parallelCalls.end())
+                {
+                    const auto input = parallel->second == InvalidSymbolId ? InvalidAIRId : expression(*node.children[1]->children[0]);
+                    auto& item = instruction(AIROpcode::ParallelIntrinsic, &node, type(node), true);
+                    item.callee = parallel->second;
+                    item.operation = parallel->second == InvalidSymbolId ? "worker_count" : "for_each";
+                    if (input != InvalidAIRId) item.operands = {input};
+                    return item.result;
+                }
+                if (const auto intrinsic = typed_.valueIntrinsics.find(&node); intrinsic != typed_.valueIntrinsics.end()) return valueIntrinsic(node, intrinsic->second);
+                if (node.kind == "CompilerSliceExpression") return sliceExpression(node);
+                if (node.kind == "CompilerNumericExpression") return numericExpression(node);
                 if (typed_.unitValues.contains(&node)) return constant(typed_.types.builtin("unit"), "zeroinitializer", &node);
                 if (const auto found = typed_.enumConstructors.find(&node); found != typed_.enumConstructors.end()) return enumConstructor(node, found->second);
                 if (const auto found = typed_.predicates.find(&node); found != typed_.predicates.end()) return carrierPredicate(node, found->second);
                 if (const auto found = typed_.propagations.find(&node); found != typed_.propagations.end()) return propagate(node, found->second);
-                if (const auto found = typed_.intrinsics.find(&node); found != typed_.intrinsics.end()) return collectionIntrinsic(node, found->second);
+                if (const auto found = typed_.intrinsics.find(&node); found != typed_.intrinsics.end())
+                {
+                    if (found->second.starts_with("simd."))
+                    {
+                        std::vector<AIRValueId> arguments;
+                        for (std::size_t i = 1; i < node.children.size(); ++i)
+                            arguments.push_back(expression(*node.children[i]->children[0]));
+                        auto& operation = instruction(AIROpcode::Simd, &node, type(node), true);
+                        operation.operation = found->second;
+                        operation.dynamicSignature = typed_.simdTypes.at(&node);
+                        operation.operands = std::move(arguments);
+                        return operation.result;
+                    }
+                    if (found->second == "never.unreachable")
+                    {
+                        auto& end = function_->blocks[block_].terminator;
+                        end.kind = AIRTerminatorKind::Trap;
+                        end.source = &node;
+                        end.range = node.range;
+                        return InvalidAIRId;
+                    }
+                    return collectionIntrinsic(node, found->second);
+                }
                 if (node.kind == "Group") return expression(*node.children[0]);
                 if (node.kind == "Literal") return constant(type(node), node.value, &node);
                 if ((node.kind == "Name" || node.kind == "Member") && function_->initializesGlobal != InvalidSymbolId)
@@ -1001,7 +1194,7 @@ namespace aevix
                             {
                                 const auto& value = evaluated.value;
                                 if (value.kind == ConstantKind::Integer || value.kind == ConstantKind::Character)
-                                    return constant(type(node), std::string(value.negative ? "-" : "") + std::to_string(value.magnitude), &node);
+                                    return constant(type(node), value.integerSpelling(), &node);
                                 if (value.kind == ConstantKind::Boolean) return constant(type(node), value.boolean ? "true" : "false", &node);
                                 if (value.kind == ConstantKind::Unit) return constant(type(node), "", &node);
                                 if (value.kind == ConstantKind::Float)
@@ -1016,6 +1209,11 @@ namespace aevix
                 if (node.kind == "Name" || node.kind == "Member" || node.kind == "Index") return read(place(node), node);
                 if (node.kind == "Call") return call(node);
                 if (node.kind == "ArrayLiteral" || node.kind == "NamedInitializer") return aggregate(node);
+                if (node.kind == "ArrayRepeat")
+                {
+                    const auto operand = expression(*node.children[0]);
+                    auto& item = instruction(AIROpcode::ArrayRepeat, &node, type(node), true); item.operands = {operand}; return item.result;
+                }
                 if (node.kind == "Conditional") return condition(node, false);
                 if (node.kind == "Binary")
                 {
@@ -1047,7 +1245,7 @@ namespace aevix
                     {
                         const auto folded = ConstEvaluator(names_, typed_.types, typed_.nodeTypes, typed_.symbolTypes).evaluate(node, type(node));
                         if (folded.status == ConstStatus::Constant && folded.value.kind == ConstantKind::Integer)
-                            return constant(type(node), std::string(folded.value.negative ? "-" : "") + std::to_string(folded.value.magnitude), &node);
+                            return constant(type(node), folded.value.integerSpelling(), &node);
                         if (folded.status == ConstStatus::Constant && folded.value.kind == ConstantKind::Float)
                         {
                             std::ostringstream spelling;
@@ -1121,6 +1319,7 @@ namespace aevix
                 else if (node.kind == "Return")
                 {
                     const auto value = node.children.empty() ? InvalidAIRId : expression(*node.children[0]);
+                    if (terminated()) return;
                     auto& end = function_->blocks[block_].terminator;
                     end.kind = AIRTerminatorKind::Return;
                     end.value = value;
@@ -1219,23 +1418,34 @@ namespace aevix
             {
                 const auto outerDepth = scopes_.size();
                 enter(&node);
-                auto collectionType = type(*node.children[1]);
-                AIRPlace collection;
-                const auto& valueType = typed_.types.get(collectionType);
-                if (valueType.kind == TypeKind::Reference)
+                const auto& source = *node.children[1];
+                const auto& sourceType = typed_.types.get(type(source));
+                const auto baseType = sourceType.kind == TypeKind::Reference ? sourceType.element : type(source);
+                const auto& collection = typed_.types.get(baseType);
+                const bool text = collection.kind == TypeKind::String || collection.kind == TypeKind::StringView;
+                const auto element = text ? typed_.types.builtin("char") : collection.element;
+                if (!copyType(element)) { error(node, "iteration by value requires a Copy-compatible element."); leave(); return; }
+                const auto viewType = typed_.iterationViews.at(&node);
+                AIRValueId view;
+                if (collection.kind == TypeKind::StringView || collection.kind == TypeKind::Slice)
                 {
-                    collection.pointer = pointerExpression(*node.children[1]);
-                    collectionType = valueType.element;
-                    collection.type = collectionType;
+                    if (sourceType.kind == TypeKind::Reference)
+                    { AIRPlace address; address.pointer = pointerExpression(source); address.type = baseType; view = read(address, source, false); }
+                    else view = expression(source);
                 }
-                else collection = place(*node.children[1]);
-                const auto& array = typed_.types.get(collectionType);
-                if (array.kind != TypeKind::Array) { error(node, "text iteration is not yet lowered."); leave(); return; }
-                if (!copyType(array.element)) { error(node, "iteration by value requires a Copy-compatible element."); leave(); return; }
+                else
+                {
+                    AIRPlace address;
+                    if (sourceType.kind == TypeKind::Reference) { address.pointer = pointerExpression(source); address.type = baseType; }
+                    else address = place(source);
+                    auto& loan = instruction(AIROpcode::SliceConstruct, &source, viewType, true); loan.place = address; view = loan.result;
+                }
+                const auto viewSlot = local(nullptr, viewType, "$iterationview"); write(localPlace(viewSlot), view, source);
                 const auto indexType = typed_.types.builtin("usize");
                 const auto index = local(nullptr, indexType, "$index");
                 write(localPlace(index), constant(indexType, "0"), node);
                 const auto binding = local(node.children[0].get(), type(*node.children[0]));
+                const auto scalarSlot = text ? local(nullptr, element, "$iterationscalar") : InvalidAIRId;
                 const auto test = block("foreach.test");
                 const auto body = block("foreach.body");
                 const auto step = block("foreach.step");
@@ -1243,20 +1453,35 @@ namespace aevix
                 jump(test);
                 block_ = test;
                 const auto at = read(localPlace(index), node, false);
-                const auto extent = constant(indexType, std::to_string(array.extent));
-                const auto conditionValue = binary("<", at, extent, typed_.types.builtin("bool"), node);
+                const auto descriptor = read(localPlace(viewSlot), node, false);
+                auto& length = instruction(text ? AIROpcode::TextIntrinsic : AIROpcode::SliceLength, &node, indexType, true);
+                length.operands = {descriptor}; length.operation = "text.byte_len"; const auto size = length.result;
+                const auto conditionValue = binary("<", at, size, typed_.types.builtin("bool"), node);
                 branch(conditionValue, body, done, node);
                 block_ = body;
-                collection.projections.push_back({AIRProjectionKind::Index, 0, at, array.element, array.extent});
-                collection.type = array.element;
-                write(localPlace(binding), read(collection, node, false), node);
+                if (text)
+                {
+                    auto& decode = instruction(AIROpcode::TextIntrinsic, &node, element, true); decode.operation = "text.decode"; decode.operands = {descriptor, at};
+                    const auto scalar = decode.result; write(localPlace(binding), scalar, node); write(localPlace(scalarSlot), scalar, node);
+                }
+                else
+                {
+                    auto address = localPlace(viewSlot); address.projections.push_back({AIRProjectionKind::Index, 0, at, element, 0}); address.type = element;
+                    write(localPlace(binding), read(address, node, false), node);
+                }
                 loops_.push_back({done, step, outerDepth + 1, outerDepth + 1});
                 statement(*node.children[2]);
                 loops_.pop_back();
                 jump(step);
                 block_ = step;
                 const auto previous = read(localPlace(index), node, false);
-                const auto next = binary("+", previous, constant(indexType, "1"), indexType, node);
+                AIRValueId next;
+                if (text)
+                {
+                    const auto scalar = read(localPlace(scalarSlot), node, false), descriptor = read(localPlace(viewSlot), node, false);
+                    auto& advance = instruction(AIROpcode::TextIntrinsic, &node, indexType, true); advance.operation = "text.next"; advance.operands = {descriptor, scalar, previous}; next = advance.result;
+                }
+                else next = binary("+", previous, constant(indexType, "1"), indexType, node);
                 write(localPlace(index), next, node);
                 jump(test);
                 block_ = done;
@@ -1394,7 +1619,19 @@ namespace aevix
                         function_->locals[slot].isParameter = true;
                         function_->parameters.push_back(slot);
                     }
-                statement(*child(node, "Block"));
+                if (const auto* numeric = child(node, "CompilerComplexMath"))
+                {
+                    std::vector<AIRValueId> arguments;
+                    for (const auto parameter : function_->parameters) arguments.push_back(read(localPlace(parameter), node, false));
+                    auto& operation = instruction(AIROpcode::ComplexIntrinsic, &node, function_->result, true);
+                    operation.operation = numeric->value; operation.operands = std::move(arguments);
+                    operation.dynamicSignature = function_->locals[function_->parameters[0]].type;
+                    const auto result = operation.result;
+                    instruction(AIROpcode::ScopeEnd, &node).scope = scopes_.back();
+                    auto& end = function_->blocks[block_].terminator; end.kind = AIRTerminatorKind::Return;
+                    end.value = result; end.source = &node; end.range = node.range;
+                }
+                else statement(*child(node, "Block"));
                 if (!terminated() && typed_.types.get(function_->result).kind == TypeKind::Void)
                 {
                     instruction(AIROpcode::ScopeEnd, &node).scope = scopes_.back();

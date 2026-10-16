@@ -54,6 +54,14 @@ namespace aevix
                 case AIROpcode::VectorAppend: return "vector_append";
                 case AIROpcode::VectorLength: return "vector_length";
                 case AIROpcode::VectorReserve: return "vector_reserve";
+                case AIROpcode::ArrayRepeat: return "array_repeat";
+                case AIROpcode::TextIntrinsic: return "text_intrinsic";
+                case AIROpcode::ParallelIntrinsic: return "parallel_intrinsic";
+                case AIROpcode::SliceSubview: return "slice_subview";
+                case AIROpcode::NumericStatus: return "numeric_status";
+                case AIROpcode::NumericConvert: return "numeric_convert";
+                case AIROpcode::Simd: return "simd";
+                case AIROpcode::ComplexIntrinsic: return "complex";
             }
             return "invalid";
         }
@@ -96,6 +104,8 @@ namespace aevix
                 if (end.kind == AIRTerminatorKind::Jump) output << "  jump b" << end.target;
                 else if (end.kind == AIRTerminatorKind::Branch) output << "  branch %" << end.value << " b" << end.target << " b" << end.alternative;
                 else if (end.kind == AIRTerminatorKind::Return) { output << "  return"; if (end.value != InvalidAIRId) output << " %" << end.value; }
+                else if (end.kind == AIRTerminatorKind::Trap) output << "  trap";
+                else if (end.kind == AIRTerminatorKind::NoReturn) output << "  noreturn";
                 else output << "  unreachable";
                 output << '\n';
             }
@@ -231,7 +241,9 @@ namespace aevix
                             {
                                 const AIRRecord* record = nullptr;
                                 for (const auto& candidate : module.records) if (candidate.type == currentType) record = &candidate;
-                                if (record && projection.kind == AIRProjectionKind::Field && !record->isEnum && projection.field < record->fieldTypes.size()) projected = record->fieldTypes[projection.field];
+                                if (types.get(currentType).kind == TypeKind::Tuple && projection.kind == AIRProjectionKind::Field
+                                    && projection.field < types.get(currentType).parameters.size()) projected = types.get(currentType).parameters[projection.field];
+                                else if (record && projection.kind == AIRProjectionKind::Field && !record->isEnum && projection.field < record->fieldTypes.size()) projected = record->fieldTypes[projection.field];
                                 else if (record && projection.kind == AIRProjectionKind::EnumField && record->isEnum)
                                     for (const auto& variant : record->variants)
                                         if (variant.variant == projection.variant && projection.field < variant.fieldTypes.size()) projected = variant.fieldTypes[projection.field];
@@ -247,6 +259,7 @@ namespace aevix
                         std::vector<TypeId> fields;
                         const auto& aggregate = types.get(item.type);
                         if (aggregate.kind == TypeKind::Array) fields.assign(aggregate.extent, aggregate.element);
+                        else if (aggregate.kind == TypeKind::Tuple) fields = aggregate.parameters;
                         else for (const auto& record : module.records) if (record.type == item.type && !record.isEnum) fields = record.fieldTypes;
                         if (fields.size() != item.operands.size()) fail(item.range, "aggregate field count differs from its type.");
                         else for (std::size_t field = 0; field < fields.size(); ++field)
@@ -259,6 +272,91 @@ namespace aevix
                         if (!variant || variant->type != item.type || variant->fieldTypes.size() != item.operands.size()) fail(item.range, "enum construction differs from variant storage.");
                         else for (std::size_t field = 0; field < item.operands.size(); ++field)
                             if (variant->fieldTypes[field] != typeOf(item.operands[field])) fail(item.range, "enum payload type mismatch.");
+                    }
+                    if (item.opcode == AIROpcode::NumericStatus || item.opcode == AIROpcode::NumericConvert)
+                    {
+                        const auto destination = item.opcode == AIROpcode::NumericStatus ? item.dynamicSignature : item.type;
+                        if (item.operands.size() != 1) fail(item.range, "numeric conversion requires one source operand.");
+                        else
+                        {
+                            const auto sourceKind = types.get(typeOf(item.operands[0])).kind;
+                            const auto destinationKind = types.get(destination).kind;
+                            if ((sourceKind != TypeKind::Integer && sourceKind != TypeKind::Float)
+                                || (destinationKind != TypeKind::Integer && destinationKind != TypeKind::Float))
+                                fail(item.range, "numeric conversion requires scalar numeric types.");
+                        }
+                        if (item.opcode == AIROpcode::NumericStatus && item.type != types.builtin("i32")) fail(item.range, "numeric status requires an i32 code.");
+                    }
+                    if (item.opcode == AIROpcode::SliceSubview)
+                    {
+                        if (item.operands.size() != 3 || types.get(item.type).kind != TypeKind::Slice)
+                            fail(item.range, "slice subview requires one view and two usize bounds.");
+                        else if (typeOf(item.operands[0]) != item.type || typeOf(item.operands[1]) != types.builtin("usize")
+                            || typeOf(item.operands[2]) != types.builtin("usize")) fail(item.range, "slice subview operand type mismatch.");
+                    }
+                    if (item.opcode == AIROpcode::ParallelIntrinsic)
+                    {
+                        if (item.operation == "worker_count")
+                        {
+                            if (!item.operands.empty() || item.type != types.builtin("usize")) fail(item.range, "parallel worker_count signature mismatch.");
+                        }
+                        else if (item.operation != "for_each" || item.operands.size() != 1 || item.type != types.builtin("unit"))
+                            fail(item.range, "parallel for_each signature mismatch.");
+                        else
+                        {
+                            const auto& slice = types.get(typeOf(item.operands[0]));
+                            const AIRFunction* worker = nullptr;
+                            for (const auto& candidate : module.functions) if (candidate.symbol == item.callee) worker = &candidate;
+                            if (slice.kind != TypeKind::Slice || !slice.isMutable || !worker || worker->parameters.size() != 1
+                                || worker->result != types.builtin("void")) fail(item.range, "parallel requires an exclusive slice and a static void worker.");
+                            else
+                            {
+                                const auto& reference = types.get(worker->locals[worker->parameters[0]].type);
+                                if (reference.kind != TypeKind::Reference || !reference.isMutable || reference.element != slice.element)
+                                    fail(item.range, "parallel worker element borrow type mismatch.");
+                            }
+                        }
+                    }
+                    if (item.opcode == AIROpcode::ComplexIntrinsic)
+                    {
+                        const AIRRecord* record = nullptr;
+                        for (const auto& candidate : module.records) if (candidate.type == item.dynamicSignature) record = &candidate;
+                        const bool magnitude = item.operation == "magnitude";
+                        if (!record || record->isEnum || record->fieldTypes.size() != 2
+                            || record->fieldTypes[0] != record->fieldTypes[1] || types.get(record->fieldTypes[0]).kind != TypeKind::Float)
+                            fail(item.range, "complex intrinsic requires two matching floating-point components.");
+                        else if ((item.operation != "divide_components" && !magnitude) || item.operands.size() != (magnitude ? 1u : 2u)
+                            || item.type != (magnitude ? record->fieldTypes[0] : item.dynamicSignature))
+                            fail(item.range, "complex intrinsic signature mismatch.");
+                        for (const auto operand : item.operands)
+                            if (typeOf(operand) != item.dynamicSignature) fail(item.range, "complex intrinsic operand type mismatch.");
+                    }
+                    if (item.opcode == AIROpcode::Simd)
+                    {
+                        const auto& vector = types.get(item.dynamicSignature);
+                        const bool mask = item.operation.starts_with("simd.mask.");
+                        const auto method = item.operation.substr(mask ? 10 : 5);
+                        if ((mask ? vector.kind != TypeKind::SimdMask : vector.kind != TypeKind::Simd)
+                            || !item.operation.starts_with("simd.")) fail(item.range, "SIMD instruction has no valid vector type.");
+                        const bool unary = method == "splat" || method == "from_array" || method == "to_array"
+                            || method == "sum" || method == "sqrt" || method == "lanes" || method == "any" || method == "all" || method == "not";
+                        const bool ternary = method == "store" || method == "select";
+                        const auto count = ternary ? 3u : unary ? 1u : 2u;
+                        if (item.operands.size() != count) fail(item.range, "SIMD instruction argument count mismatch.");
+                        if (item.result == InvalidAIRId) fail(item.range, "SIMD instruction must define its result value.");
+                        if (item.operands.size() == count)
+                        {
+                            if (method == "splat" && typeOf(item.operands[0]) != vector.element) fail(item.range, "SIMD splat element mismatch.");
+                            if (method == "extract" && (typeOf(item.operands[0]) != item.dynamicSignature
+                                || types.get(typeOf(item.operands[1])).kind != TypeKind::Integer)) fail(item.range, "SIMD extraction input mismatch.");
+                            if (method == "load" || method == "store" || method == "from_array")
+                            {
+                                const auto& reference = types.get(typeOf(item.operands[0]));
+                                const auto& array = types.get(reference.element);
+                                if (reference.kind != TypeKind::Reference || array.kind != TypeKind::Array || array.element != vector.element
+                                    || (method == "store" && !reference.isMutable)) fail(item.range, "SIMD array access requires the correct borrowed storage.");
+                            }
+                        }
                     }
                     if (item.opcode == AIROpcode::Write)
                     {
@@ -303,8 +401,17 @@ namespace aevix
                 const auto& end = current.terminator;
                 if (end.value != InvalidAIRId) use(end.value, block, current.instructions.size(), end.range);
                 if (end.kind == AIRTerminatorKind::Branch && types.get(typeOf(end.value)).kind != TypeKind::Bool) fail(end.range, "conditional branch requires a bool.");
+                if (end.kind == AIRTerminatorKind::NoReturn)
+                {
+                    if (current.instructions.empty() || current.instructions.back().opcode != AIROpcode::Call
+                        || types.get(current.instructions.back().type).kind != TypeKind::Never
+                        || current.instructions.back().result != InvalidAIRId)
+                        fail(end.range, "noreturn terminator requires a final never-returning call.");
+                }
                 if (end.kind == AIRTerminatorKind::Return)
                 {
+                    if (types.get(function.result).kind == TypeKind::Never)
+                        fail(end.range, "never-returning function cannot contain a return terminator.");
                     const auto returnsVoid = types.get(function.result).kind == TypeKind::Void;
                     if ((!returnsVoid && end.value == InvalidAIRId) || (end.value != InvalidAIRId && typeOf(end.value) != function.result)) fail(end.range, "return type differs from function result.");
                 }

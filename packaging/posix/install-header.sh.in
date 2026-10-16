@@ -1,0 +1,116 @@
+#!/bin/sh
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : install-header.sh.in
+#
+# Description :
+#     사용자 전용 설치와 셸 PATH 설정을 수행하는 자체 압축 해제 설치기다.
+#     Extract a per-user installation and configure shell PATH without administrator access.
+#
+# ========================
+
+set -eu
+version='@AEVIX_VERSION@'
+package_system='@AEVIX_SYSTEM@'
+package_arch='@AEVIX_ARCH@'
+payload_sha256='@AEVIX_PAYLOAD_SHA256@'
+prefix="${HOME:?HOME must be set}/.local/share/aevix"
+modify_path=yes
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --prefix) [ "$#" -gt 1 ] || { echo 'Missing --prefix argument.' >&2; exit 2; }; prefix=$2; shift 2 ;;
+        --no-modify-path) modify_path=no; shift ;;
+        --help) printf '%s\n' 'Usage: sh Aevix.run [--prefix ABSOLUTE_PATH] [--no-modify-path]' 'Installs for the current user. Reopen your terminal after installation.'; exit 0 ;;
+        *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
+    esac
+done
+case "$prefix" in /*) ;; *) echo '--prefix must be an absolute path.' >&2; exit 2 ;; esac
+case "$prefix" in /|"$HOME"|*/../*|*/..|*/./*|*/.) echo 'Unsafe installation prefix.' >&2; exit 2 ;; esac
+case "$prefix" in *'
+'*) echo 'Newlines in installation paths are unsupported.' >&2; exit 2 ;; esac
+if [ "$(uname -s)" != "$package_system" ]; then
+    printf 'This installer targets %s, but this host is %s.\n' "$package_system" "$(uname -s)" >&2; exit 2
+fi
+host_arch=$(uname -m)
+case "$host_arch" in aarch64|arm64) host_arch=arm64 ;; amd64|x86_64) host_arch=x86_64 ;; esac
+if [ "$host_arch" != "$package_arch" ]; then
+    printf 'This installer targets %s, but this host is %s.\n' "$package_arch" "$host_arch" >&2; exit 2
+fi
+link="${HOME}/.local/bin/aevixc"
+if [ -e "$prefix" ] || [ -L "$prefix" ]; then
+    if [ -L "$prefix" ] || [ ! -f "$prefix/.aevix-install" ] || [ "$(cat "$prefix/.aevix-install")" != 'Aevix managed installation v1' ]; then
+        printf 'Refusing to replace an unmanaged path: %s\n' "$prefix" >&2; exit 2
+    fi
+fi
+if [ -e "$link" ] || [ -L "$link" ]; then
+    if [ ! -L "$link" ] || [ "$(readlink "$link")" != "$prefix/bin/aevixc" ]; then
+        printf 'Refusing to replace an existing command: %s\n' "$link" >&2; exit 2
+    fi
+fi
+work=$(mktemp -d "${TMPDIR:-/tmp}/aevix-install.XXXXXXXX")
+trap 'rm -rf "$work"' EXIT HUP INT TERM
+payload_line=$(awk '/^__AEVIX_PAYLOAD_BELOW__$/ { print NR + 1; exit }' "$0")
+[ -n "$payload_line" ] || { echo 'Installer payload is missing.' >&2; exit 2; }
+tail -n "+$payload_line" "$0" > "$work/payload.tar.gz"
+if command -v sha256sum >/dev/null 2>&1; then
+    actual_sha256=$(sha256sum "$work/payload.tar.gz" | awk '{print $1}')
+elif command -v shasum >/dev/null 2>&1; then
+    actual_sha256=$(shasum -a 256 "$work/payload.tar.gz" | awk '{print $1}')
+else
+    echo 'A SHA-256 tool (sha256sum or shasum) is required.' >&2; exit 2
+fi
+[ "$actual_sha256" = "$payload_sha256" ] || { echo 'Installer checksum mismatch; nothing was installed.' >&2; exit 2; }
+mkdir "$work/payload"
+tar -xzf "$work/payload.tar.gz" -C "$work/payload"
+[ -x "$work/payload/bin/aevixc" ] || { echo 'Compiler payload is missing.' >&2; exit 2; }
+if [ "$package_system" = Darwin ] && [ -f "$work/payload/share/aevix/runtime-requirements.txt" ]; then
+    /bin/sh "$work/payload/share/aevix/check-runtime-requirements.sh" "$work/payload/share/aevix/runtime-requirements.txt"
+fi
+"$work/payload/bin/aevixc" --version > "$work/version.txt"
+mkdir -p "$(dirname "$prefix")" "$(dirname "$link")"
+# 교체 전에 새 파일을 준비하며 기존 버전은 이름 변경 실패 시 보존한다.
+# Prepare all new files before replacing an existing managed installation.
+staged=$(mktemp -d "$(dirname "$prefix")/.aevix-new.XXXXXXXX")
+cp -R "$work/payload/." "$staged/"
+printf '%s\n' 'Aevix managed installation v1' > "$staged/.aevix-install"
+if [ "$modify_path" = yes ] || [ -f "$prefix/.aevix-path-managed" ]; then touch "$staged/.aevix-path-managed"; fi
+backup=
+if [ -d "$prefix" ]; then backup="$staged.previous"; mv "$prefix" "$backup"; fi
+if ! mv "$staged" "$prefix"; then
+    [ -z "$backup" ] || mv "$backup" "$prefix"
+    exit 2
+fi
+ln -sf "$prefix/bin/aevixc" "$link"
+if [ "$modify_path" = yes ]; then
+    for file in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zprofile" "$HOME/.zshrc"; do
+        if [ -e "$file" ]; then
+            awk '/^# >>> Aevix PATH >>>$/ { skip=1; next } /^# <<< Aevix PATH <<<$/{ skip=0; next } !skip { print }' "$file" > "$work/profile"
+        else : > "$work/profile"; fi
+        cat >> "$work/profile" <<'AEVIX_PATH'
+# >>> Aevix PATH >>>
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+# <<< Aevix PATH <<<
+AEVIX_PATH
+        # 기존 셸 설정 파일의 권한과 심볼릭 링크를 유지한다.
+        # Preserve permissions and symlink targets of existing shell configuration files.
+        cat "$work/profile" > "$file"
+    done
+    mkdir -p "$HOME/.config/fish/conf.d"
+    fish_file="$HOME/.config/fish/conf.d/aevix.fish"
+    if [ -e "$fish_file" ] && ! grep -q '^# Aevix managed PATH$' "$fish_file"; then
+        echo 'warning: Existing fish configuration was preserved; add ~/.local/bin to fish PATH manually.' >&2
+    else
+        printf '%s\n' '# Aevix managed PATH' 'if not contains -- "$HOME/.local/bin" $PATH' '    set -gx PATH "$HOME/.local/bin" $PATH' 'end' > "$fish_file"
+    fi
+fi
+[ -z "$backup" ] || rm -rf "$backup"
+printf 'Aevix %s installed to %s\n' "$version" "$prefix"
+cat "$work/version.txt"
+printf '%s\n' 'Open a new terminal, then run: aevixc --check-deps' "Uninstall: sh \"$prefix/uninstall.sh\""
+exit 0
+__AEVIX_PAYLOAD_BELOW__

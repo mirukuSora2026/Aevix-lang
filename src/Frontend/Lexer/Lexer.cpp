@@ -309,18 +309,25 @@ namespace aevix
 
         if (identifier(peek()))
         {
-            valid = false;
+            const auto suffixStart = position_;
+            while (identifier(peek())) ++position_;
+            const auto suffix = std::string_view(source_.text).substr(
+                suffixStart, position_ - suffixStart);
+            const bool integerSuffix = suffix == "i8" || suffix == "i16"
+                || suffix == "i32" || suffix == "i64" || suffix == "i128" || suffix == "u8"
+                || suffix == "u16" || suffix == "u32" || suffix == "u64" || suffix == "u128"
+                || suffix == "isize" || suffix == "usize";
+            const bool floatSuffix = suffix == "f16" || suffix == "bf16"
+                || suffix == "f32" || suffix == "f64";
 
-            while (identifier(peek()))
-                ++position_;
+            // 접미사는 숫자 철자에 포함하며 범위 검사는 타입 검사 단계에 맡긴다.
+            // Keep the suffix in the token spelling; type checking validates its range.
+            if (floatSuffix && base == 10) floating = true;
+            else if (!integerSuffix || floating) valid = false;
         }
 
         if (!valid)
-            error(
-                begin,
-                position_,
-                "Invalid numeric literal; suffixes are not supported."
-            );
+            error(begin, position_, "Invalid numeric literal or type suffix.");
 
         return token(
             valid
@@ -492,7 +499,7 @@ namespace aevix
                 bool compound = false;
 
                 for (const std::string_view symbol : {
-                    "..=", "..", "++", "--",
+                    "..=", "..", "++", "--", "->",
                     "+=", "-=", "*=", "/=", "%=",
                     "&=", "|=", "^=", "==", "!=", "&&", "||"
                 })
@@ -509,7 +516,7 @@ namespace aevix
 
                 if (
                     compound
-                    || std::string_view("(){}[];,.?:~!+-*/%&|^=<>")
+                    || std::string_view("(){}[];,.?:~!+-*/%&|^=<>@")
                         .find(peek()) != std::string_view::npos
                 )
                 {

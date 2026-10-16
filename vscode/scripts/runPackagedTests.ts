@@ -20,7 +20,9 @@ import { verifyVsix } from './verifyVsix';
 
 async function main(): Promise<void> {
     const root = path.resolve(__dirname, '../..');
-    const artifact = path.join(root, 'dist/aevix-0.1.0.vsix');
+    const manifest = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8')) as { version: string; publisher: string; name: string };
+    const identity = `${manifest.publisher}.${manifest.name}`;
+    const artifact = path.join(root, `dist/aevix-${manifest.version}.vsix`);
     verifyVsix(artifact);
     const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'aevix-vsix-installed-'));
     const cli = process.env.VSCODE_CLI_PATH ?? (process.platform === 'darwin' && process.env.VSCODE_EXECUTABLE_PATH
@@ -31,9 +33,9 @@ async function main(): Promise<void> {
     try {
         execFileSync(cli, [...common, '--install-extension', artifact, '--force'], { encoding: 'utf8', timeout: 60000, stdio: ['ignore', 'pipe', 'pipe'] });
         const installed = execFileSync(cli, [...common, '--list-extensions', '--show-versions'], { encoding: 'utf8', timeout: 30000 });
-        assert.ok(installed.includes('miruku-sora2026.aevix@0.1.0'), 'VSIX is installed into isolated profile');
+        assert.ok(installed.includes(`${identity}@${manifest.version}`), 'VSIX is installed into isolated profile');
         const directories = await fs.readdir(extensions);
-        const directory = directories.find((name) => name.startsWith('miruku-sora2026.aevix-0.1.0'));
+        const directory = directories.find((name) => name.startsWith(`${identity}-${manifest.version}`));
         assert.ok(directory, 'installed extension directory exists');
         process.env.AEVIX_TEST_EXTENSION_PATH = path.join(extensions, directory);
         await runExtensionTests();

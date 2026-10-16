@@ -12,7 +12,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyzeDocument, buildIndex, builtinDocs, referencesTo, symbolAt, tokenize } from '../src/language';
+import { analyzeDocument, buildIndex, builtinDocs, builtinMemberDocumentation, importedTypeCompletions, importedTypeDocumentation, namespaceAPIs, referencesTo, symbolAt, tokenize } from '../src/language';
 
 const uri = 'file:///workspace/src/main.avx';
 
@@ -174,4 +174,90 @@ test('generic return types and constraints refer to their own type parameter dec
         const positions = doc.code.filter((token) => token.text === 'T').map((token) => token.start);
         assert.deepEqual(referencesTo(index, parameter.id).map((reference) => reference.start), positions, source);
     }
+});
+
+test('transparent aliases are declarations, references, and public import targets', () => {
+    const definition = analyzeDocument('file:///types.avx', 'public type UserId = u64;', 'types');
+    const source = 'import types { UserId }; UserId identity(UserId value) { return value; }';
+    const doc = analyzeDocument(uri, source, 'main');
+    const index = buildIndex([definition, doc]);
+    const alias = definition.symbols.find(symbol => symbol.name === 'UserId');
+    assert.equal(alias?.kind, 'typeAlias');
+    assert.equal(alias?.type, 'u64');
+    assert.equal(symbolAt(doc, source.indexOf('UserId identity'), index)?.id, alias?.id);
+    assert.equal(referencesTo(index, alias!.id).length, 4);
+});
+
+test('numeric suffix tokens keep signed exponents and suffixes together', () => {
+    const numbers = tokenize('1e-3f64 42u8 0xffu8 0..10').filter(token => token.kind === 'number');
+    assert.deepEqual(numbers.map(token => token.text), ['1e-3f64', '42u8', '0xffu8', '0', '10']);
+});
+
+test('new built-in API hover is limited to explicit namespaces', () => {
+    const source = 'string.byte_len(view); Tuple.get<0>(&record); Float.convert_exact<f32>(value); unknown.byte_len(view);';
+    const doc = analyzeDocument(uri, source, 'main');
+    assert.match(builtinMemberDocumentation(doc, source.indexOf('byte_len'))!, /UTF-8 byte length/);
+    assert.match(builtinMemberDocumentation(doc, source.indexOf('get<'))!, /compile-time checked index/);
+    assert.match(builtinMemberDocumentation(doc, source.indexOf('convert_exact'))!, /exact representation/);
+    assert.equal(builtinMemberDocumentation(doc, source.lastIndexOf('byte_len')), undefined);
+});
+
+test('specialist CPU API documentation follows selective and module imports', () => {
+    const analyze = (imports: string) => analyzeDocument(uri, `${imports}\ni32 main() { return 0; }`, 'main');
+    assert.equal(namespaceAPIs(analyze(''), 'Simd'), undefined);
+    assert.equal(namespaceAPIs(analyze('import simd;'), 'Simd'), undefined);
+    assert.match(namespaceAPIs(analyze('import simd;'), 'simd.Simd')!.sum, /left to right/);
+    const selective = analyze('import simd { Simd };');
+    assert.match(namespaceAPIs(selective, 'Simd')!.store, /exclusive/);
+    assert.equal(namespaceAPIs(selective, 'SimdMask'), undefined);
+    assert.equal(namespaceAPIs(selective, 'simd.SimdMask'), undefined);
+    assert.equal(Object.keys(namespaceAPIs(analyze('import simd { * };'), 'SimdMask')!).length, 7);
+    assert.equal(namespaceAPIs(analyze(''), 'parallel'), undefined);
+    assert.match(namespaceAPIs(analyze('import parallel;'), 'parallel')!.for_each, /join every worker/);
+    const selectedParallel = namespaceAPIs(analyze('import parallel { worker_count };'), 'parallel')!;
+    assert.deepEqual(Object.keys(selectedParallel), ['worker_count']);
+    const source = 'import simd; i32 main() { simd.Simd.sum(value); return 0; }';
+    const doc = analyzeDocument(uri, source, 'main');
+    assert.match(builtinMemberDocumentation(doc, source.indexOf('sum'))!, /no reassociation/);
+});
+
+test('const generic names and default arguments retain declaration identities', () => {
+    const source = 'struct Buffer<T = i32, const usize N = (2 + 2)> { public Array<T, N> values; public usize len(&Self self) { return N; } };';
+    const doc = analyzeDocument(uri, source, 'main');
+    const index = buildIndex([doc]);
+    const parameters = doc.symbols.filter(symbol => symbol.kind === 'typeParameter');
+    assert.deepEqual(parameters.map(symbol => symbol.name), ['T', 'N']);
+    assert.equal(parameters[1].type, 'usize');
+    assert.equal(referencesTo(index, parameters[1].id).length, 3);
+    assert.ok(!parameters.some(symbol => symbol.name === 'const' || symbol.name === 'usize'));
+});
+
+test('lambda parameters resolve inside their body and do not leak', () => {
+    const source = 'i32 main() { i32 factor = 2; rsn callback = [factor](i32 value) -> i32 { return value * factor; }; return value; }';
+    const doc = analyzeDocument(uri, source, 'main');
+    const index = buildIndex([doc]);
+    const parameter = doc.symbols.find(symbol => symbol.kind === 'parameter' && symbol.name === 'value');
+    assert.ok(parameter);
+    assert.equal(symbolAt(doc, source.indexOf('value *'), index)?.id, parameter.id);
+    assert.equal(symbolAt(doc, source.lastIndexOf('value'), index), undefined);
+    const outer = doc.symbols.find(symbol => symbol.name === 'factor');
+    assert.equal(symbolAt(doc, source.indexOf('factor; }'), index)?.id, outer?.id);
+});
+
+test('complex and numeric documentation requires the matching import', () => {
+    const bare = analyzeDocument(uri, 'Complex value;', 'main');
+    assert.equal(importedTypeDocumentation(bare, 0), undefined);
+    assert.deepEqual(importedTypeCompletions(bare), []);
+    const source = 'import complex { Complex, ComplexError }; import numeric { Floating }; Complex<f32> value;';
+    const selected = analyzeDocument(uri, source, 'main');
+    assert.match(importedTypeDocumentation(selected, source.lastIndexOf('Complex<f32>'))!, /two matching floating/);
+    assert.deepEqual(importedTypeCompletions(selected).map(item => item.name).sort(), ['Complex', 'ComplexError', 'Floating']);
+    assert.match(namespaceAPIs(selected, 'Complex')!.div, /ZeroDivisor/);
+    assert.equal(namespaceAPIs(selected, 'complex'), undefined);
+    const qualifiedSource = 'import complex; complex.Complex<f32> value; complex.complex alias;';
+    const qualified = analyzeDocument(uri, qualifiedSource, 'main');
+    assert.deepEqual(importedTypeCompletions(qualified), []);
+    assert.match(importedTypeDocumentation(qualified, qualifiedSource.indexOf('Complex<f32>'))!, /Complex<T = f64>/);
+    assert.match(importedTypeDocumentation(qualified, qualifiedSource.indexOf('complex alias'))!, /Alias/);
+    assert.match(namespaceAPIs(qualified, 'complex.complex')!.magnitude, /stable magnitude/);
 });

@@ -11,6 +11,7 @@
 // ========================
 
 #include "aevix/Frontend/Sema/GenericResolver.hpp"
+#include "aevix/Frontend/Sema/NumericLiteral.hpp"
 #include "aevix/Frontend/Sema/ConstEvaluator.hpp"
 
 #include <algorithm>
@@ -106,6 +107,23 @@ namespace aevix
             }
             std::optional<NameResolution> run()
             {
+                // 사용하지 않은 제네릭 선언도 봉인된 내장 형식 계약을 구현할 수 없다.
+                // Even uninstantiated templates cannot implement sealed builtin format contracts.
+                for (const auto& [address, declaration] : declarations_)
+                {
+                    (void)address;
+                    if (declaration.node->kind != "Struct" && declaration.node->kind != "Enum") continue;
+                    if (const auto* implemented = child(*declaration.node, "Implements"))
+                        for (const auto& requirement : implemented->children)
+                            if (floatingContract(*requirement, declaration.module))
+                                error(*requirement, "Sealed numeric format contracts can only be implemented by builtin scalar formats.");
+                }
+                if (diagnostics_.size() != initial_) return std::nullopt;
+                for (const auto& [address, declaration] : declarations_)
+                {
+                    (void)address;
+                    if (declaration.node->kind == "Function") rewriteCallableTemplate(*declaration.node, declaration.owner);
+                }
                 for (const auto& [address, declaration] : declarations_)
                 {
                     (void)address;
@@ -162,10 +180,12 @@ namespace aevix
             std::unordered_map<const Node*, std::string> referencePaths_;
             std::map<std::string, Declaration> specializations_;
             std::unordered_map<const Node*, std::string> canonicalKeys_;
+            std::unordered_map<const Node*, Node*> selfOwners_;
             std::unordered_set<const Node*> rewritten_;
             std::unordered_set<const Node*> validated_;
             std::unordered_set<const Node*> validating_;
             std::size_t generated_ = 0;
+            std::size_t closureSequence_ = 0;
             const Node* expected_ = nullptr;
             const Node* functionResult_ = nullptr;
             std::unordered_map<const Node*, std::pair<NodePtr, ModuleId>> logicalTypes_;
@@ -182,7 +202,7 @@ namespace aevix
                 auto result = makeGenericNode(std::move(kind), std::move(value), range);
                 // 임시 추론 노드의 주소 재사용이 이전 원본 정보를 되살리지 않게 한다.
                 // Address reuse by temporary inference nodes must not revive stale provenance.
-                origins_.erase(result.get());
+                origins_.erase(result.get()); selfOwners_.erase(result.get()); rewritten_.erase(result.get());
                 return result;
             }
             void error(const Node& location, std::string message)
@@ -195,6 +215,7 @@ namespace aevix
             }
             void index(Node& declaration, ModuleId module, Node* owner)
             {
+                if (owner && declaration.value == "Self") selfOwners_[&declaration] = owner;
                 if (typeDeclaration(declaration) || declaration.kind == "Function")
                 {
                     auto found = declarations_.find(&declaration);
@@ -208,6 +229,7 @@ namespace aevix
             {
                 auto result = node(original.kind, original.value, original.range);
                 result->comments = original.comments; result->height = original.height;
+                if (const auto self = selfOwners_.find(&original); self != selfOwners_.end()) selfOwners_[result.get()] = self->second;
                 const auto origin = origins_.find(&original);
                 origins_[result.get()] = origin == origins_.end() ? &original : origin->second;
                 for (const auto& item : original.children) result->children.push_back(clone(*item));
@@ -252,6 +274,9 @@ namespace aevix
             }
             Declaration declaration(const Node& expression, ModuleId module)
             {
+                if (expression.value == "Self")
+                    if (const auto owner = selfOwners_.find(&expression); owner != selfOwners_.end())
+                        if (const auto declared = declarations_.find(owner->second); declared != declarations_.end()) return declared->second;
                 const auto found = references(expression, module);
                 return found.size() == 1 ? found[0] : Declaration{};
             }
@@ -293,6 +318,15 @@ namespace aevix
             }
             NodePtr portableType(const Node& original, ModuleId from, ModuleId into)
             {
+                const auto alias = declaration(original, from);
+                if (original.kind == "Type" && original.value == "Self" && alias.node && !generic(*alias.node))
+                    return use(alias, into, "Type", original.range);
+                if (alias.node && alias.node->kind == "TypeAlias" && !alias.node->children.empty())
+                {
+                    auto result = portableType(*alias.node->children[0], alias.module, into);
+                    result->range = original.range;
+                    return result;
+                }
                 auto result = clone(original);
                 if (original.kind == "ReferenceType" || original.kind == "DynamicType")
                 {
@@ -313,14 +347,23 @@ namespace aevix
             }
             void substitute(Node& item, const Bindings& bindings, ModuleId argumentModule, ModuleId into)
             {
-                if (item.kind == "Type")
+                if (item.kind == "Type" || item.kind == "Name")
                 {
                     const auto found = bindings.find(item.value);
-                    if (found != bindings.end() && item.children.empty())
+                    if (found != bindings.end() && item.children.empty()
+                        && (item.kind == "Type" || found->second->kind == "ConstantTypeArgument"))
                     {
                         auto replacement = portableType(*found->second, argumentModule, into);
+                        if (item.kind == "Name" && replacement->kind == "ConstantTypeArgument") replacement->kind = "Literal";
                         const auto range = item.range;
+                        const auto origin = origins_.find(replacement.get());
+                        const auto* replacementOrigin = origin == origins_.end() ? nullptr : origin->second;
+                        const auto self = selfOwners_.find(replacement.get());
+                        auto* replacementOwner = self == selfOwners_.end() ? nullptr : self->second;
                         item = std::move(*replacement); item.range = range;
+                        if (replacementOrigin) origins_[&item] = replacementOrigin; else origins_.erase(&item);
+                        if (replacementOwner) selfOwners_[&item] = replacementOwner; else selfOwners_.erase(&item);
+                        rewritten_.erase(&item);
                         return;
                     }
                 }
@@ -341,8 +384,14 @@ namespace aevix
             }
             std::string key(const Node& type, ModuleId module)
             {
+                if (type.kind == "ConstantTypeArgument" || type.kind == "Literal")
+                    if (const auto value = constantGenericValue(type)) return std::to_string(*value);
                 if (type.kind == "ReferenceType") return "&" + type.value + key(*type.children[0], module);
                 auto declared = declaration(type, module);
+                if (declared.node && declared.node->kind == "Variable" && modifier(*declared.node, "const"))
+                    if (const auto value = constantGenericValue(type)) return std::to_string(*value);
+                if (declared.node && declared.node->kind == "TypeAlias" && !declared.node->children.empty())
+                    return key(*declared.node->children[0], declared.module);
                 if (declared.node && canonicalKeys_.contains(declared.node)) return canonicalKeys_.at(declared.node);
                 std::string result = declared.node ? graph_.modules[declared.module]->name + "." + declared.node->value : flatPath(type);
                 if (result == "int") result = "i32";
@@ -358,15 +407,22 @@ namespace aevix
             }
             bool copy(const Node& type, ModuleId module, std::set<std::string>& visiting)
             {
+                const auto alias = declaration(type, module);
+                if (alias.node && alias.node->kind == "TypeAlias" && !alias.node->children.empty())
+                    return copy(*alias.node->children[0], alias.module, visiting);
                 if (type.kind == "ReferenceType") return type.value != "mut";
                 const auto name = flatPath(type);
                 if (name == "string") return false;
                 if (name == "Range" && type.children.size() == 1) return copy(*type.children[0], module, visiting);
                 if (name == "Slice" && type.children.size() == 1) return true;
-                static const std::set<std::string> scalars = {"i8","i16","i32","i64","u8","u16","u32","u64","int","isize","usize","f16","bf16","f32","f64","float","bool","char","byte","unit","never","string_view"};
+                if (name == "Array" && !type.children.empty()) return copy(*type.children[0], module, visiting);
+                if (name == "Tuple")
+                { for (const auto& field : type.children) if (!copy(*field, module, visiting)) return false; return true; }
+                static const std::set<std::string> scalars = {"i8","i16","i32","i64","i128","u8","u16","u32","u64","u128","int","isize","usize","f16","bf16","f32","f64","float","bool","char","byte","unit","never","string_view"};
                 if (scalars.contains(name)) return true;
                 const auto declared = declaration(type, module);
                 if (!declared.node) return false;
+                if (child(*declared.node, "CompilerSimd")) return true;
                 const auto identity = key(type, module);
                 if (!visiting.insert(identity).second) return false;
                 const auto* implemented = child(*declared.node, "Implements");
@@ -401,8 +457,42 @@ namespace aevix
                 visiting.erase(identity);
                 return answer;
             }
+            bool callableConstraint(const Node& concrete, ModuleId module, const Node& required)
+            {
+                const auto candidate = declaration(concrete, module);
+                const auto* marker = candidate.node ? child(*candidate.node, "CompilerClosure") : nullptr;
+                const auto wanted = typeArguments(required);
+                if (!marker || wanted.size() != 2 || wanted[0]->value != "Tuple") return false;
+                const auto rank = [](std::string_view name) { return name == "Fn" ? 0 : name == "FnMut" ? 1 : 2; };
+                if (rank(marker->value) > rank(required.value)) return false;
+                const auto* method = child(*candidate.node, "Function");
+                if (!method || method->value != "__invoke" || method->children.empty()) return false;
+                const auto* parameters = child(*method, "Parameters");
+                if (!parameters || parameters->children.size() != wanted[0]->children.size() + 1) return false;
+                if (key(*method->children[0], candidate.module) != key(*wanted[1], module)) return false;
+                for (std::size_t index = 0; index < wanted[0]->children.size(); ++index)
+                    if (key(*parameters->children[index + 1]->children[0], candidate.module) != key(*wanted[0]->children[index], module)) return false;
+                return true;
+            }
+            bool floatingContract(const Node& type, ModuleId module)
+            {
+                const auto target = declaration(type, module);
+                if (!target.node) return false;
+                if (target.node->kind == "TypeAlias" && !target.node->children.empty()) return floatingContract(*target.node->children[0], target.module);
+                const auto* marker = child(*target.node, "CompilerNumericContract");
+                return marker && marker->value == "float";
+            }
+            bool floatingScalar(const Node& type, ModuleId module)
+            {
+                const auto target = declaration(type, module);
+                if (target.node && target.node->kind == "TypeAlias" && !target.node->children.empty()) return floatingScalar(*target.node->children[0], target.module);
+                const auto name = key(type, module);
+                return name == "f16" || name == "bf16" || name == "f32" || name == "f64";
+            }
             bool constraint(const Node& concrete, ModuleId module, const Node& required)
             {
+                if (floatingContract(required, module)) return floatingScalar(concrete, module);
+                if (required.value == "Fn" || required.value == "FnMut" || required.value == "FnOnce") return callableConstraint(concrete, module, required);
                 if (required.value == "Copy") { std::set<std::string> visiting; return copy(concrete, module, visiting); }
                 const auto type = declaration(concrete, module);
                 const auto* interfaces = type.node ? child(*type.node, "Implements") : nullptr;
@@ -411,27 +501,91 @@ namespace aevix
                     if (key(*interface, type.module) == key(required, module)) return true;
                 return false;
             }
+            std::optional<std::uint64_t> constantGenericValue(const Node& argument)
+            {
+                NameResolution constantNames = names_;
+                const auto addOrigins = [&](const auto& self, const Node& value) -> void
+                {
+                    if (const auto origin = origins_.find(&value); origin != origins_.end())
+                        if (const auto reference = names_.references.find(origin->second); reference != names_.references.end())
+                            constantNames.references[&value] = reference->second;
+                    for (const auto& nested : value.children) self(self, *nested);
+                };
+                addOrigins(addOrigins, argument);
+                const Node* expression = &argument;
+                if (expression->kind == "ConstantTypeArgument" && expression->children.size() == 1) expression = expression->children[0].get();
+                TypeContext constants;
+                const std::unordered_map<const Node*, TypeId> nodeTypes;
+                const std::unordered_map<SymbolId, TypeId> symbolTypes;
+                const auto evaluated = ConstEvaluator(constantNames, constants, nodeTypes, symbolTypes).evaluate(*expression, constants.builtin("usize"));
+                if (evaluated.status != ConstStatus::Constant || evaluated.value.kind != ConstantKind::Integer
+                    || evaluated.value.negative || evaluated.value.highMagnitude != 0) return std::nullopt;
+                return evaluated.value.magnitude;
+            }
+
+            NodePtr constantGenericArgument(const Node& argument, const Node& parameter, ModuleId declarationModule, ModuleId module, bool diagnose)
+            {
+                const auto declared = !parameter.children.empty() ? portableType(*parameter.children[0], declarationModule, module) : NodePtr{};
+                if (!declared || key(*declared, module) != "usize")
+                { if (diagnose) error(parameter, "Const generic parameters currently require the usize type."); return {}; }
+                const auto value = constantGenericValue(argument);
+                if (!value)
+                { if (diagnose) error(argument, "Const generic arguments must be nonnegative compile-time usize values."); return {}; }
+                return node("ConstantTypeArgument", std::to_string(*value), argument.range);
+            }
+
+            bool completeBindings(const Declaration& original, Bindings& bindings, ModuleId module, bool diagnose)
+            {
+                const auto* parameters = child(*original.node, "GenericParameters");
+                if (!parameters) return bindings.empty();
+                for (const auto& parameter : parameters->children)
+                {
+                    if (!bindings.contains(parameter->value))
+                    {
+                        const auto* initial = child(*parameter, "GenericDefault");
+                        if (!initial || initial->children.empty()) return false;
+                        auto value = portableType(*initial->children[0], original.module, module);
+                        substitute(*value, bindings, module, module);
+                        bindings[parameter->value] = std::move(value);
+                    }
+                    auto& argument = bindings.at(parameter->value);
+                    if (parameter->kind == "ConstParameter")
+                    {
+                        auto normalized = constantGenericArgument(*argument, *parameter, original.module, module, diagnose);
+                        if (!normalized) return false;
+                        argument = std::move(normalized);
+                    }
+                    else if (argument->kind == "ConstantTypeArgument" || argument->kind == "Literal")
+                    { if (diagnose) error(*argument, "A type generic argument cannot be a constant value."); return false; }
+                }
+                return true;
+            }
+
             Declaration specialize(const Declaration& original, const std::vector<const Node*>& arguments, ModuleId argumentModule, const Node& site, std::size_t depth)
             {
                 if (!original.node) return {};
                 const auto* parameters = child(*original.node, "GenericParameters");
-                if (!parameters || parameters->children.size() != arguments.size())
+                if (!parameters || parameters->children.size() < arguments.size())
                 {
                     error(site, "Generic type argument count does not match its declaration."); return {};
                 }
+                Bindings bindings;
+                for (std::size_t index = 0; index < arguments.size(); ++index) bindings[parameters->children[index]->value] = clone(*arguments[index]);
+                if (!completeBindings(original, bindings, argumentModule, true))
+                { if (diagnostics_.size() == initial_) error(site, "Generic arguments are missing and have no default."); return {}; }
+                std::vector<const Node*> completed;
+                for (const auto& parameter : parameters->children) completed.push_back(bindings.at(parameter->value).get());
                 // 구체 소유 타입과 원본 위치를 포함해 복제된 메서드끼리 충돌하지 않게 한다.
                 // Include the concrete owner and source location to distinguish cloned methods.
                 std::string identity = graph_.modules[original.module]->name + ':'
                     + (original.owner ? key(*use(declarations_.at(original.owner), original.module, "Type", original.node->range), original.module) : std::string{})
                     + ':' + std::to_string(original.node->range.begin.source) + ':' + std::to_string(original.node->range.begin.offset)
                     + ':' + original.node->value + ':';
-                for (const auto* argument : arguments) identity += key(*argument, argumentModule) + ';';
+                for (const auto* argument : completed) identity += key(*argument, argumentModule) + ';';
                 const auto existing = specializations_.find(identity);
                 if (existing != specializations_.end()) return existing->second;
                 if (generated_ >= 512 || depth > 64)
                 { error(site, "Generic specialization limit exceeded."); return {}; }
-                Bindings bindings;
-                for (std::size_t index = 0; index < arguments.size(); ++index) bindings[parameters->children[index]->value] = clone(*arguments[index]);
                 for (const auto& requirement : original.node->children)
                     if (requirement->kind == "Constraint" && requirement->children.size() >= 2)
                     {
@@ -463,10 +617,10 @@ namespace aevix
                 if (typeDeclaration(*original.node))
                 {
                     std::string canonical = graph_.modules[original.module]->name + "." + original.node->value + '<';
-                    for (const auto* argument : arguments) canonical += key(*argument, argumentModule) + ',';
+                    for (const auto* argument : completed) canonical += key(*argument, argumentModule) + ',';
                     canonicalKeys_[concrete.node] = canonical + '>';
                     auto logical = use(original, argumentModule, "Type", site.range);
-                    for (const auto* argument : arguments) logical->children.push_back(clone(*argument));
+                    for (const auto* argument : completed) logical->children.push_back(clone(*argument));
                     logicalTypes_[concrete.node] = {std::move(logical), argumentModule};
                 }
                 if (original.owner) original.owner->children.push_back(std::move(result));
@@ -480,12 +634,27 @@ namespace aevix
             const Node* localParameterType(const Node& parameter)
             {
                 if (parameter.children.empty()) return nullptr;
-                if (parameter.kind != "VariadicParameter") return parameter.children[0].get();
-                // 가변 인수의 지역 이름은 원소 T가 아니라 대여된 Slice<T>를 나타낸다.
-                // A variadic local denotes a borrowed Slice<T>, not one owned element T.
-                auto view = node("Type", "Slice", parameter.range);
-                view->children.push_back(clone(*parameter.children[0]));
-                const auto* result = view.get(); inferred_.push_back(std::move(view)); return result;
+                if (parameter.kind == "VariadicParameter")
+                {
+                    auto view = node("Type", "Slice", parameter.range);
+                    view->children.push_back(clone(*parameter.children[0]));
+                    const auto* result = view.get(); inferred_.push_back(std::move(view)); return result;
+                }
+                const auto* suffixes = child(parameter, "ArraySuffixes");
+                if (!suffixes || suffixes->children.empty()) return parameter.children[0].get();
+                auto value = clone(*parameter.children[0]);
+                for (auto index = suffixes->children.size(); index > 0; --index)
+                {
+                    const auto& suffix = *suffixes->children[index - 1];
+                    if (suffix.children.empty()) return parameter.children[0].get();
+                    auto array = node("Type", "Array", parameter.range);
+                    auto size = node("ConstantTypeArgument", "", suffix.range);
+                    size->children.push_back(clone(*suffix.children[0]));
+                    array->children.push_back(std::move(value));
+                    array->children.push_back(std::move(size));
+                    value = std::move(array);
+                }
+                const auto* result = value.get(); inferred_.push_back(std::move(value)); return result;
             }
             Declaration receiverDeclaration(NodePtr type, ModuleId module, Node* owner, bool* dynamic = nullptr)
             {
@@ -510,9 +679,10 @@ namespace aevix
             NodePtr infer(const Node& expression, ModuleId module, const Locals& locals, Node* owner, std::size_t depth = 0)
             {
                 if (depth > 64) return {};
+                if ((expression.kind == "CompilerTextExpression" || expression.kind == "CompilerSliceExpression") && !expression.children.empty()) return clone(*expression.children[0]);
                 for (const auto* kind : {"CompilerRangeResult", "CompilerCollectionResult", "CompilerArrayResult"})
                     if (const auto* marker = child(expression, kind); marker && !marker->children.empty()) return clone(*marker->children[0]);
-                if (expression.kind == "CompilerBoxExpression" && !expression.children.empty()) return clone(*expression.children[0]);
+                if ((expression.kind == "CompilerBoxExpression" || expression.kind == "CompilerNumericExpression") && !expression.children.empty()) return clone(*expression.children[0]);
                 if (expression.kind == "Postfix" && expression.value == "?")
                 {
                     auto carrier = infer(*expression.children[0], module, locals, owner, depth + 1);
@@ -527,6 +697,7 @@ namespace aevix
                 if (expression.kind == "Literal")
                 {
                     const auto& text = expression.value;
+                    if (!numericSuffix(text).empty()) return node("Type", std::string(numericSuffix(text)), expression.range);
                     return node("Type", text == "true" || text == "false" ? "bool" : text.starts_with('"') ? "string_view" : text.starts_with('\'') ? "char"
                         : !text.starts_with("0x") && !text.starts_with("0X") && text.find_first_of(".eE") != std::string::npos ? "f64" : "i32", expression.range);
                 }
@@ -544,7 +715,7 @@ namespace aevix
                             const auto* declaration = names_.symbols[id].declaration;
                             if (declaration && (declaration->kind == "Variable" || declaration->kind == "Parameter" || declaration->kind == "PatternBinding") && !declaration->children.empty())
                             {
-                                if (declaration->children[0]->kind != "InferredType") return portableType(*declaration->children[0], names_.symbols[id].module, module);
+                                if (declaration->children[0]->kind != "InferredType") return portableType(*localParameterType(*declaration), names_.symbols[id].module, module);
                                 for (std::size_t index = 1; index < declaration->children.size(); ++index)
                                     if (declaration->children[index]->kind != "ArraySuffixes" && declaration->children[index]->kind != "Modifier")
                                         return infer(*declaration->children[index], names_.symbols[id].module, locals, owner, depth + 1);
@@ -583,12 +754,69 @@ namespace aevix
                 if (expression.kind == "NamedInitializer")
                 {
                     const auto target = declaration(*expression.children[0], module);
+                    if (target.node && target.node->kind == "TypeAlias" && !target.node->children.empty())
+                        return portableType(*target.node->children[0], target.module, module);
                     if (target.node && typeDeclaration(*target.node)) return use(target, module, "Type", expression.range);
                     if (target.node && target.node->kind == "Variant" && target.owner) return use(declarations_.at(target.owner), module, "Type", expression.range);
                     return {};
                 }
                 if (expression.kind == "Call")
                 {
+                    if (!expression.children.empty() && expression.children[0]->kind == "Member"
+                        && expression.children[0]->children.size() == 1 && expression.children[0]->children[0]->kind == "Name"
+                        && expression.children[0]->children[0]->value == "Byte")
+                    {
+                        const auto method = expression.children[0]->value;
+                        if (method == "from_u8" || method == "to_u8")
+                            return node("Type", method == "from_u8" ? "byte" : "u8", expression.range);
+                    }
+                    if (expression.children.size() == 2 && expression.children[0]->kind == "Member"
+                        && expression.children[0]->children.size() == 1 && flatPath(*expression.children[0]->children[0]) == "Slice")
+                    {
+                        const auto& method = expression.children[0]->value;
+                        if (method == "from_array" || method == "from_array_mut" || method == "from_vector" || method == "from_vector_mut")
+                        {
+                            const auto& input = *expression.children[1]->children[0];
+                            auto collection = infer(input, module, locals, owner, depth + 1);
+                            if (collection && collection->kind == "ReferenceType") collection = std::move(collection->children[0]);
+                            NodePtr element;
+                            if (collection && (collection->value == "Array" || collection->value == "Vector") && !collection->children.empty()) element = clone(*collection->children[0]);
+                            if (!element && method.starts_with("from_array") && input.kind == "Prefix" && !input.children.empty())
+                            {
+                                const auto target = declaration(*input.children[0], module);
+                                const auto* suffixes = target.node ? child(*target.node, "ArraySuffixes") : nullptr;
+                                if (suffixes && !suffixes->children.empty())
+                                {
+                                    element = portableType(*target.node->children[0], target.module, module);
+                                    for (std::size_t index = suffixes->children.size(); index > 1; --index)
+                                    {
+                                        const auto& suffix = *suffixes->children[index - 1];
+                                        if (suffix.children.empty()) { element.reset(); break; }
+                                        auto outer = node("Type", "Array", suffix.range); outer->children.push_back(std::move(element));
+                                        auto extent = node("ConstantTypeArgument", "", suffix.range); extent->children.push_back(clone(*suffix.children[0]));
+                                        outer->children.push_back(std::move(extent)); element = std::move(outer);
+                                    }
+                                }
+                            }
+                            if (element)
+                            {
+                                auto result = node("Type", method.ends_with("_mut") ? "MutSlice" : "Slice", expression.range);
+                                result->children.push_back(std::move(element)); return result;
+                            }
+                        }
+                    }
+                    if (!expression.children.empty() && flatPath(*expression.children[0]) == "Tuple.make")
+                    {
+                        auto result = node("Type", "Tuple", expression.range);
+                        for (std::size_t index = 1; index < expression.children.size(); ++index)
+                        {
+                            if (expression.children[index]->children.empty()) return {};
+                            auto field = infer(*expression.children[index]->children[0], module, locals, owner, depth + 1);
+                            if (!field) return {};
+                            result->children.push_back(std::move(field));
+                        }
+                        return result;
+                    }
                     if (!expression.children.empty() && expression.children[0]->kind == "Member" && !expression.children[0]->children.empty()
                         && expression.children[0]->children[0]->value == "Range" && expression.children.size() == 3)
                     {
@@ -614,7 +842,7 @@ namespace aevix
                             {
                                 const auto arguments = typeArguments(*expression.children[0]);
                                 const auto* parameters = child(*target.node, "GenericParameters");
-                                if (parameters && arguments.size() == parameters->children.size())
+                                if (parameters && arguments.size() <= parameters->children.size())
                                     for (std::size_t index = 0; index < arguments.size(); ++index) bindings[parameters->children[index]->value] = clone(*arguments[index]);
                             }
                             if (inferArguments(target, expression, module, locals, owner, bindings)) substitute(*result, bindings, module, module);
@@ -650,13 +878,34 @@ namespace aevix
                     if (type.node)
                         for (const auto& field : type.node->children)
                             if (field->kind == "Variable" && field->value == expression.value && !field->children.empty())
-                                return portableType(*field->children[0], type.module, module);
+                                return portableType(*localParameterType(*field), type.module, module);
                 }
                 return {};
             }
             bool unify(const Node& parameter, const Node& actual, const std::set<std::string>& variables, Bindings& bindings, ModuleId module)
             {
-                if (parameter.kind == "Type" && variables.contains(parameter.value) && parameter.children.empty())
+                if (parameter.kind == "ConstantTypeArgument" || actual.kind == "ConstantTypeArgument")
+                {
+                    const auto left = constantGenericValue(parameter), right = constantGenericValue(actual);
+                    if (left && right) return *left == *right;
+                    if (parameter.kind == "ConstantTypeArgument" && parameter.children.size() == 1)
+                        return unify(*parameter.children[0], actual, variables, bindings, module);
+                    if (actual.kind == "ConstantTypeArgument" && actual.children.size() == 1)
+                        return unify(parameter, *actual.children[0], variables, bindings, module);
+                }
+                const auto parameterAlias = declaration(parameter, module);
+                if (parameterAlias.node && parameterAlias.node->kind == "TypeAlias")
+                {
+                    auto expanded = portableType(*parameterAlias.node->children[0], parameterAlias.module, module);
+                    return unify(*expanded, actual, variables, bindings, module);
+                }
+                const auto actualAlias = declaration(actual, module);
+                if (actualAlias.node && actualAlias.node->kind == "TypeAlias")
+                {
+                    auto expanded = portableType(*actualAlias.node->children[0], actualAlias.module, module);
+                    return unify(parameter, *expanded, variables, bindings, module);
+                }
+                if ((parameter.kind == "Type" || parameter.kind == "Name") && variables.contains(parameter.value) && parameter.children.empty())
                 {
                     const auto existing = bindings.find(parameter.value);
                     if (existing == bindings.end()) { bindings[parameter.value] = clone(actual); return true; }
@@ -678,6 +927,46 @@ namespace aevix
                     if (!unify(*parameters[index], *values[index], variables, bindings, module)) return false;
                 return true;
             }
+            void rewriteCallableTemplate(Node& function, const Node* owner)
+            {
+                std::set<std::string> callableVariables;
+                const auto collect = [&](const Node& source)
+                {
+                    for (const auto& requirement : source.children)
+                        if (requirement->kind == "Constraint" && requirement->children.size() >= 2)
+                            for (std::size_t index = 1; index < requirement->children.size(); ++index)
+                                if (requirement->children[index]->value == "Fn" || requirement->children[index]->value == "FnMut" || requirement->children[index]->value == "FnOnce")
+                                    callableVariables.insert(requirement->children[0]->value);
+                };
+                if (owner) collect(*owner); collect(function);
+                if (callableVariables.empty()) return;
+                Locals parameters;
+                if (const auto* arguments = child(function, "Parameters"))
+                    for (const auto& argument : arguments->children)
+                        if (!argument->children.empty()) parameters[argument->value] = argument->children[0].get();
+                std::function<void(Node&, Locals)> rewrite = [&](Node& current, Locals scope)
+                {
+                    if (current.kind == "Closure") return;
+                    if (current.kind == "Call" && !current.children.empty() && current.children[0]->kind == "Name")
+                    {
+                        const auto found = scope.find(current.children[0]->value);
+                        const Node* type = found == scope.end() ? nullptr : found->second;
+                        if (type && type->kind == "ReferenceType" && !type->children.empty()) type = type->children[0].get();
+                        if (type && callableVariables.contains(type->value))
+                        {
+                            auto method = node("Member", "__invoke", current.children[0]->range);
+                            method->children.push_back(std::move(current.children[0])); current.children[0] = std::move(method);
+                            rewritten_.insert(current.children[0].get());
+                        }
+                    }
+                    for (auto& nested : current.children)
+                    {
+                        rewrite(*nested, scope);
+                        if (current.kind == "Block" && nested->kind == "Variable" && !nested->children.empty()) scope[nested->value] = nested->children[0].get();
+                    }
+                };
+                if (auto* body = child(function, "Block")) rewrite(*body, parameters);
+            }
             bool declaresMethod(const Node& type, std::string_view name) const
             {
                 return std::any_of(type.children.begin(), type.children.end(), [&](const auto& item) { return item->kind == "Function" && item->value == name; });
@@ -685,7 +974,7 @@ namespace aevix
             void validateTemplateContract(const Declaration& declaration)
             {
                 if (!contractsChecked_.insert(declaration.node).second) return;
-                std::set<std::string> variables, copyVariables;
+                std::set<std::string> variables, copyVariables, floatingVariables;
                 std::map<std::string, std::set<std::string>> requirements;
                 std::map<std::string, std::vector<NodePtr>> methods;
                 auto collect = [&](const Node& source)
@@ -700,6 +989,26 @@ namespace aevix
                                 const auto& subject = requirement->children[0]->value;
                                 requirements[subject].insert(key(wanted, declaration.module));
                                 if (wanted.value == "Copy") copyVariables.insert(subject);
+                                if (floatingContract(wanted, declaration.module))
+                                { floatingVariables.insert(subject); copyVariables.insert(subject); }
+                                if (wanted.value == "Fn" || wanted.value == "FnMut" || wanted.value == "FnOnce")
+                                {
+                                    const auto signatureTypes = typeArguments(wanted);
+                                    if (signatureTypes.size() != 2 || signatureTypes[0]->value != "Tuple")
+                                    { error(wanted, "Callable constraints use Fn<Tuple<Arguments...>, Output>."); continue; }
+                                    auto signature = node("Function", "__invoke", wanted.range);
+                                    signature->children.push_back(clone(*signatureTypes[1]));
+                                    auto parameters = node("Parameters", "", wanted.range);
+                                    auto self = node("Parameter", "self", wanted.range);
+                                    auto receiver = node("Type", subject, wanted.range);
+                                    if (wanted.value != "FnOnce")
+                                    { auto reference = node("ReferenceType", wanted.value == "FnMut" ? "mut" : "read", wanted.range); reference->children.push_back(std::move(receiver)); receiver = std::move(reference); }
+                                    self->children.push_back(std::move(receiver)); parameters->children.push_back(std::move(self));
+                                    for (std::size_t slot = 0; slot < signatureTypes[0]->children.size(); ++slot)
+                                    { auto parameter = node("Parameter", "$argument" + std::to_string(slot), wanted.range); parameter->children.push_back(clone(*signatureTypes[0]->children[slot])); parameters->children.push_back(std::move(parameter)); }
+                                    signature->children.push_back(std::move(parameters)); methods[subject].push_back(std::move(signature));
+                                    continue;
+                                }
                                 const auto contract = this->declaration(wanted, declaration.module);
                                 if (!contract.node) continue;
                                 Bindings bindings; bindings["Self"] = node("Type", subject, wanted.range);
@@ -769,7 +1078,7 @@ namespace aevix
                             for (const auto& field : target.node->children)
                                 if (field->kind == "Variable" && field->value == expression.value && !field->children.empty())
                                 {
-                                    auto result = portableType(*field->children[0], target.module, declaration.module);
+                                    auto result = portableType(*localParameterType(*field), target.module, declaration.module);
                                     const auto arguments = receiver ? typeArguments(*receiver) : std::vector<const Node*>{};
                                     if (const auto* parameters = child(*target.node, "GenericParameters"); parameters && parameters->children.size() == arguments.size())
                                     {
@@ -840,7 +1149,7 @@ namespace aevix
                             const auto target = key(*wanted, declaration.module);
                             const bool floating = literal->value.find_first_of(".eE") != std::string::npos && !literal->value.starts_with("0x") && !literal->value.starts_with("0X");
                             const bool accepts = floating ? target == "f32" || target == "f64"
-                                : target == "i8" || target == "i16" || target == "i32" || target == "i64" || target == "u8" || target == "u16" || target == "u32" || target == "u64" || target == "isize" || target == "usize";
+                                : target == "i8" || target == "i16" || target == "i32" || target == "i64" || target == "i128" || target == "u8" || target == "u16" || target == "u32" || target == "u64" || target == "u128" || target == "isize" || target == "usize";
                             if (!accepts) return false;
                         }
                         else if (!unify(*wanted, *actual, methodVariables, bindings, declaration.module)) return false;
@@ -893,11 +1202,16 @@ namespace aevix
                     }
                     if (item.kind == "Binary" && item.children.size() >= 2)
                     {
-                        if (!abstractVariable(*item.children[0], scope).empty() || !abstractVariable(*item.children[1], scope).empty())
+                        const auto left = abstractVariable(*item.children[0], scope), right = abstractVariable(*item.children[1], scope);
+                        const bool numeric = item.value == "+" || item.value == "-" || item.value == "*" || item.value == "/"
+                            || item.value == "==" || item.value == "!=" || item.value == "<" || item.value == "<=" || item.value == ">" || item.value == ">=";
+                        if ((!left.empty() || !right.empty()) && !(numeric && (left.empty() || floatingVariables.contains(left)) && (right.empty() || floatingVariables.contains(right))))
                             error(item, "Generic contract does not guarantee operator '" + item.value + "' for every permitted type.");
                     }
                     if (item.kind == "Prefix" && !item.children.empty() && item.value != "&" && item.value != "&mut" && item.value != "*")
-                        if (!abstractVariable(*item.children[0], scope).empty()) error(item, "Generic contract does not guarantee this unary operator.");
+                        if (const auto variable = abstractVariable(*item.children[0], scope); !variable.empty()
+                            && !((item.value == "+" || item.value == "-") && floatingVariables.contains(variable)))
+                            error(item, "Generic contract does not guarantee this unary operator.");
                     const bool projectionBase = parent && (parent->kind == "Member" || parent->kind == "Index"
                         || (parent->kind == "Prefix" && (parent->value == "&" || parent->value == "&mut"))
                         || (parent->kind == "Assignment" && parent->children[0].get() == &item));
@@ -1131,6 +1445,20 @@ namespace aevix
             }
             void fillExpected(const Node& pattern, const Node& actual, const std::set<std::string>& variables, Bindings& bindings, ModuleId module)
             {
+                const auto patternAlias = declaration(pattern, module);
+                if (patternAlias.node && patternAlias.node->kind == "TypeAlias")
+                {
+                    auto expanded = portableType(*patternAlias.node->children[0], patternAlias.module, module);
+                    fillExpected(*expanded, actual, variables, bindings, module);
+                    return;
+                }
+                const auto actualAlias = declaration(actual, module);
+                if (actualAlias.node && actualAlias.node->kind == "TypeAlias")
+                {
+                    auto expanded = portableType(*actualAlias.node->children[0], actualAlias.module, module);
+                    fillExpected(pattern, *expanded, variables, bindings, module);
+                    return;
+                }
                 if (pattern.kind == "Type" && variables.contains(pattern.value) && pattern.children.empty())
                 {
                     if (!bindings.contains(pattern.value)) bindings[pattern.value] = clone(actual);
@@ -1202,7 +1530,8 @@ namespace aevix
                     if (parameter >= parameters->children.size() || (assigned[parameter] && parameter != pack)
                         || (variadic && parameter == pack && !argument.value.empty()) || argument.children.empty()) return false;
                     assigned[parameter] = true;
-                    arguments.emplace_back(parameters->children[parameter]->children[0].get(), argument.children[0].get());
+                    arguments.emplace_back(parameters->children[parameter]->kind == "VariadicParameter"
+                        ? parameters->children[parameter]->children[0].get() : localParameterType(*parameters->children[parameter]), argument.children[0].get());
                 }
                 for (std::size_t index = offset; index < pack; ++index)
                     if (!assigned[index] && !child(*parameters->children[index], "Default")) return false;
@@ -1213,6 +1542,7 @@ namespace aevix
                     {
                         auto actual = infer(*value, module, locals, owner);
                         auto wanted = portableType(*parameter, function.module, module);
+                        substitute(*wanted, bindings, module, module);
                         if (!actual || !unify(*wanted, *actual, variables, bindings, module)) return false;
                     }
                 for (const auto& [parameter, value] : arguments)
@@ -1225,9 +1555,10 @@ namespace aevix
                         if (unresolved)
                         { if (!unify(*wanted, *literalType, variables, bindings, module)) return false; wanted = clone(*literalType); }
                         const auto numeric = key(*wanted, module);
-                        const bool integral = numeric == "i8" || numeric == "i16" || numeric == "i32" || numeric == "i64" || numeric == "isize" || numeric == "u8" || numeric == "u16" || numeric == "u32" || numeric == "u64" || numeric == "usize";
-                        const bool floating = numeric == "f32" || numeric == "f64";
-                        if (literalType->value == "f64" ? !floating : !integral) return false;
+                        const bool integral = numeric == "i8" || numeric == "i16" || numeric == "i32" || numeric == "i64" || numeric == "i128" || numeric == "isize" || numeric == "u8" || numeric == "u16" || numeric == "u32" || numeric == "u64" || numeric == "u128" || numeric == "usize";
+                        const bool floating = numeric == "f16" || numeric == "bf16" || numeric == "f32" || numeric == "f64";
+                        if (!numericSuffix(literal->value).empty()) { if (numeric != literalType->value) return false; }
+                        else if (literalType->value == "f64" ? !floating : !integral) return false;
                         if (literalPreference && numeric == literalType->value) ++*literalPreference;
                     }
                 if (expected_ && expected_->kind != "InferredType" && !function.node->children.empty())
@@ -1235,8 +1566,7 @@ namespace aevix
                     auto resultType = portableType(*function.node->children[0], function.module, module);
                     fillExpected(*resultType, *expected_, variables, bindings, module);
                 }
-                if (generics)
-                    for (const auto& parameter : generics->children) if (!bindings.contains(parameter->value)) return false;
+                if (generics && !completeBindings(function, bindings, module, false)) return false;
                 return true;
             }
             std::string carrierName(const Declaration& declaration)
@@ -1343,6 +1673,210 @@ namespace aevix
                 const auto concrete = specialize(declaration, pointers, module, source, depth + 1);
                 return concrete.node ? use(concrete, module, "Type", source.range) : NodePtr{};
             }
+            NodePtr closureCaptureType(const Node& expression, ModuleId module, const Locals& locals, Node* owner)
+            {
+                auto type = infer(expression, module, locals, owner);
+                const auto target = declaration(expression, module);
+                const auto* suffixes = target.node ? child(*target.node, "ArraySuffixes") : nullptr;
+                if (suffixes && !suffixes->children.empty())
+                {
+                    type = portableType(*target.node->children[0], target.module, module);
+                    for (auto suffix = suffixes->children.rbegin(); suffix != suffixes->children.rend(); ++suffix)
+                    {
+                        if ((*suffix)->children.empty()) return {};
+                        auto outer = node("Type", "Array", (*suffix)->range); outer->children.push_back(std::move(type));
+                        auto extent = node("ConstantTypeArgument", "", (*suffix)->range); extent->children.push_back(clone(*(*suffix)->children[0]));
+                        outer->children.push_back(std::move(extent)); type = std::move(outer);
+                    }
+                }
+                if (type && owner)
+                {
+                    Bindings bindings; bindings["Self"] = use(declarations_.at(owner), module, "Type", expression.range);
+                    substitute(*type, bindings, module, module);
+                }
+                return type;
+            }
+            void lowerClosure(Node& closure, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                if (closure.children.size() != 4) { error(closure, "Malformed closure expression."); return; }
+                if (generated_ >= 512) { error(closure, "Closure generation exceeds the compiler declaration limit."); return; }
+                const auto identity = "$Closure" + std::to_string(++closureSequence_);
+                auto environment = node("Struct", identity, closure.range);
+                environment->children.push_back(node("Modifier", "public", closure.range));
+                auto construction = node("NamedInitializer", "", closure.range);
+                construction->children.push_back(node("Name", identity, closure.range));
+                struct CaptureInfo { std::string field; std::string mode; };
+                std::map<std::string, CaptureInfo> captures;
+                bool exclusive = false; bool consuming = false;
+                for (auto& capture : closure.children[0]->children)
+                {
+                    if (capture->children.size() != 2) { error(*capture, "Malformed closure capture."); return; }
+                    const auto mode = capture->children[0]->value;
+                    auto type = closureCaptureType(*capture->children[1], module, locals, owner);
+                    if (!type) { error(*capture, "Cannot infer closure capture type for '" + capture->value + "'."); return; }
+                    std::set<std::string> visiting;
+                    if (mode == "value" && !copy(*type, module, visiting)) consuming = true;
+                    if (mode == "mut") exclusive = true;
+                    if (mode != "value")
+                    { auto reference = node("ReferenceType", mode == "mut" ? "mut" : "read", capture->range); reference->children.push_back(std::move(type)); type = std::move(reference); }
+                    const auto fieldName = "$capture_" + capture->value;
+                    captures[capture->value] = {fieldName, mode};
+                    auto field = node("Variable", fieldName, capture->range); field->children.push_back(std::move(type));
+                    field->children.push_back(node("Modifier", "public", capture->range)); environment->children.push_back(std::move(field));
+                    auto initial = node("FieldInitializer", fieldName, capture->range);
+                    auto expression = std::move(capture->children[1]);
+                    if (mode != "value")
+                    { auto borrow = node("Prefix", mode == "mut" ? "&mut" : "&", capture->range); borrow->children.push_back(std::move(expression)); expression = std::move(borrow); }
+                    initial->children.push_back(std::move(expression)); construction->children.push_back(std::move(initial));
+                }
+                const auto mentions = [&](const auto& self, const Node& expression) -> bool
+                {
+                    if (expression.kind == "Name" && captures.contains(expression.value)) return true;
+                    for (const auto& nested : expression.children) if (self(self, *nested)) return true;
+                    return false;
+                };
+                const auto classify = [&](const auto& self, const Node& expression) -> void
+                {
+                    if (expression.kind == "Closure") return;
+                    if (((expression.kind == "Assignment") || ((expression.kind == "Prefix" || expression.kind == "Postfix")
+                        && (expression.value == "++" || expression.value == "--" || expression.value == "&mut")))
+                        && !expression.children.empty() && mentions(mentions, *expression.children[0])) exclusive = true;
+                    if (expression.kind == "Call" && !expression.children.empty())
+                    {
+                        const auto* callee = expression.children[0].get();
+                        if (callee->kind == "GenericName" && !callee->children.empty()) callee = callee->children[0].get();
+                        if (callee->kind == "Member" && !callee->children.empty() && mentions(mentions, *callee->children[0]))
+                        {
+                            const Node* receiver = nullptr;
+                            const auto candidates = callCandidates(*expression.children[0], module, locals, owner, receiver);
+                            const bool shared = !candidates.empty() && std::all_of(candidates.begin(), candidates.end(), [&](const auto& candidate) {
+                                const auto* parameters = child(*candidate.node, "Parameters");
+                                if (!parameters || parameters->children.empty() || parameters->children[0]->value != "self"
+                                    || parameters->children[0]->children.empty()) return false;
+                                const auto& mode = *parameters->children[0]->children[0];
+                                return mode.kind == "ReferenceType" && mode.value != "mut";
+                            });
+                            if (!shared) exclusive = true;
+                        }
+                    }
+                    for (const auto& nested : expression.children) self(self, *nested);
+                };
+                classify(classify, *closure.children[3]);
+                const auto mode = consuming ? "FnOnce" : exclusive ? "FnMut" : "Fn";
+                environment->children.push_back(node("CompilerClosure", mode, closure.range));
+                auto method = node("Function", "__invoke", closure.range);
+                auto returned = std::move(closure.children[2]);
+                if (owner)
+                { Bindings bindings; bindings["Self"] = use(declarations_.at(owner), module, "Type", closure.range); substitute(*returned, bindings, module, module); }
+                method->children.push_back(std::move(returned));
+                auto parameters = node("Parameters", "", closure.range);
+                auto self = node("Parameter", "self", closure.range); auto receiver = node("Type", identity, closure.range);
+                if (!consuming)
+                { auto reference = node("ReferenceType", exclusive ? "mut" : "read", closure.range); reference->children.push_back(std::move(receiver)); receiver = std::move(reference); }
+                self->children.push_back(std::move(receiver)); parameters->children.push_back(std::move(self));
+                for (auto& parameter : closure.children[1]->children)
+                {
+                    if (owner)
+                    { Bindings bindings; bindings["Self"] = use(declarations_.at(owner), module, "Type", closure.range); substitute(*parameter->children[0], bindings, module, module); }
+                    parameters->children.push_back(std::move(parameter));
+                }
+                method->children.push_back(std::move(parameters));
+                auto body = std::move(closure.children[3]);
+                const auto rewrite = [&](const auto& rewriteSelf, Node& expression) -> void
+                {
+                    if (expression.kind == "Closure")
+                    {
+                        if (auto* nestedCaptures = child(expression, "Captures"))
+                            for (auto& capture : nestedCaptures->children)
+                                if (capture->children.size() > 1) rewriteSelf(rewriteSelf, *capture->children[1]);
+                        return;
+                    }
+                    if (expression.kind == "Name")
+                        if (const auto selected = captures.find(expression.value); selected != captures.end())
+                        {
+                            auto field = node("Member", selected->second.field, expression.range);
+                            field->children.push_back(node("Name", "self", expression.range));
+                            if (selected->second.mode != "value")
+                            { auto dereference = node("Prefix", "*", expression.range); dereference->children.push_back(std::move(field)); field = std::move(dereference); }
+                            expression = std::move(*field); rewritten_.insert(&expression); return;
+                        }
+                    for (auto& nested : expression.children) rewriteSelf(rewriteSelf, *nested);
+                };
+                rewrite(rewrite, *body); method->children.push_back(std::move(body));
+                method->children.push_back(node("Modifier", "public", closure.range));
+                environment->children.push_back(std::move(method));
+                auto* address = environment.get(); graph_.modules[module]->ast->children.push_back(std::move(environment));
+                index(*address, module, nullptr); ++generated_;
+                closure = std::move(*construction); rewritten_.insert(closure.children[0].get());
+                process(closure, module, locals, owner, depth + 1);
+            }
+            void rewriteClosureCall(Node& call, ModuleId module, const Locals& locals, Node* owner)
+            {
+                if (call.children.empty() || (call.children[0]->kind != "Name" && call.children[0]->kind != "Prefix" && call.children[0]->kind != "Group" && call.children[0]->kind != "Member")) return;
+                auto type = infer(*call.children[0], module, locals, owner);
+                if (type && type->kind == "ReferenceType") type = std::move(type->children[0]);
+                const auto target = type ? declaration(*type, module) : Declaration{};
+                if (!target.node || !child(*target.node, "CompilerClosure")) return;
+                auto method = node("Member", "__invoke", call.children[0]->range);
+                method->children.push_back(std::move(call.children[0])); call.children[0] = std::move(method);
+                rewritten_.insert(call.children[0].get());
+            }
+            bool sliceResultCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const auto& callee = *call.children[0];
+                if (callee.kind != "Member" || callee.children.size() != 1 || callee.children[0]->kind != "Name"
+                    || callee.children[0]->value != "Slice" || (callee.value != "slice" && callee.value != "slice_mut")) return false;
+                const auto refs = names_.references.find(callee.children[0].get());
+                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
+                if (call.children.size() != 4) { error(call, "Slice slicing requires a view, start, and end."); return true; }
+                for (std::size_t index = 1; index < call.children.size(); ++index)
+                {
+                    if (!call.children[index]->value.empty() || call.children[index]->children.size() != 1)
+                    { error(call, "Slice slicing requires three positional arguments."); return true; }
+                    ExpectedGuard context(expected_); expected_ = nullptr;
+                    process(*call.children[index], module, locals, owner, depth + 1);
+                }
+                auto view = infer(*call.children[1]->children[0], module, locals, owner, depth + 1);
+                if (!view || (view->value != "Slice" && view->value != "MutSlice") || view->children.size() != 1)
+                { error(call, "Cannot infer the Slice element type; provide an explicitly typed view."); return true; }
+                const bool mutableView = callee.value == "slice_mut";
+                if ((view->value == "MutSlice") != mutableView)
+                { error(call, "Slice.slice takes Slice<T>; Slice.slice_mut takes MutSlice<T>."); return true; }
+                std::vector<NodePtr> arguments; arguments.push_back(std::move(view));
+                arguments.push_back(specializeBuiltin("BoundsError", {}, module, call, depth));
+                if (!arguments.back()) return true;
+                auto result = specializeBuiltin("Result", std::move(arguments), module, call, depth);
+                if (!result) return true;
+                std::vector<NodePtr> children; children.push_back(std::move(result));
+                for (std::size_t index = 1; index < call.children.size(); ++index) children.push_back(std::move(call.children[index]->children[0]));
+                call.kind = "CompilerSliceExpression"; call.value = mutableView ? "slice_mut" : "slice"; call.children = std::move(children);
+                return true;
+            }
+            bool textResultCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const auto& callee = *call.children[0];
+                if (callee.kind != "Member" || callee.children.size() != 1 || callee.children[0]->kind != "Name" || callee.children[0]->value != "string") return false;
+                const auto refs = names_.references.find(callee.children[0].get());
+                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
+                const auto method = callee.value;
+                if (method != "from_view" && method != "from_utf8" && method != "append" && method != "push_char" && method != "slice_bytes") return false;
+                for (std::size_t index = 1; index < call.children.size(); ++index)
+                {
+                    ExpectedGuard context(expected_); expected_ = nullptr;
+                    process(*call.children[index], module, locals, owner, depth + 1);
+                }
+                std::vector<NodePtr> arguments;
+                arguments.push_back(node("Type", method == "slice_bytes" ? "string_view" : method == "append" || method == "push_char" ? "unit" : "string", call.range));
+                arguments.push_back(specializeBuiltin("TextError", {}, module, call, depth));
+                if (!arguments.back()) return true;
+                auto result = specializeBuiltin("Result", std::move(arguments), module, call, depth);
+                if (!result) return true;
+                std::vector<NodePtr> children; children.push_back(std::move(result));
+                for (std::size_t index = 1; index < call.children.size(); ++index)
+                    if (!call.children[index]->children.empty()) children.push_back(std::move(call.children[index]->children[0]));
+                call.kind = "CompilerTextExpression"; call.value = method; call.children = std::move(children);
+                return true;
+            }
             bool rangeResultCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
             {
                 const auto& callee = *call.children[0];
@@ -1424,7 +1958,7 @@ namespace aevix
                 const auto origin = origins_.find(&expression);
                 const auto evaluated = ConstEvaluator(names_, constants, nodeTypes, symbolTypes).evaluate(origin == origins_.end() ? expression : *origin->second, constants.builtin("usize"));
                 if (evaluated.status == ConstStatus::Constant && evaluated.value.kind == ConstantKind::Integer
-                    && !evaluated.value.negative && evaluated.value.magnitude > 0 && evaluated.value.magnitude <= 64) return evaluated.value.magnitude;
+                    && !evaluated.value.negative && !evaluated.value.highMagnitude && evaluated.value.magnitude > 0 && evaluated.value.magnitude <= 64) return evaluated.value.magnitude;
                 if (expression.kind == "Literal" || expression.kind == "ConstantTypeArgument")
                 {
                     auto value = expression.value; std::erase(value, '_');
@@ -1490,6 +2024,35 @@ namespace aevix
                     if (value->kind == "ArrayLiteral") dynamicElements(*value, element, module, locals, owner, depth + 1);
                     else { ExpectedGuard context(expected_); expected_ = &element; process(*value, module, locals, owner, depth + 1); }
                 }
+            }
+            bool numericCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                if (call.children.empty()) return false;
+                const Node* callee = call.children[0].get();
+                const Node* arguments = callee->kind == "GenericName" ? child(*callee, "TypeArguments") : nullptr;
+                if (callee->kind == "GenericName") callee = callee->children[0].get();
+                if (callee->kind != "Member" || callee->children.size() != 1 || callee->children[0]->kind != "Name") return false;
+                const auto& name = callee->children[0]->value;
+                if (name != "Integer" && name != "Float") return false;
+                const auto refs = names_.references.find(callee->children[0].get());
+                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
+                const auto method = callee->value;
+                if (method != "convert" && !(name == "Float" && (method == "convert_exact" || method == "to_integer_exact"))) return false;
+                if (!arguments || arguments->children.size() != 1 || call.children.size() != 2 || call.children[1]->children.size() != 1)
+                { error(call, "Numeric conversion requires one destination type argument and one value."); return true; }
+                if (!call.children[1]->value.empty() && call.children[1]->value != "value")
+                { error(call, "Unknown numeric conversion argument name."); return true; }
+                auto destination = clone(*arguments->children[0]);
+                { ExpectedGuard context(expected_); expected_ = nullptr; process(*call.children[1]->children[0], module, locals, owner, depth + 1); }
+                auto errors = specializeBuiltin(name == "Integer" ? "IntegerError" : "FloatError", {}, module, call, depth + 1);
+                if (!errors) return true;
+                std::vector<NodePtr> parameters; parameters.push_back(std::move(destination)); parameters.push_back(std::move(errors));
+                auto result = specializeBuiltin("Result", std::move(parameters), module, call, depth + 1);
+                if (!result) return true;
+                auto replacement = node("CompilerNumericExpression", name + "." + method, call.range);
+                replacement->children.push_back(std::move(result));
+                replacement->children.push_back(std::move(call.children[1]->children[0]));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
             }
             bool boxConstructor(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
             {
@@ -1573,9 +2136,22 @@ namespace aevix
                 else if ((item.kind == "Variable" || item.kind == "Parameter") && !item.children.empty()) expected_ = item.children[0].get();
                 else if (item.kind == "Return") expected_ = functionResult_;
                 if (child(item, "CompilerTemplate") || item.kind == "Interface") return;
+                if (item.kind == "Closure") { lowerClosure(item, module, locals, owner, depth); return; }
                 if (item.kind.starts_with("Compiler")) return;
                 if (item.kind == "Struct" || item.kind == "Enum") owner = &item;
-                if ((item.kind == "Type" || item.kind == "QualifiedType") && !typeArguments(item).empty())
+                if (item.kind == "Type" || item.kind == "QualifiedType")
+                {
+                    const auto alias = declaration(item, module);
+                    if (alias.node && alias.node->kind == "TypeAlias" && !alias.node->children.empty())
+                    {
+                        auto expanded = portableType(*alias.node->children[0], alias.module, module);
+                        const auto range = item.range;
+                        item = std::move(*expanded);
+                        item.range = range;
+                        rewritten_.insert(&item);
+                    }
+                }
+                if ((item.kind == "Type" || item.kind == "QualifiedType") && item.value != "Self")
                 {
                     const auto target = declaration(item, module);
                     if (target.node && generic(*target.node) && typeDeclaration(*target.node))
@@ -1607,8 +2183,45 @@ namespace aevix
                 }
                 if (item.kind == "NamedInitializer" && !item.children.empty())
                 {
+                    const auto alias = declaration(*item.children[0], module);
+                    if (alias.node && alias.node->kind == "TypeAlias" && !alias.node->children.empty())
+                    {
+                        auto expanded = portableType(*alias.node->children[0], alias.module, module);
+                        process(*expanded, module, locals, owner, depth + 1);
+                        const auto asValue = [&](const auto& self, NodePtr syntax) -> NodePtr
+                        {
+                            if (syntax->kind != "Type" && syntax->kind != "QualifiedType") return syntax;
+                            const bool qualified = syntax->kind == "QualifiedType";
+                            auto base = node(qualified ? "Member" : "Name", syntax->value, syntax->range);
+                            const auto first = qualified ? 1u : 0u;
+                            if (qualified) base->children.push_back(self(self, std::move(syntax->children[0])));
+                            if (syntax->children.size() == first) return base;
+                            auto generic = node("GenericName", "", syntax->range);
+                            auto arguments = node("TypeArguments", "", syntax->range);
+                            for (std::size_t i = first; i < syntax->children.size(); ++i)
+                                arguments->children.push_back(std::move(syntax->children[i]));
+                            generic->children.push_back(std::move(base));
+                            generic->children.push_back(std::move(arguments));
+                            return generic;
+                        };
+                        item.children[0] = asValue(asValue, std::move(expanded));
+                        rewritten_.insert(item.children[0].get());
+                    }
                     auto& constructor = *item.children[0];
-                    if (constructor.kind == "GenericName")
+                    if (constructor.kind == "Name" || constructor.kind == "Member")
+                    {
+                        const auto target = declaration(constructor, module);
+                        if (target.node && generic(*target.node) && typeDeclaration(*target.node))
+                        {
+                            const auto concrete = specialize(target, {}, module, item, depth);
+                            if (concrete.node)
+                            {
+                                item.children[0] = use(concrete, module, "Name", constructor.range);
+                                rewritten_.insert(item.children[0].get());
+                            }
+                        }
+                    }
+                    else if (constructor.kind == "GenericName")
                     {
                         const auto target = declaration(*constructor.children[0], module);
                         if (target.node && generic(*target.node) && typeDeclaration(*target.node))
@@ -1656,6 +2269,9 @@ namespace aevix
                 }
                 if (item.kind == "Call" && !item.children.empty())
                 {
+                    if (sliceResultCall(item, module, locals, owner, depth)) return;
+                    if (textResultCall(item, module, locals, owner, depth)) return;
+                    if (numericCall(item, module, locals, owner, depth)) return;
                     if (rangeResultCall(item, module, locals, owner, depth)) return;
                     if (collectionCall(item, module, locals, owner, depth)) return;
                     if (boxConstructor(item, module, locals, owner, depth)) return;
@@ -1679,6 +2295,7 @@ namespace aevix
                         process(*item.children[index], module, locals, owner, depth + 1);
                     }
                     process(*item.children[0], module, locals, owner, depth + 1);
+                    rewriteClosureCall(item, module, locals, owner);
                     auto& callee = *item.children[0];
                     const bool explicitArguments = callee.kind == "GenericName";
                     const Node* receiver = nullptr;
@@ -1696,7 +2313,7 @@ namespace aevix
                         {
                             const auto arguments = typeArguments(callee);
                             const auto* parameters = child(*candidate.node, "GenericParameters");
-                            if (arguments.size() != parameters->children.size()) continue;
+                            if (arguments.size() > parameters->children.size()) continue;
                             for (std::size_t index = 0; index < arguments.size(); ++index) bindings[parameters->children[index]->value] = clone(*arguments[index]);
                         }
                         int literals = 0;
@@ -1755,6 +2372,9 @@ namespace aevix
                 {
                     auto& nested = *item.children[index];
                     if (item.kind == "Function" && nested.kind == "Parameters") continue;
+                    // 전체 경로의 모듈 접두사를 같은 이름의 타입 별칭으로 다시 해석하지 않는다.
+                    // Do not reinterpret a qualified module prefix as a same-named type alias.
+                    if (item.kind == "QualifiedType" && index == 0) continue;
                     ExpectedGuard fieldContext(expected_);
                     NodePtr fieldExpected;
                     if (item.kind == "NamedInitializer" && nested.kind == "FieldInitializer" && !item.children.empty())
@@ -1764,12 +2384,12 @@ namespace aevix
                         if (target.node)
                             for (const auto& field : target.node->children)
                                 if (field->kind == "Variable" && field->value == nested.value && !field->children.empty())
-                                { fieldExpected = portableType(*field->children[0], target.module, module); expected_ = fieldExpected.get(); }
+                                { fieldExpected = portableType(*localParameterType(*field), target.module, module); expected_ = fieldExpected.get(); }
                     }
                     process(nested, module, locals, owner, depth + 1);
                     if ((item.kind == "Block" || item.kind == "CaseScope" || item.kind == "For") && nested.kind == "Variable" && !nested.children.empty())
                     {
-                        if (nested.children[0]->kind != "InferredType") locals[nested.value] = nested.children[0].get();
+                        if (nested.children[0]->kind != "InferredType") locals[nested.value] = localParameterType(nested);
                         else
                             for (std::size_t value = 1; value < nested.children.size(); ++value)
                                 if (nested.children[value]->kind != "ArraySuffixes" && nested.children[value]->kind != "Modifier")
@@ -1891,6 +2511,8 @@ namespace aevix
                         const auto target = declaration(*implemented, module);
                         if (!target.node || target.node->kind != "Interface")
                         { error(*implemented, "An implements entry must identify an interface."); continue; }
+                        if (child(*target.node, "CompilerNumericContract"))
+                        { error(*implemented, "Sealed numeric format contracts can only be implemented by builtin scalar formats."); continue; }
                         for (const auto& method : target.node->children)
                         {
                             if (method->kind != "Function") continue;

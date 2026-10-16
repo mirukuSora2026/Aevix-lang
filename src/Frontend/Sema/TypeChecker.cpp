@@ -11,11 +11,13 @@
 // ========================
 
 #include "aevix/Frontend/Sema/TypeChecker.hpp"
+#include "aevix/Frontend/Sema/NumericLiteral.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <limits>
 #include <optional>
 #include <set>
@@ -54,7 +56,7 @@ namespace aevix
 
         struct IntegerValue
         {
-            std::uint64_t magnitude = 0;
+            UInt128 magnitude;
             bool negative = false;
             bool overflow = false;
         };
@@ -63,6 +65,7 @@ namespace aevix
         // Keep the sign separate so the smallest negative integer needs no overflowing positive intermediate.
         IntegerValue integerValue(std::string_view spelling, bool negative = false)
         {
+            spelling = numericSpelling(spelling);
             IntegerValue value{0, negative, false};
             unsigned base = 10;
             std::size_t start = 0;
@@ -78,28 +81,14 @@ namespace aevix
                 else if (prefix == 'b' || prefix == 'B') { base = 2; start += 2; }
                 else if (prefix == 'o' || prefix == 'O') { base = 8; start += 2; }
             }
-            for (std::size_t index = start; index < spelling.size(); ++index)
-            {
-                const char digit = spelling[index];
-                if (digit == '_') continue;
-                const unsigned number = digit >= '0' && digit <= '9' ? unsigned(digit - '0')
-                    : digit >= 'a' && digit <= 'f' ? unsigned(digit - 'a' + 10)
-                    : digit >= 'A' && digit <= 'F' ? unsigned(digit - 'A' + 10) : base;
-                if (number >= base || value.magnitude > (std::numeric_limits<std::uint64_t>::max() - number) / base)
-                {
-                    value.overflow = true;
-                    return value;
-                }
-                value.magnitude = value.magnitude * base + number;
-            }
-            if (value.magnitude == 0) value.negative = false;
+            value.overflow = !UInt128::parse(spelling.substr(start), value.magnitude, base);
+            if (!value.magnitude) value.negative = false;
             return value;
         }
 
         bool floatingSpelling(std::string_view text)
         {
-            if (text.starts_with("0x") || text.starts_with("0X")) return false;
-            return text.find_first_of(".eE") != std::string_view::npos;
+            return numericFloating(text);
         }
 
         const Node* numericLiteral(const Node& node)
@@ -184,6 +173,7 @@ namespace aevix
                 for (const auto& module : graph_.modules)
                     for (const auto& declaration : module->ast->children)
                         checkDeclaration(*declaration);
+                validateParallelWorkers();
                 if (diagnostics_.size() == initialErrors_)
                 {
                     TypeLayout layout(result_.types, names_, result_.symbolTypes);
@@ -340,6 +330,7 @@ namespace aevix
 
             std::optional<std::size_t> extent(const Node& node)
             {
+                if (node.kind == "ConstantTypeArgument" && node.children.size() == 1) return extent(*node.children[0]);
                 const auto constant = evaluate(node, result_.types.builtin("usize"));
                 if (constant.status == ConstStatus::Invalid)
                 {
@@ -347,7 +338,7 @@ namespace aevix
                     return std::nullopt;
                 }
                 if (constant.status == ConstStatus::Constant && constant.value.kind == ConstantKind::Integer
-                    && !constant.value.negative && constant.value.magnitude <= std::numeric_limits<std::size_t>::max())
+                    && !constant.value.negative && !constant.value.highMagnitude && constant.value.magnitude <= std::numeric_limits<std::size_t>::max())
                 {
                     result_.constants[&node] = constant.value;
                     return static_cast<std::size_t>(constant.value.magnitude);
@@ -358,6 +349,21 @@ namespace aevix
 
             TypeId resolveType(const Node& node)
             {
+                const auto simdIds = references(node);
+                if ((node.kind == "Type" || node.kind == "QualifiedType") && simdIds.size() == 1
+                    && simdIds[0] < names_.symbols.size() && names_.symbols[simdIds[0]].declaration
+                    && child(*names_.symbols[simdIds[0]].declaration, "CompilerSimd"))
+                {
+                    const bool mask = names_.symbols[simdIds[0]].name == "SimdMask";
+                    const std::size_t first = node.kind == "QualifiedType" ? 1 : 0;
+                    if (node.children.size() != first + (mask ? 1 : 2))
+                    { error(node, mask ? "SimdMask requires a constant lane count." : "Simd requires an element type and constant lane count."); return remember(node, result_.types.error()); }
+                    const auto lanes = extent(*node.children[first + (mask ? 0 : 1)]);
+                    const auto element = mask ? InvalidTypeId : resolveType(*node.children[first]);
+                    const auto resolved = lanes ? (mask ? result_.types.simdMask(*lanes) : result_.types.simd(element, *lanes)) : result_.types.error();
+                    if (!valid(resolved)) error(node, "SIMD requires 2, 4, 8, or 16 numeric lanes totaling at most 128 bits; f16 and bf16 lanes are not supported.");
+                    return remember(node, resolved);
+                }
                 if (node.kind == "ReferenceType")
                 {
                     const auto element = resolveType(*node.children[0]);
@@ -386,6 +392,14 @@ namespace aevix
                     return remember(node, result_.types.error());
                 }
                 if (node.kind == "InferredType") return result_.types.error();
+                if (node.kind == "Type" && node.value == "Tuple")
+                {
+                    std::vector<TypeId> fields;
+                    for (const auto& field : node.children) fields.push_back(resolveType(*field));
+                    const auto type = result_.types.tuple(fields);
+                    if (!valid(type)) error(node, "Tuple fields must have storable value types.");
+                    return remember(node, type);
+                }
                 if (node.kind == "Type" && (node.value == "Range" || node.value == "Slice"))
                 {
                     if (node.children.size() != 1) { error(node, node.value + " requires one element type."); return result_.types.error(); }
@@ -424,6 +438,12 @@ namespace aevix
                 if (ids.size() == 1 && ids[0] < names_.symbols.size())
                 {
                     const auto& symbol = names_.symbols[ids[0]];
+                    if (symbol.declaration && symbol.declaration->kind == "TypeAlias" && !symbol.declaration->children.empty())
+                    {
+                        const auto type = resolveType(*symbol.declaration->children[0]);
+                        result_.symbolTypes[symbol.id] = type;
+                        return remember(node, type);
+                    }
                     if (!symbol.declaration)
                     {
                         const auto builtin = result_.types.builtin(symbol.name);
@@ -454,6 +474,11 @@ namespace aevix
                     return remember(declaration, result_.types.error());
                 }
                 if (declaration.kind == "VariadicParameter") return remember(declaration, result_.types.slice(type));
+                if (result_.types.get(type).kind == TypeKind::Never)
+                {
+                    error(declaration, "never has no values and cannot be stored in a variable or parameter.");
+                    return remember(declaration, result_.types.error());
+                }
                 if (result_.types.get(type).kind == TypeKind::Void)
                 {
                     error(declaration, "void is a return marker and cannot be used for a variable, parameter, or array element.");
@@ -540,25 +565,29 @@ namespace aevix
                 if (node.kind == "Group") return fitsInteger(*node.children[0], type, negative);
                 if (node.kind == "Prefix")
                     return fitsInteger(*node.children[0], type, node.value == "-" ? !negative : negative);
+                const auto suffix = numericSuffix(literal->value);
+                if (!suffix.empty() && type != result_.types.builtin(suffix)) return false;
                 const auto& target = result_.types.get(type);
                 if (target.kind != TypeKind::Integer && target.kind != TypeKind::Byte) return false;
                 const auto value = integerValue(literal->value, negative);
-                if (value.overflow || (value.negative && !target.isSigned && value.magnitude != 0)) return false;
+                if (value.overflow || (value.negative && !target.isSigned && static_cast<bool>(value.magnitude))) return false;
                 const auto bits = target.kind == TypeKind::Byte ? 8 : target.bits;
                 if (target.isSigned)
                 {
-                    const auto bound = std::uint64_t{1} << (bits - 1);
-                    return value.magnitude <= (value.negative ? bound : bound - 1);
+                    const auto bound = UInt128{1} << (bits - 1);
+                    return value.magnitude <= (value.negative ? bound : bound - UInt128{1});
                 }
-                return bits == 64 || value.magnitude < (std::uint64_t{1} << bits);
+                return bits == 128 || value.magnitude < (UInt128{1} << bits);
             }
 
             bool fitsFloat(const Node& node, TypeId type) const
             {
                 const auto* literal = numericLiteral(node);
                 if (!literal || !floatingSpelling(literal->value) || result_.types.get(type).kind != TypeKind::Float) return false;
+                const auto suffix = numericSuffix(literal->value);
+                if (!suffix.empty() && type != result_.types.builtin(suffix)) return false;
                 std::string spelling;
-                for (char character : literal->value) if (character != '_') spelling += character;
+                for (char character : numericSpelling(literal->value)) if (character != '_') spelling += character;
                 char* end = nullptr;
                 const long double value = std::strtold(spelling.c_str(), &end);
                 if (!end || *end || !std::isfinite(value)) return false;
@@ -578,7 +607,9 @@ namespace aevix
                 const bool floating = floatingSpelling(node.value);
                 TypeId type = floating ? result_.types.builtin("f64") : result_.types.builtin("i32");
                 const auto kind = result_.types.get(expected).kind;
-                if ((floating && kind == TypeKind::Float) || (!floating && kind == TypeKind::Integer)) type = expected;
+                const auto suffix = numericSuffix(node.value);
+                if (!suffix.empty()) type = result_.types.builtin(suffix);
+                else if ((floating && kind == TypeKind::Float) || (!floating && kind == TypeKind::Integer)) type = expected;
                 const bool fits = floating ? fitsFloat(node, type) : fitsInteger(node, type, negative);
                 if (!fits)
                 {
@@ -866,10 +897,24 @@ namespace aevix
                 return remember(node, expected);
             }
 
+            TypeId repeatedArray(const Node& node, TypeId expected)
+            {
+                const auto count = node.children.size() == 2 ? extent(*node.children[1]) : std::nullopt;
+                if (!count) return remember(node, result_.types.error());
+                const auto& context = result_.types.get(expected);
+                const auto element = expression(*node.children[0], context.kind == TypeKind::Array ? context.element : InvalidTypeId);
+                std::unordered_set<TypeId> visiting;
+                if (!copyType(element, visiting)) error(node, "Repeated array elements must implement Copy; no implicit clone is performed.");
+                const auto type = result_.types.array(element, *count);
+                if (context.kind == TypeKind::Array && (context.element != element || context.extent != *count))
+                    error(node, "Repeated array length or element type does not match its declared Array.");
+                return remember(node, type);
+            }
+
             bool copyType(TypeId type, std::unordered_set<TypeId>& visiting)
             {
                 const auto& item = result_.types.get(type);
-                if (item.kind == TypeKind::String || item.kind == TypeKind::Array || item.kind == TypeKind::Vector || item.kind == TypeKind::Box || item.kind == TypeKind::Void) return false;
+                if (item.kind == TypeKind::String || item.kind == TypeKind::Tuple || item.kind == TypeKind::Array || item.kind == TypeKind::Vector || item.kind == TypeKind::Box || item.kind == TypeKind::Void) return false;
                 if (item.kind == TypeKind::Reference || item.kind == TypeKind::Slice) return !item.isMutable;
                 if (item.kind != TypeKind::Nominal) return item.kind != TypeKind::Error;
                 const auto* declaration = nominalDeclaration(type);
@@ -907,9 +952,9 @@ namespace aevix
                 if (!declaration.children.empty() && declaration.children[0]->kind == "InferredType")
                 {
                     type = initial ? expression(*initial) : result_.types.error();
-                    if (result_.types.get(type).kind == TypeKind::Void)
+                    if (result_.types.get(type).kind == TypeKind::Void || result_.types.get(type).kind == TypeKind::Never)
                     {
-                        error(declaration, "rsn cannot infer a variable type from a void expression.");
+                        error(declaration, "rsn cannot infer a storable variable type from a void or never expression.");
                         type = result_.types.error();
                     }
                 }
@@ -1279,6 +1324,254 @@ namespace aevix
                 result_.predicates[&node] = {borrowed.element, callee->value == (optional ? "is_some" : "is_ok")};
                 return result_.types.builtin("bool");
             }
+            bool parallelScalar(TypeId type) const
+            {
+                const auto kind = result_.types.get(type).kind;
+                return kind == TypeKind::Bool || kind == TypeKind::Integer || kind == TypeKind::Float
+                    || kind == TypeKind::Char || kind == TypeKind::Byte;
+            }
+            std::optional<TypeId> parallelIntrinsic(const Node& node)
+            {
+                if (node.children.empty()) return std::nullopt;
+                const auto ids = references(*node.children[0]);
+                if (ids.size() != 1 || ids[0] >= names_.symbols.size()) return std::nullopt;
+                const auto* declaration = names_.symbols[ids[0]].declaration;
+                const auto* marker = declaration ? child(*declaration, "CompilerParallel") : nullptr;
+                if (!marker) return std::nullopt;
+                if (marker->value == "worker_count")
+                {
+                    if (node.children.size() != 1) error(node, "parallel.worker_count takes no arguments.");
+                    result_.parallelCalls[&node] = InvalidSymbolId;
+                    return result_.types.builtin("usize");
+                }
+                if (node.children.size() != 3 || node.children[1]->children.size() != 1 || node.children[2]->children.size() != 1)
+                { error(node, "parallel.for_each requires one MutSlice and one named static worker function."); return result_.types.error(); }
+                if (!node.children[1]->value.empty() || !node.children[2]->value.empty())
+                    error(node, "parallel.for_each uses positional arguments in 0.2.");
+                const auto collection = expression(*node.children[1]->children[0]);
+                const auto& slice = result_.types.get(collection);
+                if (slice.kind != TypeKind::Slice || !slice.isMutable || !parallelScalar(slice.element))
+                { error(node, "parallel.for_each requires MutSlice of a scalar numeric, bool, char, or byte type."); return result_.types.error(); }
+                const auto& worker = *node.children[2]->children[0];
+                const auto targets = references(worker);
+                if ((worker.kind != "Name" && worker.kind != "Member") || targets.size() != 1 || targets[0] >= names_.symbols.size())
+                { error(worker, "A parallel worker must name one non-overloaded static function."); return result_.types.error(); }
+                const auto* target = names_.symbols[targets[0]].declaration;
+                if (!target || target->kind != "Function" || child(*target, "CompilerIntrinsic")
+                    || (child(*target, "GenericParameters") && !child(*target, "GenericParameters")->children.empty())
+                    || (owners_.contains(target) && owners_.at(target)))
+                { error(worker, "A parallel worker must be a concrete module-level function."); return result_.types.error(); }
+                const auto workerType = signature(targets[0]);
+                const auto wanted = result_.types.reference(slice.element, true);
+                if (workerType.result != result_.types.builtin("void") || workerType.parameters.size() != 1
+                    || workerType.parameters[0] != wanted || workerType.variadic)
+                { error(worker, "A parallel worker must have signature void worker(&mut Element item)."); return result_.types.error(); }
+                remember(worker, result_.symbolTypes.at(targets[0]));
+                result_.parallelCalls[&node] = targets[0];
+                return result_.types.builtin("unit");
+            }
+            bool parallelLocalType(TypeId type) const
+            {
+                const auto& description = result_.types.get(type);
+                if (parallelScalar(type) || description.kind == TypeKind::Unit) return true;
+                if (description.kind == TypeKind::Reference) return parallelScalar(description.element);
+                return false;
+            }
+            void validateParallelWorkers()
+            {
+                std::unordered_set<SymbolId> visited;
+                std::function<void(SymbolId, const Node&)> validate;
+                validate = [&](SymbolId symbol, const Node& origin)
+                {
+                    if (!visited.insert(symbol).second) return;
+                    const auto* declaration = symbol < names_.symbols.size() ? names_.symbols[symbol].declaration : nullptr;
+                    if (!declaration || declaration->kind != "Function" || !child(*declaration, "Block")
+                        || flag(*declaration, "extern") || child(*declaration, "CompilerIntrinsic"))
+                    { error(origin, "Parallel workers cannot call external or unvalidated functions."); return; }
+                    const auto function = signature(symbol);
+                    const auto returned = result_.types.get(function.result).kind;
+                    if (returned != TypeKind::Void && returned != TypeKind::Never && !parallelLocalType(function.result))
+                        error(origin, "Parallel worker helpers may return only scalars, scalar borrows, unit, void, or never.");
+                    std::unordered_set<SymbolId> locals;
+                    std::function<void(const Node&)> collect = [&](const Node& node)
+                    {
+                        if (node.kind == "Variable" || node.kind == "Parameter")
+                        {
+                            const auto id = declarationId(node); locals.insert(id);
+                            if (flag(node, "persist")) error(node, "Parallel workers cannot declare or access persist storage.");
+                            const auto found = result_.symbolTypes.find(id);
+                            if (found == result_.symbolTypes.end() || !parallelLocalType(found->second))
+                                error(node, "Parallel worker locals and parameters are limited to scalars and scalar borrows in 0.2.");
+                        }
+                        for (const auto& item : node.children) collect(*item);
+                    };
+                    collect(*declaration);
+                    std::function<void(const Node&)> inspect = [&](const Node& node)
+                    {
+                        if (node.kind == "Name" || node.kind == "Member")
+                            for (const auto id : references(node))
+                                if (id < names_.symbols.size() && names_.symbols[id].kind == SymbolKind::Value
+                                    && names_.symbols[id].declaration && !locals.contains(id))
+                                    error(node, "Parallel workers cannot access global, persist, or captured storage.");
+                        if (node.kind == "Call")
+                        {
+                            if (const auto call = result_.calls.find(&node); call != result_.calls.end()) validate(call->second, node);
+                            else if (const auto intrinsic = result_.intrinsics.find(&node); intrinsic == result_.intrinsics.end() || intrinsic->second != "never.unreachable")
+                                error(node, "Parallel workers cannot invoke dynamic calls, nested parallel work, FFI, or unvalidated intrinsics.");
+                        }
+                        for (const auto& item : node.children) inspect(*item);
+                    };
+                    inspect(*child(*declaration, "Block"));
+                };
+                for (const auto& [call, worker] : result_.parallelCalls)
+                    if (worker != InvalidSymbolId) validate(worker, *call);
+            }
+            bool textInput(TypeId type) const
+            {
+                const auto& input = result_.types.get(type);
+                return input.kind == TypeKind::StringView || (input.kind == TypeKind::Reference
+                    && (result_.types.get(input.element).kind == TypeKind::String || result_.types.get(input.element).kind == TypeKind::StringView));
+            }
+            std::optional<TypeId> valueIntrinsic(const Node& node, TypeId expected)
+            {
+                if (node.children.empty()) return std::nullopt;
+                const Node* callee = node.children[0].get();
+                const Node* arguments = nullptr;
+                if (callee->kind == "GenericName") { arguments = child(*callee, "TypeArguments"); callee = callee->children[0].get(); }
+                if (callee->kind != "Member" || callee->children.size() != 1 || callee->children[0]->kind != "Name") return std::nullopt;
+                const auto& owner = *callee->children[0];
+                const auto ids = references(owner);
+                if (ids.size() != 1 || ids[0] >= names_.symbols.size() || names_.symbols[ids[0]].declaration) return std::nullopt;
+                if (owner.value != "Tuple" && owner.value != "string" && owner.value != "Slice" && owner.value != "Byte") return std::nullopt;
+                const auto& method = callee->value;
+                const auto argument = [&](std::size_t index, TypeId context = InvalidTypeId)
+                {
+                    if (index >= node.children.size() || node.children[index]->children.empty())
+                    { error(node, "Missing argument for " + owner.value + "." + method + "."); return result_.types.error(); }
+                    return expression(*node.children[index]->children[0], context);
+                };
+                const auto done = [&](TypeId type, std::string operation)
+                { result_.valueIntrinsics[&node] = std::move(operation); return type; };
+                if (owner.value == "Byte")
+                {
+                    if (method != "from_u8" && method != "to_u8") return std::nullopt;
+                    if (arguments || node.children.size() != 2)
+                    { error(node, "Byte conversion requires one value and no type arguments."); return result_.types.error(); }
+                    const auto input = result_.types.builtin(method == "from_u8" ? "u8" : "byte");
+                    require(argument(1, input), input, node, "Byte conversion");
+                    return done(result_.types.builtin(method == "from_u8" ? "byte" : "u8"), "byte." + method);
+                }
+                if (owner.value == "Tuple")
+                {
+                    if (method == "make")
+                    {
+                        std::vector<TypeId> fields;
+                        if (arguments) for (const auto& field : arguments->children) fields.push_back(resolveType(*field));
+                        else if (result_.types.get(expected).kind == TypeKind::Tuple) fields = result_.types.get(expected).parameters;
+                        if (!fields.empty() && fields.size() + 1 != node.children.size()) error(node, "Tuple.make field count does not match the contextual Tuple.");
+                        const auto context = fields; fields.clear();
+                        for (std::size_t index = 1; index < node.children.size(); ++index)
+                        {
+                            const auto actual = argument(index, index <= context.size() ? context[index - 1] : InvalidTypeId);
+                            if (index <= context.size()) require(actual, context[index - 1], node, "Tuple field");
+                            fields.push_back(actual);
+                        }
+                        return done(result_.types.tuple(fields), "tuple.make");
+                    }
+                    if (node.children.size() != 2) { error(node, "Tuple operations require one explicit tuple borrow."); return result_.types.error(); }
+                    const auto borrowed = argument(1); const auto& reference = result_.types.get(borrowed);
+                    if (reference.kind != TypeKind::Reference || result_.types.get(reference.element).kind != TypeKind::Tuple)
+                    { error(node, "Tuple operations require &tuple or &mut tuple."); return result_.types.error(); }
+                    const auto& fields = result_.types.get(reference.element).parameters;
+                    if (method == "len" || method == "is_empty") return done(result_.types.builtin(method == "len" ? "usize" : "bool"), "tuple." + method);
+                    if (method == "copy")
+                    {
+                        for (const auto field : fields) { std::unordered_set<TypeId> visiting; if (!copyType(field, visiting)) error(node, "Tuple.copy requires every field to implement Copy."); }
+                        return done(reference.element, "tuple.copy");
+                    }
+                    if (method != "get" && method != "get_mut") return std::nullopt;
+                    if (!arguments || arguments->children.size() != 1 || arguments->children[0]->kind != "ConstantTypeArgument")
+                    { error(node, "Tuple.get requires one compile-time index: Tuple.get<0>(&value)."); return result_.types.error(); }
+                    const auto index = extent(*arguments->children[0]);
+                    if (!index || *index >= fields.size()) { error(node, "Tuple field index is out of bounds."); return result_.types.error(); }
+                    if (method == "get_mut" && !reference.isMutable) error(node, "Tuple.get_mut requires an exclusive &mut tuple borrow.");
+                    result_.tupleIndices[&node] = *index;
+                    return done(result_.types.reference(fields[*index], method == "get_mut"), "tuple." + method);
+                }
+                if (owner.value == "Slice" && (method == "from_array" || method == "from_array_mut" || method == "from_vector" || method == "from_vector_mut"))
+                {
+                    if (node.children.size() != 2) { error(node, "Slice construction requires one collection borrow."); return result_.types.error(); }
+                    const auto borrowed = argument(1); const auto& reference = result_.types.get(borrowed);
+                    const bool mutableView = method.ends_with("_mut");
+                    const auto& collection = result_.types.get(reference.element);
+                    if (reference.kind != TypeKind::Reference || (mutableView && !reference.isMutable)
+                        || collection.kind != (method.starts_with("from_array") ? TypeKind::Array : TypeKind::Vector))
+                    { error(node, "Slice construction requires a compatible explicit collection borrow."); return result_.types.error(); }
+                    return done(result_.types.slice(collection.element, mutableView), "slice.view");
+                }
+                if (owner.value != "string") return std::nullopt;
+                const bool twoInputs = method == "equals";
+                if (node.children.size() != (twoInputs ? 3u : 2u)) { error(node, "Incorrect argument count for string." + method + "."); return result_.types.error(); }
+                const auto input = argument(1);
+                if (method == "clear")
+                {
+                    const auto& reference = result_.types.get(input);
+                    if (reference.kind != TypeKind::Reference || !reference.isMutable || result_.types.get(reference.element).kind != TypeKind::String)
+                        error(node, "string.clear requires &mut string.");
+                    return done(result_.types.builtin("unit"), "text.clear");
+                }
+                if (!textInput(input)) { error(node, "Text operations require string_view or an explicit borrow of string."); return result_.types.error(); }
+                if (twoInputs && !textInput(argument(2))) error(node, "string.equals requires two text views or borrows.");
+                if (method == "byte_len" || method == "scalar_count") return done(result_.types.builtin("usize"), "text." + method);
+                if (method == "is_empty" || method == "equals") return done(result_.types.builtin("bool"), "text." + method);
+                if (method == "view") return done(result_.types.builtin("string_view"), "text.view");
+                if (method == "as_bytes") return done(result_.types.slice(result_.types.builtin("byte"), false), "text.as_bytes");
+                return std::nullopt;
+            }
+            TypeId sliceExpression(const Node& node)
+            {
+                if (node.children.size() != 4) { error(node, "Slice slicing requires a view, start, and end."); return result_.types.error(); }
+                const auto returned = resolveType(*node.children[0]);
+                const auto carrier = result_.carriers.find(returned);
+                if (carrier == result_.carriers.end()) { error(node, "Missing Slice Result specialization."); return result_.types.error(); }
+                const auto view = expression(*node.children[1]); const auto& description = result_.types.get(view);
+                if (description.kind != TypeKind::Slice || description.isMutable != (node.value == "slice_mut"))
+                    error(node, "Slice.slice requires Slice<T>; Slice.slice_mut requires MutSlice<T>.");
+                require(view, carrier->second.value, node, "Slice source view");
+                for (std::size_t index = 2; index < 4; ++index)
+                    require(expression(*node.children[index], result_.types.builtin("usize")), result_.types.builtin("usize"), node, "Slice boundary");
+                return remember(node, returned);
+            }
+            TypeId textExpression(const Node& node)
+            {
+                const auto result = resolveType(*node.children[0]);
+                const auto carrier = result_.carriers.find(result);
+                if (carrier == result_.carriers.end()) { error(node, "Missing text Result specialization."); return result_.types.error(); }
+                const bool mutation = node.value == "append" || node.value == "push_char";
+                const auto expectedCount = node.value == "slice_bytes" ? 4u : mutation ? 3u : 2u;
+                if (node.children.size() != expectedCount) { error(node, "Incorrect argument count for string." + node.value + "."); return result_.types.error(); }
+                const auto input = expression(*node.children[1]);
+                if (mutation)
+                {
+                    const auto& reference = result_.types.get(input);
+                    if (reference.kind != TypeKind::Reference || !reference.isMutable || result_.types.get(reference.element).kind != TypeKind::String)
+                        error(node, "String modification requires an exclusive &mut string borrow.");
+                    const auto value = expression(*node.children[2], node.value == "push_char" ? result_.types.builtin("char") : InvalidTypeId);
+                    if (node.value == "push_char") require(value, result_.types.builtin("char"), node, "Appended character");
+                    else if (!textInput(value)) error(node, "string.append requires a text view.");
+                }
+                else if (node.value == "from_utf8")
+                {
+                    const auto& bytes = result_.types.get(input);
+                    if (bytes.kind != TypeKind::Slice || bytes.element != result_.types.builtin("byte")) error(node, "string.from_utf8 requires Slice<byte>.");
+                }
+                else if (!textInput(input)) error(node, "Text construction and slicing require string_view or a string borrow.");
+                if (node.value == "slice_bytes")
+                    for (std::size_t index = 2; index < 4; ++index)
+                        require(expression(*node.children[index], result_.types.builtin("usize")), result_.types.builtin("usize"), node, "Text byte boundary");
+                result_.valueIntrinsics[&node] = "text." + node.value;
+                return remember(node, result);
+            }
             std::optional<TypeId> collectionIntrinsic(const Node& node, TypeId expected)
             {
                 const auto* callee = node.children.empty() ? nullptr : node.children[0].get();
@@ -1333,6 +1626,122 @@ namespace aevix
                 return result_.types.range(start);
             }
 
+            std::optional<TypeId> simdIntrinsic(const Node& node, TypeId expected)
+            {
+                if (node.children.empty()) return std::nullopt;
+                const Node* callee = node.children[0].get();
+                const Node* arguments = nullptr;
+                if (callee->kind == "GenericName" && callee->children.size() == 2)
+                { arguments = callee->children[1].get(); callee = callee->children[0].get(); }
+                if (callee->kind != "Member" || callee->children.empty()) return std::nullopt;
+                const auto namespaceIds = references(*callee->children[0]);
+                if (namespaceIds.size() != 1 || namespaceIds[0] >= names_.symbols.size()) return std::nullopt;
+                const auto* declaration = names_.symbols[namespaceIds[0]].declaration;
+                if (!declaration || !child(*declaration, "CompilerSimd")) return std::nullopt;
+                const bool maskNamespace = declaration->value == "SimdMask";
+                const auto& method = callee->value;
+                for (std::size_t i = 1; i < node.children.size(); ++i)
+                    if (!node.children[i]->value.empty()) error(node, "SIMD operations require positional arguments.");
+                const auto count = node.children.size() - 1;
+                const auto argument = [&](std::size_t index, TypeId context = InvalidTypeId)
+                { return index < count ? expression(*node.children[index + 1]->children[0], context) : result_.types.error(); };
+                const auto fail = [&](std::string message) -> std::optional<TypeId>
+                { error(node, std::move(message)); return result_.types.error(); };
+                const auto commit = [&](TypeId output, TypeId vector) -> std::optional<TypeId>
+                {
+                    result_.intrinsics[&node] = (maskNamespace ? "simd.mask." : "simd.") + method;
+                    result_.simdTypes[&node] = vector;
+                    return output;
+                };
+                const auto explicitVector = [&]() -> TypeId
+                {
+                    if (!arguments)
+                        return result_.types.get(expected).kind == TypeKind::Simd ? expected : result_.types.error();
+                    if (arguments->children.size() != 2) return result_.types.error();
+                    const auto lanes = extent(*arguments->children[1]);
+                    return lanes ? result_.types.simd(resolveType(*arguments->children[0]), *lanes) : result_.types.error();
+                };
+                if (maskNamespace)
+                {
+                    const bool unary = method == "any" || method == "all" || method == "not" || method == "lanes";
+                    if ((!unary && method != "and" && method != "or" && method != "xor") || arguments)
+                        return fail("Unknown SimdMask operation or unexpected type arguments.");
+                    if (count != (unary ? 1u : 2u)) return fail("SimdMask argument count does not match the operation.");
+                    const auto input = argument(0);
+                    if (result_.types.get(input).kind != TypeKind::SimdMask) return fail("SimdMask operation requires a mask value.");
+                    if (!unary) require(argument(1, input), input, node, "SIMD masks");
+                    return commit(method == "any" || method == "all" ? result_.types.builtin("bool")
+                        : method == "lanes" ? result_.types.builtin("usize") : input, input);
+                }
+                if (method == "splat" || method == "load")
+                {
+                    const auto vector = explicitVector();
+                    if (!valid(vector)) return fail("Specify a valid SIMD destination type or explicit <element, lanes> arguments.");
+                    const auto& type = result_.types.get(vector);
+                    if (count != (method == "splat" ? 1u : 2u)) return fail("SIMD argument count does not match the operation.");
+                    if (method == "splat") require(argument(0, type.element), type.element, node, "SIMD splat element");
+                    else
+                    {
+                        const auto& reference = result_.types.get(argument(0));
+                        const auto& array = result_.types.get(reference.element);
+                        if (reference.kind != TypeKind::Reference || array.kind != TypeKind::Array || array.element != type.element)
+                            return fail("Simd.load requires a borrowed fixed array with matching elements.");
+                        require(argument(1, result_.types.builtin("usize")), result_.types.builtin("usize"), node, "SIMD offset");
+                    }
+                    return commit(vector, vector);
+                }
+                if (method == "from_array")
+                {
+                    if (count != 1 || arguments) return fail("Simd.from_array requires one borrowed fixed array.");
+                    const auto& reference = result_.types.get(argument(0));
+                    const auto& array = result_.types.get(reference.element);
+                    if (reference.kind != TypeKind::Reference || array.kind != TypeKind::Array)
+                        return fail("Simd.from_array requires a borrowed fixed array.");
+                    const auto vector = result_.types.simd(array.element, array.extent);
+                    if (!valid(vector)) return fail("The array has an unsupported SIMD element type or lane count.");
+                    return commit(vector, vector);
+                }
+                if (method == "store")
+                {
+                    if (count != 3 || arguments) return fail("Simd.store requires a mutable array loan, offset, and SIMD value.");
+                    const auto& reference = result_.types.get(argument(0));
+                    const auto& array = result_.types.get(reference.element);
+                    const auto vector = argument(2);
+                    if (reference.kind != TypeKind::Reference || !reference.isMutable || array.kind != TypeKind::Array
+                        || result_.types.get(vector).kind != TypeKind::Simd || array.element != result_.types.get(vector).element)
+                        return fail("Simd.store requires a mutable fixed array with matching SIMD elements.");
+                    require(argument(1, result_.types.builtin("usize")), result_.types.builtin("usize"), node, "SIMD offset");
+                    return commit(result_.types.builtin("unit"), vector);
+                }
+                if (method == "select")
+                {
+                    if (count != 3 || arguments) return fail("Simd.select requires mask, true value, and false value.");
+                    const auto mask = argument(0), vector = argument(1);
+                    if (result_.types.get(vector).kind != TypeKind::Simd || result_.types.get(mask).kind != TypeKind::SimdMask
+                        || result_.types.get(mask).extent != result_.types.get(vector).extent)
+                        return fail("SIMD selection requires matching lane counts.");
+                    require(argument(2, vector), vector, node, "SIMD selection alternatives");
+                    return commit(vector, vector);
+                }
+                const bool binary = method == "add" || method == "sub" || method == "mul" || method == "div"
+                    || method == "eq" || method == "ne" || method == "lt" || method == "le" || method == "gt" || method == "ge";
+                const bool unary = method == "to_array" || method == "sum" || method == "sqrt" || method == "lanes";
+                if ((!binary && !unary && method != "extract") || arguments) return fail("Unknown Simd operation or unexpected type arguments.");
+                if (count != (binary || method == "extract" ? 2u : 1u)) return fail("SIMD argument count does not match the operation.");
+                const auto vector = argument(0);
+                const auto& type = result_.types.get(vector);
+                if (type.kind != TypeKind::Simd) return fail("SIMD operation requires a SIMD value.");
+                if (binary) require(argument(1, vector), vector, node, "SIMD operands");
+                if (method == "extract") require(argument(1, result_.types.builtin("usize")), result_.types.builtin("usize"), node, "SIMD lane index");
+                if (method == "sqrt" && result_.types.get(type.element).kind != TypeKind::Float) return fail("SIMD sqrt requires floating-point lanes.");
+                if (method == "eq" || method == "ne" || method == "lt" || method == "le" || method == "gt" || method == "ge")
+                    return commit(result_.types.simdMask(type.extent), vector);
+                if (method == "sum" || method == "extract") return commit(type.element, vector);
+                if (method == "lanes") return commit(result_.types.builtin("usize"), vector);
+                if (method == "to_array") return commit(result_.types.array(type.element, type.extent), vector);
+                return commit(vector, vector);
+            }
+
             TypeId propagation(const Node& node)
             {
                 const auto operand = expression(*node.children[0]);
@@ -1355,6 +1764,27 @@ namespace aevix
                 {
                     const auto existing = result_.nodeTypes.find(&node);
                     if (existing != result_.nodeTypes.end()) return adaptDynamic(node, existing->second, expected);
+                }
+                if (node.kind == "CompilerSliceExpression") return sliceExpression(node);
+                if (node.kind == "CompilerTextExpression") return textExpression(node);
+                if (node.kind == "CompilerNumericExpression")
+                {
+                    const auto result = resolveType(*node.children[0]);
+                    const auto carrier = result_.carriers.find(result);
+                    const auto input = expression(*node.children[1]);
+                    if (carrier == result_.carriers.end()) error(node, "Numeric conversion requires a core Result carrier.");
+                    else
+                    {
+                        const auto output = carrier->second.value;
+                        const auto sourceKind = result_.types.get(input).kind, destinationKind = result_.types.get(output).kind;
+                        const bool integerSource = sourceKind == TypeKind::Integer;
+                        const bool integerDestination = destinationKind == TypeKind::Integer;
+                        if (node.value == "Integer.convert" ? !(integerSource && integerDestination)
+                            : node.value == "Float.to_integer_exact" ? !(sourceKind == TypeKind::Float && integerDestination)
+                            : !((integerSource || sourceKind == TypeKind::Float) && destinationKind == TypeKind::Float))
+                            error(node, "Numeric conversion has incompatible source or destination domains.");
+                    }
+                    return remember(node, result);
                 }
                 if (node.kind == "CompilerBoxExpression")
                 {
@@ -1417,6 +1847,23 @@ namespace aevix
                 if (node.kind == "Member") return adaptDynamic(node, memberExpression(node), expected);
                 if (node.kind == "Call")
                 {
+                    if (const auto intrinsic = simdIntrinsic(node, expected)) return remember(node, *intrinsic);
+                    if (const auto intrinsic = parallelIntrinsic(node)) return remember(node, *intrinsic);
+                    if (node.children.size() == 1 && node.children[0]->kind == "Member"
+                        && node.children[0]->value == "unreachable" && node.children[0]->children.size() == 1)
+                    {
+                        const auto namespaceIds = references(*node.children[0]->children[0]);
+                        if (namespaceIds.size() == 1 && namespaceIds[0] < names_.symbols.size())
+                        {
+                            const auto& symbol = names_.symbols[namespaceIds[0]];
+                            if (!symbol.declaration && symbol.kind == SymbolKind::Intrinsic && symbol.name == "Never")
+                            {
+                                result_.intrinsics[&node] = "never.unreachable";
+                                return remember(node, result_.types.builtin("never"));
+                            }
+                        }
+                    }
+                    if (const auto intrinsic = valueIntrinsic(node, expected)) return remember(node, *intrinsic);
                     if (const auto intrinsic = collectionIntrinsic(node, expected)) return remember(node, *intrinsic);
                     if (node.children.size() == 1 && node.children[0]->kind == "Member" && node.children[0]->value == "value"
                         && node.children[0]->children.size() == 1 && node.children[0]->children[0]->kind == "Name" && node.children[0]->children[0]->value == "Unit")
@@ -1464,6 +1911,7 @@ namespace aevix
                 }
                 if (node.kind == "NamedInitializer") return namedInitializer(node);
                 if (node.kind == "ArrayLiteral") return arrayLiteral(node, expected);
+                if (node.kind == "ArrayRepeat") return repeatedArray(node, expected);
                 if (node.kind == "Index")
                 {
                     const auto receiver = expression(*node.children[0]);
@@ -1479,7 +1927,7 @@ namespace aevix
                     const auto constant = evaluate(*node.children[1], index);
                     if (constant.status == ConstStatus::Invalid) diagnostics_.push_back({constant.range, constant.message});
                     else if (type.kind == TypeKind::Array && constant.status == ConstStatus::Constant && constant.value.kind == ConstantKind::Integer
-                        && (constant.value.negative || constant.value.magnitude >= type.extent))
+                        && (constant.value.negative || constant.value.highMagnitude || constant.value.magnitude >= type.extent))
                         error(*node.children[1], "Constant array index is out of bounds.");
                     return adaptDynamic(node, type.element, expected);
                 }
@@ -1489,7 +1937,8 @@ namespace aevix
                     if ((node.value == "-" || node.value == "+") && numericLiteral(node)
                         && !floatingSpelling(numericLiteral(node)->value))
                     {
-                        auto type = integer(expected) ? expected : result_.types.builtin("i32");
+                        const auto suffix = numericSuffix(numericLiteral(node)->value);
+                        auto type = !suffix.empty() ? result_.types.builtin(suffix) : integer(expected) ? expected : result_.types.builtin("i32");
                         if (!fitsInteger(node, type))
                         {
                             error(node, "Numeric literal is out of range for " + result_.types.display(type) + ".");
@@ -1553,8 +2002,10 @@ namespace aevix
                         if (numericLiteral(*node.children[1]) && !numericLiteral(*node.children[2])) target = expression(*node.children[2]);
                         else target = expression(*node.children[1]);
                     }
+                    if (result_.types.get(target).kind == TypeKind::Never) target = InvalidTypeId;
                     const auto left = expression(*node.children[1], target);
                     const auto right = expression(*node.children[2], target);
+                    if (result_.types.get(left).kind == TypeKind::Never) return remember(node, right);
                     require(right, left, node, "Conditional alternatives");
                     return remember(node, left);
                 }
@@ -1590,6 +2041,9 @@ namespace aevix
                 const auto left = expression(leftNode, target);
                 const bool shift = operation == "<<" || operation == ">>";
                 const auto right = expression(rightNode, shift ? InvalidTypeId : left);
+                if (result_.types.get(left).kind == TypeKind::Never
+                    || result_.types.get(right).kind == TypeKind::Never)
+                    return remember(node, result_.types.builtin("never"));
                 if (shift)
                 {
                     if ((valid(left) && !integer(left)) || (valid(right) && !integer(right)))
@@ -1702,9 +2156,11 @@ namespace aevix
                     auto collection = result_.types.get(iterable);
                     if (collection.kind == TypeKind::Reference) collection = result_.types.get(collection.element);
                     TypeId element = result_.types.error();
-                    if (collection.kind == TypeKind::Array) element = collection.element;
+                    if (collection.kind == TypeKind::Array || collection.kind == TypeKind::Vector || collection.kind == TypeKind::Slice) element = collection.element;
                     else if (collection.kind == TypeKind::String || collection.kind == TypeKind::StringView) element = result_.types.builtin("char");
-                    else if (valid(iterable)) error(node, "Enhanced for currently requires a fixed Array or text value.");
+                    else if (valid(iterable)) error(node, "Enhanced for requires an Array, Vector, Slice, or text value.");
+                    result_.iterationViews[&node] = collection.kind == TypeKind::String || collection.kind == TypeKind::StringView
+                        ? result_.types.builtin("string_view") : result_.types.slice(element, false);
                     const auto& binding = *node.children[0];
                     TypeId type = binding.children[0]->kind == "InferredType" ? element : declaredType(binding);
                     require(element, type, binding, "Iteration binding");
@@ -1753,6 +2209,7 @@ namespace aevix
             {
                 if (erased_.contains(&declaration) || child(declaration, "CompilerBox")) return;
                 if (declaration.kind == "Import" || declaration.kind == "Modifier") return;
+                if (declaration.kind == "TypeAlias") { if (!declaration.children.empty()) resolveType(*declaration.children[0]); return; }
                 if (declaration.kind == "Variable") { checkVariable(declaration); return; }
                 if (declaration.kind == "Struct" || declaration.kind == "Enum")
                 {
