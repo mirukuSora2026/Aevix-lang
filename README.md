@@ -5,40 +5,39 @@ Created By : miruku_sora2026
 File name : README.md
 
 Description :
-    Aevix의 현재 구현 범위와 확장 설치, 컴파일러 사용법을 안내한다.
     Describe the current Aevix implementation, extension installation, and compiler usage.
 
 ======================== -->
 
 # Aevix
 
-Aevix는 소유권과 대여 검사를 사용하는 정적 타입 언어입니다. `.avx` 소스를 네이티브 코드로 컴파일하며, AOT 실행과 LLVM ORC 기반 JIT 실행을 지원합니다.
+Aevix is a statically typed language with ownership and borrow checking. It compiles `.avx` source files to native code and supports AOT execution and LLVM ORC JIT execution.
 
-**0.1V는 첫 공개 버전입니다.** 기본 컴파일러와 VS Code 확장을 사용할 수 있습니다. 언어 문서에는 앞으로 구현할 기능도 함께 적혀 있어, 문서에 있는 모든 API가 이 버전에서 동작하는 것은 아닙니다.
+**0.1V is the first public release.** It includes the compiler core and a VS Code extension. The language reference also describes planned features; not every documented API is implemented in this version.
 
-[0.1V 다운로드](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0) · [설치 안내](https://github.com/mirukuSora2026/Aevix-lang/releases/download/v0.1.0/INSTALL.md) · [언어 문서](htmls/)
+[Download 0.1V](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0) · [Installation guide](https://github.com/mirukuSora2026/Aevix-lang/releases/download/v0.1.0/INSTALL.md) · [Language reference](htmls/)
 
-## VS Code에 설치하기
+## Install the VS Code extension
 
-VS Code **1.96 이상**에서 사용할 수 있습니다.
+Requires **VS Code 1.96 or later**.
 
-1. [릴리스 페이지](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0)에서 `aevix-0.1.0.vsix`를 받습니다.
-2. VS Code의 확장 화면에서 `…` → `Install from VSIX…`를 선택합니다.
-3. 내려받은 파일을 선택하고 `.avx` 파일을 엽니다.
+1. Download `aevix-0.1.0.vsix` from the [release page](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0).
+2. Open the Extensions view in VS Code and select `…` → `Install from VSIX…`.
+3. Select the downloaded file, then open an `.avx` file.
 
-`code` 명령을 사용할 수 있다면 다운로드한 폴더에서 다음 명령으로 설치해도 됩니다.
+If the `code` command is available, run this from your download directory instead:
 
 ```sh
 code --install-extension aevix-0.1.0.vsix
 ```
 
-문법 강조, 스니펫, 자동완성, 정의 이동 등을 제공합니다. 확장에는 컴파일러가 포함되어 있지 않습니다. 오류 검사와 빌드·실행을 사용하려면 `aevixc`를 별도로 빌드해야 합니다.
+The extension provides syntax highlighting, snippets, completion, and source navigation. It does not bundle the compiler. Diagnostics, builds, and execution require a separate `aevixc` build.
 
-## 컴파일러 빌드하기
+## Build the compiler
 
-CMake **3.20 이상**, C 컴파일러와 C++20 컴파일러, 64비트 빌드 환경이 필요합니다. Aevix 프로그램을 네이티브 실행 파일로 만들 때는 별도의 Clang과 링커·운영체제 SDK가 필요합니다. 현재 실행 검증에 사용한 Clang/LLVM 버전은 **22.1.8**입니다.
+You need **CMake 3.20 or later**, a C compiler, a C++20 compiler, and a 64-bit toolchain. Building and running Aevix programs also requires an external Clang driver, linker, and platform SDK. The Clang/LLVM version used for execution checks is **22.1.8**.
 
-다음은 JIT를 제외한 AOT 빌드입니다. 이 설정은 LLVM 개발 라이브러리를 요구하지 않습니다.
+This builds the AOT compiler without JIT support. LLVM development libraries are not required for this configuration.
 
 ```sh
 git clone https://github.com/mirukuSora2026/Aevix-lang.git
@@ -47,13 +46,13 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAEVIX_ENABLE_JIT=OFF -DBUILD_TE
 cmake --build build --config Release --parallel 2
 ```
 
-macOS와 Linux에서는 `./build/aevixc --version`으로 확인합니다. Windows에서 Visual Studio의 다중 구성 빌드를 사용했다면 실행 파일은 `build/Release/aevixc.exe`에 생성됩니다.
+On macOS and Linux, check the result with `./build/aevixc --version`. With a Visual Studio multi-configuration build on Windows, the executable is `build/Release/aevixc.exe`.
 
-JIT까지 빌드하려면 LLVM **22 이상 개발 패키지**를 설치하고 `AEVIX_ENABLE_JIT=ON`으로 구성하세요. CMake가 찾지 못하면 `LLVMConfig.cmake`가 있는 디렉터리를 `LLVM_DIR`로 지정해야 합니다. JIT 실행 환경에도 해당 LLVM 라이브러리가 필요합니다.
+For JIT support, install the **LLVM 22 or later development package** and configure with `AEVIX_ENABLE_JIT=ON`. If CMake cannot find LLVM, set `LLVM_DIR` to the directory containing `LLVMConfig.cmake`. The matching LLVM libraries must also be available at runtime.
 
-## 코드 실행하기
+## Run a program
 
-아래 코드를 `main.avx`로 저장합니다.
+Save this as `main.avx`:
 
 ```aevix
 i32 sum(i32 values[]) {
@@ -70,7 +69,7 @@ i32 main() {
 }
 ```
 
-정상이면 별도 출력 없이 종료 코드 `0`으로 끝납니다.
+It produces no output and returns exit code `0` on success.
 
 ```sh
 ./build/aevixc main.avx
@@ -78,13 +77,13 @@ i32 main() {
 ./build/aevixc --with-starter main.avx
 ```
 
-첫 번째 명령은 컴파일 후 실행하고 임시 결과물을 정리합니다. `--check`는 실행하지 않고 검사합니다. `--with-starter`는 소스 옆에 실행 파일을 남기고 macOS/Linux에서는 `.sh` 실행 스크립트도 만듭니다. Windows에서는 `.exe`를 생성합니다. 같은 이름의 결과물이 있으면 덮어쓰지 않습니다.
+The first command compiles and runs the program, then removes temporary build output. `--check` checks the source without running it. `--with-starter` saves a native executable beside the source and adds a `.sh` launcher on macOS/Linux. On Windows it creates an `.exe`. Existing output files are not overwritten.
 
-Clang을 찾지 못하거나 다른 버전을 사용하려면 `--clang`으로 실행 파일 경로를 지정할 수 있습니다.
+Use `--clang` followed by the Clang executable path if Clang is not found or you need a different installation.
 
-## VS Code와 컴파일러 연결하기
+## Connect VS Code to the compiler
 
-저장소를 VS Code에서 열면 확장이 `build/aevixc` 등의 위치를 자동으로 찾습니다. 직접 지정하려면 설정 JSON에 추가합니다.
+When you open the repository in VS Code, the extension searches locations such as `build/aevixc`. To set the path yourself, add this to your settings JSON:
 
 ```json
 {
@@ -92,31 +91,31 @@ Clang을 찾지 못하거나 다른 버전을 사용하려면 `--clang`으로 �
 }
 ```
 
-Windows의 다중 구성 빌드에서는 `"${workspaceFolder}/build/Release/aevixc.exe"`를 사용하세요. 소스를 한 번 저장하고 작업 공간을 신뢰한 뒤 명령 팔레트에서 **Aevix: Check Current File**, **Build Current File**, **Run Current File**을 실행할 수 있습니다. 빌드와 실행 전에는 파일을 저장해야 합니다.
+For a Windows multi-configuration build, use `"${workspaceFolder}/build/Release/aevixc.exe"`. Save the source file at least once and trust the workspace before using **Aevix: Check Current File**, **Aevix: Build Current File**, or **Aevix: Run Current File** from the Command Palette. Build and Run require saved files.
 
-Remote SSH나 원격 환경을 사용한다면 확장·컴파일러·소스를 같은 호스트에 두어야 합니다.
+With Remote SSH or another remote setup, keep the extension, compiler, and source files on the same host.
 
-## 현재 구현한 범위
+## Current scope
 
-- 타입 검사, 모듈과 import, 소유권 이동과 읽기·수정 대여 검사.
-- struct, enum, interface, 제네릭 함수·메서드, 명시적 `dyn` 호출.
-- 정적·동적 배열, 정수 Range 반복, 가변 인수, 최소한의 Slice·Box 지원.
-- `Optional`, `Result`, `?`, `persist`, 일반 스코프 종료 시 자원 정리.
-- AOT 컴파일, 지원 환경의 ORC JIT 실행, VS Code 편집 도구와 컴파일러 진단.
+- Type checking, modules and imports, ownership moves, and shared/exclusive borrow checking.
+- Structs, enums, interfaces, generic functions and methods, and explicit `dyn` dispatch.
+- Fixed and dynamic arrays, integer Range loops, variadic arguments, and minimal Slice/Box support.
+- `Optional`, `Result`, `?`, `persist`, and resource cleanup on normal scope exits.
+- AOT compilation, ORC JIT execution on supported systems, and VS Code editing tools with compiler diagnostics.
 
-| 대상 | 현재 상태 |
+| Target | Current status |
 | --- | --- |
-| macOS Apple Silicon | AOT·JIT 실행 확인 |
-| Linux ARM64 | 가상 환경에서 AOT·JIT 실행 확인 |
-| Linux x86-64 | QEMU CPU 에뮬레이션에서 AOT·JIT 실행 확인 |
-| Windows x86-64 | AOT 교차 빌드·링크 확인. 네이티브 실행·MSVC는 미검증 |
+| macOS Apple Silicon | AOT and JIT execution checked |
+| Linux ARM64 | AOT and JIT execution checked in a VM |
+| Linux x86-64 | AOT and JIT execution checked under QEMU CPU emulation |
+| Windows x86-64 | AOT cross-build and linking checked; native execution and MSVC remain unverified |
 
-GPU·Tensor 실행, 애플리케이션 병렬 처리, 일반 표준 라이브러리는 아직 포함하지 않습니다. VS Code 확장의 이름 탐색은 소스 인덱스 기반이며, 타입·소유권 오류의 최종 판단은 컴파일러가 합니다. 포매터와 디버거는 제공하지 않습니다.
+GPU/Tensor execution, application-level parallelism, and the general standard library are not included yet. The extension uses a source index for navigation; the compiler supplies type and ownership diagnostics. A formatter and debugger are not included.
 
-## 소스와 문서
+## Source and documentation
 
-- [`include/aevix/`](include/aevix/), [`src/`](src/): 컴파일러 선언과 구현.
-- [`runtime/`](runtime/): 네이티브 런타임.
-- [`tests/`](tests/): 컴파일러와 실행 경로 검사.
-- [`vscode/`](vscode/): TypeScript 확장 소스.
-- [`htmls/`](htmls/): 언어 설계와 자료형 문서. 내려받은 저장소의 `htmls/Aevix.html`을 브라우저에서 열어 읽을 수 있습니다.
+- [`include/aevix/`](include/aevix/), [`src/`](src/): compiler declarations and implementation.
+- [`runtime/`](runtime/): native runtime.
+- [`tests/`](tests/): compiler and execution checks.
+- [`vscode/`](vscode/): TypeScript extension sources.
+- [`htmls/`](htmls/): language design and type reference. Download the repository and open `htmls/index.html` in a browser to read it.
