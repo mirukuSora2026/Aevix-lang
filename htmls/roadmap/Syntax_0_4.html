@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Additional Aevix 0.4 syntax work alongside the compiler port, with existing safety and bootstrap goals preserved.">
+    <title>Additional syntax for 0.4 — Aevix</title>
+    <link rel="stylesheet" href="../css/root.css?v=6">
+    <script src="../js/docs.js?v=4" defer></script>
+    <link rel="icon" type="image/png" href="../images/aevix-favicon.png">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header">
+    <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Roadmap"><a href="index.html">0.5 roadmap</a><a href="Library_Foundation.html">Library foundations</a><a href="../releases/0_2.html">0.2 profile</a></nav>
+    <span class="draft-badge">0.4 PLAN</span>
+</div></header>
+<main id="main-content" class="page-shell">
+    <header class="doc-intro"><div><p class="eyebrow">ADDITIONAL ROADMAP WORK</p><h1>Additional syntax for 0.4</h1><p class="doc-subtitle">Add useful control flow while continuing the compiler port to Aevix.</p></div></header>
+    <div class="docs-layout">
+        <aside class="table"><details class="toc" open><summary>On this page</summary><ol>
+            <li><a href="#scope">Relationship to the existing roadmap</a></li>
+            <li><a href="#do-while">Post-test loops</a></li>
+            <li><a href="#try">Local error handling</a></li>
+            <li><a href="#candidates">Other syntax to review</a></li>
+            <li><a href="#gates">Integration and exit gates</a></li>
+            <li><a href="#sources">Primary references</a></li>
+        </ol></details></aside>
+        <article class="content">
+            <section id="scope"><h2>Relationship to the existing roadmap</h2>
+                <p>The 0.4 plan includes syntax research and implementation for <code>try</code> and <code>do ... while</code>. This work supplements the <a href="index.html#versions">existing milestones</a>: 0.3 still establishes native resource and library foundations, 0.4 still ports the compiler to Aevix, and 0.5 still performs the self-hosting bootstrap.</p>
+                <p class="callout warning">This is a future work plan. These additions are not claims about the current <a href="../releases/0_2.html">0.2 implementation</a>. The syntax sketches below are not executable 0.2 examples.</p>
+                <p>Type-first declarations, immutable defaults, explicit non-void returns, mandatory condition parentheses, and the existing ownership and visibility rules remain in force. A new convenience construct must have a defined translation into the compiler's control flow and cleanup model.</p>
+            </section>
+            <section id="do-while"><h2>Post-test loops</h2>
+                <p>Add <code>do ... while (condition);</code> as a 0.4 work item. Execute the body before testing its bool condition. Normal completion of the body and <code>continue;</code> both lead to the condition; <code>break;</code> exits without evaluating that condition. An earlier return or propagated error can also leave the loop before the test.</p>
+                <pre class="code-block" data-status="planned-0.4"><code id="Aevix">i32 repetitions() {
+    mut i32 count = 0;
+    do {
+        count++;
+    } while (count &lt; 3);
+    return count;
+}</code></pre>
+                <p>The trailing semicolon and condition parentheses are required. A single statement can omit its body braces under the existing statement-body rules; declarations still require a block. Locals declared inside the body block are not visible in the later condition.</p>
+                <p>Test definite initialization, loop-carried moves and loans, cleanup on each exit, nested loops, and a condition that returns an error. The Java and C++ post-test loop specifications are comparison material, not permission to adopt their implicit conversions. Aevix conditions remain bool-only.</p>
+            </section>
+            <section id="try"><h2>Local error handling</h2>
+                <p>Include <code>try</code> in the 0.4 design and implementation work. Its precise grammar and error model need a focused decision before parser changes. The preferred direction is local handling of Result values, preserving the established <code>?</code> and explicit-error model.</p>
+                <div class="table-scroll" role="region" aria-label="Try design comparison"><table><thead><tr><th scope="col">Approach</th><th scope="col">Benefit</th><th scope="col">Aevix decision</th></tr></thead><tbody>
+                    <tr><td>Result-based local error scope</td><td>Group fallible operations and handle their error without returning from the entire function.</td><td>Preferred design to develop. Specify the destination of each <code>?</code>, success completion, and nesting before accepting a grammar.</td></tr>
+                    <tr><td>Throw/catch exception unwinding</td><td>Transfer a thrown error through calling frames to a matching handler.</td><td>Requires an explicit user decision because it changes error and cleanup policy. It is not implied by adding the name <code>try</code>.</td></tr>
+                    <tr><td>Finally or deferred cleanup</td><td>Attach work to an exit path.</td><td>Review against 0.3 resource cleanup first; avoid two independent owners trying to release the same resource.</td></tr>
+                </tbody></table></div>
+                <p>Rust's official try-block documentation describes a local scope for <code>?</code> under an unstable feature. Java's try statement instead handles thrown exceptions and has separate finally/resource rules. These are different designs; the Aevix plan does not claim stable Rust availability or silently import Java's unwinding semantics.</p>
+                <p>Preserve explicit normal returns and do not introduce implicit final-expression returns. A closure remains its own return/propagation boundary. Normal exits must release initialized owners exactly once; local recovery must not catch safety stops, invalid foreign behavior, or process termination as ordinary Result errors. Existing direct-return behavior outside a new error scope must remain compatible.</p>
+            </section>
+            <section id="candidates"><h2>Other syntax to review</h2>
+                <p>The following are research candidates, not additional confirmed features or new 0.5 prerequisites.</p>
+                <div class="table-scroll" role="region" aria-label="Additional syntax candidates"><table><thead><tr><th scope="col">Candidate</th><th scope="col">Use</th><th scope="col">Compatibility check</th></tr></thead><tbody>
+                    <tr><td>Labeled break and continue</td><td>Leave or continue a chosen outer loop.</td><td>Keep ordinary break/continue behavior. Define label scope, forbid shadowing, prohibit jumps across functions or closures, and preserve cleanup.</td></tr>
+                    <tr><td>Guarded switch cases</td><td>Apply a bool condition after a variant or pattern matches.</td><td>Keep case scopes and written <code>break;</code>. A guard that can fail cannot by itself prove an enum variant is fully covered.</td></tr>
+                    <tr><td>Pattern-based conditional binding</td><td>Use Optional or enum payloads with less nesting.</td><td>Retain type-first binding, private field access, explicit move/borrow rules, and the selected statement-only if model.</td></tr>
+                    <tr><td>Defer</td><td>Run an explicitly registered action at scope exit.</td><td>Hold until the resource cleanup contract settles. Define capture lifetimes, order and failure behavior before adding another cleanup mechanism.</td></tr>
+                </tbody></table></div>
+                <p>Adopt a candidate only when it solves a demonstrated compiler or library problem without weakening the current rules. Researching a feature does not approve its exact spelling or promise to ship every candidate.</p>
+            </section>
+            <section id="gates"><h2>Integration and exit gates</h2><ol>
+                <li>Record the accepted grammar and its control-flow, ownership and cleanup semantics.</li>
+                <li>Implement and test it in the C++ stage0 compiler before relying on it in compiler source written in Aevix.</li>
+                <li>Run shared acceptance, rejection, normalized AST/IR and execution fixtures through stage0 and the Aevix compiler port. Include early exits and failed operations.</li>
+                <li>Freeze the added syntax before the 0.5 bootstrap comparison. If a candidate is delayed, write the port using the existing subset rather than silently weakening a bootstrap gate.</li>
+            </ol><p>The new work does not remove any existing 0.3, 0.4 or 0.5 exit gate. The self-hosted frontend must still perform parsing, typing and ownership analysis itself.</p></section>
+            <section id="sources"><h2>Primary references</h2><ul class="source-list">
+                <li><a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-14.html#jls-14.13">Java Language Specification: do statements</a> — post-test evaluation and continue behavior.</li>
+                <li><a href="https://eel.is/c++draft/stmt.do">C++ working draft: do statements</a> — post-test loop comparison.</li>
+                <li><a href="https://doc.rust-lang.org/unstable-book/language-features/try-blocks.html">Rust Unstable Book: try blocks</a> — local propagation scopes, documented as unstable.</li>
+                <li><a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-14.html#jls-14.20">Java Language Specification: try statements</a> — exception, finally and resource behavior.</li>
+                <li><a href="https://doc.rust-lang.org/reference/expressions/loop-expr.html#loop-labels">Rust Reference: loop labels</a> and <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-14.html#jls-14.11.1">Java Language Specification: switch blocks</a> — further candidate research.</li>
+            </ul></section>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix · additional 0.4 work</span><span>2026-10-17 · planned; not implemented in 0.2</span></footer>
+</main>
+</body>
+</html>

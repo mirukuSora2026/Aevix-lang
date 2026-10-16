@@ -16,15 +16,20 @@
   const toc = document.querySelector('.toc');
   if (toc && window.matchMedia('(max-width: 780px)').matches) toc.open = false;
 
-  document.querySelectorAll('pre.code-block').forEach((pre) => {
+  document.querySelectorAll('pre').forEach((pre) => {
     const code = pre.querySelector('code');
     if (!code) return;
-    code.classList.add('language-aevix');
-    code.dataset.language = 'aevix';
+    pre.classList.add('code-block');
+    if (pre.querySelector('.code-toolbar')) return;
+    const languageClass = [...code.classList, ...pre.classList].find((name) => name.startsWith('language-'));
+    const languageName = (code.dataset.language || pre.dataset.language || languageClass?.slice(9) || 'aevix').toLowerCase();
+    const languageLabels = { aevix: 'Aevix · example syntax', sh: 'Shell', shell: 'Shell', bash: 'Bash', powershell: 'PowerShell', json: 'JSON', cpp: 'C++', text: 'Plain text' };
+    code.classList.add(`language-${languageName}`);
+    code.dataset.language = languageName;
     const toolbar = document.createElement('div');
     toolbar.className = 'code-toolbar';
     const language = document.createElement('span');
-    language.textContent = 'Aevix · example syntax';
+    language.textContent = languageLabels[languageName] || languageName;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'copy-code';

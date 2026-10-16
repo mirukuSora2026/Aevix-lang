@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Return types first, explicit argument permissions, and explicit normal returns.">
     <title>Function Declaration — Aevix Docs</title>
-    <link rel="stylesheet" href="../css/root.css?v=4">
+    <link rel="stylesheet" href="../css/root.css?v=6">
     <link rel="preload" href="../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
-    <script src="../js/docs.js?v=3" defer></script>
-<link rel="icon" type="image/png" href="../images/aevix-logo.png">
+    <script src="../js/docs.js?v=4" defer></script>
+<link rel="icon" type="image/png" href="../images/aevix-favicon.png">
 </head>
 <body><a class="skip-link" href="#main-content">Skip to content</a>
 <header class="site-header">
@@ -42,7 +42,7 @@
                         href="../data_type/Pending/Pending.html">Pending</a></div>
             </details>
             <a href="../grammar/index.html">Grammar</a></nav>
-        <span class="draft-badge">DESIGN REFERENCE</span></div>
+        <span class="draft-badge">0.2 REFERENCE</span></div>
 </header>
 <main id="main-content" class="page-shell">
     <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../data_type/index.html">Language reference</a><span
@@ -53,12 +53,12 @@
         <div><p class="eyebrow">DECLARATION REFERENCE</p>
             <h1>Function Declaration</h1>
             <p class="doc-subtitle">Return types first, explicit argument permissions, and explicit normal returns.</p>
-            <div class="doc-meta"><span class="meta-chip">Function declaration</span><span class="meta-chip">Chosen rules + open decisions</span><a
+            <div class="doc-meta"><span class="meta-chip">Function declaration</span><span class="meta-chip">0.2 implemented profile</span><a
                     href="../data_type/index.html#Language-Rules">Language rules overview</a></div>
             <dl class="doc-stats">
                 <div class="doc-stat">
                     <dt>Status</dt>
-                    <dd>Design reference</dd>
+                    <dd>0.2 core + stated limits</dd>
                 </div>
                 <div class="doc-stat">
                     <dt>Parameters</dt>
@@ -107,9 +107,11 @@
                     </li>
                     <li><a href="#costs-and-compilation"><span class="toc-number">15</span><span>Calls preserve ownership and cost contracts</span></a>
                     </li>
-                    <li><a href="#open-decisions"><span class="toc-number">16</span><span>Open decisions and related declarations</span></a>
+                    <li><a href="#closures"><span class="toc-number">16</span><span>Explicit closures and callable contracts</span></a>
                     </li>
-                    <li><a href="#Sources"><span class="toc-number">17</span><span>Sources and design references</span></a>
+                    <li><a href="#open-decisions"><span class="toc-number">17</span><span>Implemented additions and remaining limits</span></a>
+                    </li>
+                    <li><a href="#Sources"><span class="toc-number">18</span><span>Sources and design references</span></a>
                     </li>
                 </ol>
             </details>
@@ -131,10 +133,11 @@
                     returns. Aevix puts the return type before the function name and the parameter type before each
                     parameter name. Parameter bindings are immutable by default. Ownership transfer and borrowing are
                     visible at the call site.</p>
-                <p>This page records chosen Aevix rules as a design reference. It does not claim an implemented parser,
-                    borrow checker, compiler diagnostic or ABI. Examples use existing data-type APIs. The chosen
+                <p>This page describes the implemented 0.2 declaration and closure rules, with remaining design limits
+                    listed separately. Linked data-type catalogs can include future APIs; no stable foreign ABI is
+                    promised by ordinary function syntax. The chosen
                     condition and loop forms are documented in <a href="../grammar/control_flow/index.html">Control
-                        Flow</a>. Open features remain separate from the agreed function contract.</p></section>
+                        Flow</a>. Remaining features are identified in the scope section.</p></section>
             <section id="declaration-form" aria-labelledby="declaration-form-heading"><h2 id="declaration-form-heading">
                 2. Return type first, then name and parameters</h2>
                 <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 identity(i32 value) {
@@ -501,13 +504,12 @@ Optional&lt;i32&gt; maybe_value(bool present, i32 value) {
     return Optional.none&lt;i32&gt;();
 }</code></pre>
                 <p>Err is normal completion carrying an error payload. None represents absence. The examples explicitly
-                    return their wrapper values. A Result-returning function may also spell an error-only early return
-                    with the chosen postfix <code>?</code>; ordinary successful returns still require
+                    return their wrapper values. A Result-returning function may propagate Err, and an Optional-returning function may propagate None,
+                    with postfix <code>?</code>; ordinary successful returns still require
                     <code>return</code>. The declared return type provides constructor context for Result.ok and
                     Result.err; constructing a variant alone does not transfer control.</p>
                 <p>The caller receives the declared Result or Optional. <a
-                        href="../grammar/operators/Error_Propagation.html">Postfix <code>?</code></a> extracts an Ok
-                    value or explicitly returns an Err from a compatible Result-returning function. <a
+                        href="../grammar/operators/Error_Propagation.html">Postfix <code>?</code></a> extracts Ok or Some, or explicitly returns Err or None from a compatible Result- or Optional-returning function. <a
                             href="../grammar/operators/Checked_Arithmetic.html"><code>checked(expression)</code></a>
                     makes directly written integer calculation failures into Result values. No implicit unwrap, error
                     conversion or exception-catching syntax is introduced. Owning payloads still move; borrowed payloads
@@ -588,9 +590,47 @@ i32 wrong_result() {
                     submit GPU work or transfer a buffer. Atomic and Mutex operations can expose synchronized interior
                     mutation under their own rules; an arbitrary &amp;T does not gain those permissions. Function
                     declarations do not promise a stable foreign calling convention.</p></section>
-            <section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">16.
-                Open decisions and related declarations</h2>
-                <p>Generic functions, overloads, trailing constant defaults, named arguments and <code>i32 values[]</code> variadic parameter spelling are chosen in <a href="../grammar/functions/index.html">Functions and Calls</a>. Full module paths and import lookup are chosen in <a href="../grammar/modules/index.html">Modules and Imports</a>. Const functions, closures, function-pointer types, standalone forward-prototype syntax and async/GPU declaration grammar remain open. The initial executable entry is <a href="../grammar/foundations/Compilation_Model.html#entry-contract">i32 main()</a> in the selected entry module. Reference-return lifetime annotation and
+            <section id="closures" aria-labelledby="closures-heading"><h2 id="closures-heading">16.
+                Explicit closures and callable contracts</h2>
+                <p>A closure declares its capture list, typed parameters, an explicit <code>-&gt; ReturnType</code>, and a block body. Captures are explicit: <code>[value]</code> transfers or copies a value, <code>[&amp;read]</code> borrows shared storage, and <code>[&amp;mut write]</code> borrows exclusive storage. Names outside the closure are unavailable unless captured.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 apply&lt;F&gt;(&amp;F callback, i32 value)
+    where F implements Fn&lt;Tuple&lt;i32&gt;, i32&gt; {
+    return callback(value);
+}
+
+void use_closures() {
+    i32 base = 40;
+    rsn add = [base](i32 value) -&gt; i32 {
+        return base + value;
+    };
+    i32 answer = apply(&amp;add, 2);
+
+    mut i32 total = 0;
+    mut rsn set = [&amp;mut total](i32 value) -&gt; void {
+        total = value;
+        return;
+    };
+    set(answer);
+    return;
+}</code></pre>
+                <p>The closure expression ends with the enclosing declaration’s semicolon. A non-void closure must explicitly return a value on every normal exit, just like a named function. A void closure may use <code>return;</code> or fall through. The return type after <code>-&gt;</code> is required; a final expression is not an implicit return.</p>
+                <div class="table-wrap"><div class="table-scroll" role="region" aria-label="Closure call capabilities"><table><thead><tr><th scope="col">Constraint</th><th scope="col">Receiver</th><th scope="col">Current profile</th></tr></thead><tbody>
+                <tr><td><code>Fn&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td><code>&amp;F</code></td><td>Shared calls; read-only captures and unambiguously shared captured-receiver methods.</td></tr>
+                <tr><td><code>FnMut&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td><code>&amp;mut F</code></td><td>Calls may mutate the captured environment; the closure binding must permit mutation.</td></tr>
+                <tr><td><code>FnOnce&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td><code>F</code></td><td>The call consumes the environment. The current compiler classifies a by-value non-Copy capture this way, including an owned string used only for reading.</td></tr>
+                </tbody></table></div></div>
+                <p>Fn closures also satisfy FnMut and FnOnce requirements; FnMut closures satisfy FnOnce requirements. Captured borrows retain ordinary lifetime and exclusivity checks. These callable constraints use static specialization and do not introduce function-pointer conversion, dyn callable erasure, implicit captures, or hidden boxing.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> A non-void closure cannot fall through.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void missing_closure_return() {
+    rsn invalid = [](i32 value) -&gt; i32 {
+        value;
+    };
+    return;
+}</code></pre>
+            </section>
+            <section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">17.
+                Implemented additions and remaining limits</h2>
+                <p>Generic functions, overloads, trailing constant defaults, named arguments and <code>i32 values[]</code> variadic parameter spelling are chosen in <a href="../grammar/functions/index.html">Functions and Calls</a>. Full module paths and import lookup are chosen in <a href="../grammar/modules/index.html">Modules and Imports</a>. Closures with explicit captures and typed signatures, plus the static Fn/FnMut/FnOnce contracts above, are implemented. Generic function calls may provide a leading explicit argument list completed by inference or trailing defaults. Const functions, function-pointer types, standalone forward-prototype syntax, and async/GPU declaration grammar remain outside this profile. The initial executable entry is <a href="../grammar/foundations/Compilation_Model.html#entry-contract">i32 main()</a> in the selected entry module. Reference-return lifetime annotation and
                     elision remain open as well. The chosen <code>public</code>/<code>private</code> visibility rules
                     are documented in <a href="../grammar/scope_and_comments/Scope_and_Visibility.html">Scope and
                         Visibility</a>. These free-function examples do not establish a forward-prototype form. <a href="../grammar/interfaces/Interfaces.html">Interface requirements</a> use bodyless method declarations; default methods may provide bodies and require override when replaced.</p>
@@ -599,12 +639,11 @@ i32 wrong_result() {
                     methods or function members. An ordinary immutable binding may receive a runtime result.</p>
                 <p>The primary sources below were read as comparison material. Aevix follows the choices stated on this
                     page; foreign implicit-return, prototype, default-argument and ABI rules are not imported
-                    automatically. Examples are source-level design examples, not output from a working Aevix
-                    compiler.</p>
+                    automatically. The implemented generic-call and closure examples are checked against the 0.2 compiler; linked design catalogs do not expand that executable scope.</p>
                 <p><a href="Variable_Declaration.html">Variable Declaration</a> · <a href="../data_type/index.html">Data
                     Type Reference</a> · <a href="../data_type/Vector/Vector.html">Vector</a> · <a
                         href="../data_type/Slice/Slice.html">Slice</a></p><p><a href="../grammar/generics/Generic_Types.html">User-defined type generics</a> use &lt;T&gt;, and <a href="../grammar/generics/Type_Constraints.html">type constraints</a> use where T implements Copy. Generic functions put <code>&lt;T&gt;</code> after the function name and <code>where</code> after the parameter list. Multiple requirements use commas and repeat their subject, as detailed in <a href="../grammar/functions/Generic_Functions.html">Generic Functions</a>. Enums reuse struct type functions and self methods and can implement ordinary interfaces.</p></section>
-            <section id="Sources" aria-labelledby="Sources-heading"><h2 id="Sources-heading">17. Sources and design
+            <section id="Sources" aria-labelledby="Sources-heading"><h2 id="Sources-heading">18. Sources and design
                 references</h2>
                 <p>Aevix rules are identified as chosen or open in this document. Primary references provide
                     comparisons; their language rules are not silently adopted.</p>
@@ -623,7 +662,7 @@ i32 wrong_result() {
                     href="Variable_Declaration.html"><span>Previous reference</span>Variables</a></nav>
         </article>
     </div>
-    <footer class="page-footer"><span>Aevix Language · Declaration reference</span><span>Design specification · compiler implementation not implied</span>
+    <footer class="page-footer"><span>Aevix Language · Declaration reference</span><span>Aevix 0.2 · remaining design limits stated explicitly</span>
     </footer>
 </main>
 </body>

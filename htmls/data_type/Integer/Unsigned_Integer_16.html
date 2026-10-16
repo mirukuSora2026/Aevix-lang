@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="The u16 (UInt16 reference): fixed-width values, boundary behavior, and explicit conversions.">
   <title>Unsigned Integer · 16-bit — Aevix Docs</title>
-  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="stylesheet" href="../../css/root.css?v=6">
   <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="../../js/docs.js?v=3" defer></script>
-<link rel="icon" type="image/png" href="../../images/aevix-logo.png">
+  <script src="../../js/docs.js?v=4" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -113,9 +113,9 @@ Integer.is_signed(u16);  // false</code></pre>
 </tr>
 </thead>
 <tbody>
-<tr><th scope="row">Signed destinations</th><td>All values fit in <code>i32</code>, <code>i64</code>; same-width <code>i16</code> accepts only <code>0</code>…<code>32767</code>.</td>
+<tr><th scope="row">Signed destinations</th><td>All values fit in <code>i32</code>, <code>i64</code>, and <code>i128</code>; same-width <code>i16</code> accepts only <code>0</code>…<code>32767</code>.</td>
 </tr>
-<tr><th scope="row">Unsigned destinations</th><td>All values fit in <code>u32</code>, <code>u64</code>; smaller destinations require a range check.</td>
+<tr><th scope="row">Unsigned destinations</th><td>All values fit in <code>u32</code>, <code>u64</code>, and <code>u128</code>; smaller destinations require a range check.</td>
 </tr>
 <tr><th scope="row">usize / isize</th><td>Check the actual target width and destination range.</td>
 </tr>
@@ -124,8 +124,8 @@ Integer.is_signed(u16);  // false</code></pre>
 </tbody>
 </table>
 </div>
-<p><code>Integer.convert</code> checks representability; <code>widen</code> preserves a value in a wider destination. <code>bitcast</code>, <code>wrapping_convert</code>, and <code>saturating_convert</code> explicitly request different semantics. Floating-point conversion back follows the common fraction, NaN, infinity, and range policies.
-</p>
+<p>The implemented 0.2 conversion is <code>Integer.convert&lt;D&gt;(value)</code>, returning <code>Result&lt;D, IntegerError&gt;</code>. It preserves the mathematical value when the destination range contains it. Out-of-range narrowing and negative-to-unsigned conversion return <code>IntegerError.OutOfRange</code>; they do not truncate, wrap, reinterpret the sign bit, or stop the program. Even an all-values-safe widening remains explicit and uses the same Result API. Handle the result or propagate its error with <code>?</code> from a compatible Result-returning function.</p>
+<p>For floating destinations use <code>Float.convert&lt;D&gt;</code> or <code>Float.convert_exact&lt;D&gt;</code>; for an exact float-to-integer conversion use <code>Float.to_integer_exact&lt;D&gt;</code>. The common catalog’s <code>widen</code>, <code>bitcast</code>, <code>wrapping_convert</code>, and <code>saturating_convert</code> describe separate proposed operations and are not implemented 0.2 alternatives to <code>Integer.convert&lt;D&gt;</code>. See the <a href="../../releases/0_2.html#numbers">implemented numeric profile</a>.</p>
 </section>
 <section id="Arithmetic-Boundaries" aria-labelledby="Arithmetic-Boundaries-heading">
 <h2 id="Arithmetic-Boundaries-heading">6. Arithmetic Boundary Values
@@ -134,7 +134,7 @@ Integer.is_signed(u16);  // false</code></pre>
 Integer.wrapping_sub(0:u16, 1:u16);   // 65535
 Integer.saturating_sub(0:u16, 1:u16); // 0
 Integer.is_negative(42:u16);          // false</code></pre>
-<p><code>65535 + 1</code> overflows. Division by zero fails. Unsigned values have no negative branch; a signed conversion must be checked against its smaller positive range.
+<p><code>65535 + 1</code> overflows. Division by zero fails. Unsigned values have no negative branch. Conversion to same-width <code>i16</code> checks its smaller positive range; a wider signed type such as <code>i128</code> represents every <code>u16</code> value.
 </p>
 </section>
 <section id="Bitwise-Operations" aria-labelledby="Bitwise-Operations-heading">

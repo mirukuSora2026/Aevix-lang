@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Const generic extents, trailing type and value defaults, transparent aliases, and sealed numeric capabilities in Aevix 0.2.">
   <title>Generics in 0.2 — Aevix Docs</title>
-  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="stylesheet" href="../../css/root.css?v=6">
   <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="../../js/docs.js?v=3" defer></script>
-<link rel="icon" type="image/png" href="../../images/aevix-logo.png">
+  <script src="../../js/docs.js?v=4" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -25,7 +25,7 @@
       <article class="content" aria-label="Implemented generics reference">
 <section id="defaults"><h2>Trailing defaults and inference</h2>
 <p>Struct, enum, interface, and function generic parameter lists may provide trailing type and constant defaults. A default may use earlier parameters. Required parameters cannot follow a defaulted parameter; a default cannot refer to itself or a later parameter.</p>
-<pre><code id="Aevix">struct Pair&lt;T = i32, U = T&gt; {
+<pre><code id="Aevix" class="language-aevix" data-language="aevix">struct Pair&lt;T = i32, U = T&gt; {
     public T first;
     public U second;
 };
@@ -43,7 +43,7 @@ i32 main() {
 </section>
 <section id="constants"><h2>Compile-time constant extents</h2>
 <p>Value parameters use <code>const usize N</code>. The current compiler accepts usize constant parameters. Arguments must be nonnegative compile-time values fitting usize. Runtime variables, negative values, and larger unsigned values are rejected.</p>
-<pre><code id="Aevix">struct Buffer&lt;T = i32, const usize N = 4&gt; {
+<pre><code class="language-aevix" data-language="aevix">struct Buffer&lt;T = i32, const usize N = 4&gt; {
     public Array&lt;T, N&gt; values;
     public usize len(&amp;Self self) {
         return N;
@@ -64,7 +64,7 @@ i32 main() {
 <p>Array extents can be inferred through Array types, fixed array declarators, borrows, and generic container fields. A const parameter controls a static type or compile-time value; it does not create a runtime dimension-varying type.</p>
 </section>
 <section id="aliases"><h2>Transparent type aliases</h2>
-<pre><code id="Aevix">public type UserId = u64;
+<pre><code class="language-aevix" data-language="aevix">public type UserId = u64;
 type Samples = Array&lt;f32, 4&gt;;
 
 UserId identity(UserId value) {
@@ -73,7 +73,7 @@ UserId identity(UserId value) {
 <p>An alias is another spelling of the same type. It does not create a new nominal type or change ownership, representation, overload identity, interface satisfaction, or conversion rules. Alias cycles are compile errors. Imported aliases retain normal public/private access rules. Generic alias declarations are not part of this profile.</p>
 </section>
 <section id="floating"><h2>The sealed Floating contract</h2>
-<pre><code id="Aevix">import numeric { Floating };
+<pre><code class="language-aevix" data-language="aevix">import numeric { Floating };
 
 T twice&lt;T&gt;(T value) where T implements Floating {
     return value + value;

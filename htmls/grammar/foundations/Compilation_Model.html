@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="An ahead-of-time baseline with selected just-in-time work, preserving one language contract across compilation paths.">
 <title>AOT and Selective JIT — Aevix Docs</title>
-<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="stylesheet" href="../../css/root.css?v=6">
 <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<script src="../../js/docs.js?v=3" defer></script>
-<link rel="icon" type="image/png" href="../../images/aevix-logo.png">
+<script src="../../js/docs.js?v=4" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
 </head>
 <body>
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -42,12 +42,12 @@
 <article class="content" aria-label="AOT and Selective JIT reference">
 <section id="confirmed-model" aria-labelledby="confirmed-model-heading">
 <h2 id="confirmed-model-heading">1. Compile ahead of time and selectively at runtime</h2>
-<p>Aevix combines ahead-of-time compilation with selective just-in-time compilation. AOT is the baseline for native code. Selected portions may be compiled or specialized at runtime through JIT. This choice establishes the execution direction, not a complete runtime architecture.</p><blockquote class="callout note"><p><strong>Confirmed scope.</strong> The AOT/JIT combination is selected. Initial CPU/OS targets and LLVM/ORC implementation direction are selected below. Trigger policy, hotness thresholds, cache storage format, complete fallback behavior and deployment packaging remain open; GPU and parallel-language work are deferred. No JIT or AOT engine has been demonstrated by this documentation.</p></blockquote>
+<p>Aevix combines ahead-of-time compilation with selective just-in-time compilation. AOT is the baseline for native code. Selected portions may be compiled or specialized at runtime through JIT. This choice establishes the execution direction, not a complete runtime architecture.</p><blockquote class="callout note"><p><strong>Design and 0.2 implementation scope.</strong> The compiler implements explicit AOT and ORC JIT execution modes; the <a href="../../releases/0_2.html">0.2 implementation profile</a> records their supported behavior and platform evidence. Automatic selective-JIT triggers, hotness thresholds, persistent cache format and complete fallback policy remain architecture work. The CPU profile includes <a href="../../data_type/Simd/Simd_02.html">explicit SIMD</a> and <a href="../../releases/Parallel_0_2.html">scoped parallel.for_each with named, validated scalar workers</a>. General Task APIs and GPU execution remain unsupported.</p></blockquote>
 </section>
 
 <section id="aot-baseline" aria-labelledby="aot-baseline-heading">
 <h2 id="aot-baseline-heading">2. AOT is the native baseline</h2>
-<p>Ahead-of-time compilation prepares executable code before its normal execution. The source is statically typed and checked under the selected ownership and borrowing model. Baseline work does not require every source operation to become a mandatory runtime compilation request.</p><p>The initial native target matrix and platform object/linking route are chosen below. Standard-library packaging, optimization levels and whether a deployment includes a JIT component remain to be chosen. The phrase AOT baseline does not settle those distribution choices.</p>
+<p>Ahead-of-time compilation prepares executable code before its normal execution. The source is statically typed and checked under the selected ownership and borrowing model. Baseline work does not require every source operation to become a mandatory runtime compilation request.</p><p>The historical initial target matrix and platform object/linking route are described below. The 0.2 compiler has standard-library payload packaging, explicit optimization levels and optional JIT builds. Future automatic selective-JIT deployment and caching policies remain separate from these implemented distribution choices.</p>
 </section>
 
 <section id="selective-jit" aria-labelledby="selective-jit-heading">
@@ -196,7 +196,7 @@ i32 output = sum(&amp;input);</code></pre><p>The selected type-first syntax, exp
 
 <section id="validation" aria-labelledby="validation-heading">
 <h2 id="validation-heading">10. Validate correctness before making performance claims</h2>
-<p>An implementation will need appropriate semantic checks for both paths: type and ownership rejection, checked arithmetic failures, Result exits, evaluation order, dispatch, cleanup, target capability handling, and resource lifetime preservation. Runtime specialization also needs evidence that the assumptions supporting its generated code stay valid.</p><p>Representative benchmarks must account for native throughput, compilation latency, warm and cold execution, memory use, synchronization, data movement, and supported devices. No comparative speed claim follows from the AOT/JIT spelling alone.</p><blockquote class="callout note"><p><strong>Current evidence.</strong> These pages are HTML design documentation. There is no Aevix compilation, execution, GPU run, benchmark, or FFI validation result here.</p></blockquote>
+<p>An implementation will need appropriate semantic checks for both paths: type and ownership rejection, checked arithmetic failures, Result exits, evaluation order, dispatch, cleanup, target capability handling, and resource lifetime preservation. Runtime specialization also needs evidence that the assumptions supporting its generated code stay valid.</p><p>Representative benchmarks must account for native throughput, compilation latency, warm and cold execution, memory use, synchronization, data movement, and supported devices. No comparative speed claim follows from the AOT/JIT spelling alone.</p><blockquote class="callout note"><p><strong>Evidence boundary.</strong> This page describes architecture and future selective-JIT mechanisms. See the <a href="../../releases/0_2.html#limits">0.2 implementation profile</a> for current compiler and platform checks. Those checks do not establish GPU execution or comparative performance.</p></blockquote>
 </section>
 
 <section id="open-decisions" aria-labelledby="open-decisions-heading">
@@ -204,23 +204,23 @@ i32 output = sum(&amp;input);</code></pre><p>The selected type-first syntax, exp
 <ul>
 <li>Selection triggers, compilation scheduling, thresholds, and profiling controls.</li>
 <li>Runtime fact validation, guards, specialization limits, and invalidation or replacement mechanics.</li>
-<li>Complete fallback/error policy, deployment packages, runtime inclusion, cache storage and eviction.</li>
-<li>Deferred GPU/parallel work: CPU/GPU division, device support and launch/transfer/completion syntax.</li>
-<li>Detailed generic lowering, AIR schema, backend interfaces, target ABI implementation and versioned runtime ABI.</li>
+<li>Automatic selective-JIT fallback/error policy, deployment/runtime inclusion policy, persistent cache storage and eviction.</li>
+<li>General Task and GPU work: CPU/GPU division, device support and launch/transfer/completion syntax. The implemented CPU parallel.for_each is a scoped call that joins validated named scalar workers before returning.</li>
+<li>Future shared-code generic lowering, stable public AIR/backend schemas and a published versioned runtime ABI beyond the current implementation.</li>
 <li>Safe-stop cleanup and custom cleanup declarations remain open; normal persistent shutdown order is already chosen.</li>
 </ul>
 </section>
 
 <section id="cpu-execution" aria-labelledby="cpu-execution-heading">
 <h2 id="cpu-execution-heading">12. ARM64 and x86-64 execution architecture</h2>
-<p><strong>Chosen initial target scope:</strong> ARM64 (AArch64) and x86-64, each on macOS and Linux. Windows is a later target; ARM32 is outside the initial scope. These are implementation requirements, not demonstrated execution support. GPU and parallel-language design are deferred while the CPU core is completed.</p>
+<p><strong>Historical initial target scope:</strong> ARM64 (AArch64) and x86-64, each on macOS and Linux. The table retains those original architecture requirements; it is not a qualification matrix. The <a href="../../releases/0_2.html#limits">current 0.2 profile</a> also includes a Windows x86-64 target, with object/link checks distinguished from native execution. ARM32 remains outside this profile. Explicit CPU SIMD and scoped named-worker parallelism are implemented; general Task APIs and GPU execution remain unsupported.</p>
 <div class="table-scroll" role="region" aria-label="Initial CPU and operating-system targets"><table><thead><tr><th scope="col">CPU</th><th scope="col">OS</th><th scope="col">Target requirements</th></tr></thead><tbody>
 <tr><th scope="row">AArch64</th><td>macOS</td><td>Apple platform ABI, SDK/deployment target, Mach-O linking and platform JIT memory rules.</td></tr>
 <tr><th scope="row">x86-64</th><td>macOS</td><td>Apple platform ABI, SDK/deployment target and Mach-O linking; separate generated code from AArch64.</td></tr>
 <tr><th scope="row">AArch64</th><td>Linux</td><td>AArch64 Linux ABI, selected libc/sysroot, ELF linking and compatible native runtime.</td></tr>
 <tr><th scope="row">x86-64</th><td>Linux</td><td>x86-64 Linux ABI, selected libc/sysroot, ELF linking and compatible native runtime.</td></tr>
 </tbody></table></div>
-<p>The exact minimum OS versions, initial Linux libc baseline and required SDK/toolchain versions remain release-matrix choices. A target description includes architecture, OS, environment/ABI, CPU features and data layout. Frontend checks may consult this target information for size, alignment and FFI decisions; a shared frontend does not imply target-independent pointer sizes or calling conventions.</p>
+<p>Minimum OS, Linux libc and SDK/toolchain requirements belong to each qualified release artifact; consult the current release and installation information rather than inferring support from this historical matrix. A target description includes architecture, OS, environment/ABI, CPU features and data layout. Frontend checks may consult this target information for size, alignment and FFI decisions; a shared frontend does not imply target-independent pointer sizes or calling conventions.</p>
 <h3 id="execution-pipeline">Shared checks, target-specific generated code</h3>
 <ol><li>Parse and check Aevix source using one frontend, type system and ownership model. Preserve language-level semantics in AIR.</li><li>Lower AIR through the initial LLVM backend using the selected target's data layout and call ABI. LLVM IR with a target layout is not automatically a portable bytecode bundle.</li><li>For AOT, emit target object code and link the matching runtime and system libraries using an appropriate target linker and sysroot. Use the operating system's executable loader.</li><li>For execution from source, the proposed aevix-run tool uses the same checks and an ORC JIT targeting its executor process. It cannot directly execute incompatible CPU instructions or another OS ABI.</li><li>Use shared runtime startup and normal shutdown, including the existing persist initialization and cleanup contracts. Retain needed JIT code through cleanup callbacks.</li></ol>
 <p>LLVM code generation and ORC are the initial implementation route. The existing Backend/Native architecture-specific encoder folders remain later extension points. A custom native encoder, custom executable loader, emulator and remote executor are not required for the first implementation. Cross-compiling an object file does not establish that it can be linked or executed on the compiler's machine.</p>

@@ -6,10 +6,10 @@
   <meta name="description" content="The i8 (Int8 reference): signed values, eight-bit boundaries, and explicit
                 conversion rules.">
   <title>Int8 — Aevix Docs</title>
-  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="stylesheet" href="../../css/root.css?v=6">
   <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="../../js/docs.js?v=3" defer></script>
-<link rel="icon" type="image/png" href="../../images/aevix-logo.png">
+  <script src="../../js/docs.js?v=4" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -231,7 +231,7 @@ i8 copy = original; // both values remain usable</code></pre>
 <tbody>
                         
 <tr>
-                            <th scope="row">i8 → i16 / i32 / i64 / isize</th>
+                            <th scope="row">i8 → i16 / i32 / i64 / i128 / isize</th>
                             <td>Every value fits in supported targets whose destination width is at least eight bits;
                                 signed widening preserves negative values.
                             </td>
@@ -239,7 +239,7 @@ i8 copy = original; // both values remain usable</code></pre>
 </tr>
                         
 <tr>
-                            <th scope="row">i8 → u8 / u16 / u32 / u64 / usize</th>
+                            <th scope="row">i8 → u8 / u16 / u32 / u64 / u128 / usize</th>
                             <td>Only nonnegative values convert successfully. A wider unsigned destination still cannot
                                 represent a negative value.
                             </td>
@@ -265,13 +265,8 @@ i8 copy = original; // both values remain usable</code></pre>
 </table>
 </div>
                 
-<p><code>Integer.convert</code> checks representability. <code>widen</code> expresses a value-preserving
-                    wider destination. <code>bitcast</code>, <code>saturating_convert</code>, and
-                    <code>wrapping_convert</code> have distinct contracts: reinterpretation, clamping, and modular
-                    conversion. They must not be interchangeable shortcuts. Floating-point conversion back to
-                    <code>i8</code> also follows the common policy for fractions, infinities, NaN, and range errors.
-                
-</p>
+<p>The implemented 0.2 conversion is <code>Integer.convert&lt;D&gt;(value)</code>, returning <code>Result&lt;D, IntegerError&gt;</code>. It preserves the mathematical value when the destination range contains it. Out-of-range narrowing and negative-to-unsigned conversion return <code>IntegerError.OutOfRange</code>; they do not truncate, wrap, reinterpret the sign bit, or stop the program. Even an all-values-safe widening remains explicit and uses the same Result API. Handle the result or propagate its error with <code>?</code> from a compatible Result-returning function.</p>
+<p>For floating destinations use <code>Float.convert&lt;D&gt;</code> or <code>Float.convert_exact&lt;D&gt;</code>; for an exact float-to-integer conversion use <code>Float.to_integer_exact&lt;D&gt;</code>. The common catalog’s <code>widen</code>, <code>bitcast</code>, <code>wrapping_convert</code>, and <code>saturating_convert</code> describe separate proposed operations and are not implemented 0.2 alternatives to <code>Integer.convert&lt;D&gt;</code>. See the <a href="../../releases/0_2.html#numbers">implemented numeric profile</a>.</p>
 </section>
 <section id="Arithmetic-Boundaries" aria-labelledby="Arithmetic-Boundaries-heading">
 <h2 id="Arithmetic-Boundaries-heading">6. Arithmetic Boundary Values

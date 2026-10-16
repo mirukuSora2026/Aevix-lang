@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="The u64 (UInt64 reference): fixed-width values, boundary behavior, and explicit conversions.">
   <title>Unsigned Integer · 64-bit — Aevix Docs</title>
-  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="stylesheet" href="../../css/root.css?v=6">
   <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="../../js/docs.js?v=3" defer></script>
-<link rel="icon" type="image/png" href="../../images/aevix-logo.png">
+  <script src="../../js/docs.js?v=4" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -113,9 +113,9 @@ Integer.is_signed(u64);  // false</code></pre>
 </tr>
 </thead>
 <tbody>
-<tr><th scope="row">Signed destinations</th><td><code>i64</code> accepts only <code>0</code>…<code>9223372036854775807</code>. There is no wider fixed signed primitive.</td>
+<tr><th scope="row">Signed destinations</th><td>Every <code>u64</code> value fits in <a href="Integer_128.html"><code>i128</code></a>, including <code>18446744073709551615u64</code>. Same-width <code>i64</code> accepts only <code>0</code>…<code>9223372036854775807</code>; smaller signed destinations have still lower upper bounds.</td>
 </tr>
-<tr><th scope="row">Unsigned destinations</th><td>Smaller destinations require a range check.</td>
+<tr><th scope="row">Unsigned destinations</th><td>Every <code>u64</code> value fits in <a href="Unsigned_Integer_128.html"><code>u128</code></a>. Smaller unsigned destinations require a range check.</td>
 </tr>
 <tr><th scope="row">usize / isize</th><td>Check the actual target width and destination range.</td>
 </tr>
@@ -124,8 +124,21 @@ Integer.is_signed(u64);  // false</code></pre>
 </tbody>
 </table>
 </div>
-<p><code>Integer.convert</code> checks representability; <code>widen</code> preserves a value in a wider destination. <code>bitcast</code>, <code>wrapping_convert</code>, and <code>saturating_convert</code> explicitly request different semantics. Floating-point conversion back follows the common fraction, NaN, infinity, and range policies.
-</p>
+<p>The implemented 0.2 conversion is <code>Integer.convert&lt;D&gt;(value)</code>, returning <code>Result&lt;D, IntegerError&gt;</code>. It preserves the mathematical value when the destination range contains it. Out-of-range narrowing and negative-to-unsigned conversion return <code>IntegerError.OutOfRange</code>; they do not truncate, wrap, reinterpret the sign bit, or stop the program. Even an all-values-safe widening remains explicit and uses the same Result API. Handle the result or propagate its error with <code>?</code> from a compatible Result-returning function.</p>
+<p>For floating destinations use <code>Float.convert&lt;D&gt;</code> or <code>Float.convert_exact&lt;D&gt;</code>; for an exact float-to-integer conversion use <code>Float.to_integer_exact&lt;D&gt;</code>. The common catalog’s <code>widen</code>, <code>bitcast</code>, <code>wrapping_convert</code>, and <code>saturating_convert</code> describe separate proposed operations and are not implemented 0.2 alternatives to <code>Integer.convert&lt;D&gt;</code>. See the <a href="../../releases/0_2.html#numbers">implemented numeric profile</a>.</p>
+
+<h3>Checked 64-bit and 128-bit conversions</h3>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i32, IntegerError&gt; check_u64_conversions() {
+    u64 maximum = 18446744073709551615u64;
+    i128 signed_wide = Integer.convert&lt;i128&gt;(maximum)?;
+    u128 unsigned_wide = Integer.convert&lt;u128&gt;(maximum)?;
+    if (signed_wide != 18446744073709551615i128 || unsigned_wide != 18446744073709551615u128) return Result.ok(1);
+
+    Result&lt;i64, IntegerError&gt; signed_overflow = Integer.convert&lt;i64&gt;(maximum);
+    Result&lt;u64, IntegerError&gt; narrowing_overflow = Integer.convert&lt;u64&gt;(18446744073709551616u128);
+    return Result.ok(Result.is_err(&amp;signed_overflow) &amp;&amp; Result.is_err(&amp;narrowing_overflow) ? 0 : 2);
+}</code></pre>
+<p>Both error results in this example carry <code>IntegerError.OutOfRange</code>. Widening changes the destination type only when explicitly requested; arithmetic on the original 64-bit operands still keeps its original result type.</p>
 </section>
 <section id="Arithmetic-Boundaries" aria-labelledby="Arithmetic-Boundaries-heading">
 <h2 id="Arithmetic-Boundaries-heading">6. Arithmetic Boundary Values
@@ -134,7 +147,7 @@ Integer.is_signed(u64);  // false</code></pre>
 Integer.wrapping_sub(0:u64, 1:u64);   // 18446744073709551615
 Integer.saturating_sub(0:u64, 1:u64); // 0
 Integer.is_negative(42:u64);          // false</code></pre>
-<p><code>18446744073709551615 + 1</code> overflows. Division by zero fails. Unsigned values have no negative branch; a signed conversion must be checked against its smaller positive range.
+<p><code>18446744073709551615 + 1</code> overflows. Division by zero fails. Unsigned values have no negative branch. Conversion to <code>i64</code> checks its smaller positive range, while every <code>u64</code> value is representable in <code>i128</code>.
 </p>
 </section>
 <section id="Bitwise-Operations" aria-labelledby="Bitwise-Operations-heading">
