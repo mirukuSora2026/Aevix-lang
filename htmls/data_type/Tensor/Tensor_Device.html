@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Placement, queue identity and explicit CPU / GPU transfer.">
+  <title>Tensor Device — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Tensor.html" aria-current="true">Tensor</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Tensor.html">Tensor</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tensor Device</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Tensor Device</h1><p class="doc-subtitle">Placement, queue identity and explicit CPU / GPU transfer.</p><div class="doc-meta"><span class="meta-chip">Tensor&lt;T, S, P&gt; / Pending&lt;T&gt;</span><span class="meta-chip">Tensor. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>10</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[S]</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#placement"><span class="toc-number">01</span><span>Placement is a checked capability</span></a></li><li><a href="#submission"><span class="toc-number">02</span><span>Submission and failure ordering</span></a></li><li><a href="#transfer"><span class="toc-number">03</span><span>Transfers and staging</span></a></li><li><a href="#ordering"><span class="toc-number">04</span><span>Queues and visibility</span></a></li><li><a href="#numeric"><span class="toc-number">05</span><span>Precision and compiler specialization</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Explicit allocation and dependency handles</span></a></li><li><a href="#specialized-functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Design boundary and related pages</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Tensor pages"><h2>Tensor reference</h2><div class="family-links"><a href="Tensor.html">Tensor</a><a href="Tensor_Shape.html">Tensor Shape</a><a href="Tensor_View.html">Tensor Views</a><a href="Tensor_Device.html" aria-current="page">Tensor Device</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tensor Device reference">
+<section id="placement" aria-labelledby="placement-heading">
+<h2 id="placement-heading">1. Placement is a checked capability
+</h2>
+<p>P distinguishes placement classes such as Cpu and Gpu. DeviceId identifies an actual allocation context and device. The same Gpu marker can describe incompatible devices, so queue submission checks concrete identity and supported memory access. Unified virtual addressing, unified physical memory and coherent host access are separate backend capabilities; none follows from the word unified in the programming model.
+</p>
+<p>The goal is one typed shape and operation model. It does not erase transfer costs or assume every CPU scalar operation is native on every GPU. Storage support, arithmetic support, synchronization support and atomic support are queried separately. A target can store f64 yet lack the requested f64 operation profile or offer poor throughput.
+</p>
+</section>
+<section id="submission" aria-labelledby="submission-heading">
+<h2 id="submission-heading">2. Submission and failure ordering
+</h2>
+<p>Tensor.submit accepts a typed TensorOp descriptor, validates shapes and capabilities, registers resource leases, then submits work. Submission can include explicit specialization and allocation and therefore returns Result. A successful submission returns Pending&lt;Out&gt;; it does not return a ready tensor. The selected queue and operation determine execution placement, with no implicit fallback transfer to Cpu.
+</p>
+<p>An adapter must handle partial submission carefully. If a backend reports failure after accepting any work, resource leases remain retained until quiescence is established. A simple error return cannot imply that no device access occurred. SubmitError may carry a receipt or recovery state so a device scope can drain accepted work safely. This is a required contract, not a claim that all backends already implement it.
+</p>
+</section>
+<section id="transfer" aria-labelledby="transfer-heading">
+<h2 id="transfer-heading">3. Transfers and staging
+</h2>
+<p>A transfer explicitly names destination device and policy. Upload keeps source storage stable for the required interval; download keeps the device source live and the host destination inaccessible to conflicting access until completion. Pageable host memory may require staging. The caller chooses a staging policy and can inspect whether bytes were copied into a pinned staging owner.
+</p>
+<p>A true asynchronous transfer may require registered or pinned memory. Passing a stack slice is allowed only when the selected adapter can retain its scoped loan and satisfy backend lifetime requirements, otherwise it returns an unsupported-storage error. Zero-copy mapping is a named capability with synchronization obligations, not a promise that transfer_async transfers zero bytes.
+</p>
+</section>
+<section id="ordering" aria-labelledby="ordering-heading">
+<h2 id="ordering-heading">4. Queues and visibility
+</h2>
+<p>A queue defines ordering only for operations covered by its declared semantics. Cross-queue consumers require explicit dependency tokens and the appropriate visibility operation. An event records a particular generation of submitted work; recycling an event object cannot let an old token certify a newer submission. Queue idle and successful completion are different reports.
+</p>
+<p>Host readability requires a completed producer, the necessary memory visibility/cache operations and a host-accessible allocation. Waiting on a device computation does not download device-only memory. A mapped shared buffer can avoid a bulk transfer but still requires an acquire operation and exclusive ownership transfer. See Pending_Visibility for the complete boundary.
+</p>
+</section>
+<section id="numeric" aria-labelledby="numeric-heading">
+<h2 id="numeric-heading">5. Precision and compiler specialization
+</h2>
+<p>AOT and JIT may specialize shape, layout and device capabilities while preserving the same scalar and error semantics. The strict profile does not silently reassociate reductions, flush subnormals or narrow accumulators. Requested relaxed math is explicit in operation options and remains reflected in the compiled operation identity and cache key.
+</p>
+<p>Compilation reports can describe selected lowering and required capabilities; they do not prove hardware speed or timing. A fallback that changes placement requires an explicit policy and a cost-visible transfer path. Kernel launch bounds and address arithmetic must remain checked even when MLIR or LLVM internal operations have weaker preconditions.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Explicit allocation and dependency handles
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Pending&lt;Tensor&lt;f32, Shape&lt;2, 3&gt;, Gpu&gt;&gt;, SubmitError&gt; initialization = Tensor.zeros_async&lt;f32, Shape&lt;2, 3&gt;&gt;(&amp;queue);
+// Given a validated operation descriptor and already borrowed input descriptors on queue.device.
+Result&lt;Pending&lt;Tensor&lt;f32, Shape&lt;2, 3&gt;, Gpu&gt;&gt;, SubmitError&gt; calculation = Tensor.submit(&amp;queue, operation, inputs);</code></pre>
+<p>The values above are submission results and must be handled before Pending functions are called. Awaiting them through the later control-flow syntax has the same completion contract as the explicit Pending functions. No example implies that a GPU tensor can be immediately read through Cpu indexing.
+</p>
+</section>
+<section id="specialized-functions" aria-labelledby="specialized-functions-heading">
+<h2 id="specialized-functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-device_id"><td><code>Tensor.device_id(&amp;Queue queue)</code></td><td><code>DeviceId</code></td><td>Identity of the queue allocation/compilation context.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-storage_support"><td><code>Tensor.storage_support&lt;T&gt;(DeviceId device)</code></td><td><code>CapabilityReport</code></td><td>Checks storage width, alignment and layout support separately from arithmetic.</td><td>Query only.</td>
+</tr>
+<tr id="Tensor-operation_support"><td><code>Tensor.operation_support(DeviceId device, OperationKind kind, NumericProfile profile)</code></td><td><code>CapabilityReport</code></td><td>Reports lowering and strict-math requirements for the named operation.</td><td>Query; future submission can still fail.</td>
+</tr>
+<tr id="Tensor-upload_async"><td><code>Tensor.upload_async(X cpu_source, &amp;Queue queue, TransferPolicy policy)</code></td><td><code>Result&lt;Pending&lt;O&gt;, SubmitError&gt;</code></td><td>Explicit Cpu-to-device copy; source lease retained until copy no longer reads it.</td><td>O(bytes); staging policy explicit.</td>
+</tr>
+<tr id="Tensor-download_async"><td><code>Tensor.download_async(X device_source, HostAllocationPolicy policy)</code></td><td><code>Result&lt;Pending&lt;O&gt;, SubmitError&gt;</code></td><td>Explicit device-to-Cpu owner allocation and copy; host visibility before result extraction.</td><td>O(bytes); allocates host output.</td>
+</tr>
+<tr id="Tensor-stage_copy"><td><code>Tensor.stage_copy(X cpu_source)</code></td><td><code>Result&lt;PinnedBuffer&lt;T&gt;, TensorError&gt;</code></td><td>Explicit initialized staging owner; copies input bytes/elements without implicit encoding changes.</td><td>O(bytes); pinned allocation may fail.</td>
+</tr>
+<tr id="Tensor-submit_after"><td><code>Tensor.submit_after(&amp;Queue queue, CompletionToken dependency, TensorOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;Out&gt;, SubmitError&gt;</code></td><td>Dependency generation/device compatibility checked; includes needed memory dependency.</td><td>Queued wait; no hidden host wait.</td>
+</tr>
+<tr id="Tensor-compile_report"><td><code>Tensor.compile_report(&amp;CompiledOp&lt;Inputs, Out&gt; operation)</code></td><td><code>CompileReportView</code></td><td>Borrowed options, capabilities and lowering diagnostics; no performance warranty.</td><td>O(1) view.</td>
+</tr>
+<tr id="Tensor-transfer_plan"><td><code>Tensor.transfer_plan(X source, DeviceId destination, TransferPolicy policy)</code></td><td><code>Result&lt;TransferPlan, DeviceError&gt;</code></td><td>Reports intended copy/staging path and byte count without submitting it.</td><td>Query/descriptor allocation may fail.</td>
+</tr>
+<tr id="Tensor-validate_submission"><td><code>Tensor.validate_submission(&amp;Queue queue, TensorOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;SubmissionReport, SubmitError&gt;</code></td><td>Checks known shape/layout/lease constraints; not a reservation of future resources.</td><td>Host validation cost.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Design boundary and related pages
+</h2>
+<p>All signatures are proposed library contracts. AOT and JIT preserve the same validation, lifetime and numeric semantics. An optimization may remove a proven redundant operation, but must preserve observable errors and synchronization boundaries. Supporting descriptor types and generic shape spellings remain design candidates; parameter passing uses the approved value, &amp;T and &amp;mut T forms. Returned-reference lifetime notation remains conceptual.
+</p>
+<p><a href="Tensor.html">Tensor common reference</a> · <a href="Tensor_Shape.html">Shape</a> · <a href="Tensor_View.html">Views</a> · <a href="Tensor_Device.html">Device execution</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/TensorOps/" target="_blank" rel="noopener noreferrer">MLIR Tensor dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/MemRef/" target="_blank" rel="noopener noreferrer">MLIR MemRef dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/ShapeDialect/" target="_blank" rel="noopener noreferrer">MLIR Shape dialect</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy broadcasting</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.copies.html" target="_blank" rel="noopener noreferrer">NumPy copies and views</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Tensor_View.html"><span>Previous reference</span>Tensor Views</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

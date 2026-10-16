@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sorted unique ownership with bounded traversal and explicit node allocation.">
+  <title>OrderedSet — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Set.html" aria-current="true">Set</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Set.html">Set</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">OrderedSet</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>OrderedSet</h1><p class="doc-subtitle">Sorted unique ownership with bounded traversal and explicit node allocation.</p><div class="doc-meta"><span class="meta-chip">OrderedSet&lt;T&gt;</span><span class="meta-chip">OrderedSet namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>22</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>{T}</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Ordered membership</span></a></li><li><a href="#Ordering"><span class="toc-number">02</span><span>Stable total ordering</span></a></li><li><a href="#Ownership"><span class="toc-number">03</span><span>Members and borrows</span></a></li><li><a href="#Failures"><span class="toc-number">04</span><span>Failure boundaries</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>OrderedSet function reference</span></a></li><li><a href="#Ranges-Examples"><span class="toc-number">06</span><span>Sorted ranges and examples</span></a></li><li><a href="#Algebra-Related"><span class="toc-number">07</span><span>Algebra and related types</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Set pages"><h2>Set reference</h2><div class="family-links"><a href="Set.html">Set</a><a href="Ordered_Set.html" aria-current="page">OrderedSet</a><a href="Set_Algebra.html">Set algebra</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="OrderedSet reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Ordered membership
+</h2>
+<p>OrderedSet&lt;T&gt; is the explicit sorted alternative to hashed Set. It owns one representative for each comparator-equivalent member and yields increasing order. This enables minimum/maximum operations and bounded traversal. Its balanced-tree contract has no hash policy or bucket capacity. Empty construction is allocation-free; adding nodes is fallible.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> Function names, callbacks, iterators, traits, and error carriers define proposed Aevix contracts. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. Bindings are immutable unless declared mut; unit is a value type. No implementation or device-support claim follows from this catalog.
+</p>
+</blockquote>
+</section>
+<section id="Ordering" aria-labelledby="Ordering-heading">
+<h2 id="Ordering-heading">2. Stable total ordering
+</h2>
+<p>The element relation must be total and transitive, and remain stable while a member is stored. Comparator equivalence must agree with the chosen equality contract. NaN-bearing numeric keys need an explicit total-order wrapper or policy. Query ordering must agree with stored ordering. A comparator’s changing external state is a logic error; it must not let a safe collection manufacture invalid references or access freed storage.
+</p>
+</section>
+<section id="Ownership" aria-labelledby="Ownership-heading">
+<h2 id="Ownership-heading">3. Members and borrows
+</h2>
+<p>Members are borrowed only immutably. To change ordering-relevant data, remove or take the member before modifying it, then reinsert while handling possible node allocation failure. insert keeps an existing equivalent representative; replace swaps the owner explicitly. Iterators hold the set borrow; balancing, removal, insertion, and destruction cannot invalidate live references through another safe alias.
+</p>
+</section>
+<section id="Failures" aria-labelledby="Failures-heading">
+<h2 id="Failures-heading">4. Failure boundaries
+</h2>
+<p>InputError returns the unused incoming member when duplicate rejection or preflight node allocation fails. The set remains unchanged on a documented preflight failure. CollectionError includes checked size, allocation, and clone failure. User callbacks and finalizers are not rollback transactions: callback unwind preserves initialized memory while prior removals and external effects may remain. No stable node address, allocator layout, or zeroing guarantee is offered.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. OrderedSet function reference
+</h2>
+<div class="table-scroll" role="region" aria-label="OrderedSet function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="OrderedSet-new"><th scope="row"><code>OrderedSet.new(T)</code></th><td><code>OrderedSet&lt;T&gt;</code></td><td>Construct an empty ordered set without allocating nodes; O(1).</td>
+</tr>
+<tr id="OrderedSet-from_values"><th scope="row"><code>OrderedSet.from_values(Slice&lt;T&gt; values)</code></th><td><code>Result&lt;OrderedSet&lt;T&gt;, CollectionError&gt;</code></td><td>Explicitly clone values, keeping first equal representative; clone/allocation failure cleans partial output. O(n log n) comparisons plus clone cost.</td>
+</tr>
+<tr id="OrderedSet-len"><th scope="row"><code>OrderedSet.len(&amp;OrderedSet&lt;T&gt; set)</code></th><td><code>usize</code></td><td>Return distinct member count; O(1).</td>
+</tr>
+<tr id="OrderedSet-is_empty"><th scope="row"><code>OrderedSet.is_empty(&amp;OrderedSet&lt;T&gt; set)</code></th><td><code>bool</code></td><td>Test count zero; O(1).</td>
+</tr>
+<tr id="OrderedSet-contains"><th scope="row"><code>OrderedSet.contains(&amp;OrderedSet&lt;T&gt; set, &amp;Q value)</code></th><td><code>bool</code></td><td>Order-compatible query membership; O(log n) comparisons.</td>
+</tr>
+<tr id="OrderedSet-get"><th scope="row"><code>OrderedSet.get(&amp;OrderedSet&lt;T&gt; set, &amp;Q value)</code></th><td><code>Optional&lt;&amp;T&gt;</code></td><td>Borrow the canonical stored representative; O(log n), no allocation.</td>
+</tr>
+<tr id="OrderedSet-insert"><th scope="row"><code>OrderedSet.insert(&amp;mut OrderedSet&lt;T&gt; set, T value)</code></th><td><code>Result&lt;bool, InputError&lt;T&gt;&gt;</code></td><td>Keep equal stored representative, destroying duplicate input on success false. Preflight node-allocation failure returns incoming owner; O(log n).</td>
+</tr>
+<tr id="OrderedSet-try_insert"><th scope="row"><code>OrderedSet.try_insert(&amp;mut OrderedSet&lt;T&gt; set, T value)</code></th><td><code>Result&lt;&amp;T, InputError&lt;T&gt;&gt;</code></td><td>Insert only if absent; duplicate or preflight failure returns incoming value. Borrow result keeps structural mutation excluded.</td>
+</tr>
+<tr id="OrderedSet-replace"><th scope="row"><code>OrderedSet.replace(&amp;mut OrderedSet&lt;T&gt; set, T value)</code></th><td><code>Result&lt;Optional&lt;T&gt;, InputError&lt;T&gt;&gt;</code></td><td>Replace equal stored representative and return it, or insert if absent. Preflight failure preserves set and returns incoming owner.</td>
+</tr>
+<tr id="OrderedSet-remove"><th scope="row"><code>OrderedSet.remove(&amp;mut OrderedSet&lt;T&gt; set, &amp;Q value)</code></th><td><code>bool</code></td><td>Remove and destroy an equal member; O(log n) plus destruction/balancing.</td>
+</tr>
+<tr id="OrderedSet-take"><th scope="row"><code>OrderedSet.take(&amp;mut OrderedSet&lt;T&gt; set, &amp;Q value)</code></th><td><code>Optional&lt;T&gt;</code></td><td>Remove and transfer stored member ownership; O(log n).</td>
+</tr>
+<tr id="OrderedSet-first"><th scope="row"><code>OrderedSet.first(&amp;OrderedSet&lt;T&gt; set)</code></th><td><code>Optional&lt;&amp;T&gt;</code></td><td>Borrow least member or None; O(log n) worst case.</td>
+</tr>
+<tr id="OrderedSet-last"><th scope="row"><code>OrderedSet.last(&amp;OrderedSet&lt;T&gt; set)</code></th><td><code>Optional&lt;&amp;T&gt;</code></td><td>Borrow greatest member or None; O(log n) worst case.</td>
+</tr>
+<tr id="OrderedSet-pop_first"><th scope="row"><code>OrderedSet.pop_first(&amp;mut OrderedSet&lt;T&gt; set)</code></th><td><code>Optional&lt;T&gt;</code></td><td>Remove least member and transfer owner; O(log n).</td>
+</tr>
+<tr id="OrderedSet-pop_last"><th scope="row"><code>OrderedSet.pop_last(&amp;mut OrderedSet&lt;T&gt; set)</code></th><td><code>Optional&lt;T&gt;</code></td><td>Remove greatest member and transfer owner; O(log n).</td>
+</tr>
+<tr id="OrderedSet-iter"><th scope="row"><code>OrderedSet.iter(&amp;OrderedSet&lt;T&gt; set)</code></th><td><code>DoubleEndedIterator&lt;&amp;T&gt;</code></td><td>Borrow members in increasing order; O(log n) setup, O(n) total traversal.</td>
+</tr>
+<tr id="OrderedSet-range"><th scope="row"><code>OrderedSet.range(&amp;OrderedSet&lt;T&gt; set, &amp;T lower, &amp;T upper)</code></th><td><code>Result&lt;DoubleEndedIterator&lt;&amp;T&gt;, RangeError&gt;</code></td><td>Borrow lower &lt;= value &lt; upper; reversed bounds error, equal bounds empty. O(log n) setup plus O(k) traversal.</td>
+</tr>
+<tr id="OrderedSet-retain"><th scope="row"><code>OrderedSet.retain(&amp;mut OrderedSet&lt;T&gt; set, Predicate&lt;&amp;T&gt; keep)</code></th><td><code>unit</code></td><td>Visit in increasing order and remove rejected members. No mutable member access; prior removals remain on unwind; O(n log n) upper bound plus callbacks.</td>
+</tr>
+<tr id="OrderedSet-clear"><th scope="row"><code>OrderedSet.clear(&amp;mut OrderedSet&lt;T&gt; set)</code></th><td><code>unit</code></td><td>Destroy members and release nodes; O(n) plus destructors.</td>
+</tr>
+<tr id="OrderedSet-into_iter"><th scope="row"><code>OrderedSet.into_iter(OrderedSet&lt;T&gt; set)</code></th><td><code>OwningDoubleEndedIterator&lt;T&gt;</code></td><td>Move members out in sorted order; drop destroys unyielded members and releases nodes.</td>
+</tr>
+<tr id="OrderedSet-clone"><th scope="row"><code>OrderedSet.clone(&amp;OrderedSet&lt;T&gt; set)</code></th><td><code>Result&lt;OrderedSet&lt;T&gt;, CollectionError&gt;</code></td><td>Explicit fallible clone; partial output cleanup on clone/allocation failure; O(n) node work plus clones.</td>
+</tr>
+<tr id="OrderedSet-equal"><th scope="row"><code>OrderedSet.equal(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>bool</code></td><td>Compare sorted membership under compatible ordering/equality; O(n) comparisons.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Ranges-Examples" aria-labelledby="Ranges-Examples-heading">
+<h2 id="Ranges-Examples-heading">6. Sorted ranges and examples
+</h2>
+<p>range is half-open: lower is included, upper excluded. Equal bounds produce no values; reversed bounds return RangeError before yielding. Bounds locate the traversal and need not outlive construction; yielded member references remain tied to the set. A range visits k matching elements after logarithmic setup.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">OrderedSet&lt;i32&gt; empty = OrderedSet.new(i32);
+usize count = OrderedSet.len(&amp;empty);
+Optional&lt;&amp;i32&gt; least = OrderedSet.first(&amp;empty);</code></pre>
+</section>
+<section id="Algebra-Related" aria-labelledby="Algebra-Related-heading">
+<h2 id="Algebra-Related-heading">7. Algebra and related types
+</h2>
+<p>The <a href="Set_Algebra.html">algebra catalog</a> defines sorted merge iterators for ordered sets. They borrow both sets, need no output allocation, and preserve increasing order. Owned results require explicit copying or cloning and fallible storage construction. Logarithmic key search still includes comparison cost, and destruction is linear in removed members plus finalizers. See <a href="Set.html">Set</a>, <a href="../Map/Ordered_Map.html">OrderedMap</a>, and <a href="../Slice/Slice.html">Slice</a>.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.BTreeSet.html" target="_blank" rel="noopener noreferrer">Rust BTreeSet reference: ordered membership and ranges</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Set.html"><span>Previous reference</span>Set</a><a href="Set_Algebra.html"><span>Next reference</span>Set algebra</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

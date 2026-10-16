@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Checked fixed-width fields with explicit endianness and no alias casts.">
+  <title>Byte Order — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Byte.html" aria-current="true">Byte</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Byte.html">Byte</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Byte Order</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Byte Order</h1><p class="doc-subtitle">Checked fixed-width fields with explicit endianness and no alias casts.</p><div class="doc-meta"><span class="meta-chip">Slice&lt;byte&gt;</span><span class="meta-chip">Byte. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Offsets</dt><dd>Byte offsets</dd></div><div class="doc-stat"><dt>Orders</dt><dd>Little / big / native</dd></div><div class="doc-stat"><dt>Catalog</dt><dd>48 APIs</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>byte</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>A Width and an Order</span></a></li><li><a href="#Portable-Layout"><span class="toc-number">02</span><span>Portable Layout and Native Interop</span></a></li><li><a href="#Read-Contract"><span class="toc-number">03</span><span>Bounds, Signedness, and Cost</span></a></li><li><a href="#Integer-16"><span class="toc-number">04</span><span>Sixteen-Bit Fields</span></a></li><li><a href="#Integer-32"><span class="toc-number">05</span><span>Thirty-Two-Bit Fields</span></a></li><li><a href="#Integer-64"><span class="toc-number">06</span><span>Sixty-Four-Bit Fields</span></a></li><li><a href="#Single-Byte-Float"><span class="toc-number">07</span><span>Single Bytes and Floating Representations</span></a></li><li><a href="#Writes-Examples"><span class="toc-number">08</span><span>Writes, Ownership, and Examples</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Byte pages"><h2>Byte reference</h2><div class="family-links"><a href="Byte.html">Byte</a><a href="Byte_Buffer.html">Byte Buffer</a><a href="Byte_Order.html" aria-current="page">Byte Order</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Byte Order reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. A Width and an Order
+</h2>
+<p>Endianness orders bytes inside a multi-byte value. It does not reverse bits within each byte, determine signedness, or specify a complete file format. A one-byte field needs no byte-order distinction. This page defines Byte namespace operations over raw slices instead of unchecked native pointer casts. All offsets and returned write lengths count bytes. The caller still chooses an application-level field schema.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> Names, support records, and conceptual syntax describe proposed Aevix contracts. They do not claim implementation or measured performance. Declarations put the type first and bindings are immutable by default. MutSlice&lt;T&gt; denotes an exclusive writable view; <code>mut</code>, <code>&amp;T</code>, and <code>&amp;mut T</code> follow the chosen declaration and borrow rules. Catalog-specific support records and signatures remain proposals.
+</p>
+</blockquote>
+</section>
+<section id="Portable-Layout" aria-labelledby="Portable-Layout-heading">
+<h2 id="Portable-Layout-heading">2. Portable Layout and Native Interop
+</h2>
+<p>Little-endian places the least significant byte first, while big-endian places it last. Thus u16 value 0x1234 encodes as [0x34, 0x12] in little-endian and [0x12, 0x34] in big-endian. Native order means the executing target’s documented representation, not a universal host convention. Native-order fields are unsuitable as an unspecified portable file format. A schema separately declares field order, widths, padding, tags, lengths, and versioning.
+</p><p>The common <a href="../Integer/Integer.html#Integer-to_le_bytes">Integer representation APIs</a> and <a href="../Float/Float.html">Float representation APIs</a> use the same raw <code>byte</code> element type as this page. A fixed codec produces or consumes <code>Array&lt;byte, N&gt;</code>; dynamic codecs borrow <code>Slice&lt;byte&gt;</code> or <code>MutSlice&lt;byte&gt;</code>. A numeric <code>u8</code> array requires explicit element conversion rather than implicit reinterpretation. Float <code>to_bits</code>/<code>from_bits</code> instead use unsigned integer words and remain distinct from byte serialization.</p>
+</section>
+<section id="Read-Contract" aria-labelledby="Read-Contract-heading">
+<h2 id="Read-Contract-heading">3. Bounds, Signedness, and Cost
+</h2>
+<p>A read requires offset ≤ length and width ≤ length − offset. This avoids overflowing offset plus width. Reads use initialized bytes without native alignment requirements and allocate no heap memory. Signed decoding uses the chosen fixed-width two’s-complement interpretation: ff ff gives −1 as i16, but 65535 as u16. This is decoding a declared representation, not a numeric cast silently ignoring a conversion error. Fixed widths do not change with usize.
+</p>
+</section>
+<section id="Integer-16" aria-labelledby="Integer-16-heading">
+<h2 id="Integer-16-heading">4. Sixteen-Bit Fields
+</h2>
+<p>Each function below consumes or writes exactly two bytes. Its spelling fixes the result type and byte order; data never chooses its own encoding. The caller keeps the source owner and the result is an independent scalar. Writes need MutSlice exclusivity. A failed capacity check leaves output unchanged, and a write never grows the owner implicitly. Protocol semantic constraints, such as allowed value ranges, remain separate after successful field decoding.
+</p>
+<div class="table-scroll" role="region" aria-label="Sixteen-Bit Fields data table">
+<table>
+<thead>
+<tr><th scope="col">Signature</th><th scope="col">Returns</th><th scope="col">Contract and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u16_le"><th scope="row"><code>Byte.read_u16_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u16, ByteError&gt;</code></td><td>Read exactly 2 little-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u16_le"><th scope="row"><code>Byte.write_u16_le(MutSlice&lt;byte&gt; output, usize offset, u16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 2 little-endian bytes, and return 2; no allocation.</td>
+</tr>
+<tr id="Byte-read_u16_be"><th scope="row"><code>Byte.read_u16_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u16, ByteError&gt;</code></td><td>Read exactly 2 big-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u16_be"><th scope="row"><code>Byte.write_u16_be(MutSlice&lt;byte&gt; output, usize offset, u16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 2 big-endian bytes, and return 2; no allocation.</td>
+</tr>
+<tr id="Byte-read_u16_ne"><th scope="row"><code>Byte.read_u16_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u16, ByteError&gt;</code></td><td>Read exactly 2 target-native-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u16_ne"><th scope="row"><code>Byte.write_u16_ne(MutSlice&lt;byte&gt; output, usize offset, u16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 2 target-native-endian bytes, and return 2; no allocation.</td>
+</tr>
+<tr id="Byte-read_i16_le"><th scope="row"><code>Byte.read_i16_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i16, ByteError&gt;</code></td><td>Read exactly 2 little-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i16_le"><th scope="row"><code>Byte.write_i16_le(MutSlice&lt;byte&gt; output, usize offset, i16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 2 little-endian bytes, and return 2; no allocation.</td>
+</tr>
+<tr id="Byte-read_i16_be"><th scope="row"><code>Byte.read_i16_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i16, ByteError&gt;</code></td><td>Read exactly 2 big-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i16_be"><th scope="row"><code>Byte.write_i16_be(MutSlice&lt;byte&gt; output, usize offset, i16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 2 big-endian bytes, and return 2; no allocation.</td>
+</tr>
+<tr id="Byte-read_i16_ne"><th scope="row"><code>Byte.read_i16_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i16, ByteError&gt;</code></td><td>Read exactly 2 target-native-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i16_ne"><th scope="row"><code>Byte.write_i16_ne(MutSlice&lt;byte&gt; output, usize offset, i16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 2 target-native-endian bytes, and return 2; no allocation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Integer-32" aria-labelledby="Integer-32-heading">
+<h2 id="Integer-32-heading">5. Thirty-Two-Bit Fields
+</h2>
+<p>These functions use exactly four bytes, not the platform width of a C int or pointer-sized integer. Native-order variants remain fixed-width. Application code can perform an explicit checked conversion after decoding when a narrower value or usize is required. A valid decoded integer is not automatically a valid index, allocation length, Unicode scalar, or trustworthy protocol tag. Byte order alone does not validate those meanings or authenticate the message.
+</p>
+<div class="table-scroll" role="region" aria-label="Thirty-Two-Bit Fields data table">
+<table>
+<thead>
+<tr><th scope="col">Signature</th><th scope="col">Returns</th><th scope="col">Contract and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u32_le"><th scope="row"><code>Byte.read_u32_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u32, ByteError&gt;</code></td><td>Read exactly 4 little-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u32_le"><th scope="row"><code>Byte.write_u32_le(MutSlice&lt;byte&gt; output, usize offset, u32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 4 little-endian bytes, and return 4; no allocation.</td>
+</tr>
+<tr id="Byte-read_u32_be"><th scope="row"><code>Byte.read_u32_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u32, ByteError&gt;</code></td><td>Read exactly 4 big-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u32_be"><th scope="row"><code>Byte.write_u32_be(MutSlice&lt;byte&gt; output, usize offset, u32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 4 big-endian bytes, and return 4; no allocation.</td>
+</tr>
+<tr id="Byte-read_u32_ne"><th scope="row"><code>Byte.read_u32_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u32, ByteError&gt;</code></td><td>Read exactly 4 target-native-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u32_ne"><th scope="row"><code>Byte.write_u32_ne(MutSlice&lt;byte&gt; output, usize offset, u32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 4 target-native-endian bytes, and return 4; no allocation.</td>
+</tr>
+<tr id="Byte-read_i32_le"><th scope="row"><code>Byte.read_i32_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i32, ByteError&gt;</code></td><td>Read exactly 4 little-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i32_le"><th scope="row"><code>Byte.write_i32_le(MutSlice&lt;byte&gt; output, usize offset, i32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 4 little-endian bytes, and return 4; no allocation.</td>
+</tr>
+<tr id="Byte-read_i32_be"><th scope="row"><code>Byte.read_i32_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i32, ByteError&gt;</code></td><td>Read exactly 4 big-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i32_be"><th scope="row"><code>Byte.write_i32_be(MutSlice&lt;byte&gt; output, usize offset, i32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 4 big-endian bytes, and return 4; no allocation.</td>
+</tr>
+<tr id="Byte-read_i32_ne"><th scope="row"><code>Byte.read_i32_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i32, ByteError&gt;</code></td><td>Read exactly 4 target-native-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i32_ne"><th scope="row"><code>Byte.write_i32_ne(MutSlice&lt;byte&gt; output, usize offset, i32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 4 target-native-endian bytes, and return 4; no allocation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Integer-64" aria-labelledby="Integer-64-heading">
+<h2 id="Integer-64-heading">6. Sixty-Four-Bit Fields
+</h2>
+<p>Eight-byte codecs preserve all integer bits, including the high unsigned bit. No floating intermediate is allowed because f64 cannot exactly represent every 64-bit integer. Implementations can assemble the result without an aligned load; native acceleration must preserve the same bounds and representation contract. Supporting eight-byte storage does not promise native GPU arithmetic, atomics, or a particular speed. Tensor placement and in-flight access permissions remain in force.
+</p>
+<div class="table-scroll" role="region" aria-label="Sixty-Four-Bit Fields data table">
+<table>
+<thead>
+<tr><th scope="col">Signature</th><th scope="col">Returns</th><th scope="col">Contract and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u64_le"><th scope="row"><code>Byte.read_u64_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u64, ByteError&gt;</code></td><td>Read exactly 8 little-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u64_le"><th scope="row"><code>Byte.write_u64_le(MutSlice&lt;byte&gt; output, usize offset, u64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 8 little-endian bytes, and return 8; no allocation.</td>
+</tr>
+<tr id="Byte-read_u64_be"><th scope="row"><code>Byte.read_u64_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u64, ByteError&gt;</code></td><td>Read exactly 8 big-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u64_be"><th scope="row"><code>Byte.write_u64_be(MutSlice&lt;byte&gt; output, usize offset, u64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 8 big-endian bytes, and return 8; no allocation.</td>
+</tr>
+<tr id="Byte-read_u64_ne"><th scope="row"><code>Byte.read_u64_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u64, ByteError&gt;</code></td><td>Read exactly 8 target-native-endian bytes as unsigned; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_u64_ne"><th scope="row"><code>Byte.write_u64_ne(MutSlice&lt;byte&gt; output, usize offset, u64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 8 target-native-endian bytes, and return 8; no allocation.</td>
+</tr>
+<tr id="Byte-read_i64_le"><th scope="row"><code>Byte.read_i64_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i64, ByteError&gt;</code></td><td>Read exactly 8 little-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i64_le"><th scope="row"><code>Byte.write_i64_le(MutSlice&lt;byte&gt; output, usize offset, i64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 8 little-endian bytes, and return 8; no allocation.</td>
+</tr>
+<tr id="Byte-read_i64_be"><th scope="row"><code>Byte.read_i64_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i64, ByteError&gt;</code></td><td>Read exactly 8 big-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i64_be"><th scope="row"><code>Byte.write_i64_be(MutSlice&lt;byte&gt; output, usize offset, i64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 8 big-endian bytes, and return 8; no allocation.</td>
+</tr>
+<tr id="Byte-read_i64_ne"><th scope="row"><code>Byte.read_i64_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i64, ByteError&gt;</code></td><td>Read exactly 8 target-native-endian bytes as two’s-complement signed; no allocation or alignment requirement.</td>
+</tr>
+<tr id="Byte-write_i64_ne"><th scope="row"><code>Byte.write_i64_ne(MutSlice&lt;byte&gt; output, usize offset, i64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check all bounds, write 8 target-native-endian bytes, and return 8; no allocation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Single-Byte-Float" aria-labelledby="Single-Byte-Float-heading">
+<h2 id="Single-Byte-Float-heading">7. Single Bytes and Floating Representations
+</h2>
+<p>Single-byte functions distinguish u8 and i8 numeric interpretation without redundant endian suffixes. Floating codecs transport f32/f64 representations rather than integer-to-float numeric conversions. Transport preserves signed zero and NaN payload bits; later arithmetic follows Float rules and may transform NaNs. Use the <a href="../Float/Float.html">Float byte APIs</a> for f16 and bf16 instead of redefining those codecs here. A raw floating decode does not establish finiteness or a valid application-domain value.
+</p>
+<div class="table-scroll" role="region" aria-label="Single Bytes and Floating Representations data table">
+<table>
+<thead>
+<tr><th scope="col">Signature</th><th scope="col">Returns</th><th scope="col">Contract and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u8"><th scope="row"><code>Byte.read_u8(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u8, ByteError&gt;</code></td><td>Read one byte with the declared unsigned or two’s-complement interpretation.</td>
+</tr>
+<tr id="Byte-write_u8"><th scope="row"><code>Byte.write_u8(MutSlice&lt;byte&gt; output, usize offset, u8 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Validate then write one representation byte; return one.</td>
+</tr>
+<tr id="Byte-read_i8"><th scope="row"><code>Byte.read_i8(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i8, ByteError&gt;</code></td><td>Read one byte with the declared unsigned or two’s-complement interpretation.</td>
+</tr>
+<tr id="Byte-write_i8"><th scope="row"><code>Byte.write_i8(MutSlice&lt;byte&gt; output, usize offset, i8 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Validate then write one representation byte; return one.</td>
+</tr>
+<tr id="Byte-read_f32_le"><th scope="row"><code>Byte.read_f32_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f32, ByteError&gt;</code></td><td>Decode exactly 4 little-endian representation bytes, preserving signed zero and NaN bits.</td>
+</tr>
+<tr id="Byte-write_f32_le"><th scope="row"><code>Byte.write_f32_le(MutSlice&lt;byte&gt; output, usize offset, f32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check bounds, write 4 exact little-endian representation bytes, and return 4.</td>
+</tr>
+<tr id="Byte-read_f32_be"><th scope="row"><code>Byte.read_f32_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f32, ByteError&gt;</code></td><td>Decode exactly 4 big-endian representation bytes, preserving signed zero and NaN bits.</td>
+</tr>
+<tr id="Byte-write_f32_be"><th scope="row"><code>Byte.write_f32_be(MutSlice&lt;byte&gt; output, usize offset, f32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check bounds, write 4 exact big-endian representation bytes, and return 4.</td>
+</tr>
+<tr id="Byte-read_f64_le"><th scope="row"><code>Byte.read_f64_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f64, ByteError&gt;</code></td><td>Decode exactly 8 little-endian representation bytes, preserving signed zero and NaN bits.</td>
+</tr>
+<tr id="Byte-write_f64_le"><th scope="row"><code>Byte.write_f64_le(MutSlice&lt;byte&gt; output, usize offset, f64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check bounds, write 8 exact little-endian representation bytes, and return 8.</td>
+</tr>
+<tr id="Byte-read_f64_be"><th scope="row"><code>Byte.read_f64_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f64, ByteError&gt;</code></td><td>Decode exactly 8 big-endian representation bytes, preserving signed zero and NaN bits.</td>
+</tr>
+<tr id="Byte-write_f64_be"><th scope="row"><code>Byte.write_f64_be(MutSlice&lt;byte&gt; output, usize offset, f64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>Check bounds, write 8 exact big-endian representation bytes, and return 8.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Writes-Examples" aria-labelledby="Writes-Examples-heading">
+<h2 id="Writes-Examples-heading">8. Writes, Ownership, and Examples
+</h2>
+<p>Validate then write means bounds failure leaves output unchanged; it does not promise a hardware atomic transaction, synchronization, or durable storage. Borrow rules forbid conflicting source and output aliases. Numeric scalar inputs do not alias destination bytes. Writes never allocate hidden storage. Use <a href="Byte_Buffer.html">Byte Buffer</a> to grow an owner and <a href="../Integer/Integer.html">Integer</a> for arithmetic.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;byte, 2&gt; data = [Byte.from_u8(0x34), Byte.from_u8(0x12)];
+Slice&lt;byte&gt; view = Slice.from_array(&amp;data);
+Byte.read_u16_le(view, 0); // Result containing 4660
+Byte.read_u16_be(view, 0); // Result containing 13330
+Byte.read_u16_le(view, 1); // bounds error</code></pre>
+<p>Text streams need their own UTF-16/UTF-32 codec and BOM policy; UTF-8 has no endian alternatives. See <a href="../String/string.html">string</a> and <a href="../Char/Unicode_Scalar.html">Unicode Scalar</a>. API names and support records remain proposals; primary references do not certify an Aevix implementation.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://docs.python.org/3/library/struct.html" target="_blank" rel="noopener noreferrer">Python struct — explicit byte order, size, and alignment</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.u8.html" target="_blank" rel="noopener noreferrer">Rust u8 — bit operations and byte-order comparison</a>
+</li>
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank" rel="noopener noreferrer">Unicode Core Specification — encoding and error substitution</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Byte_Buffer.html"><span>Previous reference</span>Byte Buffer</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

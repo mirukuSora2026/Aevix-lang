@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Derived references, mapped fields, and explicit release.">
+  <title>Mutex Guards — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Mutex.html" aria-current="true">Mutex</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Mutex.html">Mutex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Mutex Guards</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Mutex Guards</h1><p class="doc-subtitle">Derived references, mapped fields, and explicit release.</p><div class="doc-meta"><span class="meta-chip">MutexGuard&lt;T&gt;</span><span class="meta-chip">Mutex namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>8</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>lock</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Capability"><span class="toc-number">01</span><span>The Guard Is the Access Proof</span></a></li><li><a href="#Threads"><span class="toc-number">02</span><span>Thread Affinity and Suspension</span></a></li><li><a href="#Projection"><span class="toc-number">03</span><span>Mapped Field Guards</span></a></li><li><a href="#Function-Reference"><span class="toc-number">04</span><span>Individually Defined Guard Operations</span></a></li><li><a href="#Release"><span class="toc-number">05</span><span>Release, Exceptions, and Leaks</span></a></li><li><a href="#Read-Write"><span class="toc-number">06</span><span>Reader/Writer Boundaries</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>Related Common and Recovery Contracts</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Mutex pages"><h2>Mutex reference</h2><div class="family-links"><a href="Mutex.html">Mutex</a><a href="Mutex_Guard.html" aria-current="page">Mutex Guards</a><a href="Mutex_Poisoning.html">Mutex Poisoning</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Mutex Guards reference">
+<section id="Capability" aria-labelledby="Capability-heading">
+<h2 id="Capability-heading">1. The Guard Is the Access Proof
+</h2>
+<p>A guard represents an acquired lock capability, not an owned copy of T. Borrowing fields requires retaining that capability, and dropping or explicitly unlocking it ends access. Moving a derived reference elsewhere cannot detach it from the guard lifetime. The lock owner remains borrowed until all relevant guards and waiters end. The safe profile provides no raw guard-forgetting escape that grants unprotected references.
+</p>
+</section>
+<section id="Threads" aria-labelledby="Threads-heading">
+<h2 id="Threads-heading">2. Thread Affinity and Suspension
+</h2>
+<p>The default guard is non-Send and must be released on its acquiring execution context. It cannot cross await in the safe async profile, be handed to a GPU kernel, or be captured by detached work. This conservative rule respects backends whose unlock operations have thread affinity. A Shared owner retains storage only; it does not allow copying or fabricating guard capabilities.
+</p>
+</section>
+<section id="Projection" aria-labelledby="Projection-heading">
+<h2 id="Projection-heading">3. Mapped Field Guards
+</h2>
+<p>Mapping consumes the original guard and retains its same underlying lock lease. A projection callback returns a field borrow tied to the input, not a reference into unrelated temporary storage. The mapped guard controls only its exposed projection, but the underlying full lock remains held. Fallible mapping returns the original guard if the field is absent. No allocation is needed for the borrow transformation.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">4. Individually Defined Guard Operations
+</h2>
+<div class="table-scroll" role="region" aria-label="Individually Defined Guard Operations data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, errors, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Mutex-data"><th scope="row"><code>Mutex.data(&amp;MutexGuard&lt;T&gt; guard)</code></th><td><code>&amp;T</code></td><td>Borrow data only while the guard capability remains held.</td>
+</tr>
+<tr id="Mutex-data_mut"><th scope="row"><code>Mutex.data_mut(&amp;mut MutexGuard&lt;T&gt; guard)</code></th><td><code>&amp;mut T</code></td><td>Exclusive reborrow bounded by guard lifetime; no separate lock acquisition.</td>
+</tr>
+<tr id="Mutex-unlock"><th scope="row"><code>Mutex.unlock(MutexGuard&lt;T&gt; guard)</code></th><td><code>unit</code></td><td>Release exactly this guard; all derived references must already be unusable.</td>
+</tr>
+<tr id="Mutex-guard_map"><th scope="row"><code>Mutex.guard_map(MutexGuard&lt;T&gt; guard, FieldBorrow&lt;T, U&gt; project)</code></th><td><code>MappedMutexGuard&lt;U&gt;</code></td><td>Move the same lock capability into a projected field guard; no allocation.</td>
+</tr>
+<tr id="Mutex-guard_try_map"><th scope="row"><code>Mutex.guard_try_map(MutexGuard&lt;T&gt; guard, OptionalFieldBorrow&lt;T, U&gt; project)</code></th><td><code>Result&lt;MappedMutexGuard&lt;U&gt;, MutexGuard&lt;T&gt;&gt;</code></td><td>No field returns the original held guard; projection cannot invent an unrelated lifetime.</td>
+</tr>
+<tr id="Mutex-mapped_data"><th scope="row"><code>Mutex.mapped_data(&amp;MappedMutexGuard&lt;U&gt; guard)</code></th><td><code>&amp;U</code></td><td>Read a projected field while retaining the original lock lease.</td>
+</tr>
+<tr id="Mutex-mapped_data_mut"><th scope="row"><code>Mutex.mapped_data_mut(&amp;mut MappedMutexGuard&lt;U&gt; guard)</code></th><td><code>&amp;mut U</code></td><td>Exclusive projected reborrow; other protected data remains unavailable.</td>
+</tr>
+<tr id="Mutex-unlock_mapped"><th scope="row"><code>Mutex.unlock_mapped(MappedMutexGuard&lt;U&gt; guard)</code></th><td><code>unit</code></td><td>Release the original lock held by the mapped guard.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Release" aria-labelledby="Release-heading">
+<h2 id="Release-heading">5. Release, Exceptions, and Leaks
+</h2>
+<p>Normal guard destruction releases the lock. Unwinding follows the selected poison policy before release. Forced process termination cannot promise finalization, and leaking a held capability can prevent progress without creating permission to access data unsafely. Unlocking is not a durable disk flush or arbitrary GPU fence. Pointee references must be unusable before release; an API returning R from a guarded callback enforces that non-escape rule.
+</p>
+</section>
+<section id="Read-Write" aria-labelledby="Read-Write-heading">
+<h2 id="Read-Write-heading">6. Reader/Writer Boundaries
+</h2>
+<p>Readers do not own a future right to upgrade. Reacquiring exclusive access while retaining a read capability may deadlock, especially with queued-writer policies. A mutex is non-reentrant by default; taking the same mutex recursively from a destructor or callback can deadlock. No automatic global lock order is inferred.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7. Related Common and Recovery Contracts
+</h2>
+<p>The <a href="Mutex.html">Mutex common catalog</a> defines acquisition and owner access. <a href="Mutex_Poisoning.html">Poison recovery</a> explains why an error can carry a held guard. Mapped guard support records and callback bounds are descriptive proposals, not hidden compiler syntax. No lock-free or deadlock-free property is implied by the existence of a safe guard type.
+</p>
+<p>Successful acquisition and poison-error acquisition both retain an unlock obligation. The Result must be inspected before protected access.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Mutex&lt;i32&gt; gate = Mutex.new(0);
+Result&lt;MutexGuard&lt;i32&gt;, LockError&lt;MutexGuard&lt;i32&gt;&gt;&gt; acquired = Mutex.lock(&amp;gate);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html" target="_blank" rel="noopener noreferrer">Rust Mutex — exclusion, poisoning, and recovery comparison</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Mutex.html"><span>Previous reference</span>Mutex</a><a href="Mutex_Poisoning.html"><span>Next reference</span>Mutex Poisoning</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

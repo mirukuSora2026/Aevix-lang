@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Source retention, destination exclusivity and visible staging costs.">
+  <title>Pending Transfers — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Pending.html" aria-current="true">Pending</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html" aria-current="true">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Pending.html">Pending</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Pending Transfers</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Pending Transfers</h1><p class="doc-subtitle">Source retention, destination exclusivity and visible staging costs.</p><div class="doc-meta"><span class="meta-chip">Pending&lt;TransferOutput&gt;</span><span class="meta-chip">Pending. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>10</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>…</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>A transfer is work with memory obligations</span></a></li><li><a href="#size"><span class="toc-number">02</span><span>Lengths, layout and initialized elements</span></a></li><li><a href="#staging"><span class="toc-number">03</span><span>Pinned memory and explicit staging</span></a></li><li><a href="#borrow"><span class="toc-number">04</span><span>Borrowed host storage and scoped submission</span></a></li><li><a href="#download"><span class="toc-number">05</span><span>Download completion and host access</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Planning and named transfer paths</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Backend boundary</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Pending pages"><h2>Pending reference</h2><div class="family-links"><a href="Pending.html">Pending</a><a href="Pending_Transfer.html" aria-current="page">Pending Transfers</a><a href="Pending_Visibility.html">Pending Visibility</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html" aria-current="true">Pending</a></div></nav></aside><article class="content" aria-label="Pending Transfers reference">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1. A transfer is work with memory obligations
+</h2>
+<p>An asynchronous transfer explicitly names source, destination, logical byte or element count, device identities and policy. Its Pending handle tracks work already accepted for submission. Upload, download and device-to-device copy are distinct paths even when they share a generic transfer operation. Unified addressing does not establish coherent access, equal devices or zero transfer cost.
+</p>
+<p>The transfer registry retains allocation owners or scoped loans before the backend can access them. Source read loans prevent conflicting writes; destination exclusive loans prevent reads and overlapping writes until the transfer completes and required visibility is established. Dropping an observation handle cannot end DMA lifetime requirements.
+</p>
+</section>
+<section id="size" aria-labelledby="size-heading">
+<h2 id="size-heading">2. Lengths, layout and initialized elements
+</h2>
+<p>Element transfers require equal logical shape and compatible element representation unless an explicitly named conversion is requested. Byte transfers validate byte counts, allocation spans, alignment restrictions and overlap policy using checked arithmetic. Tensor logical byte length can differ from a strided storage span; a simple contiguous copy cannot blindly use one in place of the other.
+</p>
+<p>A strided transfer either uses a supported gather/scatter path or requires an explicit materialization/staging operation. No adapter may silently expose padding bytes as initialized values. Empty transfers perform no element access but still validate identities, descriptors and completion-token semantics. Caller-provided destinations may be partially written on a late backend failure.
+</p>
+</section>
+<section id="staging" aria-labelledby="staging-heading">
+<h2 id="staging-heading">3. Pinned memory and explicit staging
+</h2>
+<p>Some backends require pinned or registered host memory for true asynchronous DMA. An ordinary pageable slice can require a staging copy or a synchronous step. TransferPolicy states whether staging is allowed, required or forbidden; a plan reports the intended path and estimated bytes before submission. A plan is not a reservation or proof of actual overlap.
+</p>
+<p><a href="#Pending-pin_copy"><code>Pending.pin_copy</code></a> creates an initialized pinned staging owner with an explicit allocation and copy. It is retained until the backend no longer reads it. Registering an existing host buffer needs lifetime and backend registration guarantees and is a fallible explicit operation. Registration does not turn arbitrary stack memory into independently owned storage.
+</p>
+</section>
+<section id="borrow" aria-labelledby="borrow-heading">
+<h2 id="borrow-heading">4. Borrowed host storage and scoped submission
+</h2>
+<p>A borrowed host buffer can participate only when its DeviceScope proves that the storage remains valid until transfer quiescence. Exclusive host access is unavailable while a device writes or reads in a conflicting way. A task suspension or cancellation request does not shorten this interval. The registry cannot rely only on a user-defined destructor for safety.
+</p>
+<p>A detached transfer requires owned resources, including any metadata and pinned registration owner. Failed detach returns the original operation handle. If submission partially succeeds, the error retains a recovery receipt and all accepted work remains registered. Ordinary failure is not evidence that the source can immediately be freed.
+</p>
+</section>
+<section id="download" aria-labelledby="download-heading">
+<h2 id="download-heading">5. Download completion and host access
+</h2>
+<p>Downloading into a new Cpu owner exposes that owner only after successful initialization and required host visibility. Downloading into caller storage retains an exclusive loan and reports output validity on failure. Waiting for a device kernel alone is not a download, and acquiring a host mapping is valid only for storage that actually supports host access.
+</p>
+<p>A mapping capability may avoid a bulk copy while still requiring invalidate/acquire operations and ownership transfer. Coherent host memory can remove a cache operation only when the adapter has the required capability proof. It cannot remove completion ordering or conflicting-access restrictions.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Planning and named transfer paths
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">// source/destination and host_source/device_source are already borrowed transfer-buffer views.
+Result&lt;TransferPlan, DeviceError&gt; plan = Pending.plan_transfer(source, destination, transfer_policy);
+Result&lt;Pending&lt;TransferOutput&gt;, SubmitError&gt; upload = Pending.upload(&amp;scope, &amp;queue, host_source, transfer_policy);
+Result&lt;Pending&lt;HostBuffer&lt;f32&gt;&gt;, SubmitError&gt; download = Pending.download&lt;f32&gt;(&amp;scope, &amp;queue, device_source, host_policy);</code></pre>
+<p>source, destination, scope and queue are existing validated values. The examples do not unwrap results, assume a native pointer ABI or allow a borrowed buffer to escape its enclosing scope.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Pending-plan_transfer"><td><code>Pending.plan_transfer(TransferSource source, TransferDestination destination, TransferPolicy policy)</code></td><td><code>Result&lt;TransferPlan, DeviceError&gt;</code></td><td>Checks supported path, byte count and staging intent without submitting.</td><td>Descriptor/query allocation may fail.</td>
+</tr>
+<tr id="Pending-upload"><td><code>Pending.upload(&amp;DeviceScope scope, &amp;Queue queue, HostReadBuffer source, TransferPolicy policy)</code></td><td><code>Result&lt;Pending&lt;TransferOutput&gt;, SubmitError&gt;</code></td><td>Registers source/staging leases before Cpu-to-device transfer.</td><td>Explicit O(bytes) transfer.</td>
+</tr>
+<tr id="Pending-download"><td><code>Pending.download&lt;T&gt;(&amp;DeviceScope scope, &amp;Queue queue, DeviceReadBuffer source, HostAllocationPolicy policy)</code></td><td><code>Result&lt;Pending&lt;HostBuffer&lt;T&gt;&gt;, SubmitError&gt;</code></td><td>Allocates initialized-on-success host output and establishes visibility before extraction.</td><td>O(bytes); allocation may fail.</td>
+</tr>
+<tr id="Pending-copy_device"><td><code>Pending.copy_device(&amp;DeviceScope scope, &amp;Queue queue, DeviceWriteBuffer destination, DeviceReadBuffer source)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>Concrete devices, spans and prohibited overlap validated; peer path explicit.</td><td>Queued copy; no Cpu fallback.</td>
+</tr>
+<tr id="Pending-copy_host_into"><td><code>Pending.copy_host_into(&amp;DeviceScope scope, &amp;Queue queue, HostWriteBuffer destination, DeviceReadBuffer source)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>Exclusive host destination retained until completion and host acquire.</td><td>O(bytes); no hidden owner copy.</td>
+</tr>
+<tr id="Pending-pin_copy"><td><code>Pending.pin_copy&lt;T&gt;(Slice&lt;T&gt; source)</code></td><td><code>Result&lt;PinnedBuffer&lt;T&gt;, AllocationError&gt;</code></td><td>Explicit deep copy into initialized pinned storage; T representation transfer-safe.</td><td>O(bytes); pinned allocation.</td>
+</tr>
+<tr id="Pending-register_host"><td><code>Pending.register_host&lt;T&gt;(OwnedHostBuffer&lt;T&gt; owner, RegistrationPolicy policy)</code></td><td><code>Result&lt;RegisteredHostBuffer&lt;T&gt;, RegistrationError&lt;OwnedHostBuffer&lt;T&gt;&gt;&gt;</code></td><td>Consumes owner on success; failure returns owner; registration retains allocation lifetime.</td><td>Backend registration may fail.</td>
+</tr>
+<tr id="Pending-transfer_bytes"><td><code>Pending.transfer_bytes(&amp;Pending&lt;T&gt; operation)</code></td><td><code>Result&lt;usize, DeviceError&gt;</code></td><td>Reports validated logical transfer byte count, excluding separately reported staging copies.</td><td>O(1) metadata.</td>
+</tr>
+<tr id="Pending-staging_report"><td><code>Pending.staging_report(&amp;Pending&lt;T&gt; operation)</code></td><td><code>StagingReport</code></td><td>Reports selected staging owners/copy bytes; does not expose a raw mutable staging pointer.</td><td>Diagnostic query.</td>
+</tr>
+<tr id="Pending-transfer_output_validity"><td><code>Pending.transfer_output_validity(&amp;Pending&lt;T&gt; operation)</code></td><td><code>OutputValidity</code></td><td>Tracks initialized success versus partial/invalid failed destination.</td><td>Snapshot; no read permission.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Backend boundary
+</h2>
+<p>The device adapter must map these proposed contracts onto actual queue, event, cache and allocation rules. CUDA and Vulkan sources demonstrate why asynchronous naming, event completion and memory visibility cannot be treated as one universal guarantee. The documentation specifies required behavior; it does not prove a working implementation on any device.
+</p>
+<p><a href="Pending.html">Pending common reference</a> · <a href="Pending_Transfer.html">Transfers</a> · <a href="Pending_Visibility.html">Visibility</a> · <a href="../Tensor/Tensor_Device.html">Tensor device operations</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__EVENT.html" target="_blank" rel="noopener noreferrer">CUDA Runtime event management</a>
+</li>
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html" target="_blank" rel="noopener noreferrer">CUDA API synchronization behavior</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/chapters/synchronization.html" target="_blank" rel="noopener noreferrer">Vulkan synchronization and memory dependencies</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/appendices/memorymodel.html" target="_blank" rel="noopener noreferrer">Vulkan memory model</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Pending.html"><span>Previous reference</span>Pending</a><a href="Pending_Visibility.html"><span>Next reference</span>Pending Visibility</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

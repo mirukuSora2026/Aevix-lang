@@ -1,0 +1,182 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Aevix",
+  "scopeName": "source.aevix",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.aevix",
+          "begin": "//",
+          "end": "$"
+        },
+        {
+          "name": "comment.block.documentation.aevix",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "patterns": [
+            {
+              "name": "storage.type.annotation.aevix",
+              "match": "@(parameter|return|version|deprecated_at|deprecated)\\b"
+            }
+          ]
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.aevix",
+          "begin": "\"",
+          "end": "\"|(?=$)",
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.aevix",
+          "begin": "'",
+          "end": "'|(?=$)",
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        }
+      ]
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.aevix",
+          "match": "\\\\(?:[0nrt\\\\\\x22\\x27]|x[0-9a-fA-F]{2}|u\\{[0-9a-fA-F]{1,6}\\})"
+        },
+        {
+          "name": "invalid.illegal.escape.aevix",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "invalid.illegal.numeric-suffix.aevix",
+          "match": "\\b(?:0[xX][0-9A-Fa-f_]*[G-Zg-z][A-Za-z0-9_]*|0[bB][01_]*[2-9A-Za-z][A-Za-z0-9_]*|0[oO][0-7_]*[89A-Za-z][A-Za-z0-9_]*|(?!0[xXbBoO])[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?[A-DF-Za-df-z][A-Za-z0-9_]*)\\b"
+        },
+        {
+          "name": "constant.numeric.float.aevix",
+          "match": "\\b[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*(?:[eE][+-]?[0-9](?:_?[0-9])*)?|[eE][+-]?[0-9](?:_?[0-9])*)\\b"
+        },
+        {
+          "name": "constant.numeric.integer.aevix",
+          "match": "\\b(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[bB][01](?:_?[01])*|0[oO][0-7](?:_?[0-7])*|[0-9](?:_?[0-9])*)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.import.aevix",
+          "match": "\\bimport\\b"
+        },
+        {
+          "name": "keyword.control.aevix",
+          "match": "\\b(?:if|else|while|for|in|switch|case|default|break|continue|return|move)\\b"
+        },
+        {
+          "name": "storage.modifier.aevix",
+          "match": "\\b(?:public|private|mut|const|persist|override|extern|dyn)\\b"
+        },
+        {
+          "name": "keyword.declaration.aevix",
+          "match": "\\b(?:struct|enum|interface|implements|where)\\b"
+        },
+        {
+          "name": "constant.language.boolean.aevix",
+          "match": "\\b(?:true|false)\\b"
+        },
+        {
+          "name": "variable.language.aevix",
+          "match": "\\bself\\b"
+        },
+        {
+          "name": "storage.type.generic.aevix",
+          "match": "\\bSelf\\b"
+        },
+        {
+          "name": "storage.type.aevix",
+          "match": "\\b(?:i8|i16|i32|i64|u8|u16|u32|u64|isize|usize|int|float|f16|bf16|f32|f64|bool|char|byte|string|string_view|unit|never|void|rsn)\\b"
+        },
+        {
+          "name": "support.type.aevix",
+          "match": "\\b(?:Array|Vector|Slice|MutSlice|Tuple|Range|Optional|Result|CollectionError|InputError|RangeError|Box|Shared|Weak|Tensor|Shape|Map|Set|Atomic|Mutex|RwLock|Copy)\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(struct|enum|interface)\\s+([A-Za-z_][A-Za-z_0-9]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.aevix"
+            },
+            "2": {
+              "name": "entity.name.type.aevix"
+            }
+          }
+        },
+        {
+          "name": "entity.name.function.aevix",
+          "match": "\\b[A-Za-z_][A-Za-z_0-9]*(?=\\s*(?:<[^;{}()]*>)?\\s*\\()"
+        },
+        {
+          "name": "entity.name.type.aevix",
+          "match": "\\b[A-Z][A-Za-z_0-9]*\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.range.aevix",
+          "match": "\\.\\.(?:=)?"
+        },
+        {
+          "name": "keyword.operator.aevix",
+          "match": "\\+\\+|--|<<=?|>>=?|==|!=|<=|>=|&&|\\|\\||[+*/%&|^!=<>?:~-]=?"
+        },
+        {
+          "name": "punctuation.separator.aevix",
+          "match": "[;,\\.]"
+        },
+        {
+          "name": "punctuation.section.aevix",
+          "match": "[{}\\[\\]()]"
+        }
+      ]
+    }
+  }
+}

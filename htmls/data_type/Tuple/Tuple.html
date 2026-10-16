@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A fixed heterogeneous product with compile-time field access and explicit ownership.">
+  <title>Tuple — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Tuple.html" aria-current="true">Tuple</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html" aria-current="true">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Tuple.html">Tuple</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tuple</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Tuple</h1><p class="doc-subtitle">A fixed heterogeneous product with compile-time field access and explicit ownership.</p><div class="doc-meta"><span class="meta-chip">Tuple&lt;Ts...&gt;</span><span class="meta-chip">Tuple. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>design draft</dd></div><div class="doc-stat"><dt>Length</dt><dd>compile-time arity</dd></div><div class="doc-stat"><dt>Layout</dt><dd>target-defined product</dd></div><div class="doc-stat"><dt>API functions</dt><dd>29</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>(…)</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Overview</span></a></li><li><a href="#Declaration"><span class="toc-number">02</span><span>Declarations and construction</span></a></li><li><a href="#Static-Access"><span class="toc-number">03</span><span>Static access and heterogeneous types</span></a></li><li><a href="#Ownership"><span class="toc-number">04</span><span>Ownership, borrows, and mutation</span></a></li><li><a href="#Transformations"><span class="toc-number">05</span><span>Type-changing transformations</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Function reference</span></a></li><li><a href="#Failures"><span class="toc-number">07</span><span>Partial construction and failure</span></a></li><li><a href="#Layout"><span class="toc-number">08</span><span>Layout, cost, and zero-sized fields</span></a></li><li><a href="#Devices-Interop"><span class="toc-number">09</span><span>Devices and foreign interfaces</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>Examples and choosing a container</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Tuple pages"><h2>Tuple reference</h2><div class="family-links"><a href="Tuple.html" aria-current="page">Tuple</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html" aria-current="true">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tuple reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Overview
+</h2>
+<p><strong>Design draft.</strong> These are proposed Aevix APIs, not claims that a compiler or standard library implements them. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
+</p>
+<p>A tuple groups a known number of possibly different types. <code>Tuple&lt;i32, bool&gt;</code> contains one i32 and one bool; changing either type or the number of fields creates a different tuple type. Named domain records belong in Struct when field names carry meaning.
+</p>
+</section>
+<section id="Declaration" aria-labelledby="Declaration-heading">
+<h2 id="Declaration-heading">2. Declarations and construction
+</h2>
+<p>Type-first declarations make the full product type visible. <code>Tuple.make</code> moves non-Copy inputs. There is no hidden heap allocation for the product itself, although a field can own an allocation.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Tuple&lt;i32, bool&gt; status = Tuple.make(7, true);
+usize fields = Tuple.len(&amp;status);
+bool empty = Tuple.is_empty(&amp;status);</code></pre>
+</section>
+<section id="Static-Access" aria-labelledby="Static-Access-heading">
+<h2 id="Static-Access-heading">3. Static access and heterogeneous types
+</h2>
+<p>A field index is a compile-time argument. A runtime integer cannot select arbitrary heterogeneous fields and return a single unconstrained type. A dynamic alternative requires an explicit enum, a homogeneous Array, or an application-defined visitor.
+</p>
+<p><code>Field</code>, <code>Prefix</code>, <code>Suffix</code>, <code>Reverse</code>, <code>Repeat</code>, and <code>count</code> are explanatory type-pack notation in this catalog, not additional primitive types or finalized syntax.
+</p>
+</section>
+<section id="Ownership" aria-labelledby="Ownership-heading">
+<h2 id="Ownership-heading">4. Ownership, borrows, and mutation
+</h2>
+<p>This draft keeps tuple owners move by default, with <code>Tuple.copy</code> requiring Copy on every field and <code>Tuple.clone</code> requiring Clone. A clone follows each field contract; cloning Shared does not recursively duplicate the referenced object.
+</p>
+<p>Field borrows cannot outlive the containing tuple. An exclusive field borrow conflicts with any access that aliases that field. Provably disjoint field borrows may coexist. A move of the whole tuple is forbidden while any field borrow remains live.
+</p>
+</section>
+<section id="Transformations" aria-labelledby="Transformations-heading">
+<h2 id="Transformations-heading">5. Type-changing transformations
+</h2>
+<p>Concatenation, reversal, push, pop, and split construct new static product types. They are not dynamic-capacity container operations and do not resize a tuple in place. Compiler specialization can inline field moves; the semantic work still scales with field contents.
+</p>
+<p>Mapping uses a tuple of appropriately typed callbacks. A single callback cannot be assumed to accept all unrelated field types. <code>Tuple.try_map</code> uses one shared error type so its output type remains statically known.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Function reference
+</h2>
+<p><code>T value</code> passes a value: Copy types are copied, and owning non-Copy values move without a deep clone. <code>&amp;T value</code> is a shared read borrow; <code>&amp;mut T value</code> is an exclusive modification borrow. Calls use <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code> respectively. Already borrowed references and view values are passed directly; adding another & changes the type. <code>*ref</code> accesses the referent. Ordinary <code>&amp;mut x</code> requires a <code>mut</code> owner; <code>mut T value</code> alone makes a by-value parameter locally mutable and does not modify the caller. Overlapping active borrows are checked until last use; disjoint regions may be split safely and no borrow outlives its source. Synchronized interior mutation follows its own type contract. <code>Fn(A) -&gt; B</code> describes a callable; returned-reference lifetime relationships remain documented in prose.
+</p>
+<div class="table-scroll" role="region" aria-label="Function reference data table">
+<table>
+<thead>
+<tr><th>Proposed signature</th><th>Returns</th><th>Contract and constraints</th><th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tuple-make"><td><code>Tuple.make(Ts... values)</code></td><td><code>Tuple&lt;Ts...&gt;</code></td><td>Builds a fixed heterogeneous product; types and arity are statically known.</td><td>O(arity) moves</td>
+</tr>
+<tr id="Tuple-len"><td><code>Tuple.len(&amp;Tuple&lt;Ts...&gt; value)</code></td><td><code>usize</code></td><td>Returns the compile-time field count as metadata; no payload read needed.</td><td>O(1)</td>
+</tr>
+<tr id="Tuple-is_empty"><td><code>Tuple.is_empty(&amp;Tuple&lt;Ts...&gt; value)</code></td><td><code>bool</code></td><td>True exactly for zero fields.</td><td>O(1)</td>
+</tr>
+<tr id="Tuple-get"><td><code>Tuple.get&lt;I&gt;(&amp;Tuple&lt;Ts...&gt; value)</code></td><td><code>&amp;Field&lt;Ts..., I&gt;</code></td><td>I is a compile-time index in bounds; the result borrows that field.</td><td>O(1)</td>
+</tr>
+<tr id="Tuple-get_mut"><td><code>Tuple.get_mut&lt;I&gt;(&amp;mut Tuple&lt;Ts...&gt; value)</code></td><td><code>&amp;mut Field&lt;Ts..., I&gt;</code></td><td>Compile-time valid I; exclusive field borrow, bounded by the source lifetime.</td><td>O(1)</td>
+</tr>
+<tr id="Tuple-replace"><td><code>Tuple.replace&lt;I&gt;(&amp;mut Tuple&lt;Ts...&gt; value, Field&lt;Ts..., I&gt; replacement)</code></td><td><code>Field&lt;Ts..., I&gt;</code></td><td>Moves out the previous field while installing the replacement; no invalid intermediate state is observable.</td><td>Field move cost</td>
+</tr>
+<tr id="Tuple-set"><td><code>Tuple.set&lt;I&gt;(&amp;mut Tuple&lt;Ts...&gt; value, Field&lt;Ts..., I&gt; replacement)</code></td><td><code>unit</code></td><td>Replaces and destroys the old field once. New value must have the identical field type.</td><td>Move + old drop cost</td>
+</tr>
+<tr id="Tuple-swap_fields"><td><code>Tuple.swap_fields&lt;I, J&gt;(&amp;mut Tuple&lt;Ts...&gt; value)</code></td><td><code>unit</code></td><td>Both indices are static and their field types identical; I = J is a no-op.</td><td>Two field moves, no allocation</td>
+</tr>
+<tr id="Tuple-copy"><td><code>Tuple.copy(&amp;Tuple&lt;Ts...&gt; value)</code></td><td><code>Tuple&lt;Ts...&gt;</code></td><td>All fields must be Copy; duplicates values without acquiring another owner of non-Copy resources.</td><td>O(total value size)</td>
+</tr>
+<tr id="Tuple-clone"><td><code>Tuple.clone(&amp;Tuple&lt;Ts...&gt; value)</code></td><td><code>Result&lt;Tuple&lt;Ts...&gt;, CloneError&gt;</code></td><td>All fields implement fallible Clone; partial clones are destroyed on failure. Shared handles clone their handle semantics.</td><td>Sum of field clone costs</td>
+</tr>
+<tr id="Tuple-apply"><td><code>Tuple.apply(Tuple&lt;Ts...&gt; value, Fn(Ts...) -&gt; U operation)</code></td><td><code>U</code></td><td>Unpacks fields into one callable, preserving field order.</td><td>O(arity) moves + callback</td>
+</tr>
+<tr id="Tuple-apply_ref"><td><code>Tuple.apply_ref(&amp;Tuple&lt;Ts...&gt; value, Fn(&amp;Ts...) -&gt; U operation)</code></td><td><code>U</code></td><td>Passes shared field borrows to one callable; output may borrow only as its signature permits.</td><td>O(arity) borrows + callback</td>
+</tr>
+<tr id="Tuple-map"><td><code>Tuple.map(Tuple&lt;Ts...&gt; value, Tuple&lt;Fn(Ts) -&gt; Us...&gt; operations)</code></td><td><code>Tuple&lt;Us...&gt;</code></td><td>One correctly typed callable per field, invoked once in field order. Not a homogeneous runtime loop.</td><td>Sum of callback costs</td>
+</tr>
+<tr id="Tuple-map_ref"><td><code>Tuple.map_ref(&amp;Tuple&lt;Ts...&gt; value, Tuple&lt;Fn(&amp;Ts) -&gt; Us...&gt; operations)</code></td><td><code>Tuple&lt;Us...&gt;</code></td><td>Maps field borrows with a per-field callable pack.</td><td>Sum of callback costs</td>
+</tr>
+<tr id="Tuple-try_map"><td><code>Tuple.try_map(Tuple&lt;Ts...&gt; value, Tuple&lt;Fn(Ts) -&gt; Result&lt;Us, E&gt;...&gt; operations)</code></td><td><code>Result&lt;Tuple&lt;Us...&gt;, E&gt;</code></td><td>Common E; stops at the first error, drops built outputs and unprocessed owned inputs once.</td><td>Prefix callback + cleanup costs</td>
+</tr>
+<tr id="Tuple-concat"><td><code>Tuple.concat(Tuple&lt;As...&gt; left, Tuple&lt;Bs...&gt; right)</code></td><td><code>Tuple&lt;As..., Bs...&gt;</code></td><td>Forms a new static product. Neither source changes arity in place.</td><td>O(total arity) moves</td>
+</tr>
+<tr id="Tuple-split"><td><code>Tuple.split&lt;I&gt;(Tuple&lt;Ts...&gt; value)</code></td><td><code>Tuple&lt;Tuple&lt;Prefix&lt;Ts..., I&gt;&gt;, Tuple&lt;Suffix&lt;Ts..., I&gt;&gt;&gt;</code></td><td>Static split 0 through arity inclusive; consumes each field exactly once.</td><td>O(arity) moves</td>
+</tr>
+<tr id="Tuple-push_front"><td><code>Tuple.push_front(Tuple&lt;Ts...&gt; value, U item)</code></td><td><code>Tuple&lt;U, Ts...&gt;</code></td><td>Returns a different tuple type with a leading field.</td><td>O(new value size) moves</td>
+</tr>
+<tr id="Tuple-push_back"><td><code>Tuple.push_back(Tuple&lt;Ts...&gt; value, U item)</code></td><td><code>Tuple&lt;Ts..., U&gt;</code></td><td>Returns a different tuple type with a trailing field.</td><td>O(new value size) moves</td>
+</tr>
+<tr id="Tuple-pop_front"><td><code>Tuple.pop_front(Tuple&lt;T, Ts...&gt; value)</code></td><td><code>Tuple&lt;T, Tuple&lt;Ts...&gt;&gt;</code></td><td>Nonempty tuple required statically; separates first field from remainder.</td><td>O(value size) moves</td>
+</tr>
+<tr id="Tuple-pop_back"><td><code>Tuple.pop_back(Tuple&lt;Ts..., T&gt; value)</code></td><td><code>Tuple&lt;Tuple&lt;Ts...&gt;, T&gt;</code></td><td>Nonempty tuple required statically; separates last field from remainder.</td><td>O(value size) moves</td>
+</tr>
+<tr id="Tuple-reverse"><td><code>Tuple.reverse(Tuple&lt;Ts...&gt; value)</code></td><td><code>Tuple&lt;Reverse&lt;Ts...&gt;&gt;</code></td><td>Reverses field order and the static type pack.</td><td>O(arity) moves</td>
+</tr>
+<tr id="Tuple-zip"><td><code>Tuple.zip(Tuple&lt;As...&gt; left, Tuple&lt;Bs...&gt; right)</code></td><td><code>Tuple&lt;Tuple&lt;As, Bs&gt;...&gt;</code></td><td>Equal compile-time arities required; pairs corresponding fields.</td><td>O(arity) moves</td>
+</tr>
+<tr id="Tuple-unzip"><td><code>Tuple.unzip(Tuple&lt;Tuple&lt;As, Bs&gt;...&gt; value)</code></td><td><code>Tuple&lt;Tuple&lt;As...&gt;, Tuple&lt;Bs...&gt;&gt;</code></td><td>Every field must be a pair; separates the two type packs.</td><td>O(arity) moves</td>
+</tr>
+<tr id="Tuple-to_array"><td><code>Tuple.to_array&lt;T&gt;(Tuple&lt;Ts...&gt; value)</code></td><td><code>Array&lt;T, count(Ts...)&gt;</code></td><td>Every field type must be exactly T; no numeric promotions. T is explicit for an empty tuple.</td><td>O(arity) moves</td>
+</tr>
+<tr id="Tuple-from_array"><td><code>Tuple.from_array(Array&lt;T, N&gt; values)</code></td><td><code>Tuple&lt;Repeat&lt;T, N&gt;&gt;</code></td><td>N is compile-time known; no copy of the owning array is implied.</td><td>O(N) moves</td>
+</tr>
+<tr id="Tuple-equal"><td><code>Tuple.equal(&amp;Tuple&lt;Ts...&gt; left, &amp;Tuple&lt;Ts...&gt; right)</code></td><td><code>bool</code></td><td>Each field supports equality; evaluates in order and stops at first mismatch.</td><td>O(arity) worst case</td>
+</tr>
+<tr id="Tuple-compare"><td><code>Tuple.compare(&amp;Tuple&lt;Ts...&gt; left, &amp;Tuple&lt;Ts...&gt; right)</code></td><td><code>Ordering</code></td><td>Every field has a total order; lexicographic comparison, first differing field decides.</td><td>O(arity) worst case</td>
+</tr>
+<tr id="Tuple-compare_by"><td><code>Tuple.compare_by(&amp;Tuple&lt;As...&gt; left, &amp;Tuple&lt;Bs...&gt; right, Tuple&lt;Fn(&amp;As, &amp;Bs) -&gt; Ordering...&gt; comparators)</code></td><td><code>Ordering</code></td><td>Equal arities and one comparator per pair; callers must supply consistent total comparators.</td><td>O(arity) callback worst case</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Failures" aria-labelledby="Failures-heading">
+<h2 id="Failures-heading">7. Partial construction and failure
+</h2>
+<p>A tuple becomes observable only after every field is initialized. If a clone or fallible mapping fails, completed outputs are destroyed once, remaining owned inputs are destroyed once, and no reference to an uninitialized field escapes. A borrowed source remains valid.
+</p>
+<p>CloneError is a descriptive fallible-clone error contract and must preserve allocation failure information. Destructors must not introduce an unmodeled recoverable failure during cleanup. Explicit resource-close operations carry such errors as Result values.
+</p>
+</section>
+<section id="Layout" aria-labelledby="Layout-heading">
+<h2 id="Layout-heading">8. Layout, cost, and zero-sized fields
+</h2>
+<p>The compiler may insert alignment padding. Field offsets, ordering in memory, calling convention, and tail padding require a target layout specification; the default product layout is not a portable C struct ABI. Safe code cannot inspect padding as initialized bytes.
+</p>
+<p>Arity must be representable as target usize, and the complete layout must satisfy target size and alignment limits. An invalid static layout is rejected at compile time; it is not silently turned into a heap object. Type-pack queries require compiler support; namespace spelling alone does not make every helper a primitive instruction.
+</p>
+<p>Zero-sized fields still have type, lifetime, and destructor semantics. A tuple containing a zero-sized resource may perform nonzero cleanup work. A tuple is not always cheap to copy merely because its field count is small.
+</p>
+</section>
+<section id="Devices-Interop" aria-labelledby="Devices-Interop-heading">
+<h2 id="Devices-Interop-heading">9. Devices and foreign interfaces
+</h2>
+<p>A tuple is device-compatible only if every field and required operation is supported by the selected target. A tuple containing a host string or lock cannot be silently lowered into a GPU kernel. Explicit transfers operate on the supported contents and preserve lifetimes.
+</p>
+<p>C++ std::tuple and Python tuple do not share an Aevix tuple ABI. Bindings adapt field by field or use an explicitly specified record layout. Python tuple elements remain managed Python objects at that boundary.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10. Examples and choosing a container
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Tuple&lt;i32, bool&gt; pair = Tuple.make(12, false);
+Tuple&lt;i32, bool&gt; duplicate = Tuple.copy(&amp;pair);
+Tuple&lt;bool, i32&gt; reversed = Tuple.reverse(duplicate);
+Array&lt;i32, 2&gt; numbers = Tuple.to_array&lt;i32&gt;(Tuple.make(3, 5));</code></pre>
+<p>The Array conversion is valid because both fields are exactly i32. A tuple of i8 and i32 requires explicit conversion before becoming a homogeneous Array. Use <a href="../Array/Static_Array.html">Array</a> for repeated same-type elements and <a href="../Vector/Vector.html">Vector</a> for runtime growth.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.tuple.html" target="_blank" rel="noopener noreferrer">Rust tuple reference: heterogeneous fixed products</a>
+</li>
+<li><a href="https://eel.is/c++draft/tuple" target="_blank" rel="noopener noreferrer">C++ working draft: tuple operations and indexed access</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

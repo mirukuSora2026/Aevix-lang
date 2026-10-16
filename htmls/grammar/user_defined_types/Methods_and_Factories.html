@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Ordinary receiverless type functions and explicit typed self receivers with consistent copy, move, and borrow semantics.">
+<title>Methods and Factories — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">User-defined types</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Methods and Factories</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">LANGUAGE DESIGN REFERENCE</p><h1>Methods and Factories</h1><p class="doc-subtitle">Ordinary receiverless type functions and explicit typed self receivers with consistent copy, move, and borrow semantics.</p><div class="doc-meta"><span class="meta-chip">Confirmed rules + open decisions</span><span class="meta-chip">English reference</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Receivers</dt><dd>3 ownership modes</dd></div><div class="doc-stat"><dt>Factory</dt><dd>Ordinary function</dd></div><div class="doc-stat"><dt>Returns</dt><dd>Explicit</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>fn</strong><span>typed calls</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="Reference navigation">
+<details class="toc" open><summary>On this page</summary><ol>
+<li><a href="#overview"><span class="toc-number">01</span><span>One function model for construction and behavior</span></a></li>
+<li><a href="#factories"><span class="toc-number">02</span><span>A factory is a receiverless type function</span></a></li>
+<li><a href="#fallible-factories"><span class="toc-number">03</span><span>Return Result when construction can fail</span></a></li>
+<li><a href="#receiver-modes"><span class="toc-number">04</span><span>Declare the receiver mode explicitly</span></a></li>
+<li><a href="#shared-calls"><span class="toc-number">05</span><span>Read calls allow automatic and explicit borrowing</span></a></li>
+<li><a href="#mutable-calls"><span class="toc-number">06</span><span>Write calls require an exclusive capability</span></a></li>
+<li><a href="#value-calls"><span class="toc-number">07</span><span>Value receivers follow Copy or move</span></a></li>
+<li><a href="#field-access"><span class="toc-number">08</span><span>Access receiver fields with explicit dereference</span></a></li>
+<li><a href="#ordering-and-scope"><span class="toc-number">09</span><span>Preserve ordinary evaluation, scope, and cleanup</span></a></li>
+<li><a href="#enums-and-generics"><span class="toc-number">10</span><span>Reuse the same model for enums and generic types</span></a></li>
+<li><a href="#open-decisions"><span class="toc-number">11</span><span>Open call policies</span></a></li>
+<li><a href="#related"><span class="toc-number">12</span><span>Related value and function contracts</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="User-defined types pages"><h2>User-defined types</h2><div class="family-links">
+<a href="index.html">Overview</a>
+<a href="Structs.html">Structs</a>
+<a href="Methods_and_Factories.html" aria-current="page">Methods and factories</a>
+<a href="Copy.html">Copy and movement</a>
+</div></nav>
+<nav class="family-nav" aria-label="Related language sections"><h2>Language reference</h2><div class="family-links"><a href="../index.html">Grammar overview</a><a href="../foundations/index.html">Foundations</a><a href="../user_defined_types/index.html">User-defined types</a><a href="../enums/Enums.html">Enums</a><a href="../generics/Generic_Types.html">Generic types</a><a href="../../declaration/index.html">Declarations</a><a href="../../data_type/index.html">Data types</a></div></nav>
+</aside>
+<article class="content" aria-label="Methods and Factories reference">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1. One function model for construction and behavior</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct User {
+    string name;
+    i32 level;
+
+    public User new(string initial_name, i32 initial_level) {
+        return User { name = initial_name, level = initial_level };
+    }
+
+    public i32 get_level(&amp;User self) {
+        return (*self).level;
+    }
+
+    public void set_level(&amp;mut User self, i32 new_level) {
+        (*self).level = new_level;
+        return;
+    }
+
+    public User into_user(User self) {
+        return self;
+    }
+};</code></pre><p>new has no receiver and is called through User.new(...). get_level reads through a shared receiver. set_level writes through an exclusive receiver. into_user uses ordinary value transfer. All ordinary non-void successful paths return explicitly; void may end normally or spell return;.</p>
+</section>
+
+<section id="factories" aria-labelledby="factories-heading">
+<h2 id="factories-heading">2. A factory is a receiverless type function</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">User make_user(string owned_name) {
+    return User.new(owned_name, 1);
+}</code></pre><p>The word new is the chosen conventional function name, not a special constructor keyword. A type can define differently named factories using the same declaration and Type.function(...) call model. Their declared arguments and return types determine ownership and failures.</p><p>This example moves an already owned string argument into the factory. Under the existing <a href="../../data_type/String/string.html#Examples">text-literal draft</a>, a literal is string_view; creating owning string uses an explicit fallible constructor. These examples do not add an implicit literal-to-owner conversion.</p><p>A factory inside the declaring type can initialize private fields. Its caller sees the returned complete value and the function’s access permission; the caller does not gain direct access to those private fields. The call spelling does not automatically allocate a heap object.</p><p>A constructor declaration without a return type and a separate allocation keyword are not introduced by this model. Function overload selection is chosen in <a href="../functions/Overloading.html">Overloading</a>; a complete member-name collision policy and interface-method-specific interactions remain open.</p>
+</section>
+
+<section id="fallible-factories" aria-labelledby="fallible-factories-heading">
+<h2 id="fallible-factories-heading">3. Return Result when construction can fail</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">enum ProfileError {
+    NegativeLevel;
+};
+
+struct Profile {
+    string name;
+    i32 level;
+
+    public Result&lt;Profile, ProfileError&gt; new(string initial_name, i32 initial_level) {
+        if (initial_level &lt; 0) {
+            return Result.err(ProfileError.NegativeLevel);
+        }
+        return Result.ok(Profile { name = initial_name, level = initial_level });
+    }
+};
+
+Result&lt;Profile, ProfileError&gt; build_profile(string owned_name) {
+    return Profile.new(owned_name, 1);
+}</code></pre><p>The failure is an ordinary value in the declared Result, not a hidden constructor exception. On the rejected path, initial_name remains owned by the function and follows normal cleanup. On success, the already owned string argument moves into the initialized Profile and then into Result.</p><p>This is a user-defined example, not an added standard constructor API. The existing postfix ? rule can propagate matching Result errors in suitable Result-returning functions; successful return remains explicit.</p>
+</section>
+
+<section id="receiver-modes" aria-labelledby="receiver-modes-heading">
+<h2 id="receiver-modes-heading">4. Declare the receiver mode explicitly</h2>
+<div class="table-scroll" role="region" aria-label="Typed self receiver modes">
+<table>
+<thead><tr>
+<th scope="col">Declaration</th>
+<th scope="col">Meaning</th>
+<th scope="col">Call effect</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row"><code>&amp;User self</code></th>
+<td>Shared read loan of User.</td>
+<td>No owner move; conflicting write loans are excluded.</td>
+</tr>
+<tr>
+<th scope="row"><code>&amp;mut User self</code></th>
+<td>Exclusive write loan of User.</td>
+<td>Requires existing write permission and a compatible exclusive loan.</td>
+</tr>
+<tr>
+<th scope="row"><code>User self</code></th>
+<td>Ordinary User value parameter.</td>
+<td>Copy if that type is Copy; otherwise move the complete owner.</td>
+</tr>
+<tr>
+<th scope="row">No self receiver</th>
+<td>Receiverless type function.</td>
+<td><code>User.new(...)</code> passes only the declared ordinary arguments.</td>
+</tr>
+</tbody>
+</table>
+</div><p>self is the receiver variable; its type is written explicitly. A value receiver is not automatically changed into a borrow because the call uses member syntax. An ordinary immutable value parameter also does not grant arbitrary mutation merely by being a receiver.</p>
+</section>
+
+<section id="shared-calls" aria-labelledby="shared-calls-heading">
+<h2 id="shared-calls-heading">5. Read calls allow automatic and explicit borrowing</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 read_user_level(string owned_name) {
+    User user = User.new(owned_name, 1);
+    i32 automatic_read = user.get_level();
+    i32 explicit_read = (&amp;user).get_level();
+
+    &amp;User existing_read = &amp;user;
+    i32 reference_read = existing_read.get_level();
+    return reference_read;
+}</code></pre><p>The first read call supplies the shared receiver loan indicated by get_level’s declaration. The second spells that loan explicitly. Both apply the same permission, lifetime, and conflict checks. The existing reference is passed or reborrowed directly rather than automatically wrapped in another reference layer.</p><p>The receiver expression is evaluated once. The method convenience does not deep-clone User, allocate a wrapper, or transfer it to another processor.</p>
+</section>
+
+<section id="mutable-calls" aria-labelledby="mutable-calls-heading">
+<h2 id="mutable-calls-heading">6. Write calls require an exclusive capability</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">void update_user_level(string owned_name) {
+    mut User editable = User.new(owned_name, 1);
+    editable.set_level(2);
+    (&amp;mut editable).set_level(3);
+
+    &amp;mut User existing_write = &amp;mut editable;
+    existing_write.set_level(4);
+    return;
+}</code></pre><p>Automatic and explicit write calls require the same writable source and compatible exclusive loan. A shared reference cannot be upgraded into an exclusive reference. An ordinary owned User needs mut before a write loan can be taken; an already valid &mut User carries the referent’s write capability.</p><blockquote class="callout warning"><p><strong>Rejected calls.</strong> The ordinary immutable owner and the shared loan do not provide write permission.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void invalid_writes(string owned_name) {
+    User fixed = User.new(owned_name, 1);
+    fixed.set_level(2); // Invalid: no owner write permission.
+    &amp;User read_only = &amp;fixed;
+    read_only.set_level(3); // Invalid: cannot upgrade shared access.
+    return;
+}</code></pre><p>Last-use loan inference does not relax lifetime or overlap checks. A reference that escapes through a returned value continues to need its valid source; no blanket “all loans end at the semicolon” rule is assumed.</p>
+</section>
+
+<section id="value-calls" aria-labelledby="value-calls-heading">
+<h2 id="value-calls-heading">7. Value receivers follow Copy or move</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">User transfer_user(string owned_name) {
+    User original = User.new(owned_name, 1);
+    User destination = original.into_user();
+    i32 retained_level = destination.get_level();
+    return destination;
+}</code></pre><p>User owns a string and has not declared Copy, so the concrete value call moves original into self and returns that owner. The originating binding is no longer usable. Nothing about the member-call spelling silently borrows this declared value receiver.</p><blockquote class="callout warning"><p><strong>Rejected use.</strong> original was consumed by a value receiver.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 invalid_reuse(string owned_name) {
+    User original = User.new(owned_name, 1);
+    User destination = original.into_user();
+    return original.get_level(); // Invalid: original has moved.
+}</code></pre><p>For an explicitly Copy type, a value receiver follows the same value-copy rule as an ordinary value argument. This concrete-call rule does not make value receivers eligible through the current dyn callable surface; that surface is documented separately.</p>
+</section>
+
+<section id="field-access" aria-labelledby="field-access-heading">
+<h2 id="field-access-heading">8. Access receiver fields with explicit dereference</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct Counter {
+    i32 count;
+
+    public Counter new(i32 initial_count) {
+        return Counter { count = initial_count };
+    }
+
+    public i32 read(&amp;Counter self) {
+        return (*self).count;
+    }
+
+    public void write(&amp;mut Counter self, i32 replacement_count) {
+        (*self).count = replacement_count;
+        return;
+    }
+};</code></pre><p>A method in Counter can use its private count field. The reference receiver is explicitly dereferenced before selecting a field. Automatic receiver borrowing at a call site does not approve field automatic dereference inside an expression.</p><p>Initial or replacement parameter names are distinct from fields and visible outer variables. An initializer key identifies a field; it is not a new local binding. The exact broader namespace and reserved-name policy remains open.</p>
+</section>
+
+<section id="ordering-and-scope" aria-labelledby="ordering-and-scope-heading">
+<h2 id="ordering-and-scope-heading">9. Preserve ordinary evaluation, scope, and cleanup</h2>
+<p>Evaluate a receiver expression once and evaluate ordinary call arguments left to right once under the existing call rules. A factory or method body can have effects; calling it does not promise rollback on later failure. Required borrow conflicts must still be diagnosed regardless of evaluation order.</p><p>Parameters and receiver names are visible locals within the function body. A nested declaration cannot shadow them. Public/private apply to the method/type interface rather than its local variables. Returning an owner transfers it; scope cleanup releases initialized values still owned there.</p><div class="table-scroll" role="region" aria-label="Calls do not bypass existing rules">
+<table>
+<thead><tr>
+<th scope="col">Operation</th>
+<th scope="col">Retained rule</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">Shared method call</th>
+<td>The source must outlive every retained shared reference.</td>
+</tr>
+<tr>
+<th scope="row">Exclusive method call</th>
+<td>No conflicting overlapping access during the active loan.</td>
+</tr>
+<tr>
+<th scope="row">Value method call</th>
+<td>Copy or move follows the concrete type capability.</td>
+</tr>
+<tr>
+<th scope="row">Failure from a Result factory</th>
+<td>Explicit error value; normal cleanup, no implicit recovery clone.</td>
+</tr>
+<tr>
+<th scope="row">Public method</th>
+<td>External visibility; no owner lifetime extension.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="enums-and-generics" aria-labelledby="enums-and-generics-heading">
+<h2 id="enums-and-generics-heading">10. Reuse the same model for enums and generic types</h2>
+<p>Enums use the same receiverless functions and typed receiver modes. A factory inside an enum can initialize its own private payload fields; a method can inspect its private variants within that type’s access boundary. It still needs the selected enum switch rules when behavior depends on the active variant.</p><p>Generic struct, enum, and interface declarations use the selected angle-bracket syntax and explicit where constraints. <a href="../functions/Generic_Functions.html">Generic function declarations and call inference</a> are chosen. Additional method-specific rules and combined type implements/where ordering remain open. Read <a href="../enums/Enums.html">Enums</a> and <a href="../generics/Generic_Types.html">Generic Types</a>.</p><p>The separate Box payload method-call convenience reuses declared receiver borrowing. Its explicit Box.as_ref/Box.as_mut views, dyn eligibility, collision policy, and ownership limitations belong to their respective references rather than a universal wrapper autodereference rule.</p>
+</section>
+
+<section id="open-decisions" aria-labelledby="open-decisions-heading">
+<h2 id="open-decisions-heading">11. Open call policies</h2>
+<ul>
+<li>Method/field and wrapper-method collisions, and interface-specific interactions between overloads, default arguments and parameter names. Ordinary <a href="../functions/Overloading.html">overload selection</a> and <a href="../functions/Arguments_and_Defaults.html">default and named arguments</a> are chosen.</li>
+<li>General field automatic dereference and a general-purpose wrapper dereference capability.</li>
+<li>Reference-return lifetime annotations, additional generic-method-specific rules, and advanced self forms. Ordinary <a href="../functions/Generic_Functions.html">generic function declarations and call inference</a> are chosen.</li>
+<li>The default visibility of every method category and the complete modifier ordering.</li>
+<li>Custom destructor methods and special constructor protocols are not specified by ordinary factories.</li>
+<li>Closures, async/GPU method signatures and standalone forward-prototype syntax remain open. Qualified module lookup is described in <a href="../modules/index.html">Modules and Imports</a>.</li>
+</ul>
+</section>
+
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">12. Related value and function contracts</h2>
+<nav class="page-navigation" aria-label="Related method references">
+<a href="Structs.html"><span>Construction</span><strong>Structs</strong><p>Named-field values and the private-field access boundary.</p></a>
+<a href="Copy.html"><span>Transfer</span><strong>Copy and Movement</strong><p>Why a value receiver copies or moves.</p></a>
+<a href="../../declaration/Function_Declaration.html"><span>Function syntax</span><strong>Function Declaration</strong><p>Type-first parameters, ordinary borrows, and explicit returns.</p></a>
+<a href="../operators/Error_Propagation.html"><span>Errors</span><strong>Error Propagation</strong><p>Matching Result errors and postfix ? exits.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix Language · User-defined types</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A proposed borrowed UTF-8 text view with compiler-checked lifetimes and visible copying.">
+  <title>string_view — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="string.html" aria-current="true">string</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="string.html">string</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">string_view</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>string_view</h1><p class="doc-subtitle">A proposed borrowed UTF-8 text view with compiler-checked lifetimes and visible copying.</p><div class="doc-meta"><span class="meta-chip">string_view</span><span class="meta-chip">string. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Storage</dt><dd>Borrowed UTF-8</dd></div><div class="doc-stat"><dt>Functions</dt><dd>18 shared/specialized</dd></div><div class="doc-stat"><dt>Allocation</dt><dd>None for a view</dd></div><div class="doc-stat"><dt>Status</dt><dd>Spelling proposed</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>str</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>A Borrowed UTF-8 View</span></a></li><li><a href="#Lifetime"><span class="toc-number">02</span><span>Lifetime &amp; Owner Mutation</span></a></li><li><a href="#Units"><span class="toc-number">03</span><span>Byte Ranges &amp; Scalar Boundaries</span></a></li><li><a href="#Construction"><span class="toc-number">04</span><span>Construction &amp; Validation</span></a></li><li><a href="#Functions"><span class="toc-number">05</span><span>Borrowed-View Function Surface</span></a></li><li><a href="#Equality"><span class="toc-number">06</span><span>Equality, Ordering &amp; Optional Data</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>Examples</span></a></li><li><a href="#Targets"><span class="toc-number">08</span><span>Targets &amp; Comparison Sources</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="string pages"><h2>string reference</h2><div class="family-links"><a href="string.html">string</a><a href="string_view.html" aria-current="page">string_view</a><a href="unicode.html">Unicode Text Services</a><a href="encoding.html">Text Encoding</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="string_view reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. A Borrowed UTF-8 View
+</h2>
+<blockquote class="callout note">
+<p><strong>Language design draft.</strong> Contracts, helper types, and function spellings below are proposals. They do not claim an implemented compiler, finalized grammar, or validated runtime. Examples use type-first declarations, default immutability, and semicolon-terminated statements.
+</p>
+</blockquote>
+<p><code>string_view</code> is the proposed spelling for a lifetime-checked read view into valid UTF-8 storage. It replaces no scalar type and does not own, allocate, normalize, or retain a reference count for the source. Its logical representation is an address and byte length, while its ABI and concrete size remain unspecified. The view may cover an owner, immutable literal storage, or a validated borrowed byte slice.
+</p>
+<p>This is a text-specific borrowing contract rather than an unchecked pointer pair. UTF-8 validity and source lifetime are established before constructing the value. Copying the view copies only its descriptor and preserves the same borrowing restrictions. See the <a href="string.html">owning string reference</a> for the complete namespace and <a href="../Array/Array.html">array views</a> for the related storage model.
+</p>
+</section>
+<section id="Lifetime" aria-labelledby="Lifetime-heading">
+<h2 id="Lifetime-heading">2. Lifetime &amp; Owner Mutation
+</h2>
+<p>The owner must remain alive throughout every use of the view. A function cannot return a view into a local owner that is being destroyed. A view stored inside another object carries the same lifetime obligation; it does not prolong ownership. Background jobs cannot retain it beyond a scope unless the runtime and type system prove the owner remains valid.
+</p>
+<p>An outstanding read view prevents conflicting writes, including reallocation and in-place edits. Even edits that keep the address unchanged may change textual boundaries or semantic positions. The compiler tracks this relationship instead of trusting a programmer to remember invalidation rules. An owned copy is the explicit way to retain a small substring independently, at the cost of copying its bytes.
+</p>
+</section>
+<section id="Units" aria-labelledby="Units-heading">
+<h2 id="Units-heading">3. Byte Ranges &amp; Scalar Boundaries
+</h2>
+<p>View length counts bytes. A half-open range may be in bounds yet invalid as text because an endpoint points into a multibyte scalar. Safe constructors reject that range. Scalar-index slicing scans to the requested scalar boundaries and remains a borrow; grapheme-index slicing belongs to the optional Unicode module.
+</p>
+<p>Moving to the nearest scalar boundary is not equivalent to preserving a user-perceived character. Combining marks and emoji sequences can span multiple scalars. Integer offsets also carry no intrinsic source identity: applying an offset obtained from another view requires a fresh range and boundary check. The end offset is a valid boundary but does not designate a scalar to remove or read.
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">4. Construction &amp; Validation
+</h2>
+<p><code>string.view</code> borrows already validated text in constant time. <code>string.view_utf8</code> instead borrows arbitrary bytes and validates the full range before returning text. The underlying byte storage is read-borrowed for the resulting view’s lifetime, preventing mutation that would break UTF-8. Empty input succeeds.
+</p>
+<p>Unchecked conversion and arbitrary raw-pointer constructors are excluded from the safe catalog. FFI wrappers must establish length, readability, lifetime, and encoding before building a view. The view is not required to end with NUL, and embedded NUL remains part of its byte count. Copying into a caller buffer copies bytes without silently adding a terminator.
+</p>
+</section>
+<section id="Functions" aria-labelledby="Functions-heading">
+<h2 id="Functions-heading">5. Borrowed-View Function Surface
+</h2>
+<p>These are shared <code>string.</code> functions specialized for a view, not instance methods or a second primitive namespace. Iterators borrow source and pattern; owning output is always explicit.
+</p>
+<div class="table-scroll" role="region" aria-label="Borrowed-View Function Surface data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-view"><th scope="row"><code>string.view(s)</code></th><td><code>string_view</code></td><td>Borrow already valid UTF-8.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="string-view_utf8"><th scope="row"><code>string.view_utf8(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string_view, TextError&gt;</code></td><td>Validate borrowed bytes; retain their read borrow.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="string-byte_len"><th scope="row"><code>string.byte_len(s)</code></th><td><code>usize</code></td><td>Byte count of the viewed range.</td><td>O(1)</td>
+</tr>
+<tr id="string-scalar_count"><th scope="row"><code>string.scalar_count(s)</code></th><td><code>usize</code></td><td>Scalar count of the viewed range.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="string-as_bytes"><th scope="row"><code>string.as_bytes(s)</code></th><td><code>Slice&lt;byte&gt;</code></td><td>Read-only byte view with the same lifetime.</td><td>O(1); no copy</td>
+</tr>
+<tr id="string-chars"><th scope="row"><code>string.chars(s)</code></th><td><code>Iterator&lt;char&gt;</code></td><td>Forward scalar decoding.</td><td>Lazy; no allocation</td>
+</tr>
+<tr id="string-char_indices"><th scope="row"><code>string.char_indices(s)</code></th><td><code>Iterator&lt;(usize, char)&gt;</code></td><td>Scalar values with view-relative byte positions.</td><td>Lazy; no allocation</td>
+</tr>
+<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Check range and both UTF-8 boundaries.</td><td>O(1); no copy</td>
+</tr>
+<tr id="string-slice_chars"><th scope="row"><code>string.slice_chars(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Check scalar-ordinal range by traversal.</td><td>O(n); no copy</td>
+</tr>
+<tr id="string-split_at"><th scope="row"><code>string.split_at(s, usize offset)</code></th><td><code>Result&lt;(string_view, string_view), BoundaryError&gt;</code></td><td>Split a validated view without copying.</td><td>O(1)</td>
+</tr>
+<tr id="string-strip_prefix"><th scope="row"><code>string.strip_prefix(s, prefix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>Remove one matching literal prefix.</td><td>Compare prefix; no copy</td>
+</tr>
+<tr id="string-strip_suffix"><th scope="row"><code>string.strip_suffix(s, suffix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>Remove one matching literal suffix.</td><td>Compare suffix; no copy</td>
+</tr>
+<tr id="string-trim_ascii"><th scope="row"><code>string.trim_ascii(s)</code></th><td><code>string_view</code></td><td>Trim the common reference’s five ASCII whitespace values: HT, LF, FF, CR and SPACE; VT is excluded. See <a href="string.html#string-trim_ascii">the shared trim_ascii contract</a>.</td><td>Scan ends; no allocation</td>
+</tr>
+<tr id="string-find"><th scope="row"><code>string.find(s, needle)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>View-relative first match position.</td><td>Search; no payload allocation</td>
+</tr>
+<tr id="string-split"><th scope="row"><code>string.split(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>Lazy fields; reject empty delimiter.</td><td>Lazy search; no payload copies</td>
+</tr>
+<tr id="string-lines"><th scope="row"><code>string.lines(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>LF/CRLF lines using the common contract.</td><td>Lazy scan; no payload copies</td>
+</tr>
+<tr id="string-from_view"><th scope="row"><code>string.from_view(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy into an independent owner.</td><td>O(n); may allocate</td>
+</tr>
+<tr id="string-copy_into"><th scope="row"><code>string.copy_into(s, out)</code></th><td><code>Result&lt;usize, TextError&gt;</code></td><td>Copy bytes to a caller buffer after capacity validation.</td><td>O(n); no heap allocation</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Equality" aria-labelledby="Equality-heading">
+<h2 id="Equality-heading">6. Equality, Ordering &amp; Optional Data
+</h2>
+<p>A view and owner use the same exact UTF-8 equality contract. Equal contents do not imply equal addresses or shared ownership. Neither comparison nor view creation performs Unicode normalization. Empty text is distinct from an absent optional value. Absence of a search match is represented by <code>Optional</code>; malformed input or invalid slicing is represented by <code>Result</code>.
+</p>
+<p>The proposed descriptor can be passed to generic read-only string functions without copying. It does not expose spare capacity, writable bytes, or a resizable container interface. A separate mutable text-view design would need additional invariants and is not introduced here.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7. Examples
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+Result&lt;string_view, BoundaryError&gt; suffix = string.slice_bytes(text, 2, 5);
+Optional&lt;usize&gt; location = string.find(text, &quot;fé&quot;);
+Result&lt;string, TextError&gt; independent = string.from_view(text);</code></pre>
+<p>Every example statement ends with a semicolon. The borrowed literal is valid for its storage lifetime. The owning constructor returns a result because copying can allocate; it is not a free cast.
+</p>
+</section>
+<section id="Targets" aria-labelledby="Targets-heading">
+<h2 id="Targets-heading">8. Targets &amp; Comparison Sources
+</h2>
+<p>AOT and JIT must preserve lifetime and validation checks. Compiler-elided copies do not change whether the source operation semantically creates an owner. A GPU representation requires explicit storage accessibility and supported operations; a CPU address cannot simply be embedded in a device view. Unicode library support remains separately declared.
+</p>
+<p><a href="https://eel.is/c++draft/string.view">C++ string views</a> inform the non-owning surface, while <a href="https://doc.rust-lang.org/std/primitive.str.html">Rust UTF-8 views</a> inform validity and checked boundaries. Swift’s separate code-unit views provide another comparison point. These references specify their own behavior; this proposed lifetime guarantee requires independent Aevix implementation and validation.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.str.html" target="_blank" rel="noopener noreferrer">Rust UTF-8 slices — validity and range checking</a>
+</li>
+<li><a href="https://eel.is/c++draft/string.view" target="_blank" rel="noopener noreferrer">C++ working draft — non-owning string views</a>
+</li>
+<li><a href="https://developer.apple.com/documentation/swift/string" target="_blank" rel="noopener noreferrer">Swift text API — separate code-unit and character views</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="string.html"><span>Previous reference</span>string</a><a href="unicode.html"><span>Next reference</span>Unicode Text Services</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

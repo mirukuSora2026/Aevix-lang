@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Typed atomic cells with explicit orders, arithmetic, and target capabilities.">
+  <title>Atomic — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Atomic.html" aria-current="true">Atomic</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Atomic.html">Atomic</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Atomic</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Atomic</h1><p class="doc-subtitle">Typed atomic cells with explicit orders, arithmetic, and target capabilities.</p><div class="doc-meta"><span class="meta-chip">Atomic&lt;T&gt;</span><span class="meta-chip">Atomic namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>31</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>atom</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Atomic Access Is a Protocol</span></a></li><li><a href="#Orders"><span class="toc-number">02</span><span>Loads, Stores, and Read-Modify-Write</span></a></li><li><a href="#Compare-Exchange"><span class="toc-number">03</span><span>Compare-Exchange Is Not Ordinary Equality</span></a></li><li><a href="#Arithmetic"><span class="toc-number">04</span><span>Explicit Modular, Checked, and Saturating Updates</span></a></li><li><a href="#Capabilities"><span class="toc-number">05</span><span>Storage, Progress, and Waiting</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Complete Proposed Atomic API</span></a></li><li><a href="#Lifetime"><span class="toc-number">07</span><span>Cell Lifetime and Non-Atomic Access</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Examples and Related Contracts</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Atomic pages"><h2>Atomic reference</h2><div class="family-links"><a href="Atomic.html" aria-current="page">Atomic</a><a href="Memory_Order.html">Memory Order</a><a href="Atomic_Capabilities.html">Atomic Capabilities</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Atomic reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Atomic Access Is a Protocol
+</h2>
+<p>Atomic&lt;T&gt; is a non-Copy cell for a supported Copy integer or bool value. It prevents tearing for operations within its declared access width and memory scope; it is not an arbitrary object lock or a lifetime manager. Ordinary immutable bindings can expose explicitly synchronized interior updates through this type. Uncoordinated raw or mixed-size accesses remain forbidden. A scalar’s bit width alone does not establish native atomic support.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> APIs, memory-order and error records, and trait names describe intended Aevix contracts. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. unit is a value type distinct from void. No native implementation, fairness, or benchmark claim is implied.
+</p>
+</blockquote>
+</section>
+<section id="Orders" aria-labelledby="Orders-heading">
+<h2 id="Orders-heading">2. Loads, Stores, and Read-Modify-Write
+</h2>
+<p>The five draft orders are Relaxed, Acquire, Release, AcqRel, and SeqCst. Loads accept Relaxed/Acquire/SeqCst; stores accept Relaxed/Release/SeqCst. RMW operations accept all five. A known invalid constant order is a compile-time diagnostic; a dynamic invalid order is AtomicError with no operation performed. Relaxed makes one cell operation atomic but does not publish unrelated data. See <a href="Memory_Order.html">Memory Order</a> for synchronization boundaries.
+</p>
+</section>
+<section id="Compare-Exchange" aria-labelledby="Compare-Exchange-heading">
+<h2 id="Compare-Exchange-heading">3. Compare-Exchange Is Not Ordinary Equality
+</h2>
+<p>CAS reports whether this call changed the cell plus the observed value. A mismatch is a normal outcome rather than an invalid-order error. Weak CAS may fail spuriously and must be used in a correct retry loop. Failure is a load, so Release and AcqRel are invalid failure orders. This draft accepts Relaxed, Acquire, or SeqCst for that load. Equality compares the supported cell value representation; no universal floating NaN CAS policy is implied.
+</p>
+</section>
+<section id="Arithmetic" aria-labelledby="Arithmetic-heading">
+<h2 id="Arithmetic-heading">4. Explicit Modular, Checked, and Saturating Updates
+</h2>
+<p>Named fetch_add/fetch_sub use fixed-width modular integer arithmetic and return the old value. They do not silently replace the checked ordinary Integer arithmetic contract. Separate checked and saturating calls advertise their policies. An overflow return means this call performed no arithmetic write; another thread may still have changed the cell. Retry callbacks can run multiple times, so side effects, allocation, and reentrant updates must not be assumed exactly once.
+</p>
+</section>
+<section id="Capabilities" aria-labelledby="Capabilities-heading">
+<h2 id="Capabilities-heading">5. Storage, Progress, and Waiting
+</h2>
+<p>The target manifest separately declares cell types, alignment, load/store, RMW, memory scope, and host waiting. A supported operation can require an explicit emulation profile; it must not silently claim lock freedom. Lock-free does not mean wait-free or fair. Float atomics, vector atomics, GPU system scope, and cross-device operations are optional extensions with separate contracts. Waiting can wake spuriously; notification does not itself publish protected state.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Complete Proposed Atomic API
+</h2>
+<div class="table-scroll" role="region" aria-label="Complete Proposed Atomic API data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, errors, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Atomic-new"><th scope="row"><code>Atomic.new(T value)</code></th><td><code>Atomic&lt;T&gt;</code></td><td>Construct an inline supported cell; no heap allocation; cell itself is not Copy.</td>
+</tr>
+<tr id="Atomic-load"><th scope="row"><code>Atomic.load(&amp;Atomic&lt;T&gt; cell, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Accept Relaxed, Acquire, or SeqCst; reject store-only orders.</td>
+</tr>
+<tr id="Atomic-store"><th scope="row"><code>Atomic.store(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;unit, AtomicError&gt;</code></td><td>Accept Relaxed, Release, or SeqCst; reject load-only orders.</td>
+</tr>
+<tr id="Atomic-swap"><th scope="row"><code>Atomic.swap(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Atomic read-modify-write with any of the five orders; return old value.</td>
+</tr>
+<tr id="Atomic-compare_exchange"><th scope="row"><code>Atomic.compare_exchange(&amp;Atomic&lt;T&gt; cell, T expected, T desired, MemoryOrder success, MemoryOrder failure)</code></th><td><code>Result&lt;CasOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>Mismatch returns changed=false and observed value; failure order must be Relaxed, Acquire, or SeqCst.</td>
+</tr>
+<tr id="Atomic-compare_exchange_weak"><th scope="row"><code>Atomic.compare_exchange_weak(&amp;Atomic&lt;T&gt; cell, T expected, T desired, MemoryOrder success, MemoryOrder failure)</code></th><td><code>Result&lt;CasOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>May report changed=false even when equal; use a correct retry protocol.</td>
+</tr>
+<tr id="Atomic-fetch_add"><th scope="row"><code>Atomic.fetch_add(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer-only modular addition; return old value; wrapping is part of this named contract.</td>
+</tr>
+<tr id="Atomic-fetch_sub"><th scope="row"><code>Atomic.fetch_sub(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer-only modular subtraction; return old value.</td>
+</tr>
+<tr id="Atomic-fetch_and"><th scope="row"><code>Atomic.fetch_and(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool bitwise update; return old value.</td>
+</tr>
+<tr id="Atomic-fetch_or"><th scope="row"><code>Atomic.fetch_or(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool bitwise update; return old value.</td>
+</tr>
+<tr id="Atomic-fetch_xor"><th scope="row"><code>Atomic.fetch_xor(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool bitwise update; return old value.</td>
+</tr>
+<tr id="Atomic-fetch_nand"><th scope="row"><code>Atomic.fetch_nand(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool complemented intersection; return old value.</td>
+</tr>
+<tr id="Atomic-fetch_min"><th scope="row"><code>Atomic.fetch_min(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer signedness determines comparison; return old value.</td>
+</tr>
+<tr id="Atomic-fetch_max"><th scope="row"><code>Atomic.fetch_max(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer signedness determines comparison; return old value.</td>
+</tr>
+<tr id="Atomic-checked_fetch_add"><th scope="row"><code>Atomic.checked_fetch_add(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer-only CAS loop; overflow leaves cell unchanged at the failed attempt; no bounded retry promise.</td>
+</tr>
+<tr id="Atomic-checked_fetch_sub"><th scope="row"><code>Atomic.checked_fetch_sub(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer-only checked subtraction loop; arithmetic failure performs no write by this call.</td>
+</tr>
+<tr id="Atomic-saturating_fetch_add"><th scope="row"><code>Atomic.saturating_fetch_add(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer-only saturation; may use a retry loop; return prior value on success.</td>
+</tr>
+<tr id="Atomic-saturating_fetch_sub"><th scope="row"><code>Atomic.saturating_fetch_sub(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer-only saturation; no general wait-free guarantee.</td>
+</tr>
+<tr id="Atomic-fetch_update"><th scope="row"><code>Atomic.fetch_update(&amp;Atomic&lt;T&gt; cell, MemoryOrder success, MemoryOrder failure, Update&lt;T&gt; update)</code></th><td><code>Result&lt;UpdateOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>Callback may run repeatedly; None aborts an attempt; external callback effects are not transactional.</td>
+</tr>
+<tr id="Atomic-get_mut"><th scope="row"><code>Atomic.get_mut(&amp;mut Atomic&lt;T&gt; cell)</code></th><td><code>&amp;mut T</code></td><td>Non-atomic exclusive access only when no competing access or live conflicting atomic view exists.</td>
+</tr>
+<tr id="Atomic-into_inner"><th scope="row"><code>Atomic.into_inner(Atomic&lt;T&gt; cell)</code></th><td><code>T</code></td><td>Extract through unique ownership; no concurrent cell references may remain.</td>
+</tr>
+<tr id="Atomic-is_supported"><th scope="row"><code>Atomic.is_supported(T, Target target)</code></th><td><code>bool</code></td><td>Compile-time capability query for this cell type and selected execution target.</td>
+</tr>
+<tr id="Atomic-is_lock_free"><th scope="row"><code>Atomic.is_lock_free(T, Target target)</code></th><td><code>bool</code></td><td>Query the selected implementation; not a universal property or wait-freedom promise.</td>
+</tr>
+<tr id="Atomic-required_alignment"><th scope="row"><code>Atomic.required_alignment(T, Target target)</code></th><td><code>usize</code></td><td>Target atomic-cell alignment; may exceed scalar alignment.</td>
+</tr>
+<tr id="Atomic-capabilities"><th scope="row"><code>Atomic.capabilities(T, Target target)</code></th><td><code>AtomicCapabilities</code></td><td>Describe load/store, RMW, wait, floating extension, and memory scope separately.</td>
+</tr>
+<tr id="Atomic-fence"><th scope="row"><code>Atomic.fence(MemoryOrder order)</code></th><td><code>Result&lt;unit, AtomicError&gt;</code></td><td>Acquire, Release, AcqRel, or SeqCst only; Relaxed is invalid.</td>
+</tr>
+<tr id="Atomic-compiler_fence"><th scope="row"><code>Atomic.compiler_fence(MemoryOrder order)</code></th><td><code>Result&lt;unit, AtomicError&gt;</code></td><td>Order the declared same-thread/interrupt compiler profile; not an interthread hardware fence.</td>
+</tr>
+<tr id="Atomic-wait"><th scope="row"><code>Atomic.wait(&amp;Atomic&lt;T&gt; cell, T expected, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Host capability only; may wake spuriously; caller must recheck its predicate.</td>
+</tr>
+<tr id="Atomic-wait_timeout"><th scope="row"><code>Atomic.wait_timeout(&amp;Atomic&lt;T&gt; cell, T expected, Duration timeout, MemoryOrder order)</code></th><td><code>Result&lt;WaitOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>Host wait capability; timeout and spurious wake are explicit outcomes.</td>
+</tr>
+<tr id="Atomic-notify_one"><th scope="row"><code>Atomic.notify_one(&amp;Atomic&lt;T&gt; cell)</code></th><td><code>unit</code></td><td>Wake an eligible waiter if supported; not a substitute for publishing state.</td>
+</tr>
+<tr id="Atomic-notify_all"><th scope="row"><code>Atomic.notify_all(&amp;Atomic&lt;T&gt; cell)</code></th><td><code>unit</code></td><td>Wake eligible waiters; no fairness or completion guarantee.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Lifetime" aria-labelledby="Lifetime-heading">
+<h2 id="Lifetime-heading">7. Cell Lifetime and Non-Atomic Access
+</h2>
+<p>An atomic borrow keeps the cell alive. Ownership extraction and get_mut require genuine exclusivity, not a count snapshot or a guess that other workers have finished. Mixing overlapping atomic widths, writing through a foreign non-atomic alias, or freeing a waited-on cell violates the safe abstraction. Shared&lt;Atomic&lt;T&gt;&gt; can retain storage, but its refcount does not replace the selected atomic ordering protocol or a task join.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Examples and Related Contracts
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">u32 initial_count = 0;
+Atomic&lt;u32&gt; count = Atomic.new(initial_count);
+Result&lt;u32, AtomicError&gt; observed = Atomic.load(&amp;count, MemoryOrder.Relaxed);
+Atomic.is_supported(u64, Target.current());</code></pre>
+<p>Target and MemoryOrder are draft support descriptors. Examples contain no implicit float conversion or hidden heap allocation. See <a href="Atomic_Capabilities.html">capability profiles</a>, <a href="../Shared/Shared_Threads.html">Shared threads</a>, and <a href="../Mutex/Mutex.html">Mutex</a>. References inform this independent memory-model proposal; compiler and device correctness require later implementation verification.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/index.html" target="_blank" rel="noopener noreferrer">Rust atomic memory model and portability</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html" target="_blank" rel="noopener noreferrer">Rust memory orderings</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/struct.Atomic.html" target="_blank" rel="noopener noreferrer">Rust generic Atomic — individual operation domains</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Memory_Order.html"><span>Next reference</span>Memory Order</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

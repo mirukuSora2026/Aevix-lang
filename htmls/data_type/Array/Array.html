@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Common collection contracts and a complete proposed fixed-array API.">
+    <title>Array — Aevix Docs</title>
+    <link rel="stylesheet" href="../../css/root.css?v=3">
+    <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+    <div class="header">
+        <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark"
+                                                                                     aria-hidden="true">A</span><span
+                class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span
+                class="brand-label">Documentation</span></a>
+        <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Array.html" aria-current="true">Array</a>
+            <details class="type-menu">
+                <summary>All types</summary>
+                <div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a
+                        href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a
+                        href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a
+                        href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a
+                        href="../Array/Array.html" aria-current="true">Array</a><a
+                        href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a
+                        href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a
+                        href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a
+                        href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a
+                        href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a
+                        href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a
+                        href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a
+                        href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a
+                        href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a
+                        href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div>
+            </details>
+        </nav>
+        <span class="draft-badge">DESIGN DRAFT</span>
+    </div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span
+            class="separator" aria-hidden="true">/</span><a href="Array.html">Array</a><span class="separator"
+                                                                                             aria-hidden="true">/</span><span
+            aria-current="page">Array</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">DATA TYPE REFERENCE</p>
+            <h1>Array</h1>
+            <p class="doc-subtitle">Common collection contracts and a complete proposed fixed-array API.</p>
+            <div class="doc-meta"><span class="meta-chip">Array&lt;T, N&gt;</span><span class="meta-chip">Array. namespace</span><span>Proposed API · example syntax under review</span><a
+                    href="../index.html#Language-Rules">Chosen language rules</a></div>
+            <dl class="doc-stats">
+                <div class="doc-stat">
+                    <dt>Length</dt>
+                    <dd>Compile-time N</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Ownership</dt>
+                    <dd>Move by default</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Storage</dt>
+                    <dd>Inline element payload</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>API functions</dt>
+                    <dd>73</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="type-mark" aria-hidden="true"><strong>[N]</strong><span>type reference</span></div>
+    </header>
+    <div class="docs-layout">
+        <aside class="table" aria-label="Reference navigation">
+            <details class="toc" open>
+                <summary>On this page</summary>
+                <ol>
+                    <li><a href="#Overview"><span class="toc-number">01</span><span>Array Family Overview</span></a>
+                    </li>
+                    <li><a href="#Type-Identity"><span class="toc-number">02</span><span>Element Type, Length &amp; Layout</span></a>
+                    </li>
+                    <li><a href="#Ownership-Initialization"><span class="toc-number">03</span><span>Ownership, Initialization &amp; Destruction</span></a>
+                    </li>
+                    <li><a href="#Borrowing-Access"><span class="toc-number">04</span><span>Borrowing, Access &amp; Mutability</span></a>
+                    </li>
+                    <li><a href="#Error-Cost-Contracts"><span class="toc-number">05</span><span>Errors, Callbacks &amp; Cost</span></a>
+                    </li>
+                    <li><a href="#Function-Reference"><span class="toc-number">06</span><span>Complete Proposed Array API</span></a>
+                    </li>
+                    <li><a href="#Examples"><span class="toc-number">07</span><span>Type-First Examples</span></a></li>
+                    <li><a href="#Parallelism-Devices"><span class="toc-number">08</span><span>Parallelism, Devices &amp; FFI</span></a>
+                    </li>
+                    <li><a href="#Text-Bytes"><span
+                            class="toc-number">09</span><span>Text, Characters &amp; Bytes</span></a></li>
+                    <li><a href="#Design-Status"><span class="toc-number">10</span><span>Design Status &amp; Reference Scope</span></a>
+                    </li>
+                    <li><a href="#Sources"><span
+                            class="toc-number">11</span><span>Sources &amp; Design References</span></a></li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="Array pages"><h2>Array reference</h2>
+                <div class="family-links"><a href="Array.html" aria-current="page">Array</a><a href="Static_Array.html">Static
+                    Array</a><a href="Vector.html">Vector</a><a href="Slice.html">Slice</a></div>
+            </nav>
+            <nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2>
+                <div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a
+                        href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a
+                        href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a
+                        href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a
+                        href="../Array/Array.html" aria-current="true">Array</a><a
+                        href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a
+                        href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a
+                        href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a
+                        href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a
+                        href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a
+                        href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a
+                        href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a
+                        href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a
+                        href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a
+                        href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="Array reference">
+            <section id="Overview" aria-labelledby="Overview-heading">
+                <h2 id="Overview-heading">1 . Array Family Overview
+                </h2>
+                <div class="callout draft-note"><strong>Language design draft.</strong> These are proposed Aevix
+                    contracts, not implemented compiler or standard-library guarantees. Declarations are type first and
+                    values are immutable by default. Borrow, callback, const-parameter, and mutation annotations in
+                    signatures are descriptive notation.
+                </div>
+                <p>The family separates three jobs: <code>Array&lt;T, N&gt;</code> owns exactly N elements with a
+                    compile-time length; <code>Vector&lt;T&gt;</code> owns a runtime-length growable buffer; <code>Slice&lt;T&gt;</code>
+                    borrows a contiguous range. <a href="Static_Array.html">Static Array</a>, <a href="Vector.html">Vector</a>,
+                    and <a href="Slice.html">Slice</a> expand those contracts. A fixed array never gains capacity or
+                    grows in place.
+                </p>
+                <p>Array and Vector owners move by default, including arrays of copyable integers. Moving transfers
+                    responsibility for destruction; it is not a clone. A moved-from binding cannot be used as an owner.
+                    Copying a fixed array must be explicit, and cloning requires the element’s Clone contract.
+                </p>
+            <h3 id="Selected-Declaration-Syntax">Chosen array declaration spelling</h3>
+<p>The declaration head <code>i32 values[5]</code> denotes a fixed array of five i32 elements. The length is fixed; this does not select process-lifetime storage, implicit zero initialization or pointer decay. Initializers use square-bracket element lists. The inline forms in the table are declaration heads; typed local declarations without initializers follow <a href="../../declaration/Variable_Declaration.html#Definite-Assignment">definite-assignment checks</a>.</p>
+<div class="table-scroll" role="region" aria-label="Chosen array spelling and open boundaries"><table><thead><tr><th scope="col">Declaration head</th><th scope="col">Chosen meaning</th><th scope="col">Boundary or related rule</th></tr></thead><tbody>
+<tr><th scope="row"><code>i32 values[5]</code></th><td>Five-element fixed array.</td><td>The canonical type is Array&lt;i32, 5&gt;; fixed parameters pass an array value without pointer decay.</td></tr>
+<tr><th scope="row"><code>i32 grid[2][3]</code></th><td>Fixed two-dimensional array: two rows of three i32 elements each, with both extents known at compile time.</td><td>Mixed suffixes compose Array and Vector in outer-to-inner order, as explained below.</td></tr>
+<tr><th scope="row"><code>i32 values[][]</code></th><td>Two-dimensional nested dynamic arrays; each row owns its dynamic storage and may have a different length.</td><td>Dynamic construction yields Result&lt;Vector&lt;Vector&lt;i32&gt;&gt;, CollectionError&gt;; a single array parameter uses the canonical type.</td></tr>
+<tr><th scope="row"><code>i32 values[](2)</code></th><td>Exactly the same two-dimensional nested dynamic array type as <code>i32 values[][]</code>. Parentheses specify rank, not axis lengths.</td><td>The rank must be a positive compile-time integer constant; complete constant-expression grammar remains open.</td></tr>
+<tr><th scope="row"><code>i32 values[]</code> as the final parameter</th><td>The chosen variadic spelling accepts multiple same-typed call arguments.</td><td>Read-only call pack with ordinary Copy-or-move inputs; see <a href="../../grammar/functions/Variadic_Parameters.html">Variadic Parameters</a>.</td></tr>
+</tbody></table></div>
+<p>Each empty bracket adds one nesting level. The rank shorthand accepts a positive compile-time integer constant, including a suitable const value. Rank is fixed in the type while each dynamic level may vary in length. These owners move under the collection rules. Nested growable vectors and a rectangular Tensor have different shape and storage contracts: no single allocation, globally contiguous buffer or automatic GPU transfer is promised. Existing <code>Array&lt;T, N&gt;</code> signatures below remain proposed API notation while the declaration spelling above is chosen.</p><h3 id="Canonical-Array-Types">Canonical array types and parameter contexts</h3>
+<p>Array suffixes are shorthand for complete types. Read suffixes from left to right as outer to inner containers: <code>T name[N]</code> means <code>Array&lt;T, N&gt;</code>, and an empty bracket means <code>Vector&lt;T&gt;</code>. Thus <code>T grid[R][C]</code> means <code>Array&lt;Array&lt;T, C&gt;, R&gt;</code>, while <code>T grid[][]</code> and <code>T grid[](2)</code> mean <code>Vector&lt;Vector&lt;T&gt;&gt;</code>. These canonical type names may appear in return types, Result, generic arguments and whole-array references.</p>
+<p>Mixed fixed/dynamic suffixes are permitted for ordinary array declarations. <code>T rows[R][]</code> means <code>Array&lt;Vector&lt;T&gt;, R&gt;</code>; <code>T rows[][C]</code> means <code>Vector&lt;Array&lt;T, C&gt;&gt;</code>. Fixed extents remain compile-time constants; a literal containing any dynamic level produces <code>Result&lt;CollectionType, CollectionError&gt;</code>. The rank shorthand stands for repeated empty brackets only, and is not mixed with other suffixes in the initial grammar.</p>
+<p>In function parameters, exactly one trailing empty bracket, <code>T values[]</code>, is reserved for the chosen final variadic parameter. Receive one dynamic array with <code>Vector&lt;T&gt; values</code>, a complete nested canonical type for a multidimensional array, or a borrowed <code>&amp;Vector&lt;T&gt;</code>/<code>Slice&lt;T&gt;</code>. Repeated-empty-bracket, rank and mixed suffix parameters must use their canonical type in the initial grammar. Fully fixed suffix parameters denote an Array value and follow the ordinary Copy-or-move rules; arrays remain move-by-default. There is no pointer decay.</p>
+<p>A reference written in the base element type belongs to each element: <code>&amp;i32 values[5]</code> denotes five shared-reference elements. Borrow an entire fixed array with <code>&amp;Array&lt;i32, 5&gt; values</code>, or modify one through <code>&amp;mut Array&lt;i32, 5&gt; values</code>. All referent lifetimes remain checked.</p>
+<h3 id="Literal-Type-Context">Literal type context and partial construction</h3>
+<p>An expected array declaration, canonical type or Result payload supplies element/container context. Without such a context, a nonempty bracket literal defaults to a fixed Array whose length is the written element count. Its element type follows the existing typed-value and numeric-literal rules. A context-free empty literal cannot determine its element type. Ragged rows require an explicit compatible nested dynamic context rather than an automatic hidden promotion to Vector.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">rsn fixed_values = [1, 2, 3];
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; dynamic_values = [1, 2, 3];</code></pre>
+<p>The first value is <code>Array&lt;i32, 3&gt;</code>; the second stores the Result of dynamic construction. An explicit zero-length fixed array has a known type, while a typed empty dynamic literal still has Result type even if it needs no allocation. On normal construction failure, destroy every successfully constructed element and row exactly once. This is not rollback of earlier input moves or side effects.</p><h3 id="Selected-Literal-Syntax">Square-bracket initializers and allocation failure</h3>
+<p>Array initializers use <code>[...]</code>. A fixed declaration's element count must exactly match its length or compilation fails. A nested dynamic initializer may contain different row lengths. A dynamic array literal constructs a Result; callers must handle that Result or use the existing <code>?</code> operator in a compatible Result-returning function. The error carrier for dynamic literal construction is the existing CollectionError family.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 values[3] = [1, 2, 3];</code></pre>
+<p>Fixed multidimensional declarations repeat the compile-time extents in outer-to-inner order. Every initializer level must match its declared extent. This example has two rows, each with three elements, and needs no dynamic element-buffer allocation:</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 grid[2][3] = [[1, 2, 3], [4, 5, 6]];</code></pre>
+<p>Both the row count and each row length are checked at compile time. A fixed extent does not mean persist storage. Mixed forms such as <code>grid[2][]</code> compose fixed and dynamic containers and use fallible construction.</p>
+<p>The next examples are independent fragments inside compatible Result-returning functions. Their declared array types supply element and rank context; <code>?</code> extracts the successful array or returns the compatible error.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 grid[][] = [[1, 2], [3, 4, 5]]?;</code></pre>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 grid[](2) = [[1, 2], [3, 4, 5]]?;</code></pre>
+<p>Nested bracket sublists participate in one recursive literal-construction operation. Their allocation failures flow into the outer construction Result, with already initialized rows cleaned once; a question mark at every sublist is not required. This does not implicitly unwrap an ordinary Result-valued element expression.</p><p>The two grid forms denote the same nested dynamic type. The fixed primitive array needs no dynamic element-buffer allocation. Array syntax does not remove failures in element expressions or authorize implicit cloning. See <a href="../../grammar/operators/Error_Propagation.html">Error Propagation</a> for the existing same-error-type Result contract.</p>
+<p class="callout warning"><strong>Rejected example.</strong> The initializer has only two elements for a fixed length of three.</p>
+<pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 values[3] = [1, 2];</code></pre>
+</section>
+            <section id="Type-Identity" aria-labelledby="Type-Identity-heading">
+                <h2 id="Type-Identity-heading">2. Element Type, Length &amp; Layout
+                </h2>
+                <p><code>T</code> is one element type; N is a nonnegative compile-time <code>usize</code> constant and
+                    participates in type identity. Different lengths are different fixed-array types. Nested arrays are
+                    row-major values, not automatically tensors or SIMD registers.
+                </p>
+                <p>Elements occupy consecutive element slots with stride equal to the native size of T. Padding inside T
+                    remains padding; arbitrary object bytes are not a portable serialization. An owning array contains
+                    its element storage, but enclosing storage may be a local, a field, or an explicit Box. A fixed size
+                    does not mean a global/static variable.
+                </p>
+                <p>The proposed target limit bounds every logical length by <code>isize.MAX</code>. For nonzero-sized T,
+                    total representation bytes must additionally fit the target object bound. Zero-sized T uses zero
+                    payload bytes but retains logical length, alignment, callback counts, and drop obligations. Empty
+                    arrays are valid without a dereferenceable first element.
+                </p>
+            </section>
+            <section id="Ownership-Initialization" aria-labelledby="Ownership-Initialization-heading">
+                <h2 id="Ownership-Initialization-heading">3. Ownership, Initialization &amp; Destruction
+                </h2>
+                <p>Safe constructors publish only fully initialized arrays. They track initialized output elements
+                    separately from raw storage; an early returned error destroys the initialized prefix exactly once.
+                    No safe API exposes spare uninitialized slots or permits fabricated length metadata.
+                </p>
+                <p><code>Clone</code> duplicates according to T’s semantics: cloning a shared handle may retain a shared
+                    resource. It is not a universal deep-copy guarantee. <code>Copy</code> is limited to types approved
+                    for value duplication; resource owners cannot become safe through a byte copy.
+                </p>
+                <p>Array destruction releases every owned element once. The exact element destruction order and unwind
+                    syntax still require a language specification. Returned errors must maintain initialization safety;
+                    process termination cannot promise cleanup. Callbacks’ external side effects are never automatically
+                    rolled back.
+                </p>
+            </section>
+            <section id="Borrowing-Access" aria-labelledby="Borrowing-Access-heading">
+                <h2 id="Borrowing-Access-heading">4. Borrowing, Access &amp; Mutability
+                </h2>
+                <p>Read borrows may coexist. A write borrow excludes overlapping read or write access, while disjoint
+                    subranges can be borrowed separately through checked splitting. All borrowed results expire with the
+                    owner and cannot escape its lifetime.
+                </p>
+                <p><code>Array.get</code> returns Optional for ordinary absence; <code>Array.at</code> returns Result
+                    for a bounds diagnostic. Neither reads an unchecked location. A returned element is borrowed; moving
+                    it out of a still-initialized array requires a replacement or consuming transformation.
+                </p>
+                <p>Parameters use the chosen forms <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Taking <code>&amp;mut owner</code> requires a <code>mut</code> owner binding. Existing references and borrowed views are passed directly; known exclusive reference or MutSlice parameters reborrow them under the <a href="../../declaration/Function_Declaration.html#reborrowing">function reborrow rule</a>.</p>
+                <p><code>Slice&lt;T&gt;</code> denotes a read view; <code>MutSlice&lt;T&gt;</code> is the descriptive
+                    exclusive writable view type used across this documentation. A write reborrow suspends conflicting
+                    use of its source capability.
+                </p>
+            </section>
+            <section id="Error-Cost-Contracts" aria-labelledby="Error-Cost-Contracts-heading">
+                <h2 id="Error-Cost-Contracts-heading">5. Errors, Callbacks &amp; Cost
+                </h2>
+<p>Callback labels <code>Transform</code>, <code>TryTransform</code>, <code>RefTransform</code>, and <code>TryRefTransform</code> are descriptive function contracts, not the <code>Map&lt;K, V&gt;</code> collection type. Their final callable-type spelling remains a library design detail. Vector and Slice API signatures are maintained only in the <a href="../Vector/Vector.html#Function-Reference">Vector catalog</a> and <a href="../Slice/Slice.html#Function-Reference">Slice catalog</a>.</p>
+                <p><code>CollectionError</code>, <code>BoundsError</code>, and named ownership-preserving errors are
+                    proposed library error types. <code>InputError&lt;T&gt;</code> returns an unused moved input after a
+                    rejected replacement; <code>OwnerError&lt;C&gt;</code> returns a failed consuming conversion’s
+                    original owner. Callback-returned E is preserved by try-functions.
+                </p>
+                <p>Bounds-only failures precheck before mutation. Constructors clean partial output. In-place
+                    cloning/replacement and callback mutations may leave valid partial changes where their row says so;
+                    they are not transactions. Comparator requirements include transitivity and a total order. Unsorted
+                    binary-search input violates the algorithm contract without granting memory unsafety.
+                </p>
+                <p>Complexities count element operations. A move of large inline T, Clone, Drop, comparison, or callback
+                    can add substantial work. Fixed-array moves and whole-array swaps can touch O(N) elements;
+                    optimizers may elide movement but the language does not promise it. AOT and JIT must preserve
+                    visible callback order and errors.
+                </p>
+            </section>
+            <section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+                <h2 id="Function-Reference-heading">6. Complete Proposed Array API
+                </h2>
+                <p>These individually named functions cover fixed-size arrays. Algorithms accept explicit callbacks;
+                    callback type names in signatures are descriptive aliases. Generic names do not promise universal
+                    traits: equality needs Eq, sorting needs a total comparator, and clone/copy have separate
+                    requirements.
+                </p>
+                <p>Core literal and callback grammar remains under design. All API rows state observable ownership,
+                    failure, and cost contracts rather than claiming existing implementation.
+                </p>
+                <h3>Construction
+                </h3>
+                <p>Parameter forms T value, &amp;T value, and &amp;mut T value follow the chosen grammar. API names,
+                    type packs, callbacks, and explicit returned-reference lifetime annotations remain draft where
+                    marked.
+                </p>
+                <div class="table-scroll" role="region" aria-label="Complete Proposed Array API data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Requirements and failure contract</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr id="Array-empty">
+                            <td><code>Array.empty(T)</code></td>
+                            <td><code>Array&lt;T, 0&gt;</code></td>
+                            <td>No element construction; valid without T: Default.</td>
+                            <td>O(1); no element buffer allocation</td>
+                        </tr>
+                        <tr id="Array-from_values">
+                            <td><code>Array.from_values(T, const usize N, N owned T values)</code></td>
+                            <td><code>Array&lt;T, N&gt;</code></td>
+                            <td>Consumes exactly N initialized values; arity/type mismatch is a compile-time error.</td>
+                            <td>O(N) element moves</td>
+                        </tr>
+                        <tr id="Array-from_copy">
+                            <td><code>Array.from_copy(T, const usize N, &amp;T value)</code></td>
+                            <td><code>Array&lt;T, N&gt;</code></td>
+                            <td>T: Copy; repeats a valid value. Does not bit-copy an arbitrary owner.</td>
+                            <td>O(N) scalar copies</td>
+                        </tr>
+                        <tr id="Array-from_clone">
+                            <td><code>Array.from_clone(T, const usize N, &amp;T value)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; source unchanged; failure drops only successfully cloned output elements.</td>
+                            <td>O(N) clone calls; element allocation possible</td>
+                        </tr>
+                        <tr id="Array-from_fn">
+                            <td><code>Array.from_fn(T, const usize N, Make&lt;T&gt; make)</code></td>
+                            <td><code>Array&lt;T, N&gt;</code></td>
+                            <td>Infallible callback receives each usize index once in ascending order; zero length calls
+                                it zero times.
+                            </td>
+                            <td>O(N) callback calls</td>
+                        </tr>
+                        <tr id="Array-try_from_fn">
+                            <td><code>Array.try_from_fn(T, const usize N, TryMake&lt;T, E&gt; make)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, E&gt;</code></td>
+                            <td>Stops at first callback Err; initialized prefix is dropped safely; external callback
+                                effects remain.
+                            </td>
+                            <td>O(N) calls; no independent array buffer</td>
+                        </tr>
+                        <tr id="Array-default">
+                            <td><code>Array.default(T, const usize N)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td>
+                            <td>T: Default; constructs each element, not arbitrary zero bytes; partial output is cleaned
+                                on failure.
+                            </td>
+                            <td>O(N) constructions</td>
+                        </tr>
+                        <tr id="Array-from_slice_copy">
+                            <td><code>Array.from_slice_copy(T, const usize N, Slice&lt;T&gt; source)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td>
+                            <td>T: Copy; source length must be N; source remains borrowed and unchanged.</td>
+                            <td>O(N) copies</td>
+                        </tr>
+                        <tr id="Array-from_slice_clone">
+                            <td><code>Array.from_slice_clone(T, const usize N, Slice&lt;T&gt; source)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; checks exact length first; cleans partial output if cloning fails.</td>
+                            <td>O(N) clone calls</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Length and layout
+                </h3>
+                <p>Parameter forms T value, &amp;T value, and &amp;mut T value follow the chosen grammar. API names,
+                    type packs, callbacks, and explicit returned-reference lifetime annotations remain draft where
+                    marked.
+                </p>
+                <div class="table-scroll" role="region" aria-label="Complete Proposed Array API data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Requirements and failure contract</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr id="Array-len">
+                            <td><code>Array.len(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Returns the compile-time extent N.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-is_empty">
+                            <td><code>Array.is_empty(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True exactly when N is zero.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-byte_len">
+                            <td><code>Array.byte_len(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Element representation bytes, N times size_of(T); does not include separately owned
+                                resources.
+                            </td>
+                            <td>O(1); checked when the type is formed</td>
+                        </tr>
+                        <tr id="Array-element_size">
+                            <td><code>Array.element_size(T)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Native element representation size, including its internal padding; may be zero.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-alignment">
+                            <td><code>Array.alignment(T)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Required native element alignment; not an external ABI declaration.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-max_len">
+                            <td><code>Array.max_len(T)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Target object/index upper bound, not an allocation promise; zero-sized elements still
+                                have a finite logical bound.
+                            </td>
+                            <td>O(1)</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Borrowing and access
+                </h3>
+                <p>Parameter forms T value, &amp;T value, and &amp;mut T value follow the chosen grammar. API names,
+                    type packs, callbacks, and explicit returned-reference lifetime annotations remain draft where
+                    marked.
+                </p>
+                <div class="table-scroll" role="region" aria-label="Complete Proposed Array API data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Requirements and failure contract</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr id="Array-as_slice">
+                            <td><code>Array.as_slice(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Slice&lt;T&gt;</code></td>
+                            <td>Lifetime tied to owner; contiguous read view.</td>
+                            <td>O(1), no allocation</td>
+                        </tr>
+                        <tr id="Array-as_mut_slice">
+                            <td><code>Array.as_mut_slice(&amp;mut Array&lt;T, N&gt; values)</code></td>
+                            <td><code>MutSlice&lt;T&gt;</code></td>
+                            <td>Exclusive borrowed view; owner access is restricted until the reborrow ends.</td>
+                            <td>O(1), no allocation</td>
+                        </tr>
+                        <tr id="Array-slice">
+                            <td><code>Array.slice(&amp;Array&lt;T, N&gt; values, usize start, usize end)</code></td>
+                            <td><code>Result&lt;Slice&lt;T&gt;, BoundsError&gt;</code></td>
+                            <td>Requires start &lt;= end &lt;= N; half-open range.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-slice_mut">
+                            <td><code>Array.slice_mut(&amp;mut Array&lt;T, N&gt; values, usize start, usize end)</code>
+                            </td>
+                            <td><code>Result&lt;MutSlice&lt;T&gt;, BoundsError&gt;</code></td>
+                            <td>Same bounds; exclusive permission is reborrowed, not duplicated.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-get">
+                            <td><code>Array.get(&amp;Array&lt;T, N&gt; values, usize index)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>None outside [0,N); does not clone or move the element.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-get_mut">
+                            <td><code>Array.get_mut(&amp;mut Array&lt;T, N&gt; values, usize index)</code></td>
+                            <td><code>Optional&lt;&amp;mut T&gt;</code></td>
+                            <td>None out of bounds; returned borrow is exclusive.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-at">
+                            <td><code>Array.at(&amp;Array&lt;T, N&gt; values, usize index)</code></td>
+                            <td><code>Result&lt;&amp;T, BoundsError&gt;</code></td>
+                            <td>Checked access with a diagnostic error; indexing operator spelling remains separate.
+                            </td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-at_mut">
+                            <td><code>Array.at_mut(&amp;mut Array&lt;T, N&gt; values, usize index)</code></td>
+                            <td><code>Result&lt;&amp;mut T, BoundsError&gt;</code></td>
+                            <td>Checked exclusive access.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-first">
+                            <td><code>Array.first(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>None for N=0.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-last">
+                            <td><code>Array.last(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>None for N=0; never subtracts one from an empty length.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-first_mut">
+                            <td><code>Array.first_mut(&amp;mut Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;mut T&gt;</code></td>
+                            <td>Exclusive first-element borrow, or None.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        <tr id="Array-last_mut">
+                            <td><code>Array.last_mut(&amp;mut Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;mut T&gt;</code></td>
+                            <td>Exclusive last-element borrow, or None.</td>
+                            <td>O(1)</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Replacement and in-place updates
+                </h3>
+                <p>Parameter forms T value, &amp;T value, and &amp;mut T value follow the chosen grammar. API names,
+                    type packs, callbacks, and explicit returned-reference lifetime annotations remain draft where
+                    marked.
+                </p>
+                <div class="table-scroll" role="region" aria-label="Complete Proposed Array API data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Requirements and failure contract</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr id="Array-set">
+                            <td><code>Array.set(&amp;mut Array&lt;T, N&gt; values, usize index, T value)</code></td>
+                            <td><code>Result&lt;unit, InputError&lt;T&gt;&gt;</code></td>
+                            <td>Bounds failure returns the unused input value; success drops the replaced element.</td>
+                            <td>O(1) element work plus Drop</td>
+                        </tr>
+                        <tr id="Array-replace">
+                            <td><code>Array.replace(&amp;mut Array&lt;T, N&gt; values, usize index, T value)</code></td>
+                            <td><code>Result&lt;T, InputError&lt;T&gt;&gt;</code></td>
+                            <td>Returns the previous owner; failure preserves the array and returns the input.</td>
+                            <td>O(1) element moves</td>
+                        </tr>
+                        <tr id="Array-swap">
+                            <td><code>Array.swap(&amp;mut Array&lt;T, N&gt; values, usize a, usize b)</code></td>
+                            <td><code>Result&lt;unit, BoundsError&gt;</code></td>
+                            <td>Checks both indices before changing either; equal indices are valid.</td>
+                            <td>O(1) element swaps</td>
+                        </tr>
+                        <tr id="Array-swap_arrays">
+                            <td><code>Array.swap_arrays(&amp;mut Array&lt;T, N&gt; left, &amp;mut Array&lt;T, N&gt;
+                                right)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Exchanges all elements between disjoint owners; not a constant-time pointer swap.</td>
+                            <td>O(N) element swaps</td>
+                        </tr>
+                        <tr id="Array-fill_copy">
+                            <td><code>Array.fill_copy(&amp;mut Array&lt;T, N&gt; values, &amp;T value)</code></td>
+                            <td><code>unit</code></td>
+                            <td>T: Copy; overwrites every initialized element without changing N.</td>
+                            <td>O(N) copies and old-element drops</td>
+                        </tr>
+                        <tr id="Array-fill_clone">
+                            <td><code>Array.fill_clone(&amp;mut Array&lt;T, N&gt; values, &amp;T value)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>T: Clone; basic guarantee: an error may leave a replaced prefix, but every slot stays
+                                initialized.
+                            </td>
+                            <td>O(N) clone/drop work</td>
+                        </tr>
+                        <tr id="Array-fill_with">
+                            <td><code>Array.fill_with(&amp;mut Array&lt;T, N&gt; values, Make&lt;T&gt; make)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Infallible replacement callback; every slot stays initialized.</td>
+                            <td>O(N) callback/drop work</td>
+                        </tr>
+                        <tr id="Array-reverse">
+                            <td><code>Array.reverse(&amp;mut Array&lt;T, N&gt; values)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Reverses order in place.</td>
+                            <td>O(N), no allocation</td>
+                        </tr>
+                        <tr id="Array-rotate_left">
+                            <td><code>Array.rotate_left(&amp;mut Array&lt;T, N&gt; values, usize count)</code></td>
+                            <td><code>Result&lt;unit, BoundsError&gt;</code></td>
+                            <td>Requires count &lt;= N; empty accepts only zero; moves elements without cloning.</td>
+                            <td>O(N), no allocation</td>
+                        </tr>
+                        <tr id="Array-rotate_right">
+                            <td><code>Array.rotate_right(&amp;mut Array&lt;T, N&gt; values, usize count)</code></td>
+                            <td><code>Result&lt;unit, BoundsError&gt;</code></td>
+                            <td>Same count contract as rotate_left.</td>
+                            <td>O(N), no allocation</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Explicit duplication and transformation
+                </h3>
+                <p>Parameter forms T value, &amp;T value, and &amp;mut T value follow the chosen grammar. API names,
+                    type packs, callbacks, and explicit returned-reference lifetime annotations remain draft where
+                    marked.
+                </p>
+                <div class="table-scroll" role="region" aria-label="Complete Proposed Array API data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Requirements and failure contract</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr id="Array-clone">
+                            <td><code>Array.clone(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; duplicates elements using their Clone contract; never promises recursive deep
+                                isolation.
+                            </td>
+                            <td>O(N) clones; element allocations possible</td>
+                        </tr>
+                        <tr id="Array-copy">
+                            <td><code>Array.copy(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Array&lt;T, N&gt;</code></td>
+                            <td>T: Copy only; explicit aggregate duplication even when elements are simple scalars.</td>
+                            <td>O(N) representation copies</td>
+                        </tr>
+                        <tr id="Array-map">
+                            <td><code>Array.map(Array&lt;T, N&gt; values, Transform&lt;T, U&gt; transform)</code></td>
+                            <td><code>Array&lt;U, N&gt;</code></td>
+                            <td>Consumes elements in order; callback is infallible.</td>
+                            <td>O(N) calls and moves</td>
+                        </tr>
+                        <tr id="Array-try_map">
+                            <td><code>Array.try_map(Array&lt;T, N&gt; values, TryTransform&lt;T, U, E&gt; transform)</code>
+                            </td>
+                            <td><code>Result&lt;Array&lt;U, N&gt;, E&gt;</code></td>
+                            <td>On Err, drops partial output and all unconsumed source elements; source is not
+                                reconstructed.
+                            </td>
+                            <td>O(N) calls and cleanup</td>
+                        </tr>
+                        <tr id="Array-map_ref">
+                            <td><code>Array.map_ref(&amp;Array&lt;T, N&gt; values, RefTransform&lt;T, U&gt; transform)</code>
+                            </td>
+                            <td><code>Array&lt;U, N&gt;</code></td>
+                            <td>Callback receives read borrows; input owner remains available afterward.</td>
+                            <td>O(N) calls</td>
+                        </tr>
+                        <tr id="Array-try_map_ref">
+                            <td><code>Array.try_map_ref(&amp;Array&lt;T, N&gt; values, TryRefTransform&lt;T, U, E&gt;
+                                transform)</code></td>
+                            <td><code>Result&lt;Array&lt;U, N&gt;, E&gt;</code></td>
+                            <td>Source preserved; partially initialized output is cleaned on Err.</td>
+                            <td>O(N) calls</td>
+                        </tr>
+                        <tr id="Array-zip">
+                            <td><code>Array.zip(Array&lt;T, N&gt; left, Array&lt;U, N&gt; right)</code></td>
+                            <td><code>Array&lt;(T, U), N&gt;</code></td>
+                            <td>Same compile-time length; pairs ownership, not aliases.</td>
+                            <td>O(N) moves</td>
+                        </tr>
+                        <tr id="Array-unzip">
+                            <td><code>Array.unzip(Array&lt;(T, U), N&gt; pairs)</code></td>
+                            <td><code>(Array&lt;T, N&gt;, Array&lt;U, N&gt;)</code></td>
+                            <td>Separates pair fields without cloning.</td>
+                            <td>O(N) moves</td>
+                        </tr>
+                        <tr id="Array-concat">
+                            <td><code>Array.concat(Array&lt;T, N&gt; left, Array&lt;T, M&gt; right)</code></td>
+                            <td><code>Array&lt;T, N+M&gt;</code></td>
+                            <td>N+M and the output layout must be valid at compile time.</td>
+                            <td>O(N+M) moves</td>
+                        </tr>
+                        <tr id="Array-split_owned">
+                            <td><code>Array.split_owned(Array&lt;T, N&gt; values, const usize K)</code></td>
+                            <td><code>(Array&lt;T, K&gt;, Array&lt;T, N-K&gt;)</code></td>
+                            <td>Requires K &lt;= N at compile time; consumes the original owner.</td>
+                            <td>O(N) moves</td>
+                        </tr>
+                        <tr id="Array-flatten">
+                            <td><code>Array.flatten(Array&lt;Array&lt;T, C&gt;, R&gt; rows)</code></td>
+                            <td><code>Array&lt;T, R*C&gt;</code></td>
+                            <td>Static product checked at compile time; preserves row-major element order.</td>
+                            <td>O(R*C) logical moves; elision possible</td>
+                        </tr>
+                        <tr id="Array-reshape">
+                            <td><code>Array.reshape(Array&lt;T, N&gt; values, const usize R, const usize C)</code></td>
+                            <td><code>Array&lt;Array&lt;T, C&gt;, R&gt;</code></td>
+                            <td>Requires R*C=N with checked type-level arithmetic; no Tensor conversion or device
+                                transfer.
+                            </td>
+                            <td>O(N) logical moves; elision possible</td>
+                        </tr>
+                        <tr id="Array-transpose">
+                            <td><code>Array.transpose(Array&lt;Array&lt;T, C&gt;, R&gt; matrix)</code></td>
+                            <td><code>Array&lt;Array&lt;T, R&gt;, C&gt;</code></td>
+                            <td>Reorders owned elements; this is not a zero-copy strided view.</td>
+                            <td>O(R*C) moves</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Search and ordering
+                </h3>
+                <p>Parameter forms T value, &amp;T value, and &amp;mut T value follow the chosen grammar. API names,
+                    type packs, callbacks, and explicit returned-reference lifetime annotations remain draft where
+                    marked.
+                </p>
+                <div class="table-scroll" role="region" aria-label="Complete Proposed Array API data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Requirements and failure contract</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr id="Array-contains">
+                            <td><code>Array.contains(&amp;Array&lt;T, N&gt; values, &amp;T needle)</code></td>
+                            <td><code>bool</code></td>
+                            <td>T: Eq; tests logical equality, not raw padding bytes.</td>
+                            <td>O(N) equality calls</td>
+                        </tr>
+                        <tr id="Array-position">
+                            <td><code>Array.position(&amp;Array&lt;T, N&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>First matching index; ascending callback order.</td>
+                            <td>O(N) predicate calls</td>
+                        </tr>
+                        <tr id="Array-rposition">
+                            <td><code>Array.rposition(&amp;Array&lt;T, N&gt; values, Predicate&lt;T&gt; test)</code>
+                            </td>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>Last matching index; descending callback order.</td>
+                            <td>O(N) predicate calls</td>
+                        </tr>
+                        <tr id="Array-find">
+                            <td><code>Array.find(&amp;Array&lt;T, N&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>Read borrow of the first match; None when absent.</td>
+                            <td>O(N) predicate calls</td>
+                        </tr>
+                        <tr id="Array-count">
+                            <td><code>Array.count(&amp;Array&lt;T, N&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Number of matching elements; bounded by N.</td>
+                            <td>O(N) predicate calls</td>
+                        </tr>
+                        <tr id="Array-binary_search">
+                            <td><code>Array.binary_search(&amp;Array&lt;T, N&gt; values, &amp;T needle, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>SearchResult</code></td>
+                            <td>Requires sorted input and the same consistent total comparator; returns found or
+                                insertion index.
+                            </td>
+                            <td>O(log N) comparisons</td>
+                        </tr>
+                        <tr id="Array-lower_bound">
+                            <td><code>Array.lower_bound(&amp;Array&lt;T, N&gt; values, &amp;T needle, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>usize</code></td>
+                            <td>First not-less position under a consistent sorted ordering.</td>
+                            <td>O(log N) comparisons</td>
+                        </tr>
+                        <tr id="Array-upper_bound">
+                            <td><code>Array.upper_bound(&amp;Array&lt;T, N&gt; values, &amp;T needle, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>usize</code></td>
+                            <td>First greater position under a consistent sorted ordering.</td>
+                            <td>O(log N) comparisons</td>
+                        </tr>
+                        <tr id="Array-equal">
+                            <td><code>Array.equal(&amp;Array&lt;T, N&gt; left, &amp;Array&lt;T, N&gt; right)</code></td>
+                            <td><code>bool</code></td>
+                            <td>T: Eq; elementwise equality.</td>
+                            <td>O(N) equality calls</td>
+                        </tr>
+                        <tr id="Array-compare">
+                            <td><code>Array.compare(&amp;Array&lt;T, N&gt; left, &amp;Array&lt;T, N&gt; right, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>Ordering</code></td>
+                            <td>Lexicographic total comparison; NaN needs an explicit total float comparator.</td>
+                            <td>O(N) comparisons</td>
+                        </tr>
+                        <tr id="Array-sort">
+                            <td><code>Array.sort(&amp;mut Array&lt;T, N&gt; values, Compare&lt;T&gt; compare)</code>
+                            </td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Stable sort; reserves scratch before reordering. Comparator failure/termination can
+                                leave reordered but valid elements.
+                            </td>
+                            <td>O(N log N) comparisons; scratch may allocate</td>
+                        </tr>
+                        <tr id="Array-sort_unstable">
+                            <td><code>Array.sort_unstable(&amp;mut Array&lt;T, N&gt; values, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Unstable in-place sort; infallible consistent total comparator required; no
+                                unchanged-order guarantee on interruption.
+                            </td>
+                            <td>O(N log N) comparisons; no heap scratch</td>
+                        </tr>
+                        <tr id="Array-is_sorted">
+                            <td><code>Array.is_sorted(&amp;Array&lt;T, N&gt; values, Compare&lt;T&gt; compare)</code>
+                            </td>
+                            <td><code>bool</code></td>
+                            <td>Checks adjacent ordering; empty/single-element arrays are sorted.</td>
+                            <td>O(N) comparisons</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Iteration and conversion
+                </h3>
+                <p>Parameter forms T value, &amp;T value, and &amp;mut T value follow the chosen grammar. API names,
+                    type packs, callbacks, and explicit returned-reference lifetime annotations remain draft where
+                    marked.
+                </p>
+                <div class="table-scroll" role="region" aria-label="Complete Proposed Array API data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Requirements and failure contract</th>
+                            <th scope="col">Cost</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr id="Array-iter">
+                            <td><code>Array.iter(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>ReadIterator&lt;T&gt;</code></td>
+                            <td>Yields read borrows; holds the owner borrow.</td>
+                            <td>O(1) creation; O(N) traversal</td>
+                        </tr>
+                        <tr id="Array-iter_mut">
+                            <td><code>Array.iter_mut(&amp;mut Array&lt;T, N&gt; values)</code></td>
+                            <td><code>WriteIterator&lt;T&gt;</code></td>
+                            <td>Yields exclusive, disjoint element borrows; owner mutation stays suspended.</td>
+                            <td>O(1) creation; O(N) traversal</td>
+                        </tr>
+                        <tr id="Array-into_iter">
+                            <td><code>Array.into_iter(Array&lt;T, N&gt; values)</code></td>
+                            <td><code>OwnedIterator&lt;T&gt;</code></td>
+                            <td>Moves out elements; dropping iterator cleans every remaining element.</td>
+                            <td>O(N) possible owner move; O(N) traversal</td>
+                        </tr>
+                        <tr id="Array-fold">
+                            <td><code>Array.fold(&amp;Array&lt;T, N&gt; values, A initial, Fold&lt;A, T&gt; step)</code>
+                            </td>
+                            <td><code>A</code></td>
+                            <td>Sequential left fold; callback chooses checked numeric semantics.</td>
+                            <td>O(N) calls</td>
+                        </tr>
+                        <tr id="Array-try_fold">
+                            <td><code>Array.try_fold(&amp;Array&lt;T, N&gt; values, A initial, TryFold&lt;A, T, E&gt;
+                                step)</code></td>
+                            <td><code>Result&lt;A, E&gt;</code></td>
+                            <td>Stops on Err; input array remains borrowed, external callback effects remain.</td>
+                            <td>O(N) calls</td>
+                        </tr>
+                        <tr id="Array-all">
+                            <td><code>Array.all(&amp;Array&lt;T, N&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>bool</code></td>
+                            <td>Short-circuits; empty returns true.</td>
+                            <td>O(N) worst case</td>
+                        </tr>
+                        <tr id="Array-any">
+                            <td><code>Array.any(&amp;Array&lt;T, N&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>bool</code></td>
+                            <td>Short-circuits; empty returns false.</td>
+                            <td>O(N) worst case</td>
+                        </tr>
+                        <tr id="Array-into_vector">
+                            <td><code>Array.into_vector(Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, OwnerError&lt;Array&lt;T, N&gt;&gt;&gt;</code></td>
+                            <td>Allocates destination before consuming elements; allocation/size failure returns intact
+                                original owner in Err.
+                            </td>
+                            <td>O(N) moves plus allocation</td>
+                        </tr>
+                        <tr id="Array-to_vector_clone">
+                            <td><code>Array.to_vector_clone(&amp;Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; explicit allocated duplicate, source preserved.</td>
+                            <td>O(N) clones plus allocation</td>
+                        </tr>
+                        <tr id="Array-into_box">
+                            <td><code>Array.into_box(Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Result&lt;Box&lt;Array&lt;T, N&gt;&gt;, OwnerError&lt;Array&lt;T,
+                                N&gt;&gt;&gt;</code></td>
+                            <td>Moves owner into an explicit allocation; allocation failure returns original owner.</td>
+                            <td>O(N) possible movement plus allocation</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="Examples" aria-labelledby="Examples-heading">
+                <h2 id="Examples-heading">7. Type-First Examples
+                </h2>
+                <p>Assume <code>values</code> is an existing read-accessible <code>Array&lt;i32, 3&gt;</code>. The
+                    declarations below illustrate namespace access and explicit duplication; every executable statement
+                    ends with a semicolon.
+                </p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;i32, 3&gt; values = [1, 2, 3];
+usize count = Array.len(&amp;values);
+Optional&lt;&amp;i32&gt; first = Array.first(&amp;values);
+Array&lt;i32, 3&gt; duplicate = Array.copy(&amp;values);
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; dynamic_copy = Array.to_vector_clone(&amp;values);</code></pre>
+                <p>The last operation allocates a separate Vector; it does not change the original fixed length. The
+                    parameter borrow forms are chosen; error-type spelling and explicit returned-reference lifetime
+                    annotations remain proposed. Array construction literals will receive a separate grammar
+                    specification.
+                </p>
+            </section>
+            <section id="Parallelism-Devices" aria-labelledby="Parallelism-Devices-heading">
+                <h2 id="Parallelism-Devices-heading">8. Parallelism, Devices &amp; FFI
+                </h2>
+                <p>A shared read view is parallel-safe only when T supports safe shared access. Disjoint write views
+                    prevent overlapping mutation, but captured shared state and interior mutability still require their
+                    own synchronization. Splitting ownership does not automatically make arbitrary T thread-safe.
+                </p>
+                <p>Array/Vector moves transfer ownership on the same storage model; they do not transfer bytes to a GPU.
+                    Tensor conversion and explicit device transfer must validate element layout, shape, target
+                    capabilities, and asynchronous buffer lifetime. No backend support is implied by this draft.
+                </p>
+                <p>FFI borrows must describe length, alignment, initialization, permission, and who releases the
+                    allocation. Empty and zero-sized buffers cannot be dereferenced simply because a pointer exists.
+                    Ordinary arrays are not promised to be ABI-compatible with every C++ template instantiation.
+                </p>
+            </section>
+            <section id="Text-Bytes" aria-labelledby="Text-Bytes-heading">
+                <h2 id="Text-Bytes-heading">9. Text, Characters &amp; Bytes
+                </h2>
+                <p>An <code>Array&lt;char, N&gt;</code> contains Unicode scalar values, not N UTF-8 bytes or N
+                    user-perceived graphemes. Use the lowercase <a href="../String/string.html"><code>string</code>
+                        reference</a> for text encoding and string operations.
+                </p>
+                <p><code>byte</code> is distinct from <code>u8</code>; neither an array cast nor a view silently changes
+                    element identity. Follow the <a href="../Byte/Byte.html">Byte reference</a> for explicit
+                    byte/numeric conversion. Contiguous storage alone does not validate UTF-8, pointer provenance,
+                    endianness, or external record layout.
+                </p>
+            </section>
+            <section id="Design-Status" aria-labelledby="Design-Status-heading">
+                <h2 id="Design-Status-heading">10. Design Status &amp; Reference Scope
+                </h2>
+                <p>The catalog is an Aevix design proposal. It intentionally uses move-by-default owners, explicit
+                    duplication, checked sizes, and error values rather than inheriting another language’s assignment,
+                    exception, or copy-on-write policy.
+                </p>
+                <p>The listed primary references were checked for fixed extents, contiguity, borrowing, initialization,
+                    reallocation, algorithm preconditions, and copy cost. They are research material, not proof of Aevix
+                    implementation, ABI compatibility, measured performance, or GPU qualification.
+                </p>
+            </section>
+            <section id="Sources" aria-labelledby="Sources-heading">
+                <h2 id="Sources-heading">11. Sources &amp; Design References
+                </h2>
+                <p>Primary references inform the design. Aevix names, signatures, and contracts are original design
+                    proposals.
+                </p>
+                <ul class="source-list">
+                    <li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank"
+                           rel="noopener noreferrer">Rust fixed-size array reference</a>
+                    </li>
+                    <li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank"
+                           rel="noopener noreferrer">Rust Vec ownership and capacity reference</a>
+                    </li>
+                    <li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank"
+                           rel="noopener noreferrer">Rust slice operations and disjoint borrowing</a>
+                    </li>
+                    <li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: array</a>
+                    </li>
+                    <li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: vector</a>
+                    </li>
+                    <li>
+                        <a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md"
+                           target="_blank" rel="noopener noreferrer">Swift Evolution: inline array design discussion</a>
+                    </li>
+                </ul>
+            </section>
+            <nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Static_Array.html"><span>Next reference</span>Static
+                Array</a></nav>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span>
+    </footer>
+</main>
+</body>
+</html>

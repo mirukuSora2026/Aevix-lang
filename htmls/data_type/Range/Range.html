@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Finite integer sequences described by bounds, direction, and an explicit positive step.">
+  <title>Range — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Range.html" aria-current="true">Range</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html" aria-current="true">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Range.html">Range</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Range</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Range</h1><p class="doc-subtitle">Finite integer sequences described by bounds, direction, and an explicit positive step.</p><div class="doc-meta"><span class="meta-chip">Range&lt;T&gt;</span><span class="meta-chip">Range. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>design draft</dd></div><div class="doc-stat"><dt>Domain</dt><dd>fixed-width integers</dd></div><div class="doc-stat"><dt>Storage</dt><dd>bounded descriptor</dd></div><div class="doc-stat"><dt>API functions</dt><dd>29</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>a..b</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Overview</span></a></li><li><a href="#Construction"><span class="toc-number">02</span><span>Bounds and declarations</span></a></li><li><a href="#Step"><span class="toc-number">03</span><span>Stepping and exact membership</span></a></li><li><a href="#Cardinality"><span class="toc-number">04</span><span>Cardinality and target bounds</span></a></li><li><a href="#Value-Semantics"><span class="toc-number">05</span><span>Value semantics and iterator state</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Function reference</span></a></li><li><a href="#Indexing"><span class="toc-number">07</span><span>Ranges and collection indexing</span></a></li><li><a href="#Errors"><span class="toc-number">08</span><span>Error values and materialization</span></a></li><li><a href="#Parallel-Device"><span class="toc-number">09</span><span>Parallel partitioning and devices</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>Examples and boundary cases</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Range pages"><h2>Range reference</h2><div class="family-links"><a href="Range.html" aria-current="page">Range</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html" aria-current="true">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Range reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Overview
+</h2>
+<p><strong>Design draft.</strong> These are proposed Aevix APIs, not claims that a compiler or standard library implements them. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
+</p>
+<p>Range is a non-owning value descriptor, not an allocated container or a borrow of a collection. The chosen range literal <code>0..10</code> creates the descriptor represented by <code>Range.new(0, 10)</code>, while <code>0..=10</code> corresponds to <code>Range.closed(0, 10)</code>. Both literals and existing Range values are accepted by the range-form <code>for</code>; see <a href="../../grammar/control_flow/Loops.html">Loops</a>. This first design supports integer primitives and target-sized integers. Floating-point ranges, Unicode traversal, unbounded endpoints, and arbitrary user-defined stepping require separate contracts.</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">2. Bounds and declarations
+</h2>
+<p><code>Range.new(start, end)</code> includes start and excludes end. The closed constructor allows a reachable end value. Descending constructors express direction independently of signedness, so unsigned countdowns do not require a negative unsigned integer.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Range&lt;i32&gt; indices = Range.new(0, 5);
+Range&lt;i32&gt; closed = Range.closed(0, 5);
+u8 countdown_start = 3;
+u8 countdown_end = 0;
+Range&lt;u8&gt; countdown = Range.descending_closed(countdown_start, countdown_end);</code></pre>
+</section>
+<section id="Step" aria-labelledby="Step-heading">
+<h2 id="Step-heading">3. Stepping and exact membership
+</h2>
+<p>Every step magnitude is a same-width unsigned U corresponding to T and must be positive. Starting at 0 with end 6 inclusive and magnitude 4 yields 0 and 4; 6 is eligible as an inclusive bound but is not reachable. Contains checks the stride as well as the bounds.
+</p>
+<p>A directionally reversed start/end pair is empty, not automatically normalized. Stepping past the last eligible value terminates using checked comparisons; the iterator never performs an overflowing increment to discover that it is done.
+</p>
+</section>
+<section id="Cardinality" aria-labelledby="Cardinality-heading">
+<h2 id="Cardinality-heading">4. Cardinality and target bounds
+</h2>
+<p>A representable pair of endpoints can describe more values than usize can count. The full inclusive u64 domain has 2^64 values, so even a 64-bit usize cannot represent its length. Range.len returns CountOverflow in that case; the descriptor and an independently advancing iterator remain meaningful.
+</p>
+<p>Arithmetic computes mathematical distances using checked or sufficiently wide intermediates, including signed minimum-to-maximum spans. It must not first subtract endpoints in T and overflow. Collection creation additionally validates byte size, address-space and allocator limits.
+</p>
+</section>
+<section id="Value-Semantics" aria-labelledby="Value-Semantics-heading">
+<h2 id="Value-Semantics-heading">5. Value semantics and iterator state
+</h2>
+<p>An integer range descriptor is a Copy value with no owned allocation. Creating an iterator creates separate cursor state; consuming one iterator does not secretly mutate another copy of the descriptor. Range.end describes a bound, while Range.last describes the final actual element.
+</p>
+<p>Take, skip, split and reverse may normalize endpoint spelling while preserving their documented sequence. Range.equal compares descriptor fields. Range.sequence_equal handles empty and singleton cases by sequence meaning rather than by spelling.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Function reference
+</h2>
+<p><code>T value</code> passes a value: Copy types are copied, and owning non-Copy values move without a deep clone. <code>&amp;T value</code> is a shared read borrow; <code>&amp;mut T value</code> is an exclusive modification borrow. Calls use <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code> respectively. Already borrowed references and view values are passed directly; adding another & changes the type. <code>*ref</code> accesses the referent. Ordinary <code>&amp;mut x</code> requires a <code>mut</code> owner; <code>mut T value</code> alone makes a by-value parameter locally mutable and does not modify the caller. Overlapping active borrows are checked until last use; disjoint regions may be split safely and no borrow outlives its source. Synchronized interior mutation follows its own type contract. <code>Fn(A) -&gt; B</code> describes a callable; returned-reference lifetime relationships remain documented in prose.
+</p>
+<p><code>U</code> means the unsigned integer of the same bit width as T. <code>RangeDirection</code>, <code>RangeError</code>, and <code>RangeIterator&lt;T&gt;</code> are proposed library support types, not additional primitive numeric types.
+</p>
+<div class="table-scroll" role="region" aria-label="Function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Proposed signature</th><th scope="col">Returns</th><th scope="col">Contract and constraints</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Range-new"><td><code>Range.new(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>Ascending half-open unit-step range; start >= end is empty. T is a supported fixed-width integer.</td><td>O(1)</td>
+</tr>
+<tr id="Range-closed"><td><code>Range.closed(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>Ascending inclusive unit-step range; start > end is empty. Endpoints at T maximum are valid.</td><td>O(1)</td>
+</tr>
+<tr id="Range-descending"><td><code>Range.descending(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>Descending half-open unit-step range; start <= end is empty. Unsigned T is supported.</td><td>O(1)</td>
+</tr>
+<tr id="Range-descending_closed"><td><code>Range.descending_closed(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>Descending inclusive unit-step range; start < end is empty.</td><td>O(1)</td>
+</tr>
+<tr id="Range-empty"><td><code>Range.empty&lt;T&gt;()</code></td><td><code>Range&lt;T&gt;</code></td><td>Canonical empty descriptor for integer T; has no first or last element.</td><td>O(1)</td>
+</tr>
+<tr id="Range-start"><td><code>Range.start(&amp;Range&lt;T&gt; range)</code></td><td><code>T</code></td><td>Returns the descriptor start bound, including for an empty descriptor.</td><td>O(1)</td>
+</tr>
+<tr id="Range-end"><td><code>Range.end(&amp;Range&lt;T&gt; range)</code></td><td><code>T</code></td><td>Returns the descriptor end bound; inclusion is queried separately.</td><td>O(1)</td>
+</tr>
+<tr id="Range-direction"><td><code>Range.direction(&amp;Range&lt;T&gt; range)</code></td><td><code>RangeDirection</code></td><td>Ascending or Descending; direction is not encoded as a potentially overflowing signed step.</td><td>O(1)</td>
+</tr>
+<tr id="Range-is_inclusive"><td><code>Range.is_inclusive(&amp;Range&lt;T&gt; range)</code></td><td><code>bool</code></td><td>Whether the end bound is eligible to be included when reached exactly.</td><td>O(1)</td>
+</tr>
+<tr id="Range-step_magnitude"><td><code>Range.step_magnitude(&amp;Range&lt;T&gt; range)</code></td><td><code>U</code></td><td>Same-width unsigned magnitude; always positive for a valid noncanonical descriptor. Canonical empty uses 1.</td><td>O(1)</td>
+</tr>
+<tr id="Range-with_step"><td><code>Range.with_step(Range&lt;T&gt; range, U magnitude)</code></td><td><code>Result&lt;Range&lt;T&gt;, RangeError&gt;</code></td><td>Zero is InvalidStep; otherwise replaces the positive magnitude and retains bounds/direction.</td><td>O(1)</td>
+</tr>
+<tr id="Range-step_by"><td><code>Range.step_by(Range&lt;T&gt; range, U factor)</code></td><td><code>Result&lt;Range&lt;T&gt;, RangeError&gt;</code></td><td>Positive factor multiplies the existing magnitude; zero or an unrepresentable product is an error even for an empty range.</td><td>O(1)</td>
+</tr>
+<tr id="Range-is_empty"><td><code>Range.is_empty(&amp;Range&lt;T&gt; range)</code></td><td><code>bool</code></td><td>Determines whether the descriptor yields any value without enumerating it.</td><td>O(1)</td>
+</tr>
+<tr id="Range-contains"><td><code>Range.contains(&amp;Range&lt;T&gt; range, T value)</code></td><td><code>bool</code></td><td>Checks directional bounds and divisibility from start by the step magnitude.</td><td>O(1) integer operations</td>
+</tr>
+<tr id="Range-len"><td><code>Range.len(&amp;Range&lt;T&gt; range)</code></td><td><code>Result&lt;usize, RangeError&gt;</code></td><td>Exact element count; CountOverflow if it cannot fit target usize. No wrap or truncation.</td><td>O(1) checked arithmetic</td>
+</tr>
+<tr id="Range-first"><td><code>Range.first(&amp;Range&lt;T&gt; range)</code></td><td><code>Optional&lt;T&gt;</code></td><td>First yielded value, or None for empty.</td><td>O(1)</td>
+</tr>
+<tr id="Range-last"><td><code>Range.last(&amp;Range&lt;T&gt; range)</code></td><td><code>Optional&lt;T&gt;</code></td><td>Last reachable value, which can differ from the inclusive end when the step does not divide the span.</td><td>O(1) checked arithmetic</td>
+</tr>
+<tr id="Range-get"><td><code>Range.get(&amp;Range&lt;T&gt; range, usize index)</code></td><td><code>Optional&lt;T&gt;</code></td><td>Zero-based ordinal lookup; None when absent. Does not require total count to fit usize.</td><td>O(1) checked arithmetic</td>
+</tr>
+<tr id="Range-at"><td><code>Range.at(&amp;Range&lt;T&gt; range, usize index)</code></td><td><code>Result&lt;T, RangeError&gt;</code></td><td>Ordinal lookup with OutOfBounds instead of None.</td><td>O(1) checked arithmetic</td>
+</tr>
+<tr id="Range-take"><td><code>Range.take(Range&lt;T&gt; range, usize count)</code></td><td><code>Range&lt;T&gt;</code></td><td>Returns a descriptor for at most the first count yielded values; count zero is empty.</td><td>O(1)</td>
+</tr>
+<tr id="Range-skip"><td><code>Range.skip(Range&lt;T&gt; range, usize count)</code></td><td><code>Range&lt;T&gt;</code></td><td>Removes up to count leading yielded values; skipping beyond the end yields empty.</td><td>O(1)</td>
+</tr>
+<tr id="Range-split_at"><td><code>Range.split_at(Range&lt;T&gt; range, usize index)</code></td><td><code>Result&lt;Tuple&lt;Range&lt;T&gt;, Range&lt;T&gt;&gt;, RangeError&gt;</code></td><td>Index must be no greater than cardinality; returns ordinal prefix/suffix without enumeration.</td><td>O(1) checked arithmetic</td>
+</tr>
+<tr id="Range-reverse"><td><code>Range.reverse(Range&lt;T&gt; range)</code></td><td><code>Range&lt;T&gt;</code></td><td>Reverses the finite sequence using its first/last reachable values and opposite direction; never negates an unsigned step.</td><td>O(1)</td>
+</tr>
+<tr id="Range-iter"><td><code>Range.iter(Range&lt;T&gt; range)</code></td><td><code>RangeIterator&lt;T&gt;</code></td><td>Creates an independent cursor; does not allocate or require the full count to fit usize.</td><td>O(1) setup; O(1) per item</td>
+</tr>
+<tr id="Range-rev_iter"><td><code>Range.rev_iter(Range&lt;T&gt; range)</code></td><td><code>RangeIterator&lt;T&gt;</code></td><td>Creates a cursor beginning at the last reachable value.</td><td>O(1) setup; O(1) per item</td>
+</tr>
+<tr id="Range-collect_vector"><td><code>Range.collect_vector(Range&lt;T&gt; range)</code></td><td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td><td>Materializes all values; validates representable length/allocation size before allocation.</td><td>O(n) time and storage</td>
+</tr>
+<tr id="Range-to_array"><td><code>Range.to_array&lt;N&gt;(Range&lt;T&gt; range)</code></td><td><code>Result&lt;Array&lt;T, N&gt;, RangeError&gt;</code></td><td>Exact count must equal static N; no partial output escapes. Target layout bounds still apply.</td><td>O(N) writes</td>
+</tr>
+<tr id="Range-equal"><td><code>Range.equal(&amp;Range&lt;T&gt; left, &amp;Range&lt;T&gt; right)</code></td><td><code>bool</code></td><td>Descriptor equality of bounds, direction, inclusion and magnitude; not sequence equality.</td><td>O(1)</td>
+</tr>
+<tr id="Range-sequence_equal"><td><code>Range.sequence_equal(&amp;Range&lt;T&gt; left, &amp;Range&lt;T&gt; right)</code></td><td><code>bool</code></td><td>Compares the represented finite sequences; all empty sequences equal, singleton step differences irrelevant.</td><td>O(1) exact descriptor arithmetic</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Indexing" aria-labelledby="Indexing-heading">
+<h2 id="Indexing-heading">7. Ranges and collection indexing
+</h2>
+<p>A numeric Range is not permission to access an owner. Collection slicing validates its own bounds against the current length and creates a lifetime-checked Slice or MutSlice. A stride greater than one is not a contiguous Slice; use an iterator or an explicitly strided view instead.
+</p>
+<p>Indexes count elements, not bytes or Unicode grapheme clusters. A Range of usize can describe collection positions, but a range of i32 is not implicitly converted to it. Negative or overflowing conversions fail explicitly.
+</p>
+</section>
+<section id="Errors" aria-labelledby="Errors-heading">
+<h2 id="Errors-heading">8. Error values and materialization
+</h2>
+<p>RangeError covers InvalidStep, StepOverflow, CountOverflow, OutOfBounds and LengthMismatch. Infallible descriptor construction accepts reversed bounds as an empty sequence. Materialization uses CollectionError to preserve size and allocation failures.
+</p>
+<p>Error returns do not leave a partially initialized Array or Vector visible. If construction has initialized a prefix before an unrelated element-generation failure in a future extension, that prefix must be destroyed safely. The current integer sequence itself has no fallible element callback.
+</p>
+</section>
+<section id="Parallel-Device" aria-labelledby="Parallel-Device-heading">
+<h2 id="Parallel-Device-heading">9. Parallel partitioning and devices
+</h2>
+<p>Finite integer descriptors can be copied into CPU or supported GPU work, but collecting them on a host does not place data on a GPU. Parallel partitioning must partition ordinals without overlaps or gaps and check arithmetic at boundaries.
+</p>
+<p>A range describing disjoint indexes does not alone prove disjoint memory borrows. The borrow-producing collection API validates and records the actual regions. Reduction order, integer overflow and reproducibility follow the operation contract.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10. Examples and boundary cases
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;Range&lt;i32&gt;, RangeError&gt; strided = Range.with_step(Range.closed(0, 6), 4);
+u64 smallest = 0;
+u64 largest = 18446744073709551615;
+Range&lt;u64&gt; full = Range.closed(smallest, largest);
+Result&lt;usize, RangeError&gt; too_many = Range.len(&amp;full);
+Optional&lt;u8&gt; last = Range.last(&amp;countdown);
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; values = Range.collect_vector(indices);</code></pre>
+<p>The full-domain count fails because the count exceeds target usize on supported 32- and 64-bit targets. The descending unsigned range ends at zero without wrapping to 255. Type-first declarations give each large literal an explicit integer context.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/ops/struct.Range.html" target="_blank" rel="noopener noreferrer">Rust Range reference: half-open bounds and membership</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/ops/struct.RangeInclusive.html" target="_blank" rel="noopener noreferrer">Rust RangeInclusive reference: inclusive endpoints</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

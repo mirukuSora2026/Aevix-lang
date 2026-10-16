@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Heap ownership of fixed arrays, nested vectors, and borrowed descriptors.">
+  <title>Boxed Arrays and Views — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Box.html" aria-current="true">Box</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html" aria-current="true">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Box.html">Box</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Boxed Arrays and Views</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Boxed Arrays and Views</h1><p class="doc-subtitle">Heap ownership of fixed arrays, nested vectors, and borrowed descriptors.</p><div class="doc-meta"><span class="meta-chip">Box&lt;Array&lt;T, N&gt;&gt;</span><span class="meta-chip">Box namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>12</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>box</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Own the Payload, Not an Ambiguous Slice</span></a></li><li><a href="#Construction"><span class="toc-number">02</span><span>Direct Fixed-Extent Construction</span></a></li><li><a href="#Nested-Vector"><span class="toc-number">03</span><span>Boxing a Vector Adds a Layer</span></a></li><li><a href="#Borrows"><span class="toc-number">04</span><span>Views and Element Finalization</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>Fixed Arrays and Nested Vectors</span></a></li><li><a href="#Cost"><span class="toc-number">06</span><span>Layout, Cost, and Placement</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>Examples and Common Contracts</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Box pages"><h2>Box reference</h2><div class="family-links"><a href="Box.html">Box</a><a href="Box_Slices.html" aria-current="page">Boxed Arrays and Views</a><a href="Box_FFI.html">Box and Foreign Interfaces</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html" aria-current="true">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Boxed Arrays and Views reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Own the Payload, Not an Ambiguous Slice
+</h2>
+<p>Box&lt;Array&lt;T, N&gt;&gt; owns N initialized inline elements in one fixed extent. It is different from Box&lt;Slice&lt;T&gt;&gt;, which boxes a descriptor that still borrows another owner. The latter does not make the borrowed elements live longer. A dynamic owning sequence remains Vector&lt;T&gt; under the approved collection model; this page does not quietly introduce an unsized BoxedSlice primitive.
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">2. Direct Fixed-Extent Construction
+</h2>
+<p>A large fixed array need not first exist as a large temporary stack value. Builder APIs can reserve the final box and initialize by index. They record exactly how many elements have completed initialization. Failure destroys that prefix once and releases the allocation. Element-producing callbacks and cloning may themselves fail or perform external work; those effects are not rolled back by allocation cleanup.
+</p>
+</section>
+<section id="Nested-Vector" aria-labelledby="Nested-Vector-heading">
+<h2 id="Nested-Vector-heading">3. Boxing a Vector Adds a Layer
+</h2>
+<p>Box&lt;Vector&lt;T&gt;&gt; owns a vector handle inside a unique heap allocation. The vector still owns its separate contiguous buffer and retains its own capacity, growth, and moved-input rules. This representation can add an allocation rather than saving memory. Moving out the vector transfers its buffer ownership but does not copy the elements. A borrowed nested slice cannot coexist with an operation that reallocates the vector buffer.
+</p>
+</section>
+<section id="Borrows" aria-labelledby="Borrows-heading">
+<h2 id="Borrows-heading">4. Views and Element Finalization
+</h2>
+<p>Read slices expose initialized elements without allocation; exclusive slices suspend conflicting parent access. A slice cannot grow the fixed extent or the nested vector. Zero-sized elements can have visible constructor, callback, or destructor effects, so zero payload bytes do not eliminate N logical elements. Destruction follows element ownership and the runtime’s normal cleanup policy; external resource release is not guaranteed after forced process termination.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. Fixed Arrays and Nested Vectors
+</h2>
+<div class="table-scroll" role="region" aria-label="Fixed Arrays and Nested Vectors data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Box-from_array"><th scope="row"><code>Box.from_array(Array&lt;T, N&gt; values)</code></th><td><code>Result&lt;Box&lt;Array&lt;T, N&gt;&gt;, OwnerError&lt;Array&lt;T, N&gt;&gt;&gt;</code></td><td>Allocate fixed array storage; returned allocation failure preserves the original array.</td>
+</tr>
+<tr id="Box-array_from_fn"><th scope="row"><code>Box.array_from_fn(T, const usize N, MakeAt&lt;T&gt; make)</code></th><td><code>Result&lt;Box&lt;Array&lt;T, N&gt;&gt;, CollectionError&gt;</code></td><td>Construct directly into reserved storage; finalize initialized prefix on unwind.</td>
+</tr>
+<tr id="Box-array_try_from_fn"><th scope="row"><code>Box.array_try_from_fn(T, const usize N, TryMakeAt&lt;T, E&gt; make)</code></th><td><code>Result&lt;Box&lt;Array&lt;T, N&gt;&gt;, BuildError&lt;E&gt;&gt;</code></td><td>Index builder failure cleans the initialized prefix and records the callback error.</td>
+</tr>
+<tr id="Box-array_repeat_copy"><th scope="row"><code>Box.array_repeat_copy(const usize N, &amp;T value)</code></th><td><code>Result&lt;Box&lt;Array&lt;T, N&gt;&gt;, CollectionError&gt;</code></td><td>T: Copy; explicit O(N) copies and allocation.</td>
+</tr>
+<tr id="Box-array_repeat_clone"><th scope="row"><code>Box.array_repeat_clone(const usize N, &amp;T value)</code></th><td><code>Result&lt;Box&lt;Array&lt;T, N&gt;&gt;, CollectionError&gt;</code></td><td>T: Clone; clean partially cloned output on failure.</td>
+</tr>
+<tr id="Box-array_as_slice"><th scope="row"><code>Box.array_as_slice(&amp;Box&lt;Array&lt;T, N&gt;&gt; owner)</code></th><td><code>Slice&lt;T&gt;</code></td><td>Borrow the initialized fixed extent; O(1), no allocation.</td>
+</tr>
+<tr id="Box-array_as_mut_slice"><th scope="row"><code>Box.array_as_mut_slice(&amp;mut Box&lt;Array&lt;T, N&gt;&gt; owner)</code></th><td><code>MutSlice&lt;T&gt;</code></td><td>Exclusive fixed-extent borrow; no ownership transfer.</td>
+</tr>
+<tr id="Box-into_array"><th scope="row"><code>Box.into_array(Box&lt;Array&lt;T, N&gt;&gt; owner)</code></th><td><code>Array&lt;T, N&gt;</code></td><td>Move the inline array out; release heap storage, with O(N) payload-move cost.</td>
+</tr>
+<tr id="Box-from_vector"><th scope="row"><code>Box.from_vector(Vector&lt;T&gt; values)</code></th><td><code>Result&lt;Box&lt;Vector&lt;T&gt;&gt;, OwnerError&lt;Vector&lt;T&gt;&gt;&gt;</code></td><td>Box the vector handle; this may add an allocation, and failure returns the vector.</td>
+</tr>
+<tr id="Box-vector_as_slice"><th scope="row"><code>Box.vector_as_slice(&amp;Box&lt;Vector&lt;T&gt;&gt; owner)</code></th><td><code>Slice&lt;T&gt;</code></td><td>Borrow the vector’s initialized elements; nested ownership remains intact.</td>
+</tr>
+<tr id="Box-vector_as_mut_slice"><th scope="row"><code>Box.vector_as_mut_slice(&amp;mut Box&lt;Vector&lt;T&gt;&gt; owner)</code></th><td><code>MutSlice&lt;T&gt;</code></td><td>Exclusive element view; no vector growth is permitted through this slice.</td>
+</tr>
+<tr id="Box-into_vector"><th scope="row"><code>Box.into_vector(Box&lt;Vector&lt;T&gt;&gt; owner)</code></th><td><code>Vector&lt;T&gt;</code></td><td>Move out vector ownership and free only the outer box allocation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Cost" aria-labelledby="Cost-heading">
+<h2 id="Cost-heading">6. Layout, Cost, and Placement
+</h2>
+<p>Count products and layouts are checked before allocation. Native alignment and FFI layout are independent of a source type’s name. Fixed-array extraction can move a large inline value; it is not the O(1) handle move of a vector. Borrowing host storage neither uploads it nor grants device access. Asynchronous work needs an explicit resource lease that survives the user-visible completion handle when necessary.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7. Examples and Common Contracts
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Box.payload_size(Array&lt;i32, 4&gt;);
+Box.payload_alignment(Array&lt;i32, 4&gt;);</code></pre>
+<p>Individual construction and conversion calls above state their failure ownership. See <a href="Box.html">Box</a>, <a href="../Array/Static_Array.html">Static Array</a>, <a href="../Vector/Vector.html">Vector</a>, and <a href="../Slice/Slice.html">Slice</a> for the underlying common rules. No pointer cast, unchecked uninitialized view, or implicit extension of borrowed lifetime is included.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/boxed/struct.Box.html" target="_blank" rel="noopener noreferrer">Rust Box — unique heap ownership and allocation contracts</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Box.html"><span>Previous reference</span>Box</a><a href="Box_FFI.html"><span>Next reference</span>Box and Foreign Interfaces</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

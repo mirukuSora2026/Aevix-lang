@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Structured host execution with explicit lifecycle and result ownership.">
+  <title>Task — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Task.html" aria-current="true">Task</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Task.html">Task</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Task</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Task</h1><p class="doc-subtitle">Structured host execution with explicit lifecycle and result ownership.</p><div class="doc-meta"><span class="meta-chip">Task&lt;T&gt;</span><span class="meta-chip">Task. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>36</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>task</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>A handle to host work in a lifetime scope</span></a></li><li><a href="#notation"><span class="toc-number">02</span><span>Supporting records and two layers of error</span></a></li><li><a href="#scope-contract"><span class="toc-number">03</span><span>The scope owns the obligation to finish</span></a></li><li><a href="#ownership"><span class="toc-number">04</span><span>Capture safety, migration and locks</span></a></li><li><a href="#cancel-contract"><span class="toc-number">05</span><span>A cancellation request is not completion</span></a></li><li><a href="#scheduling"><span class="toc-number">06</span><span>Execution and cost model</span></a></li><li><a href="#creation-functions"><span class="toc-number">07</span><span>Creation, scheduling and scope management</span></a></li><li><a href="#join-functions"><span class="toc-number">08</span><span>Observation, result ownership and explicit waiting</span></a></li><li><a href="#composition-functions"><span class="toc-number">09</span><span>Cancellation and composition</span></a></li><li><a href="#examples"><span class="toc-number">10</span><span>Scheduling without implicit unwrapping</span></a></li><li><a href="#related"><span class="toc-number">11</span><span>Host tasks and device completion</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Task pages"><h2>Task reference</h2><div class="family-links"><a href="Task.html" aria-current="page">Task</a><a href="Task_Scope.html">Task Scope</a><a href="Task_Cancellation.html">Task Cancellation</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Task reference">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1. A handle to host work in a lifetime scope
+</h2>
+<p>Task&lt;T&gt; is the proposed move-only handle for scheduled host computation producing one value of type T. A task is not a dedicated operating-system thread, a device queue event or an unstarted lazy future. Scheduling can allocate and fail. Once accepted by a scope, work and its captured resources remain tracked independently of whether the caller retains the user-facing handle.
+</p>
+<p>Structured execution is the default: borrowed captures cannot outlive their storage, and a scope cannot finish while any child might still access its loans. Explicitly detached work requires owned or otherwise independently valid captures. These are design requirements for the compiler and runtime; this documentation does not assert that an executor or cancellation implementation already exists.
+</p>
+</section>
+<section id="notation" aria-labelledby="notation-heading">
+<h2 id="notation-heading">2. Supporting records and two layers of error
+</h2>
+<p>TaskScope, LocalTaskScope, Executor, Work&lt;T&gt;, CancellationSource, CancellationToken, TaskStatus, JoinSet&lt;T&gt; and Duration are proposed library types. Work&lt;T&gt; describes a callable or suspended computation producing T; final closure and async syntax is outside this reference. Task observation uses &amp;Task&lt;T&gt;; exclusive result-handle access uses &amp;mut Task&lt;T&gt;. Calls spell &amp;job or &amp;mut job explicitly; creating the latter requires a mut owner binding. Task&lt;T&gt; by value moves the owning handle. SpawnError distinguishes allocation, closed scope, executor unavailable and capture-safety failures.
+</p>
+<p>TaskError represents cancellation, recoverable runtime failure, consumed result or an explicitly supported caught-unwind report. Process abort, fatal memory corruption and unrecoverable runtime termination do not become ordinary Result values. If a task returns Result&lt;U, E&gt;, joining gives Result&lt;Result&lt;U, E&gt;, TaskError&gt;: application failure and task lifecycle failure stay separate. No implicit flattening loses the distinction.
+</p>
+<p>SpawnInputError&lt;Input&gt; is a proposed ownership-preserving scheduling error carrying the original input handle when registration fails. No child may start before input ownership and resource registration are accepted. ScopeError, JoinError, ScopeReport and RaceOutcome are proposed library records; a race outcome contains its selected terminal outcome and explicit unfinished loser handles. Work submission errors that consume user work retain it in a typed error payload when reuse is promised.
+</p>
+<p>Ordinary spawn functions consume their Work value. Failed admission safely destroys unstarted work and its captures, releasing scoped loans; non-generic SpawnError does not promise to return those moved captures. Already-running input handles supplied to map, then or from_pending instead use SpawnInputError&lt;Input&gt; to preserve their observation and result capability.
+</p>
+<p>Scope registration and observation borrow &amp;TaskScope; closing a scope consumes TaskScope. Scope/executor registries and cancellation sources support synchronized interior operations, so these APIs do not require a mutable binding merely to request cancellation or register work. An existing reference is passed directly without adding another &amp;. &amp;mut Task accesses the original handle; mut Task by value would only make a moved callee-local handle mutable.
+</p>
+</section>
+<section id="scope-contract" aria-labelledby="scope-contract-heading">
+<h2 id="scope-contract-heading">3. The scope owns the obligation to finish
+</h2>
+<p>Task.scope accepts an explicit structured scope body. Closing its registration set prevents new children; joining drains all accepted work and owned cleanup before borrowed storage can be released. Scope completion is an observable join boundary, including when source syntax later makes it part of a block. The compiler rejects paths that escape a live borrowed scope without that boundary.
+</p>
+<p>The runtime registration set and lexical rules must remain safe even when a handle is dropped, moved away, forgotten or never joined individually. Handle destruction is not the sole safety mechanism. Early return and unwinding must route through a defined drain/termination policy before borrowed storage is destroyed. A noncooperative task may delay scope completion indefinitely; safety does not imply termination or bounded latency.
+</p>
+</section>
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">4. Capture safety, migration and locks
+</h2>
+<p>A multithread executor requires captures and outputs to satisfy the relevant transfer/share traits. Shared&lt;T&gt; reference counting only retains memory; it does not make an arbitrary T thread-safe. An exclusive borrowed slice may be captured by one scoped task while disjoint slices are captured by others, with the loan unavailable to its parent until joined. A local task remains pinned to a compatible local executor and cannot silently migrate.
+</p>
+<p>In the proposed safe profile, lock guards are non-Send by default, cannot cross suspension and cannot be submitted to a GPU. Release a guard before waiting, yielding or handing work to a device. Structured tasks prevent invalid lifetime escape; they do not prevent deadlock, lock-order bugs, starvation or algorithmic races mediated by explicitly synchronized state.
+</p>
+</section>
+<section id="cancel-contract" aria-labelledby="cancel-contract-heading">
+<h2 id="cancel-contract-heading">5. A cancellation request is not completion
+</h2>
+<p>Cancellation is cooperative. A request signals a token or task state and can prevent not-yet-started work when supported, but does not prove running code has stopped, release its loans, undo writes or kill a host thread. A task may complete normally while racing a request. join and await_result report its actual terminal outcome only after required cleanup and captured-resource release.
+</p>
+<p>Timeout means the observation interval expired. It leaves work tracked and its resource obligations live; a timeout function does not silently cancel or detach the task. A race returns the winner and retains explicit handles for unfinished losers. Cancellation propagation and waiting for cancellation acknowledgment are separately named operations.
+</p>
+</section>
+<section id="scheduling" aria-labelledby="scheduling-heading">
+<h2 id="scheduling-heading">6. Execution and cost model
+</h2>
+<p>Host async suspension can free an executor worker to run other tasks; a blocking function occupies a thread. spawn_blocking uses an explicit blocking pool and obeys the same ownership boundary. Scheduling, task state, cancellation checks and synchronization have real costs. Task is a runtime abstraction and makes no zero-overhead or parallel-speedup claim.
+</p>
+<p>AOT and JIT share task ordering, borrowing and result contracts. Scheduling is nondeterministic unless an optional scheduler policy provides stronger guarantees. Numeric work inside a task retains its scalar profile: creating parallel tasks does not authorize an unordered floating reduction. A task that bridges a Pending device result retains device leases but does not replace the Pending visibility contract.
+</p>
+</section>
+<section id="creation-functions" aria-labelledby="creation-functions-heading">
+<h2 id="creation-functions-heading">7. Creation, scheduling and scope management
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Creation, scheduling and scope management data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Task-scope"><td><code>Task.scope&lt;T&gt;(&amp;Executor executor, ScopeBody&lt;T&gt; body)</code></td><td><code>Result&lt;T, ScopeError&gt;</code></td><td>Body receives a lexical scope; all accepted children drained before returning; child failures reported by policy.</td><td>Allocates/tracks; explicit join boundary.</td>
+</tr>
+<tr id="Task-open_scope"><td><code>Task.open_scope(&amp;Executor executor, ScopeOptions options)</code></td><td><code>Result&lt;TaskScope, SpawnError&gt;</code></td><td>Creates a compiler-tracked scope obligation; cannot escape storage it may borrow.</td><td>Registry allocation may fail.</td>
+</tr>
+<tr id="Task-close_scope"><td><code>Task.close_scope(TaskScope scope)</code></td><td><code>Result&lt;ScopeReport, ScopeError&gt;</code></td><td>Stops admission, joins accepted children, releases loans before return; report retains unobserved lifecycle failures.</td><td>May wait indefinitely; no implicit detach.</td>
+</tr>
+<tr id="Task-spawn"><td><code>Task.spawn&lt;T&gt;(&amp;TaskScope scope, Work&lt;T&gt; work)</code></td><td><code>Result&lt;Task&lt;T&gt;, SpawnError&gt;</code></td><td>Registers scoped captures before scheduling; accepts only lifetime/transfer-safe work.</td><td>Scheduling/allocation costs.</td>
+</tr>
+<tr id="Task-spawn_owned"><td><code>Task.spawn_owned&lt;T&gt;(&amp;TaskScope scope, OwnedWork&lt;T&gt; work)</code></td><td><code>Result&lt;Task&lt;T&gt;, SpawnError&gt;</code></td><td>Owned captures move into the call and remain structured; failed registration safely destroys unstarted work/captures and releases their scoped loans.</td><td>May allocate and queue.</td>
+</tr>
+<tr id="Task-spawn_local"><td><code>Task.spawn_local&lt;T&gt;(&amp;LocalTaskScope scope, LocalWork&lt;T&gt; work)</code></td><td><code>Result&lt;Task&lt;T&gt;, SpawnError&gt;</code></td><td>Non-Send captures stay on compatible local executor and within scope lifetime.</td><td>Local scheduling; no migration.</td>
+</tr>
+<tr id="Task-spawn_blocking"><td><code>Task.spawn_blocking&lt;T&gt;(&amp;TaskScope scope, BlockingWork&lt;T&gt; work)</code></td><td><code>Result&lt;Task&lt;T&gt;, SpawnError&gt;</code></td><td>Blocking-pool execution; running work cannot be force-killed by cancellation.</td><td>May reserve worker/allocate.</td>
+</tr>
+<tr id="Task-ready"><td><code>Task.ready&lt;T&gt;(&amp;TaskScope scope, T value)</code></td><td><code>Result&lt;Task&lt;T&gt;, SpawnError&gt;</code></td><td>Creates already-completed tracked task retaining value until taken or scope cleanup.</td><td>State allocation may fail.</td>
+</tr>
+<tr id="Task-failed"><td><code>Task.failed&lt;T&gt;(&amp;TaskScope scope, TaskError error)</code></td><td><code>Result&lt;Task&lt;T&gt;, SpawnError&gt;</code></td><td>Creates tracked terminal lifecycle failure; does not encode an application E automatically.</td><td>State allocation may fail.</td>
+</tr>
+<tr id="Task-id"><td><code>Task.id(&amp;Task&lt;T&gt; task)</code></td><td><code>TaskId</code></td><td>Stable identity during task state lifetime; not an OS thread ID.</td><td>O(1).</td>
+</tr>
+<tr id="Task-status"><td><code>Task.status(&amp;Task&lt;T&gt; task)</code></td><td><code>TaskStatus</code></td><td>Observation snapshot of phase plus cancellation-request flag.</td><td>O(1) synchronized query.</td>
+</tr>
+<tr id="Task-is_finished"><td><code>Task.is_finished(&amp;Task&lt;T&gt; task)</code></td><td><code>bool</code></td><td>True only once required task-local cleanup/captured loan use is complete; not a success test.</td><td>O(1); no waiting.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="join-functions" aria-labelledby="join-functions-heading">
+<h2 id="join-functions-heading">8. Observation, result ownership and explicit waiting
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Observation, result ownership and explicit waiting data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Task-join"><td><code>Task.join(Task&lt;T&gt; task)</code></td><td><code>Result&lt;T, TaskError&gt;</code></td><td>Consumes result handle, waits to terminal state and transfers the result exactly once.</td><td>Blocking wait; forbidden on incompatible executor context.</td>
+</tr>
+<tr id="Task-await_result"><td><code>Task.await_result(&amp;mut Task&lt;T&gt; task)</code></td><td><code>Awaitable&lt;Result&lt;T, TaskError&gt;&gt;</code></td><td>Suspends host computation; exclusive result take; lifetime of wait object retains scope obligations.</td><td>Scheduling/suspension cost; not a GPU command.</td>
+</tr>
+<tr id="Task-try_take"><td><code>Task.try_take(&amp;mut Task&lt;T&gt; task)</code></td><td><code>Result&lt;Optional&lt;T&gt;, TaskError&gt;</code></td><td>Absent while running; present takes terminal success once; consumed handle reports Consumed.</td><td>Nonblocking synchronized operation.</td>
+</tr>
+<tr id="Task-wait_timeout"><td><code>Task.wait_timeout(&amp;Task&lt;T&gt; task, Duration timeout)</code></td><td><code>Result&lt;WaitStatus, TaskError&gt;</code></td><td>Ready or TimedOut observation; does not take T, cancel work or end its loans.</td><td>May block up to scheduler-dependent interval.</td>
+</tr>
+<tr id="Task-await_timeout"><td><code>Task.await_timeout(&amp;Task&lt;T&gt; task, Duration timeout)</code></td><td><code>Awaitable&lt;Result&lt;WaitStatus, TaskError&gt;&gt;</code></td><td>Suspending timeout observation; timed-out work remains registered and running.</td><td>Timer/scheduler overhead.</td>
+</tr>
+<tr id="Task-observe"><td><code>Task.observe(&amp;Task&lt;T&gt; task)</code></td><td><code>TaskObservation</code></td><td>Snapshot without consuming result; cannot provide an escaping borrowed T.</td><td>O(1); synchronized.</td>
+</tr>
+<tr id="Task-discard_result"><td><code>Task.discard_result(Task&lt;T&gt; task)</code></td><td><code>Result&lt;unit, TaskError&gt;</code></td><td>Abandons result observation; scope still tracks work, failures and resource cleanup.</td><td>Nonblocking; destructor not sole tracker.</td>
+</tr>
+<tr id="Task-join_all"><td><code>Task.join_all(Vector&lt;Task&lt;T&gt;&gt; tasks)</code></td><td><code>Result&lt;Vector&lt;Result&lt;T, TaskError&gt;&gt;, JoinError&gt;</code></td><td>Waits for every task and returns outcomes in input order; no fail-fast child abandonment.</td><td>O(tasks); allocates result vector.</td>
+</tr>
+<tr id="Task-join_pair"><td><code>Task.join_pair(Task&lt;A&gt; a, Task&lt;B&gt; b)</code></td><td><code>Result&lt;(Result&lt;A, TaskError&gt;, Result&lt;B, TaskError&gt;), JoinError&gt;</code></td><td>Waits both children regardless of one failing.</td><td>May block; fixed tuple output.</td>
+</tr>
+<tr id="Task-race"><td><code>Task.race(Vector&lt;Task&lt;T&gt;&gt; tasks)</code></td><td><code>Result&lt;RaceOutcome&lt;T&gt;, JoinError&gt;</code></td><td>Nonempty input; returns first terminal outcome plus owned handles for every unfinished loser.</td><td>Allocates bookkeeping; no automatic cancel.</td>
+</tr>
+<tr id="Task-detach"><td><code>Task.detach(Task&lt;T&gt; task, DetachPolicy policy)</code></td><td><code>Result&lt;DetachedTask, DetachError&lt;Task&lt;T&gt;&gt;&gt;</code></td><td>Only independently owned/static-valid captures; failure returns original handle; runtime retains lifetime obligations.</td><td>Explicit scope transfer; detached runtime registry.</td>
+</tr>
+<tr id="Task-join_detached"><td><code>Task.join_detached(DetachedTask task)</code></td><td><code>Result&lt;unit, TaskError&gt;</code></td><td>Observes detached terminal lifecycle and cleanup; result T was discarded by detach policy.</td><td>May wait; no ownership recovery of T.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="composition-functions" aria-labelledby="composition-functions-heading">
+<h2 id="composition-functions-heading">9. Cancellation and composition
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Cancellation and composition data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Task-request_cancel"><td><code>Task.request_cancel(&amp;Task&lt;T&gt; task)</code></td><td><code>Result&lt;CancelRequest, TaskError&gt;</code></td><td>Requests cooperative cancellation; outcome reports accepted/already-terminal/unsupported, never proves completion.</td><td>O(1) signal plus wake cost.</td>
+</tr>
+<tr id="Task-cancellation"><td><code>Task.cancellation(&amp;Task&lt;T&gt; task)</code></td><td><code>CancellationToken</code></td><td>Returns retained read-only cancellation notification capability.</td><td>Reference-count/state retention cost.</td>
+</tr>
+<tr id="Task-is_cancel_requested"><td><code>Task.is_cancel_requested(&amp;Task&lt;T&gt; task)</code></td><td><code>bool</code></td><td>Snapshot of request flag, independent of success/finished state.</td><td>O(1).</td>
+</tr>
+<tr id="Task-check_cancel"><td><code>Task.check_cancel(&amp;CancellationToken token)</code></td><td><code>Result&lt;unit, Cancelled&gt;</code></td><td>Cooperative checkpoint; reports a request without killing task or releasing captures.</td><td>O(1).</td>
+</tr>
+<tr id="Task-yield_now"><td><code>Task.yield_now()</code></td><td><code>Awaitable&lt;unit&gt;</code></td><td>Cooperative scheduling point; resumption and fairness not bounded.</td><td>Executor scheduling cost.</td>
+</tr>
+<tr id="Task-sleep"><td><code>Task.sleep(Duration duration)</code></td><td><code>Awaitable&lt;Result&lt;unit, TimerError&gt;&gt;</code></td><td>Timer suspension; duration checked; no exact wake-up deadline guarantee.</td><td>Timer registration may allocate/fail.</td>
+</tr>
+<tr id="Task-map"><td><code>Task.map&lt;T, U&gt;(&amp;TaskScope scope, Task&lt;T&gt; input, Mapper&lt;T, U&gt; function)</code></td><td><code>Result&lt;Task&lt;Result&lt;U, TaskError&gt;&gt;, SpawnInputError&lt;Task&lt;T&gt;&gt;&gt;</code></td><td>Tracks input and child; mapper runs after successful input take; input lifecycle failure remains inner TaskError.</td><td>Scheduling/state allocation; failure preserves input in error payload.</td>
+</tr>
+<tr id="Task-then"><td><code>Task.then&lt;T, U&gt;(&amp;TaskScope scope, Task&lt;T&gt; input, OutcomeMapper&lt;T, U&gt; function)</code></td><td><code>Result&lt;Task&lt;U&gt;, SpawnInputError&lt;Task&lt;T&gt;&gt;&gt;</code></td><td>Mapper receives Result&lt;T, TaskError&gt; after input finishes; does not run before cleanup boundary.</td><td>May allocate; failure preserves consumed work handles.</td>
+</tr>
+<tr id="Task-from_pending"><td><code>Task.from_pending&lt;T&gt;(&amp;TaskScope scope, Pending&lt;T&gt; operation)</code></td><td><code>Result&lt;Task&lt;Result&lt;DeviceReady&lt;T&gt;, DeviceError&gt;&gt;, SpawnInputError&lt;Pending&lt;T&gt;&gt;&gt;</code></td><td>Host bridge retains Pending leases; device error stays a value; scope cannot release active device loans.</td><td>No hidden transfer or altered host visibility.</td>
+</tr>
+<tr id="Task-executor"><td><code>Task.executor(&amp;Task&lt;T&gt; task)</code></td><td><code>ExecutorId</code></td><td>Scheduler identity or local executor binding; not current worker-thread identity.</td><td>O(1).</td>
+</tr>
+<tr id="Task-set_label"><td><code>Task.set_label(&amp;mut Task&lt;T&gt; task, string_view label)</code></td><td><code>Result&lt;unit, TaskMetadataError&gt;</code></td><td>Copies UTF-8 label explicitly; invalid state/allocation error; no borrowed dangling label.</td><td>O(label bytes); allocates.</td>
+</tr>
+<tr id="Task-shutdown"><td><code>Task.shutdown(Executor executor, ShutdownPolicy policy)</code></td><td><code>Result&lt;ShutdownReport, ShutdownError&gt;</code></td><td>Closes admission, requests configured cancellation and drains tracked tasks; no unsafe forced release of borrowed work.</td><td>May wait indefinitely; fatal policy explicit.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">10. Scheduling without implicit unwrapping
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">// Existing scope and prepared_work satisfy their capture and lifetime constraints.
+Result&lt;Task&lt;i32&gt;, SpawnError&gt; scheduled = Task.spawn&lt;i32&gt;(&amp;scope, prepared_work);
+// Given a separate handle; exclusive observation requires a mut binding.
+mut Task&lt;i32&gt; observed_job = prepared_job;
+Result&lt;Optional&lt;i32&gt;, TaskError&gt; available = Task.try_take(&amp;mut observed_job);
+// Another validated handle named job is consumed by join.
+Result&lt;i32, TaskError&gt; outcome = Task.join(job);
+// A job whose ordinary output is Result keeps the lifecycle layer.
+Result&lt;Result&lt;i32, ParseError&gt;, TaskError&gt; parsed = Task.join(parse_job);</code></pre>
+<p>All values are immutable unless mut is written explicitly. The approved &amp;mut Task&lt;T&gt; form exclusively borrows a mut handle, while &amp;Task&lt;T&gt; observes without consuming it. Non-void work functions must explicitly return their result on every normally terminating path; the examples avoid fixing a closure grammar.
+</p>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">11. Host tasks and device completion
+</h2>
+<p>Task is the host scheduling and structured-lifetime abstraction. Pending represents already-submitted device work. A successful Task&lt;Tensor&lt;..., Gpu&gt;&gt; can carry a device tensor owner, but only its declared Pending dependency proves that a producer finished; the Task type alone grants no host mapping. Structured parallel iteration and collections can build on Task without changing these boundaries.
+</p>
+<p><a href="Task_Scope.html">Scoped lifetimes</a> · <a href="Task_Cancellation.html">Cancellation and timeout</a> · <a href="../Pending/Pending.html">Pending device work</a> · <a href="../Result/Result.html">Result</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/future/trait.Future.html" target="_blank" rel="noopener noreferrer">Rust Future polling contract</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/thread/fn.scope.html" target="_blank" rel="noopener noreferrer">Rust scoped threads and lifetime boundary</a>
+</li>
+<li><a href="https://docs.rs/tokio/latest/tokio/task/struct.JoinHandle.html" target="_blank" rel="noopener noreferrer">Tokio JoinHandle lifecycle</a>
+</li>
+<li><a href="https://tokio.rs/tokio/topics/shutdown" target="_blank" rel="noopener noreferrer">Tokio graceful shutdown</a>
+</li>
+<li><a href="https://docs.rs/tokio-util/latest/tokio_util/sync/struct.CancellationToken.html" target="_blank" rel="noopener noreferrer">Tokio CancellationToken</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Task_Scope.html"><span>Next reference</span>Task Scope</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

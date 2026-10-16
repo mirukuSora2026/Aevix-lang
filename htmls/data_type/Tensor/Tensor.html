@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Shape-aware ownership with explicit placement and data movement.">
+  <title>Tensor — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Tensor.html" aria-current="true">Tensor</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Tensor.html">Tensor</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tensor</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Tensor</h1><p class="doc-subtitle">Shape-aware ownership with explicit placement and data movement.</p><div class="doc-meta"><span class="meta-chip">Tensor&lt;T, S, P&gt;</span><span class="meta-chip">Tensor. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>77</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[S]</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>A typed owner for multidimensional data</span></a></li><li><a href="#notation"><span class="toc-number">02</span><span>Reference notation and supporting records</span></a></li><li><a href="#shape-contract"><span class="toc-number">03</span><span>Static facts, dynamic checks and empty shapes</span></a></li><li><a href="#layout-contract"><span class="toc-number">04</span><span>Views, explicit copies and mutation</span></a></li><li><a href="#numeric-contract"><span class="toc-number">05</span><span>Arithmetic precision and reproducibility</span></a></li><li><a href="#execution-contract"><span class="toc-number">06</span><span>CPU results and explicitly submitted device work</span></a></li><li><a href="#metadata"><span class="toc-number">07</span><span>Metadata and construction</span></a></li><li><a href="#view-functions"><span class="toc-number">08</span><span>Borrowing and layout functions</span></a></li><li><a href="#element-functions"><span class="toc-number">09</span><span>Access and elementwise CPU arithmetic</span></a></li><li><a href="#reduction-functions"><span class="toc-number">10</span><span>Reductions, selection and linear algebra</span></a></li><li><a href="#device-functions"><span class="toc-number">11</span><span>Allocation, transfer and typed submission</span></a></li><li><a href="#examples"><span class="toc-number">12</span><span>Cost-visible examples</span></a></li><li><a href="#scope"><span class="toc-number">13</span><span>Scope and related types</span></a></li><li><a href="#Sources"><span class="toc-number">14</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Tensor pages"><h2>Tensor reference</h2><div class="family-links"><a href="Tensor.html" aria-current="page">Tensor</a><a href="Tensor_Shape.html">Tensor Shape</a><a href="Tensor_View.html">Tensor Views</a><a href="Tensor_Device.html">Tensor Device</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tensor reference">
+<p class="callout"><strong>Import required.</strong> Tensor is a specialist library type. Add <code>import tensor { Tensor };</code> before declarations to use its short name. Other specialist names used by a program also need their own permitted import routes. The catalog examples below focus on API fragments; they do not imply automatic type availability.</p>
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1. A typed owner for multidimensional data
+</h2>
+<p>Tensor&lt;T, S, P&gt; is the proposed owning multidimensional container. T is the element type, S describes shape, and P describes a placement class. A value owns initialized storage and shape/layout metadata. Assignment moves that ownership; a large element buffer is never copied merely because the value is passed to a function. This reference is an original Aevix design contract, not an implemented compiler or a promise that any listed operation is supported by every backend.
+</p>
+<p>Shape&lt;2, 3&gt; denotes a statically known shape. Cpu and Gpu are candidate placement markers, not physical device identities. A tensor on one GPU cannot be passed to another GPU queue solely because both types contain Gpu. Runtime device identity, allocation context, and queue compatibility remain validated. Views borrow storage and do not create another owner.
+</p>
+</section>
+<section id="notation" aria-labelledby="notation-heading">
+<h2 id="notation-heading">2. Reference notation and supporting records
+</h2>
+<p>In signatures, X is a catalog variable for an already borrowed input: &amp;Tensor&lt;T, S, P&gt; or TensorView&lt;T, S, P&gt;. O is the inferred owning result tensor, V is a read-only TensorView, and M is an exclusive borrowed input: &amp;mut Tensor&lt;T, S, P&gt; or MutTensorView&lt;T, S, P&gt;. Owners are passed with &amp;owner or &amp;mut owner; existing views are passed directly, without an extra reference layer. These letters are documentation variables, not additional language types. S2 is a requested shape. TensorError, ShapeError, LayoutError, AllocationError, DeviceError and SubmitError are proposed library error records. TensorError distinguishes shape, bounds, overflow, allocation, alias, unsupported-operation and scalar-arithmetic failures.
+</p>
+<p>TensorOp&lt;Inputs, Out&gt;, ReductionSpec&lt;A&gt;, AxisList, Layout, DeviceId, Queue and Capabilities are proposed library descriptors. A TensorOp declares input/output types and operation parameters; it is not a newly settled lazy expression primitive. A reduction spec names accumulator type A, output conversion, axis retention and accumulation order. Parameters follow the approved grammar: T value passes a Copy value by copy and an owning non-Copy value by move; &amp;T value shares a read borrow; &amp;mut T value grants an exclusive write borrow. Calls use x, &amp;x or &amp;mut x respectively. A mutable owner binding is required to create &amp;mut access. Returned-reference lifetime notation remains descriptive.
+</p>
+<p>Slice&lt;T&gt;, MutSlice&lt;T&gt;, TensorView, MutTensorView, ShapeLike and the catalog X/M arguments already carry their borrowing capabilities and are passed directly. Borrow lifetimes follow overlapping storage and last use. mut T value changes only a callee-local by-value parameter; it does not substitute for &amp;mut T. Synchronized interior-mutation types follow their own rules.
+</p>
+</section>
+<section id="shape-contract" aria-labelledby="shape-contract-heading">
+<h2 id="shape-contract-heading">3. Static facts, dynamic checks and empty shapes
+</h2>
+<p>Provably incompatible static shapes are compile-time errors. Runtime dimensions produce checked Result values. Every dimension product, byte-size calculation, stride multiplication and reachable address span must be representable before storage or pointer access. Rank zero contains one scalar element. An extent of zero makes the element count zero, including when other extents are large; descriptor validation still checks each dimension and byte-size calculation without relying on integer overflow.
+</p>
+<p>Broadcasting aligns trailing dimensions. An aligned pair is compatible when the extents are equal or one extent is 1. The result uses the non-singleton extent: broadcasting 0 with 1 produces 0. Broadcasting 0 with 2 is invalid. An omitted leading dimension behaves as 1. Broadcasting is a read-only view operation and must not fabricate an exclusive view of repeated storage.
+</p>
+</section>
+<section id="layout-contract" aria-labelledby="layout-contract-heading">
+<h2 id="layout-contract-heading">4. Views, explicit copies and mutation
+</h2>
+<p>Shape does not imply contiguity. A view carries extents, strides, an origin and a validated storage span. Slicing, transposition and compatible reshaping only create borrowed descriptors. Advanced selection, concatenation and explicit materialization create output storage. A reshape request that needs data movement returns a layout error; the caller chooses a copy operation. No ordinary indexing operation secretly moves a GPU buffer to the host.
+</p>
+<p>Mutation requires an exclusive borrow. Mutable views must be injective over their logical indices: overlapping windows, zero strides over non-singleton extents and repeated indices cannot yield a general mutable view. An _into function validates shape, indexing and prohibited aliasing before starting writes. A later scalar-arithmetic or device execution failure does not imply rollback; caller-owned destinations may be partially changed and must follow their reported validity state. Newly allocated output is exposed only after successful initialization.
+</p>
+</section>
+<section id="numeric-contract" aria-labelledby="numeric-contract-heading">
+<h2 id="numeric-contract-heading">5. Arithmetic precision and reproducibility
+</h2>
+<p>Element operations use the scalar type contract, including integer overflow rules, NaN, infinity and signed zero. Reduction precision and accumulation order are separate from storage type. The strict profile specifies a logical lexicographic order and explicit accumulator conversion; a tree or relaxed order must be requested in ReductionSpec and may produce different floating-point bits. No backend may silently use narrower accumulation, flush subnormals or enable fast math merely because code uses a GPU or JIT.
+</p>
+<p>Explicit fma performs one fused multiply-add per element. A compiler may fuse operations only when the selected numeric contract permits the same result. A reproducible mode constrains operation order and scalar behavior; it does not by itself promise identical transcendental implementations on every target. Unsupported numeric capabilities are diagnosed or returned as errors rather than silently changing meaning.
+</p>
+</section>
+<section id="execution-contract" aria-labelledby="execution-contract-heading">
+<h2 id="execution-contract-heading">6. CPU results and explicitly submitted device work
+</h2>
+<p>Ready arithmetic functions in this catalog are instantiated for Cpu storage. Metadata and safe view functions are placement-independent and cannot read device elements on the host. Device arithmetic uses the same typed operation description through Tensor.submit and returns Pending&lt;Out&gt;. This makes queue submission, synchronization and failures visible. Device output can be ready for another device operation without becoming host-readable.
+</p>
+<p>Allocation, upload, download, staging and materialization are separate operations. Ownership and borrow leases remain live until queued work becomes quiescent, even if a Pending handle is dropped. Completion, successful execution, cache visibility and transfer to host storage are distinct guarantees. See the Pending reference for resource retention and fatal device-loss behavior.
+</p>
+<p><a href="../Pending/Pending.html">Pending completion and visibility</a> · <a href="Tensor_Device.html">Device placement details</a>
+</p>
+</section>
+<section id="metadata" aria-labelledby="metadata-heading">
+<h2 id="metadata-heading">7. Metadata and construction
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Metadata and construction data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-rank"><td><code>Tensor.rank(X value)</code></td><td><code>usize</code></td><td>Number of logical axes; rank zero is valid.</td><td>O(1); all placements.</td>
+</tr>
+<tr id="Tensor-shape"><td><code>Tensor.shape(X value)</code></td><td><code>ShapeView</code></td><td>Borrowed immutable extent descriptor; lifetime follows value.</td><td>O(1); no element copy.</td>
+</tr>
+<tr id="Tensor-dim"><td><code>Tensor.dim(X value, usize axis)</code></td><td><code>Result&lt;usize, ShapeError&gt;</code></td><td>Reject axis outside rank; no negative-axis convention.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-element_count"><td><code>Tensor.element_count(X value)</code></td><td><code>usize</code></td><td>Validated logical count, independent of padding or overlapping read views.</td><td>O(1) cached metadata.</td>
+</tr>
+<tr id="Tensor-byte_length"><td><code>Tensor.byte_length(X value)</code></td><td><code>Result&lt;usize, ShapeError&gt;</code></td><td>Logical count times element width; not allocation capacity or span.</td><td>O(1); checked product.</td>
+</tr>
+<tr id="Tensor-strides"><td><code>Tensor.strides(X value)</code></td><td><code>StrideView</code></td><td>Borrowed element-stride metadata; signed strides remain validated.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-layout"><td><code>Tensor.layout(X value)</code></td><td><code>Layout</code></td><td>Layout classification without asserting that all views are contiguous.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-is_contiguous"><td><code>Tensor.is_contiguous(X value, Layout order)</code></td><td><code>bool</code></td><td>Tests the named row/column order, accounting for singleton and empty axes.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-device"><td><code>Tensor.device(X value)</code></td><td><code>DeviceId</code></td><td>Physical allocation context identity, distinct from P.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-capabilities"><td><code>Tensor.capabilities(DeviceId device)</code></td><td><code>Capabilities</code></td><td>Queries storage, compute and transfer support separately.</td><td>Runtime query; no performance guarantee.</td>
+</tr>
+<tr id="Tensor-from_array"><td><code>Tensor.from_array&lt;T, S&gt;(Array&lt;T, N&gt; values)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>Moves or initializes storage after N equals checked product(S).</td><td>O(N); allocation may be needed.</td>
+</tr>
+<tr id="Tensor-from_slice"><td><code>Tensor.from_slice&lt;T, S&gt;(Slice&lt;T&gt; values)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>Explicit element copy; count must equal product(S).</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-from_vector"><td><code>Tensor.from_vector&lt;T, S&gt;(Vector&lt;T&gt; values)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>Consumes vector ownership; rejects count/layout mismatch without hidden element conversion.</td><td>O(rank); allocation reuse permitted, not guaranteed.</td>
+</tr>
+<tr id="Tensor-full"><td><code>Tensor.full&lt;T, S&gt;(T fill)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>Initializes every element with a copyable value.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-zeros"><td><code>Tensor.zeros&lt;T, S&gt;()</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>Requires the element type&#x27;s numeric zero; no arbitrary all-zero bit assumption.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-ones"><td><code>Tensor.ones&lt;T, S&gt;()</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>Requires multiplicative one in T.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-arange"><td><code>Tensor.arange&lt;T&gt;(T start, T step, usize count)</code></td><td><code>Result&lt;Tensor&lt;T, DynamicShape&lt;1&gt;, Cpu&gt;, TensorError&gt;</code></td><td>Exactly count values; checked integer arithmetic and defined floating evaluation order.</td><td>O(count); allocates.</td>
+</tr>
+<tr id="Tensor-linspace"><td><code>Tensor.linspace&lt;F&gt;(F start, F end, usize count, bool endpoint)</code></td><td><code>Result&lt;Tensor&lt;F, DynamicShape&lt;1&gt;, Cpu&gt;, TensorError&gt;</code></td><td>count=0 is empty; count=1 returns start; finite endpoints required.</td><td>O(count); explicit endpoint policy.</td>
+</tr>
+<tr id="Tensor-eye"><td><code>Tensor.eye&lt;T&gt;(usize rows, usize columns)</code></td><td><code>Result&lt;Tensor&lt;T, DynamicShape&lt;2&gt;, Cpu&gt;, TensorError&gt;</code></td><td>Numeric ones on the main diagonal and zeros elsewhere.</td><td>O(rows*columns); checked allocation.</td>
+</tr>
+<tr id="Tensor-clone"><td><code>Tensor.clone(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Explicit deep element copy on the same placement; ready form Cpu only.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-into_vector"><td><code>Tensor.into_vector(Tensor&lt;T, S, Cpu&gt; value)</code></td><td><code>Result&lt;Vector&lt;T&gt;, TensorError&gt;</code></td><td>Consumes an owner; reuses allocation when compatible, otherwise returns layout error.</td><td>O(rank); no hidden copy.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="view-functions" aria-labelledby="view-functions-heading">
+<h2 id="view-functions-heading">8. Borrowing and layout functions
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Borrowing and layout functions data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-view"><td><code>Tensor.view(X value)</code></td><td><code>V</code></td><td>Creates a read-only descriptor retaining a lexical loan.</td><td>O(rank) descriptor only.</td>
+</tr>
+<tr id="Tensor-view_mut"><td><code>Tensor.view_mut(M owner)</code></td><td><code>M</code></td><td>Creates one exclusive injective view; rejects overlapping layout.</td><td>O(rank) plus overlap proof.</td>
+</tr>
+<tr id="Tensor-slice_view"><td><code>Tensor.slice_view(X value, SliceSpec spec)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>Half-open per-axis slicing; checked starts, steps and lengths.</td><td>O(rank); no copy.</td>
+</tr>
+<tr id="Tensor-transpose_view"><td><code>Tensor.transpose_view(X value, usize a, usize b)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>Swaps two valid axes and corresponding strides.</td><td>O(rank); no copy.</td>
+</tr>
+<tr id="Tensor-permute_view"><td><code>Tensor.permute_view(X value, AxisList axes)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>Axes must be a permutation without duplicates.</td><td>O(rank); descriptor allocation may fail.</td>
+</tr>
+<tr id="Tensor-reshape_view"><td><code>Tensor.reshape_view(X value, S2 shape)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>Equal checked count and stride compatibility required.</td><td>O(rank); never materializes.</td>
+</tr>
+<tr id="Tensor-broadcast_view"><td><code>Tensor.broadcast_view(X value, S2 shape)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>Trailing broadcast rules; repeated elements remain read-only.</td><td>O(rank); no copy.</td>
+</tr>
+<tr id="Tensor-squeeze_view"><td><code>Tensor.squeeze_view(X value, AxisList axes)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>Named axes must exist and have extent 1.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-expand_dims_view"><td><code>Tensor.expand_dims_view(X value, usize axis)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>Inserts an extent-1 axis in the inclusive insertion range.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-flatten_view"><td><code>Tensor.flatten_view(X value)</code></td><td><code>Result&lt;V, LayoutError&gt;</code></td><td>Returns one logical axis only if lexicographic traversal is contiguous.</td><td>O(rank); no copy.</td>
+</tr>
+<tr id="Tensor-materialize"><td><code>Tensor.materialize(X value, Layout order)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Cpu input only; copies logical elements into a fresh contiguous Cpu owner.</td><td>O(N); explicit allocation/copy.</td>
+</tr>
+<tr id="Tensor-contiguous_copy"><td><code>Tensor.contiguous_copy(X value, Layout order)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Cpu input only; always returns an independent owner, even if input already matches order.</td><td>O(N); allocates.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="element-functions" aria-labelledby="element-functions-heading">
+<h2 id="element-functions-heading">9. Access and elementwise CPU arithmetic
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Access and elementwise CPU arithmetic data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-get"><td><code>Tensor.get(X value, Index index)</code></td><td><code>Result&lt;T, TensorError&gt;</code></td><td>Copies one Cpu element; every coordinate checked.</td><td>O(rank); T must be Copy.</td>
+</tr>
+<tr id="Tensor-set"><td><code>Tensor.set(M value, Index index, T element)</code></td><td><code>Result&lt;unit, TensorError&gt;</code></td><td>Exclusive Cpu mutation; full index checked before write.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-fill"><td><code>Tensor.fill(M value, T element)</code></td><td><code>Result&lt;unit, TensorError&gt;</code></td><td>Initializes a validated exclusive Cpu view; element copy policy explicit.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-copy_into"><td><code>Tensor.copy_into(M destination, X source)</code></td><td><code>Result&lt;unit, TensorError&gt;</code></td><td>Equal shape/type; forbidden overlap rejected before write.</td><td>O(N); no allocation on success.</td>
+</tr>
+<tr id="Tensor-add"><td><code>Tensor.add(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Broadcasted addition using T&#x27;s strict scalar semantics.</td><td>O(N); allocates Cpu result.</td>
+</tr>
+<tr id="Tensor-subtract"><td><code>Tensor.subtract(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Broadcasted subtraction; no unsigned-to-signed promotion.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-multiply"><td><code>Tensor.multiply(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Broadcasted element multiplication, distinct from matmul.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-divide"><td><code>Tensor.divide(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Scalar division policy; integer zero and signed overflow are checked errors.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-remainder"><td><code>Tensor.remainder(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Scalar remainder convention; distinct from Euclidean modulo.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-negate"><td><code>Tensor.negate(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Signed integer minimum follows checked scalar policy; unsupported unsigned negation rejected.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-abs"><td><code>Tensor.abs(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Integer minimum checked; float signed-zero/NaN follow Float.abs.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-fma"><td><code>Tensor.fma(X a, X b, X c)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Floating only; one fused rounding per broadcasted element.</td><td>O(N); capability checked.</td>
+</tr>
+<tr id="Tensor-sqrt"><td><code>Tensor.sqrt(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Floating IEEE sqrt: negative finite input produces NaN, not ShapeError.</td><td>O(N); allocates; strict capability.</td>
+</tr>
+<tr id="Tensor-exp"><td><code>Tensor.exp(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Floating elementwise exponential under declared math accuracy profile.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-log"><td><code>Tensor.log(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Floating IEEE logarithm; zero gives negative infinity and negative finite values NaN.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-equal"><td><code>Tensor.equal(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Broadcasted numeric comparison; output elements bool; NaN unequal.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-less"><td><code>Tensor.less(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Ordered numeric less-than; unordered NaNs produce false.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-select"><td><code>Tensor.select(X mask, X when_true, X when_false)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>bool mask and values broadcast; inputs already evaluated.</td><td>O(N); no lazy branch guarantee.</td>
+</tr>
+<tr id="Tensor-clamp"><td><code>Tensor.clamp(X value, T lower, T upper)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Ordered non-NaN bounds with lower &lt;= upper; input NaN preserved.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Tensor-cast"><td><code>Tensor.cast&lt;U&gt;(X value, ConversionPolicy policy)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Explicit numeric conversion; narrowing/rounding and failure are named.</td><td>O(N); independent result type.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="reduction-functions" aria-labelledby="reduction-functions-heading">
+<h2 id="reduction-functions-heading">10. Reductions, selection and linear algebra
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Reductions, selection and linear algebra data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-sum"><td><code>Tensor.sum&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Explicit axes, accumulator and order; empty reduction uses additive zero.</td><td>O(N); allocates output.</td>
+</tr>
+<tr id="Tensor-product"><td><code>Tensor.product&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Empty reduction uses multiplicative one; checked overflow applies.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-mean"><td><code>Tensor.mean&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Floating accumulator required; empty reduction domain is an error.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-minimum"><td><code>Tensor.minimum(X value, ReductionSpec&lt;T&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Empty domain errors; propagates NaN; -0 wins a zero tie.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-maximum"><td><code>Tensor.maximum(X value, ReductionSpec&lt;T&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Empty domain errors; propagates NaN; +0 wins a zero tie.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-argmin"><td><code>Tensor.argmin(X value, usize axis)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Empty axis or any NaN errors; lowest logical index wins numeric ties.</td><td>O(N); usize output.</td>
+</tr>
+<tr id="Tensor-argmax"><td><code>Tensor.argmax(X value, usize axis)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Empty axis or any NaN errors; lowest logical index wins numeric ties.</td><td>O(N); usize output.</td>
+</tr>
+<tr id="Tensor-all"><td><code>Tensor.all(X mask, AxisList axes)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>bool input; empty reduction identity true.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-any"><td><code>Tensor.any(X mask, AxisList axes)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>bool input; empty reduction identity false.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-count_nonzero"><td><code>Tensor.count_nonzero(X value, AxisList axes)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Counts numeric values unequal to zero; NaN counts as nonzero; usize overflow checked.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-variance"><td><code>Tensor.variance&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec, usize correction)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Floating algorithm/order explicit; count must exceed correction.</td><td>O(N); possible scratch allocation.</td>
+</tr>
+<tr id="Tensor-norm"><td><code>Tensor.norm&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec, NormKind kind)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Named norm and stable algorithm; empty-domain identity specified by kind.</td><td>O(N); capability checked.</td>
+</tr>
+<tr id="Tensor-matmul"><td><code>Tensor.matmul&lt;A&gt;(X a, X b, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Last-two axes are matrix axes, inner extents equal; leading batches broadcast.</td><td>O(batch*M*N*K); checked shape.</td>
+</tr>
+<tr id="Tensor-dot"><td><code>Tensor.dot&lt;A&gt;(X a, X b, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;T, TensorError&gt;</code></td><td>Rank-1 equal lengths; explicit accumulator conversion; empty dot zero.</td><td>O(N); no output allocation required.</td>
+</tr>
+<tr id="Tensor-gather"><td><code>Tensor.gather(X value, usize axis, X indices)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Integer indices checked; copies selected elements; no negative indexing.</td><td>O(output count); allocates.</td>
+</tr>
+<tr id="Tensor-concatenate"><td><code>Tensor.concatenate(Slice&lt;X&gt; values, usize axis)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Nonempty input list; all non-axis extents equal; summed extent checked.</td><td>O(total elements); allocates.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="device-functions" aria-labelledby="device-functions-heading">
+<h2 id="device-functions-heading">11. Allocation, transfer and typed submission
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Allocation, transfer and typed submission data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-zeros_async"><td><code>Tensor.zeros_async&lt;T, S&gt;(&amp;Queue queue)</code></td><td><code>Result&lt;Pending&lt;Tensor&lt;T, S, Gpu&gt;&gt;, SubmitError&gt;</code></td><td>Allocates and initializes on queue&#x27;s device; completion owns initialization outcome.</td><td>Explicit queued work; retains allocation.</td>
+</tr>
+<tr id="Tensor-transfer_async"><td><code>Tensor.transfer_async(X source, DeviceId destination, TransferPolicy policy)</code></td><td><code>Result&lt;Pending&lt;O&gt;, SubmitError&gt;</code></td><td>Explicit placement change; retains read loan or moved owner until quiescence.</td><td>O(bytes) transfer; staging policy explicit.</td>
+</tr>
+<tr id="Tensor-copy_async"><td><code>Tensor.copy_async(&amp;Queue queue, M destination, X source)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>Shape/type/device compatibility and alias validated; loans retained through completion.</td><td>Queued copy; no hidden host wait.</td>
+</tr>
+<tr id="Tensor-submit"><td><code>Tensor.submit(&amp;Queue queue, TensorOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;Out&gt;, SubmitError&gt;</code></td><td>Checks operation capabilities and shapes; device work uses scalar contract declared by operation.</td><td>Compilation/allocation/submission may fail.</td>
+</tr>
+<tr id="Tensor-submit_into"><td><code>Tensor.submit_into(&amp;Queue queue, TensorOp&lt;Inputs, unit&gt; operation, M output, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>Exclusive output lease until completion; late failure may leave output partially written.</td><td>No rollback guarantee.</td>
+</tr>
+<tr id="Tensor-compile"><td><code>Tensor.compile(DeviceId device, TensorOp&lt;Inputs, Out&gt; operation, CompileOptions options)</code></td><td><code>Result&lt;CompiledOp&lt;Inputs, Out&gt;, DeviceError&gt;</code></td><td>Explicit specialization with same AOT/JIT observable numeric contract.</td><td>May compile/cache/allocate.</td>
+</tr>
+<tr id="Tensor-supports"><td><code>Tensor.supports(DeviceId device, TensorOp&lt;Inputs, Out&gt; operation)</code></td><td><code>CapabilityReport</code></td><td>Reports support conditions; not proof that a future allocation/submission succeeds.</td><td>Query only.</td>
+</tr>
+<tr id="Tensor-storage_span"><td><code>Tensor.storage_span(X value)</code></td><td><code>Result&lt;StorageSpan, LayoutError&gt;</code></td><td>Validated reachable byte interval and allocation identity; not a raw dereference permission.</td><td>O(rank); includes strided span.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">12. Cost-visible examples
+</h2>
+<p>The following statements illustrate the approved type-first declaration and borrowing grammar. They do not unwrap Result implicitly. A Result must be handled before its payload can be borrowed, moved or submitted; the later control-flow reference defines that handling syntax.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Tensor&lt;f32, Shape&lt;2, 3&gt;, Cpu&gt;, TensorError&gt; matrix = Tensor.zeros&lt;f32, Shape&lt;2, 3&gt;&gt;();
+Result&lt;Tensor&lt;f32, DynamicShape&lt;1&gt;, Cpu&gt;, TensorError&gt; samples = Tensor.linspace&lt;f32&gt;(0.0, 1.0, 4, true);
+// Given a validated Cpu tensor owner named source and a borrowed shape descriptor named target_shape.
+Result&lt;TensorView&lt;f32, Shape&lt;3, 2&gt;, Cpu&gt;, TensorError&gt; reshaped = Tensor.reshape_view(&amp;source, target_shape);</code></pre>
+</section>
+<section id="scope" aria-labelledby="scope-heading">
+<h2 id="scope-heading">13. Scope and related types
+</h2>
+<p>Autodiff, sparse formats, distributed tensors, compiler fusion heuristics and vendor-specific matrix instructions belong in optional libraries or later profiles. They do not change the core owner, shape or cost contract. A compiler can eliminate a proven redundant copy, but may not invent an observable transfer or weaken borrowing to do so. Backend adapters must validate foreign descriptors rather than importing undefined behavior from an IR operation into safe Aevix.
+</p>
+<p><a href="Tensor_Shape.html">Static and dynamic shape</a> · <a href="Tensor_View.html">Views and layout</a> · <a href="../Quantized/Quantized.html">Quantized payloads</a> · <a href="../Array/Array.html">Array</a> · <a href="../Float/Float.html">Floating-point rules</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">14. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/TensorOps/" target="_blank" rel="noopener noreferrer">MLIR Tensor dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/MemRef/" target="_blank" rel="noopener noreferrer">MLIR MemRef dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/ShapeDialect/" target="_blank" rel="noopener noreferrer">MLIR Shape dialect</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy broadcasting</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.copies.html" target="_blank" rel="noopener noreferrer">NumPy copies and views</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Tensor_Shape.html"><span>Next reference</span>Tensor Shape</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,191 @@
+{
+  "name": "aevix",
+  "displayName": "Aevix Language",
+  "description": "Aevix 0.1 language tools: syntax, navigation, compiler diagnostics, build and run.",
+  "version": "0.1.0",
+  "publisher": "miruku-sora2026",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Snippets"
+  ],
+  "keywords": [
+    "aevix",
+    "avx",
+    "compiler"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "onLanguage:aevix"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Editing and navigation work in Restricted Mode. Compiler processes, build and run require a trusted workspace.",
+      "restrictedConfigurations": [
+        "aevix.compilerPath",
+        "aevix.sourceRoot",
+        "aevix.moduleRoots",
+        "aevix.packages"
+      ]
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Syntax and document navigation work. Compiler integration requires local files."
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "aevix",
+        "aliases": [
+          "Aevix",
+          "aevix"
+        ],
+        "extensions": [
+          ".avx"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aevix",
+        "scopeName": "source.aevix",
+        "path": "./syntaxes/aevix.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "aevix",
+        "path": "./snippets/aevix.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "aevix.check",
+        "title": "Aevix: Check Current File"
+      },
+      {
+        "command": "aevix.build",
+        "title": "Aevix: Build Current File"
+      },
+      {
+        "command": "aevix.run",
+        "title": "Aevix: Run Current File"
+      },
+      {
+        "command": "aevix.restart",
+        "title": "Aevix: Restart Language Tools"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "aevix.run",
+          "when": "editorLangId == aevix && isWorkspaceTrusted",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Aevix",
+      "properties": {
+        "aevix.compilerPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Path to aevixc or aevixc.exe. Empty searches workspace build/bin locations, Windows CMake Release/Debug configurations, then PATH."
+        },
+        "aevix.sourceRoot": {
+          "type": "string",
+          "default": "src",
+          "scope": "resource",
+          "description": "Source root relative to the workspace folder, or an absolute directory. Module paths are relative to this directory."
+        },
+        "aevix.moduleRoots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "resource",
+          "description": "Additional module root directories. Relative paths use the workspace folder."
+        },
+        "aevix.packages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "scope": "resource",
+          "description": "External package names mapped to source root directories."
+        },
+        "aevix.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Check open Aevix files with aevixc."
+        },
+        "aevix.diagnostics.delay": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 10000,
+          "default": 400,
+          "scope": "resource",
+          "description": "Delay in milliseconds before checking changed text."
+        },
+        "aevix.diagnostics.timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 120000,
+          "default": 15000,
+          "scope": "resource",
+          "description": "Maximum time in milliseconds for a compiler check."
+        },
+        "aevix.index.maxFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000,
+          "default": 2000,
+          "description": "Maximum workspace Aevix files to index for module navigation."
+        },
+        "aevix.executionMode": {
+          "type": "string",
+          "enum": [
+            "aot",
+            "jit"
+          ],
+          "default": "aot",
+          "scope": "resource",
+          "description": "Execution mode for Run Current File. JIT requires an ORC-enabled Aevix compiler."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "test": "npm run compile && node --test out/tests/*.test.js",
+    "check": "npm run test",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --allow-missing-repository --skip-license --out dist/aevix-0.1.0.vsix && npm run verify:package",
+    "test:unit": "npm run compile && node --test out/tests/*.test.js",
+    "test:host": "npm run compile && node out/scripts/runExtensionTests.js",
+    "verify:package": "node out/scripts/verifyVsix.js",
+    "test:package": "npm run compile && node out/scripts/runPackagedTests.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@types/vscode": "1.96.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^4.0.0",
+    "typescript": "^5.9.3",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.2.0"
+  }
+}

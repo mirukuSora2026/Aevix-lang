@@ -1,0 +1,14 @@
+Result<i32, CollectionError> run() {
+    mut i32 values[] = [1, 2, 3]?;
+    values[1] = 5;
+    usize count = Vector.len(&values);
+    if (count != 3) return Result.ok(90);
+    return Result.ok(values[0] + values[1] + values[2]);
+}
+i32 main() {
+    Result<i32, CollectionError> result = run();
+    switch (move result) {
+        case Result<i32, CollectionError>.Ok { i32 number = value }: return number; break;
+        case Result<i32, CollectionError>.Err: return 99; break;
+    }
+}

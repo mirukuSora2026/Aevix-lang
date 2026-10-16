@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Capacity changes, failure guarantees, and the lifetime of borrowed storage.">
+  <title>Vector Growth — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Vector.html" aria-current="true">Vector</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html" aria-current="true">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Vector.html">Vector</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Vector Growth</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Vector Growth</h1><p class="doc-subtitle">Capacity changes, failure guarantees, and the lifetime of borrowed storage.</p><div class="doc-meta"><span class="meta-chip">Vector&lt;T&gt;</span><span class="meta-chip">Vector namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>0</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>vec</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Growth-Model"><span class="toc-number">01</span><span>Length, Capacity, and Relocation</span></a></li><li><a href="#Borrow-Capabilities"><span class="toc-number">02</span><span>Borrow Capabilities Outlive Capacity Guesses</span></a></li><li><a href="#Failure-Preflight"><span class="toc-number">03</span><span>Preflight and Input Recovery</span></a></li><li><a href="#Shrinking"><span class="toc-number">04</span><span>Shrinking and Empty Buffers</span></a></li><li><a href="#Iterators"><span class="toc-number">05</span><span>Element Identity and Iterator Invalidation</span></a></li><li><a href="#Execution-Places"><span class="toc-number">06</span><span>Tasks, Devices, and Address Stability</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>Read Views and Common Catalog</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Vector pages"><h2>Vector reference</h2><div class="family-links"><a href="Vector.html">Vector</a><a href="Vector_Growth.html" aria-current="page">Vector Growth</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html" aria-current="true">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Vector Growth reference">
+<section id="Growth-Model" aria-labelledby="Growth-Model-heading">
+<h2 id="Growth-Model-heading">1. Length, Capacity, and Relocation
+</h2>
+<p>Growth concerns the initialized logical prefix and a separately reserved allocation. A capacity count is not a list of initialized values. The compiler checks target object bounds and size products before layout or allocator requests. Geometric growth is permitted but neither a specific factor nor an allocator-specific size is public ABI. An empty owner may retain storage; zero-sized elements still have logical counts and destructor effects.
+</p>
+</section>
+<section id="Borrow-Capabilities" aria-labelledby="Borrow-Capabilities-heading">
+<h2 id="Borrow-Capabilities-heading">2. Borrow Capabilities Outlive Capacity Guesses
+</h2>
+<p>Reserving enough capacity does not suspend the ownership rules. A shared slice, element reference, or iterator remains a live borrow even if a caller predicts that the next insertion will not allocate. Structural mutation may move elements or change which index denotes an element. Exclusive access must be established before growth or insertion; a raw address observation is not a capability to bypass the borrow checker.
+</p>
+</section>
+<section id="Failure-Preflight" aria-labelledby="Failure-Preflight-heading">
+<h2 id="Failure-Preflight-heading">3. Preflight and Input Recovery
+</h2>
+<p>Elementary growth operations validate counts and reserve storage before moving old elements or consuming the new input irreversibly. Size or allocation failure preserves the old vector and returns rejected moved inputs in the documented carrier. Caller code must retain and inspect the error rather than assume an element vanished. Bulk callbacks have separate basic guarantees and may leave completed work visible. No blanket transaction promise extends to callback side effects.
+</p>
+</section>
+<section id="Shrinking" aria-labelledby="Shrinking-heading">
+<h2 id="Shrinking-heading">4. Shrinking and Empty Buffers
+</h2>
+<p>Clear and truncate retain capacity under the shared Vector contract. Shrink requests are explicit, may relocate storage, and need exclusive access. Allocator rounding may leave more capacity than requested; a successful request is not proof of exact heap footprint. Dropping initialized elements can execute user destructors, so shrinking logical length is not always constant time. A buffer containing sensitive bytes has no automatic secure-erasure guarantee.
+</p>
+</section>
+<section id="Iterators" aria-labelledby="Iterators-heading">
+<h2 id="Iterators-heading">5. Element Identity and Iterator Invalidation
+</h2>
+<p>An iterator borrows the owner and current element range. Insert, remove, sort, or retain can alter element positions even when the allocation address stays fixed. In-place algorithms require an exclusive capability and do not promise stable element identity. Disjoint mutable iteration allows each yielded borrow only within its declared protocol. A callback must not reenter the same vector through a conflicting captured alias.
+</p>
+</section>
+<section id="Execution-Places" aria-labelledby="Execution-Places-heading">
+<h2 id="Execution-Places-heading">6. Tasks, Devices, and Address Stability
+</h2>
+<p>An owned capture can move a vector into a detached host task if its elements satisfy transfer bounds. A scoped task may borrow only while its scope guarantees completion before owner access resumes. GPU submission is separate from a CPU vector move; it requires a placement-aware transfer and completion lease. Do not resize or release borrowed storage while submitted work still accesses it. A user Pending handle’s destructor alone is not the lifetime proof.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7. Read Views and Common Catalog
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; owned = Vector.from_slice_copy(Slice.from_array(&amp;values));
+mut Vector&lt;i32&gt; scratch = Vector.new(i32);
+Result&lt;unit, CollectionError&gt; reserved = Vector.reserve(&amp;mut scratch, 8);
+usize length = Vector.len(&amp;scratch);</code></pre>
+<p>See <a href="Vector.html#Function-Reference">the full Vector API</a> for exact result and error carriers. <a href="../Slice/Slice.html">Slice</a> defines borrowing, and <a href="../Array/Static_Array.html">Static Array</a> defines fixed ownership. Examples specify intended behavior; the document does not claim a compiled implementation or performance measurement.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank" rel="noopener noreferrer">Rust fixed-size array reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank" rel="noopener noreferrer">Rust Vec ownership and capacity reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank" rel="noopener noreferrer">Rust slice operations and disjoint borrowing</a>
+</li>
+<li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: array</a>
+</li>
+<li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: vector</a>
+</li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md" target="_blank" rel="noopener noreferrer">Swift Evolution: inline array design discussion</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Vector.html"><span>Previous reference</span>Vector</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

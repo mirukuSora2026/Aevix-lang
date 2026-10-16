@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Define empty and named-payload variants, initialize them explicitly, and share one ownership and interface contract.">
+  <title>Enums — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body><a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html" aria-current="true">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell"><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">Enums</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Enums</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">USER-DEFINED TYPE REFERENCE</p><h1>Enums</h1><p class="doc-subtitle">Define empty and named-payload variants, initialize them explicitly, and share one ownership and interface contract.</p><div class="doc-meta"><span class="meta-chip">Move by default</span><span class="meta-chip">Copy checks all variants</span><span class="meta-chip">Type functions + self</span><span>Chosen rules + open decisions</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design reference</dd></div><div class="doc-stat"><dt>Variants</dt><dd>Empty / named payload</dd></div><div class="doc-stat"><dt>Ownership</dt><dd>Move by default</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>enum T</strong><span>enum reference</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Unified variants belong to one parent type</span></a></li><li><a href="#Declaration"><span class="toc-number">02</span><span>Declare empty and named-payload variants</span></a></li><li><a href="#Construction"><span class="toc-number">03</span><span>Initialize every required payload field</span></a></li><li><a href="#Visibility"><span class="toc-number">04</span><span>Variant access and payload access are separate</span></a></li><li><a href="#Factories"><span class="toc-number">05</span><span>Use type functions to construct private payloads</span></a></li><li><a href="#Ownership"><span class="toc-number">06</span><span>Moving an enum moves its active payload</span></a></li><li><a href="#Copy"><span class="toc-number">07</span><span>implements Copy validates every possible variant</span></a></li><li><a href="#Methods"><span class="toc-number">08</span><span>Enums reuse type functions and self receivers</span></a></li><li><a href="#Interfaces"><span class="toc-number">09</span><span>An interface implementation covers the whole enum</span></a></li><li><a href="#Diagnostics"><span class="toc-number">10</span><span>Rejected initialization and visibility examples</span></a></li><li><a href="#Open-Decisions"><span class="toc-number">11</span><span>Open enum decisions</span></a></li></ol></details><nav class="family-nav" aria-label="Enum pages"><h2>Enum reference</h2><div class="family-links"><a href="index.html">Overview</a><a href="Enums.html" aria-current="page">Enums</a><a href="Enum_Switch.html">Enum switch</a></div></nav><nav class="family-nav" aria-label="Related grammar"><h2>Related reference</h2><div class="family-links"><a href="../user_defined_types/index.html">User-defined types</a><a href="../user_defined_types/Copy.html">Copy</a><a href="../interfaces/Interfaces.html">Interfaces</a><a href="../generics/Generic_Types.html">Generic types</a><a href="../control_flow/Switch.html">Switch basics</a><a href="../scope_and_comments/Resource_Cleanup.html">Resource cleanup</a></div></nav></aside><article class="content" aria-label="Enums reference">
+<section id="Overview" aria-labelledby="Overview-heading"><h2 id="Overview-heading">1. Unified variants belong to one parent type</h2><p>An enum declaration introduces one named type. Empty variants represent cases without data; payload variants carry named typed fields. Values of both forms have the parent enum type. Aevix does not split empty enums and data enums into separate declaration mechanisms.</p><p>Ordinary enum values move by default. Visibility, payload initialization, Copy eligibility and interface implementation are checked against the complete declaration. These requirements are language-design contracts rather than results from an implemented compiler.</p></section>
+<section id="Declaration" aria-labelledby="Declaration-heading"><h2 id="Declaration-heading">2. Declare empty and named-payload variants</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">public enum Event {
+    Quit;
+    Move {
+        public i32 x;
+        public i32 y;
+    };
+    Message {
+        public string text;
+    };
+};</code></pre><p>Quit is empty. Move carries two i32 fields. Message carries an owning string. Fields use the ordinary type-first declaration form. Each empty variant ends with a semicolon, each payload variant closes with };, and the whole enum also closes with };.</p><p>The declaration makes variant names public by default. Payload fields are made public explicitly here so code outside Event can initialize and bind them in the following examples. A field without public is private.</p></section>
+<section id="Construction" aria-labelledby="Construction-heading"><h2 id="Construction-heading">3. Initialize every required payload field</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Event make_quit() {
+    Event event = Event.Quit;
+    return event;
+}
+
+Event make_move(i32 initial_x, i32 initial_y) {
+    Event event = Event.Move { x = initial_x, y = initial_y };
+    return event;
+}
+
+Event make_message(string initial_text) {
+    return Event.Message { text = initial_text };
+}</code></pre><p>Event.Quit is an empty variant value. Event.Move { ... } and Event.Message { ... } are named-payload initializers. All required fields must be present and accessible from the initializer location. No default payload values are assumed.</p><p>Moving initial_text into Message transfers its ownership. No deep string clone or hidden allocation is requested by this syntax alone. Each returned value still has type Event; Event.Move is not a separately declared type.</p><p>A payload variant name alone, such as Event.Message, is not a fully constructed value. A tag-only case label is a different pattern operation documented in <a href="Enum_Switch.html#Subset-And-Tag">Enum Switch</a>.</p></section>
+<section id="Visibility" aria-labelledby="Visibility-heading"><h2 id="Visibility-heading">4. Variant access and payload access are separate</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Enum visibility rules"><table><thead><tr><th scope="col">Declaration part</th><th scope="col">Default</th><th scope="col">Explicit choice</th><th scope="col">Meaning</th></tr></thead><tbody><tr><td>Enum type</td><td>Follows the module/type visibility contract.</td><td>public / private</td><td>Controls access to the type name itself.</td></tr><tr><td>Variant name</td><td>public</td><td>private Variant;</td><td>Controls naming the variant for construction or matching.</td></tr><tr><td>Payload field</td><td>private</td><td>public T field;</td><td>Controls field initialization and payload binding.</td></tr><tr><td>Type function / method</td><td>Follows the shared member contract.</td><td>public / private</td><td>Controls access to the function or method; it does not alter field visibility.</td></tr></tbody></table></div></div><p>A public variant with private payload fields can be named in a tag-only case outside its type. Naming that variant does not authorize construction of inaccessible fields or binding their contents. A private variant cannot be explicitly named by external code.</p><p>Visibility never extends the lifetime of an enum value or borrowed field. A local binding still belongs to its lexical scope, and nested locals may not hide a visible outer name.</p></section>
+<section id="Factories" aria-labelledby="Factories-heading"><h2 id="Factories-heading">5. Use type functions to construct private payloads</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">public enum Credential {
+    Token {
+        string secret;
+    };
+    private Internal;
+
+    private Credential from_secret(string initial_secret) {
+        return Credential.Token { secret = initial_secret };
+    }
+
+    public Credential issue(string initial_secret) {
+        return Credential.from_secret(initial_secret);
+    }
+};
+
+Credential issue_credential(string initial_secret) {
+    return Credential.issue(initial_secret);
+}</code></pre><p>from_secret is a private receiverless type function. issue is a public type function that uses it. Both are inside Credential and may initialize the private secret field. External code constructs a Credential through Credential.issue, while the field remains inaccessible.</p><p>The factory name is an ordinary function name. No constructor-only keyword, static storage modifier or implicit payload default is introduced. persist controls storage duration; it is not the spelling for receiverless type functions.</p></section>
+<section id="Ownership" aria-labelledby="Ownership-heading"><h2 id="Ownership-heading">6. Moving an enum moves its active payload</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Event relay_event(Event source) {
+    Event transferred = source;
+    return transferred;
+}</code></pre><p>An enum that does not implement Copy moves through ordinary value assignment, by-value parameters and returns. Its active payload follows the transferred value. An immutable binding may move; immutability forbids ordinary mutation rather than ownership transfer.</p><p>The source binding cannot be used after a move. An inactive variant has no live payload to clone or clean up. A shared read borrow or enum read switch can observe the active value without transferring the owner.</p><p>Normal scope exits clean up resources still owned locally in reverse initialization order, exactly once. Returning a moved enum gives the caller its owner; it must not also be destroyed as a local. Memory layout and custom enum cleanup hooks remain open.</p></section>
+<section id="Copy" aria-labelledby="Copy-heading"><h2 id="Copy-heading">7. implements Copy validates every possible variant</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">enum Axis implements Copy {
+    X;
+    Y;
+    Offset {
+        public i32 amount;
+    };
+};
+
+Axis copy_axis(Axis source) {
+    Axis duplicate = source;
+    return duplicate;
+}</code></pre><p>Copy is a built-in checked capability. Every payload field of every variant must satisfy its Copy requirements, including private variants and private fields. An empty variant contributes no payload field. The check applies to the whole enum type, not only the currently active variant.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">enum InvalidEvent implements Copy {
+    Quit;
+    private Message {
+        string text;
+    };
+};</code></pre><p>The owning string is non-Copy, so InvalidEvent cannot implement Copy even when external code cannot name Message. The compiler must not base this decision on which variant happens to be stored at runtime.</p><p>See <a href="../user_defined_types/Copy.html">Copy</a> for the shared capability contract. Copy does not promise a deep clone, custom clone method, stable ABI or operator overload.</p></section>
+<section id="Methods" aria-labelledby="Methods-heading"><h2 id="Methods-heading">8. Enums reuse type functions and self receivers</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">enum Signal {
+    Stop;
+    Value {
+        public i32 amount;
+    };
+
+    public Signal value(i32 initial_amount) {
+        return Signal.Value { amount = initial_amount };
+    }
+
+    public Signal into_signal(Signal self) {
+        return self;
+    }
+};
+
+Signal relay_signal(i32 amount) {
+    Signal signal = Signal.value(amount);
+    return signal.into_signal();
+}</code></pre><p>value has no self parameter, so it is called on the type. into_signal has a by-value self parameter, so its call receives ownership of the non-Copy signal. The returned owner then moves to the caller.</p><p>The shared method forms are a value receiver T self, a read receiver &amp;T self, and a modification receiver &amp;mut T self. Public/private access and explicit receiver capabilities follow the same rules as structs. The appropriate active payload is accessed through a switch pattern rather than pretending all variants have the same fields.</p><p>Non-void methods explicitly return a value on normal completion. Every written case/default in an enum method switch still ends with an explicit <code>break;</code>, including after a permitted return, enclosing-loop continue, divergence or Result ?. The required terminal break produces neither an error nor a warning merely because an earlier exit makes it unreachable. A successful ? continues toward that break; an Err exits the function. Normal exits clean up only the regions they leave, exactly once. General unreachable-code policy and safety-stop cleanup remain separate open topics. See <a href="../operators/Parsing_Rules.html#case-exits">case exits</a>.</p></section>
+<section id="Interfaces" aria-labelledby="Interfaces-heading"><h2 id="Interfaces-heading">9. An interface implementation covers the whole enum</h2><p>An ordinary implements Interface declaration belongs to the entire enum type. Self in that interface means the parent enum. It does not mean an individual variant, and each variant does not become an independent implementer.</p><p>Enums reuse the selected interface dispatch, default method and override contracts. A method may decide its behavior from the active variant through switch, but its signature still satisfies the one enum implementation. Variant visibility does not remove private variants from this obligation.</p><p>See <a href="../interfaces/Interfaces.html">Interfaces</a> for the canonical declaration and method requirements, and <a href="../generics/Generic_Types.html">Generic Types</a> for type parameter constraints. A built-in capability such as Copy also applies to the whole enum, with additional compiler validation.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">interface Leveled {
+    public i32 get_level(&amp;Self self);
+};
+
+enum LevelState implements Leveled {
+    Beginner;
+    Experienced;
+
+    public i32 get_level(&amp;LevelState self) {
+        mut i32 level = 0;
+        switch (*self) {
+            case LevelState.Beginner:
+                level = 1;
+                break;
+            case LevelState.Experienced:
+                level = 2;
+                break;
+        }
+        return level;
+    }
+};</code></pre><p>Self in Leveled maps to LevelState, so the implementation receives &amp;LevelState self. The required method is a normal public declaration; override is reserved for replacing an inherited default implementation. The switch explicitly selects the enum referent place through *self for a read loan. It does not move the enum out of the shared reference.</p></section>
+<section id="Diagnostics" aria-labelledby="Diagnostics-heading"><h2 id="Diagnostics-heading">10. Rejected initialization and visibility examples</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Event incomplete_move(i32 initial_x) {
+    return Event.Move { x = initial_x };
+}</code></pre><p>Move requires both x and y. There is no implicit default for the missing field.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Credential inaccessible_payload(string initial_secret) {
+    return Credential.Token { secret = initial_secret };
+}</code></pre><p>This function is outside Credential, so it cannot initialize private secret. Use the public factory. Tag-only matching of the public Token variant is still allowed without revealing secret.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Event invalid_payload_value() {
+    return Event.Message;
+}</code></pre><p>Message requires a payload initializer. The tag-only spelling is accepted as a case label, not as a constructor value. These examples define intended rejection, not actual compiler diagnostics.</p></section>
+<section id="Open-Decisions" aria-labelledby="Open-Decisions-heading"><h2 id="Open-Decisions-heading">11. Open enum decisions</h2><ul><li>Numeric discriminants, explicit variant numbers, memory layout, tag size, niche optimization and stable foreign ABI.</li><li>Automatic equality/ordering, operator derivation, automatic clone generation and custom clone conventions.</li><li>User-defined enum cleanup and its interaction with partial payload moves.</li><li>Full parser grammar, initializer defaults, overload resolution and additional constructor shorthand.</li><li>General move expressions outside enum switch, and special treatment of explicit switch(move ...) for Copy enums.</li><li>Extended pattern features, reference-source mode inference and temporary selector lifetime details; see Enum Switch.</li></ul><p>The accepted choices on this page are independent of those open decisions. Continue with <a href="Enum_Switch.html">Enum Switch</a> for ownership-aware dispatch and exhaustive pattern coverage.</p></section>
+<nav class="page-navigation" aria-label="Related enum references"><a href="Enums.html"><span>Type definition</span>Enums</a><a href="Enum_Switch.html"><span>Ownership and patterns</span>Enum Switch</a><a href="../index.html"><span>Language grammar</span>Grammar overview</a></nav>
+</article></div><footer class="page-footer"><span>Aevix Language · Enum reference</span><span>Design specification · compiler implementation not implied</span></footer></main></body>
+</html>

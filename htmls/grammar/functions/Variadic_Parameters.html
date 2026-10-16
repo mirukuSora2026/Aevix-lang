@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A final T values[] receives copied or moved arguments in a call-frame-owned pack and exposes a temporary read-only view.">
+<title>Variadic Parameters — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">Functions and calls</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Variadic Parameters</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">FUNCTION REFERENCE</p><h1>Variadic Parameters</h1><p class="doc-subtitle">A final T values[] receives copied or moved arguments in a call-frame-owned pack and exposes a temporary read-only view.</p><div class="doc-meta"><span class="meta-chip">Chosen rules + open decisions</span><span class="meta-chip">Explicit types and cost</span><a href="../../declaration/Function_Declaration.html">Basic declarations</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Spelling</dt><dd>T values[]</dd></div><div class="doc-stat"><dt>Count per function</dt><dd>One, last</dd></div><div class="doc-stat"><dt>Call</dt><dd>receive(1, 2, 3)</dd></div><div class="doc-stat"><dt>Storage</dt><dd>Call-frame-owned pack</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>args[]</strong><span>functions</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>Use [] for a final, possibly empty argument pack</span></a></li><li><a href="#position"><span class="toc-number">02</span><span>One final pack with required ordinary parameters before it</span></a></li><li><a href="#homogeneous"><span class="toc-number">03</span><span>Copy simple values, move owners or pass references</span></a></li><li><a href="#not-an-array-argument"><span class="toc-number">04</span><span>The pack view cannot escape or consume its storage</span></a></li><li><a href="#array-context"><span class="toc-number">05</span><span>Use canonical types for one array parameter or return value</span></a></li><li><a href="#evaluation"><span class="toc-number">06</span><span>Prepare arguments once and clean current pack owners exactly once</span></a></li><li><a href="#diagnostics"><span class="toc-number">07</span><span>Reject unsupported pack declarations and calls</span></a></li><li><a href="#open-decisions"><span class="toc-number">08</span><span>Preserve overload priorities and explicit cost boundaries</span></a></li></ol></details><nav class="family-nav" aria-label="Function pages"><h2>Functions and calls</h2><div class="family-links"><a href="index.html">Overview</a><a href="Generic_Functions.html">Generic functions</a><a href="Overloading.html">Overloading</a><a href="Arguments_and_Defaults.html">Arguments and defaults</a><a href="Variadic_Parameters.html" aria-current="page">Variadic parameters</a></div></nav><nav class="family-nav" aria-label="Related language reference"><h2>Related reference</h2><div class="family-links"><a href="../../declaration/Function_Declaration.html">Basic function declarations</a><a href="../generics/index.html">Generic types</a><a href="../interfaces/index.html">Interfaces</a><a href="../modules/index.html">Modules and imports</a><a href="../persistent_storage/index.html">Persistent storage</a><a href="../../data_type/index.html">All data types</a></div></nav></aside><article class="content" aria-label="Variadic Parameters reference">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. Use [] for a final, possibly empty argument pack</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">void receive(i32 values[]) {
+    return;
+}
+
+usize pack_len&lt;T&gt;(T values[]) {
+    return Slice.len(values);
+}
+
+void send_values() {
+    receive();
+    receive(1, 2, 3);
+    usize empty_count = pack_len&lt;i32&gt;();
+    usize count = pack_len(1, 2, 3);
+    return;
+}</code></pre><p>The chosen spelling is <code>T values[]</code> in the last parameter position. It accepts zero or more same-typed arguments; it is not an ordinary Vector parameter. The caller prepares a temporary owning pack and the callee accesses it through a read-only <code>Slice&lt;T&gt;</code>-like view. No Copy-only restriction is imposed on T.</p><p>A generic empty pack still needs enough type information. Here <code>pack_len&lt;i32&gt;()</code> supplies T explicitly; an untyped empty call cannot invent an element type. The ordinary generic argument/destination inference rules continue to apply.</p><blockquote class="callout note"><p><strong>Design reference.</strong> These are chosen source and ownership contracts, not results from an implemented compiler or runtime. Ellipsis parameter syntax has been superseded by the name-following brackets.</p></blockquote></section><section id="position" aria-labelledby="position-heading"><h2 id="position-heading">2. One final pack with required ordinary parameters before it</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">void receive_tagged(bool enabled, i32 values[]) {
+    return;
+}
+
+void send_tagged_values() {
+    receive_tagged(true, 1, 2, 3);
+    receive_tagged(enabled = true);
+    return;
+}</code></pre><div class="table-wrap"><div class="table-scroll" role="region" tabindex="0" aria-label="Chosen variadic declaration and call rules"><table><thead><tr><th scope="col">Property</th><th scope="col">Rule</th></tr></thead><tbody><tr><th scope="row">Count and position</th><td>At most one variadic parameter per function, and it must be last.</td></tr><tr><th scope="row">Repeated argument count</th><td>Zero or more; a nonempty pack uses ordinary positional expressions.</td></tr><tr><th scope="row">Ordinary prefix</th><td>Required ordinary parameters may precede it; a defaulted ordinary parameter before it is unsupported.</td></tr><tr><th scope="row">Named calls</th><td>The pack itself cannot be supplied by name. Ordinary prefix names retain the positional-first rule.</td></tr><tr><th scope="row">Mutation</th><td>A mut variadic binding is unsupported; the pack grants no ordinary writable or consuming element access.</td></tr><tr><th scope="row">Generic inference</th><td>Unresolved empty-pack element types require sufficient ordinary inference evidence or a complete explicit type-argument list.</td></tr></tbody></table></div></div><p>The named-prefix example has an empty i32 pack. Named ordinary parameters do not permit later positional arguments; use the first call form when supplying repeated positional values.</p></section><section id="homogeneous" aria-labelledby="homogeneous-heading"><h2 id="homogeneous-heading">3. Copy simple values, move owners or pass references</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">usize count_owned(string values[]) {
+    return Slice.len(values);
+}
+
+void send_owned_strings(string first, string second) {
+    usize count = count_owned(first, second);
+    return;
+}</code></pre><p>Each owning string moves from its source into the pack. The callee can observe the strings without consuming or replacing them. The pack remains their owner, and its still-owned elements are cleaned up when the call completes normally. A read-only callee view does not make the incoming argument a borrow or preserve the caller’s moved owner.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">usize count_borrowed(&amp;string values[]) {
+    return Slice.len(values);
+}
+
+string keep_original(string original) {
+    usize count = count_borrowed(&amp;original);
+    return original;
+}</code></pre><p>Here the pack element type is <code>&amp;string</code>. Shared-reference values copy while their original referent permissions and lifetimes are preserved; the text owner is not moved or cloned. A pack element is a value argument: passing an existing non-Copy <code>&amp;mut U</code> or <code>MutSlice&lt;U&gt;</code> handle as a bare argument moves that handle into the pack. The automatic reborrow exception for a dedicated outer <code>&amp;mut U</code> or <code>MutSlice&lt;U&gt;</code> parameter does not apply merely because pack element T has that type. An explicit argument expression such as <code>&amp;mut owner</code> instead creates a new loan at that expression. The read-only pack still cannot copy or extract an exclusive element capability. No owned string is silently created from a literal.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: the owning string was moved into the pack;
+string invalid_reuse(string original) {
+    usize count = count_owned(original);
+    return original;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a string_view literal cannot supply an i32 element;
+void mixed_types() {
+    receive(1, &quot;two&quot;, 3);
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: typed i64 is not implicitly converted to i32;
+void typed_numeric_mismatch() {
+    i64 wide = 2;
+    receive(1, wide, 3);
+    return;
+}</code></pre><p>Untyped numeric literals can match their resolved parameter context. Already typed values receive no implicit numeric conversion. Homogeneous packing is not a heterogeneous list or a foreign varargs-promotion rule.</p></section><section id="not-an-array-argument" aria-labelledby="not-an-array-argument-heading"><h2 id="not-an-array-argument-heading">4. The pack view cannot escape or consume its storage</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i32, BoundsError&gt; first_value(i32 values[]) {
+    &amp;i32 first = Slice.at(values, 0)?;
+    return Result.ok(*first);
+}</code></pre><p>Read-only Slice operations can inspect the pack. This example copies the i32 pointee and returns that value; it does not return a reference to temporary storage. An empty pack is valid, but ordinary bounds-checked access may still return an error.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: the temporary pack view would outlive its call;
+Slice&lt;i32&gt; invalid_return(i32 values[]) {
+    return values;
+}</code></pre><p>The view may not be returned, stored or captured in a way that survives the call. A loan to an element owned in the pack is likewise bounded by the pack’s lifetime. If an element is itself a shared reference, copying that reference can retain the original external referent lifetime; it does not make the pack slot or the pack-owned values longer lived.</p><p>Read-only access cannot replace slots, grow storage, extract non-Copy owners or manufacture exclusive element loans. Any existing synchronized interior-access contract remains a property of its element type; the pack itself grants no extra mutation capability. Use an ordinary Vector, Array, MutSlice or explicit mutable-array borrow parameter when modification or ownership consumption is required.</p><p>Existing arrays are not automatically spread into repeated arguments, and no explicit spread form is supported in the initial rule. A Slice parameter is the ordinary alternative when a caller already has a runtime-length view.</p></section><section id="array-context" aria-labelledby="array-context-heading"><h2 id="array-context-heading">5. Use canonical types for one array parameter or return value</h2><div class="table-wrap"><div class="table-scroll" role="region" tabindex="0" aria-label="Array declarators versus function pack syntax"><table><thead><tr><th scope="col">Written form</th><th scope="col">Chosen meaning</th></tr></thead><tbody><tr><th scope="row"><code>T values[]</code> as the final parameter</th><td>Variadic pack; this parameter syntax never denotes one owning Vector argument.</td></tr><tr><th scope="row"><code>T values[N]</code></th><td>Fixed Array&lt;T, N&gt;; as a value parameter, the array owner moves even when T is Copy.</td></tr><tr><th scope="row"><code>T grid[R][C]</code> in an ordinary declaration</th><td>Array&lt;Array&lt;T, C&gt;, R&gt;, with suffixes applied from outer dimension to inner dimension.</td></tr><tr><th scope="row"><code>T values[]</code> in an ordinary declaration</th><td>Owning Vector&lt;T&gt;; a dynamic array literal produces a fallible Result.</td></tr><tr><th scope="row"><code>T grid[][]</code> / <code>T grid[](2)</code> in an ordinary declaration</th><td>Equivalent Vector&lt;Vector&lt;T&gt;&gt; nested dynamic storage; rows may differ in length.</td></tr><tr><th scope="row"><code>Vector&lt;T&gt; values</code></th><td>One dynamic array value parameter. Use canonical types for returns, generic arguments and multidimensional dynamic parameters.</td></tr><tr><th scope="row"><code>&amp;Array&lt;T, N&gt; values</code> / <code>&amp;mut Array&lt;T, N&gt; values</code></th><td>A read or exclusive write borrow of the whole fixed array.</td></tr><tr><th scope="row"><code>&amp;Vector&lt;T&gt; values</code> / <code>&amp;mut Vector&lt;T&gt; values</code></th><td>A read or exclusive write borrow of the whole dynamic array.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">Array&lt;i32, 5&gt; relay_fixed(i32 values[5]) {
+    return values;
+}
+
+Vector&lt;i32&gt; relay_dynamic(Vector&lt;i32&gt; values) {
+    return values;
+}
+
+void inspect_fixed(&amp;Array&lt;i32, 5&gt; values) {
+    return;
+}
+
+void modify_dynamic(&amp;mut Vector&lt;i32&gt; values) {
+    return;
+}</code></pre><p>Array owners move by default; there is no automatic pointer decay or whole-array Copy because the elements happen to be integers. The examples return ownership using the canonical Array and Vector names. A normal mutable value parameter changes the callee-owned array; an exclusive borrow changes the original owner under the established borrow rules.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;Vector&lt;Vector&lt;i32&gt;&gt;, CollectionError&gt; make_dynamic_grid() {
+    i32 rows[][] = [[1, 2], [3, 4, 5]]?;
+    return Result.ok(rows);
+}</code></pre><p>The declaration supplies nested dynamic context, so the whole nested literal has one fallible construction Result. The canonical return type names the same owning Vector&lt;Vector&lt;i32&gt;&gt;. These allocations belong to explicit array construction, not to a variadic pack.</p><p>A suffix wraps its base element type. When that element type is a reference, the suffix describes an array of references; it is not a borrow of the whole array. Whole-array borrowing uses <code>&amp;Array&lt;...&gt;</code> or <code>&amp;Vector&lt;...&gt;</code>. Rank-bearing or repeated-empty-bracket parameter declarators are unsupported in the initial function grammar: write the canonical nested Vector type instead.</p><p>For ordinary declarations, parenthesized rank is a positive compile-time integer, while dynamic row lengths may change at runtime. Fixed and dynamic bracket composition follows the recursive Array/Vector mapping. Fixed literal extents are checked; dynamic <code>[ ... ]</code> construction requires explicit Result handling or <code>?</code> in a compatible function. See <a href="../../data_type/Array/Array.html">Arrays</a> and <a href="../../data_type/Array/Static_Array.html">Static Arrays</a> for the complete literal and storage contract.</p></section><section id="evaluation" aria-labelledby="evaluation-heading"><h2 id="evaluation-heading">6. Prepare arguments once and clean current pack owners exactly once</h2><p>The caller prepares a statically counted temporary pack in its call frame. Pack storage introduces no hidden heap allocation. Copy elements copy and non-Copy owners move under their ordinary value rules, so real copy/move costs remain. Explicit argument construction, cloning or dynamic array literals keep their own allocation and error costs.</p><p>Explicit argument expressions run once, left to right in source order. Preparation tracks initialized elements. If normal error propagation exits the caller before the remaining arguments are ready, already prepared owners are cleaned up exactly once; moved source bindings are not restored. A returned Err used merely as an ordinary argument value does not itself propagate without the existing propagation operation.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">enum PrepareError {
+    Failed;
+};
+
+Result&lt;string, PrepareError&gt; prepare_second(string input, bool reject_input) {
+    if (reject_input) {
+        return Result.err(PrepareError.Failed);
+    }
+    return Result.ok(input);
+}
+
+Result&lt;usize, PrepareError&gt; prepare_owned_call(
+    string first, string second, bool reject_second
+) {
+    usize count = count_owned(first, prepare_second(second, reject_second)?);
+    return Result.ok(count);
+}</code></pre><p>first is moved into the prepared pack before prepare_second runs. On its error path, the input second is cleaned up by the helper, then <code>?</code> exits the caller and cleans up the already prepared first. count_owned is not entered. On success it observes two owning strings and both remaining pack owners are released after that call. No earlier side effect is rolled back.</p><p>After a call completes normally, still-owned initialized pack elements are cleaned exactly once. A valid copied reference to external storage follows its original lifetime instead. Forced safety stops and external process termination gain no new cleanup guarantee. Exact physical placement, frame limits and ABI lowering must preserve these source-level obligations without a hidden heap fallback.</p></section><section id="diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">7. Reject unsupported pack declarations and calls</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: the variadic parameter is not last;
+void invalid_position(i32 values[], bool enabled) {
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a function cannot have two variadic parameters;
+void invalid_count(i32 first[], i32 second[]) {
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a mutable variadic binding is unsupported;
+void invalid_mutability(mut i32 values[]) {
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a defaulted ordinary parameter precedes a pack;
+void invalid_prefix_default(i32 prefix = 0, i32 values[]) {
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: the pack cannot be supplied as a named argument;
+void invalid_named_pack() {
+    receive(values = 1);
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: no argument or destination resolves T;
+void unresolved_empty_pack() {
+    usize count = pack_len();
+    return;
+}</code></pre><p>Use required ordinary prefixes, positional repeated arguments, explicit generic types when needed, and canonical types for ordinary array parameters. These are semantic design rejections rather than observed compiler diagnostics.</p></section><section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">8. Preserve overload priorities and explicit cost boundaries</h2><div class="table-wrap"><div class="table-scroll" role="region" tabindex="0" aria-label="Closed variadic policies and remaining boundaries"><table><thead><tr><th scope="col">Topic</th><th scope="col">Contract</th></tr></thead><tbody><tr><th scope="row">Zero arguments</th><td>Allowed; unresolved generic types still require valid inference or explicit complete type arguments.</td></tr><tr><th scope="row">Ownership</th><td>Ordinary Copy-or-move inputs; non-Copy elements are allowed and remain owned by the call-frame pack.</td></tr><tr><th scope="row">Access and lifetime</th><td>Read-only Slice-like access; pack views and loans of pack-owned elements cannot escape the call.</td></tr><tr><th scope="row">Mutation, spread and names</th><td>Mutable variadic binding, explicit/automatic spread and named variadic binding are unsupported initially.</td></tr><tr><th scope="row">Ordinary defaults before pack</th><td>Unsupported in the initial rule.</td></tr><tr><th scope="row">Overload tie</th><td>After existing type, literal and generic/non-generic preferences, an otherwise equal fixed-parameter candidate wins.</td></tr><tr><th scope="row">Remaining compiler details</th><td>Physical ABI, frame-size limits, backend lowering and full returned-reference notation still need implementation-level specification.</td></tr></tbody></table></div></div><p>No overload families from different originating modules are pooled. If candidates are still tied after the selected priorities, the call is ambiguous. See <a href="Overloading.html#open-decisions">the fixed-versus-variadic example</a>.</p><p>Dynamic array literal construction uses CollectionError and one recursive construction Result for nested lists; inner lists do not each need their own ?. Ordinary Result-valued element expressions are not implicitly unwrapped. Remaining detailed element-cleanup ordering is separate: the pack contract does not silently select a general Array destruction order or a GPU/parallel execution model.</p><p><a href="Arguments_and_Defaults.html">Arguments and defaults</a> · <a href="Overloading.html">Overloading</a> · <a href="../../data_type/Slice/Slice.html">Slice reference</a> · <a href="../../declaration/Function_Declaration.html">Basic function declarations</a></p></section>
+<nav class="page-navigation" aria-label="Adjacent function reference pages"><a href="index.html"><span>Related reference</span>Overview</a><a href="Generic_Functions.html"><span>Related reference</span>Generic functions</a><a href="Overloading.html"><span>Related reference</span>Overloading</a><a href="Arguments_and_Defaults.html"><span>Related reference</span>Arguments and defaults</a></nav></article></div>
+<footer class="page-footer"><span>Aevix Language · Function reference</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

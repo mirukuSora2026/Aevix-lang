@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="An ahead-of-time baseline with selected just-in-time work, preserving one language contract across compilation paths.">
+<title>AOT and Selective JIT — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">Language foundations</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">AOT and Selective JIT</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">LANGUAGE DESIGN REFERENCE</p><h1>AOT and Selective JIT</h1><p class="doc-subtitle">An ahead-of-time baseline with selected just-in-time work, preserving one language contract across compilation paths.</p><div class="doc-meta"><span class="meta-chip">Confirmed rules + open decisions</span><span class="meta-chip">English reference</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Baseline</dt><dd>AOT</dd></div><div class="doc-stat"><dt>Additional path</dt><dd>Selective JIT</dd></div><div class="doc-stat"><dt>CPU targets</dt><dd>AArch64 / x86-64</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>A/J</strong><span>one semantics</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="Reference navigation">
+<details class="toc" open><summary>On this page</summary><ol>
+<li><a href="#confirmed-model"><span class="toc-number">01</span><span>Compile ahead of time and selectively at runtime</span></a></li>
+<li><a href="#aot-baseline"><span class="toc-number">02</span><span>AOT is the native baseline</span></a></li>
+<li><a href="#selective-jit"><span class="toc-number">03</span><span>JIT is selective, not a second language</span></a></li>
+<li><a href="#shared-static-contract"><span class="toc-number">04</span><span>Keep the same static contract</span></a></li>
+<li><a href="#observable-semantics"><span class="toc-number">05</span><span>Preserve observable evaluation and errors</span></a></li>
+<li><a href="#optimization-and-specialization"><span class="toc-number">06</span><span>Specialize only under a valid contract</span></a></li>
+<li><a href="#cpu-gpu"><span class="toc-number">07</span><span>A unified CPU/GPU model still needs explicit target rules</span></a></li>
+<li><a href="#backend-extensibility"><span class="toc-number">08</span><span>Support extensible backend architecture</span></a></li>
+<li><a href="#deployment-and-cache"><span class="toc-number">09</span><span>Deployment, caching, and fallback are open</span></a></li>
+<li><a href="#validation"><span class="toc-number">10</span><span>Validate correctness before making performance claims</span></a></li>
+<li><a href="#open-decisions"><span class="toc-number">11</span><span>Open mechanisms at a glance</span></a></li>
+<li><a href="#cpu-execution"><span class="toc-number">12</span><span>ARM64 and x86-64 execution architecture</span></a></li><li><a href="#related"><span class="toc-number">13</span><span>Continue through the language contract</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="Language foundations pages"><h2>Language foundations</h2><div class="family-links">
+<a href="index.html">Overview</a>
+<a href="Design_Principles.html">15 design principles</a>
+<a href="Compilation_Model.html" aria-current="page">AOT and selective JIT</a>
+</div></nav>
+<nav class="family-nav" aria-label="Related language sections"><h2>Language reference</h2><div class="family-links"><a href="../index.html">Grammar overview</a><a href="../foundations/index.html">Foundations</a><a href="../user_defined_types/index.html">User-defined types</a><a href="../enums/Enums.html">Enums</a><a href="../generics/Generic_Types.html">Generic types</a><a href="../../declaration/index.html">Declarations</a><a href="../../data_type/index.html">Data types</a></div></nav>
+</aside>
+<article class="content" aria-label="AOT and Selective JIT reference">
+<section id="confirmed-model" aria-labelledby="confirmed-model-heading">
+<h2 id="confirmed-model-heading">1. Compile ahead of time and selectively at runtime</h2>
+<p>Aevix combines ahead-of-time compilation with selective just-in-time compilation. AOT is the baseline for native code. Selected portions may be compiled or specialized at runtime through JIT. This choice establishes the execution direction, not a complete runtime architecture.</p><blockquote class="callout note"><p><strong>Confirmed scope.</strong> The AOT/JIT combination is selected. Initial CPU/OS targets and LLVM/ORC implementation direction are selected below. Trigger policy, hotness thresholds, cache storage format, complete fallback behavior and deployment packaging remain open; GPU and parallel-language work are deferred. No JIT or AOT engine has been demonstrated by this documentation.</p></blockquote>
+</section>
+
+<section id="aot-baseline" aria-labelledby="aot-baseline-heading">
+<h2 id="aot-baseline-heading">2. AOT is the native baseline</h2>
+<p>Ahead-of-time compilation prepares executable code before its normal execution. The source is statically typed and checked under the selected ownership and borrowing model. Baseline work does not require every source operation to become a mandatory runtime compilation request.</p><p>The initial native target matrix and platform object/linking route are chosen below. Standard-library packaging, optimization levels and whether a deployment includes a JIT component remain to be chosen. The phrase AOT baseline does not settle those distribution choices.</p>
+</section>
+
+<section id="selective-jit" aria-labelledby="selective-jit-heading">
+<h2 id="selective-jit-heading">3. JIT is selective, not a second language</h2>
+<p>Runtime compilation can provide an additional specialization or execution path for selected work. It must remain subject to the same source rules and supported target capabilities. Source does not gain a different safety mode merely because the code is compiled later.</p><div class="table-scroll" role="region" aria-label="JIT-related choices that are still open">
+<table>
+<thead><tr>
+<th scope="col">Question</th>
+<th scope="col">Possible design work, not an approved policy</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">What triggers compilation?</th>
+<td>Explicit requests, measured hotness, runtime type/shape facts, or another selected policy.</td>
+</tr>
+<tr>
+<th scope="row">What can be specialized?</th>
+<td>Only facts whose use preserves the language’s type, error, effect, and cost contracts.</td>
+</tr>
+<tr>
+<th scope="row">When is compiled code installed?</th>
+<td>Compilation scheduling, publication, and concurrent call behavior need defined semantics.</td>
+</tr>
+<tr>
+<th scope="row">What happens when compilation is unavailable or fails?</th>
+<td>Fallback, explicit failure, retry, or another policy has not been selected.</td>
+</tr>
+<tr>
+<th scope="row">How is compilation time exposed?</th>
+<td>Startup, latency, profiling, and runtime resource accounting require design.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="shared-static-contract" aria-labelledby="shared-static-contract-heading">
+<h2 id="shared-static-contract-heading">4. Keep the same static contract</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct Point {
+    public i32 x;
+    public i32 y;
+};
+
+i32 sum(&amp;Point point) {
+    return (*point).x + (*point).y;
+}
+
+Point input = Point { x = 10, y = 20 };
+i32 output = sum(&amp;input);</code></pre><p>The selected type-first syntax, explicit return, named initialization, reference permission, and integer safety behavior are the same on either compilation path. JIT is not permission to reinterpret a moved binding, upgrade a shared reference, or allow an invalid field type.</p><p>Required static typing and ownership diagnostics must not be deferred into unchecked execution. The exact implementation of front-end reuse, intermediate validation, and JIT code verification remains open.</p>
+</section>
+
+<section id="observable-semantics" aria-labelledby="observable-semantics-heading">
+<h2 id="observable-semantics-heading">5. Preserve observable evaluation and errors</h2>
+<div class="table-scroll" role="region" aria-label="Semantics shared by AOT and JIT">
+<table>
+<thead><tr>
+<th scope="col">Area</th>
+<th scope="col">Selected rule that remains in force</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">Evaluation</th>
+<td>Operands, initializer values, receivers, and ordinary call arguments evaluate once under their selected ordering rules.</td>
+</tr>
+<tr>
+<th scope="row">Arithmetic</th>
+<td>Ordinary checked integer safety and explicit checked Result recovery keep their distinct semantics.</td>
+</tr>
+<tr>
+<th scope="row">Errors</th>
+<td>Result/Optional contracts remain explicit; postfix ? propagates matching Result errors.</td>
+</tr>
+<tr>
+<th scope="row">Ownership</th>
+<td>Move defaults, explicit Copy, source lifetimes, and conflicting-loan checks are preserved.</td>
+</tr>
+<tr>
+<th scope="row">Scope cleanup</th>
+<td>Normal exits clean only currently owned initialized values under the selected scope model.</td>
+</tr>
+<tr>
+<th scope="row">Dispatch</th>
+<td>Static default and explicitly selected dyn calls do not change implicitly based on compilation stage.</td>
+</tr>
+<tr>
+<th scope="row">Cost boundaries</th>
+<td>Compilation cannot insert an unrequested deep clone, ownership box, or CPU/GPU transfer.</td>
+</tr>
+</tbody>
+</table>
+</div><p>Compilation may change generated instructions when it preserves the required observable behavior. It may eliminate a redundant check only with valid proof, not by assuming that earlier observed inputs cover every future call. No blanket relaxed-floating-point or build-mode safety exception is selected.</p>
+</section>
+
+<section id="optimization-and-specialization" aria-labelledby="optimization-and-specialization-heading">
+<h2 id="optimization-and-specialization-heading">6. Specialize only under a valid contract</h2>
+<p>The selected compiler-first direction encourages using type, shape, ownership, effect, and target information for valid optimization. AOT can use facts available before execution; JIT can potentially use additional runtime facts when their validity is established.</p><p>Guards, recompilation, deoptimization, speculation limits, specialization budgets, and invalidation are mechanism questions still open. Naming them here does not choose an implementation. Generic compilation may use specialization or another strategy; the user-defined generic grammar does not settle that strategy.</p>
+</section>
+
+<section id="cpu-gpu" aria-labelledby="cpu-gpu-heading">
+<h2 id="cpu-gpu-heading">7. A unified CPU/GPU model still needs explicit target rules</h2>
+<p>The language direction is one programming model across CPU and GPU, with explicit transfer and copy costs. The AOT/JIT choice does not prescribe which processor runs JIT compilation, which code is eligible for device execution, or whether device code is compiled before or during execution.</p><p>Target availability, device module format, kernel launch syntax, data placement, transfer APIs, synchronization, and target-specific unsupported operations remain open. Unifying syntax is not a promise of shared physical memory or of cost-free migration.</p><p>Pending device access must not outlive released backing storage. Borrowed local storage needs a valid completion/lifetime contract before its scope can end; hidden waits versus explicit structured completion have not been finalized.</p>
+</section>
+
+<section id="backend-extensibility" aria-labelledby="backend-extensibility-heading">
+<h2 id="backend-extensibility-heading">8. Support extensible backend architecture</h2>
+<p>The compiler should be extensible to backends such as LLVM and MLIR, preserving enough language information to lower the same semantics to different targets. This is an architectural goal, not a claim that a particular frontend, IR chain, code generator, or backend plugin already exists.</p><p>The initial route is shared frontend and AIR, then target-aware LLVM lowering for AOT and ORC execution. Exact AIR schemas, pass interfaces and backend APIs remain open; device backends are deferred. No source-level semantic guarantee should depend on an undocumented backend optimization accidentally occurring.</p>
+</section>
+
+<section id="deployment-and-cache" aria-labelledby="deployment-and-cache-heading">
+<h2 id="deployment-and-cache-heading">9. Deployment, caching, and fallback are open</h2>
+<div class="table-scroll" role="region" aria-label="Unselected runtime and distribution mechanisms">
+<table>
+<thead><tr>
+<th scope="col">Topic</th>
+<th scope="col">Questions requiring a later decision</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">Deployment</th>
+<td>Which runtime/compiler components accompany an AOT program?</td>
+</tr>
+<tr>
+<th scope="row">Compilation cache</th>
+<td>Required source/target/ABI/feature/version compatibility checks are chosen below; cache location, format and eviction remain open.</td>
+</tr>
+<tr>
+<th scope="row">Failure/fallback</th>
+<td>Is AOT always usable for JIT-selected work, or do some features report an explicit error?</td>
+</tr>
+<tr>
+<th scope="row">Concurrency</th>
+<td>Compilation scheduling and publication details remain open; initial superseded-code retention lasts through orderly shutdown.</td>
+</tr>
+<tr>
+<th scope="row">Targets</th>
+<td>AArch64 and x86-64 on macOS/Linux are initial CPU targets; minimum versions remain open. GPU targets are deferred.</td>
+</tr>
+<tr>
+<th scope="row">Controls</th>
+<td>Are there source annotations or runtime settings, and how are costs exposed?</td>
+</tr>
+</tbody>
+</table>
+</div><p>No cache directory, runtime flag, source keyword, compilation threshold, automatic fallback, or machine-code ABI is created by this page.</p>
+</section>
+
+<section id="validation" aria-labelledby="validation-heading">
+<h2 id="validation-heading">10. Validate correctness before making performance claims</h2>
+<p>An implementation will need appropriate semantic checks for both paths: type and ownership rejection, checked arithmetic failures, Result exits, evaluation order, dispatch, cleanup, target capability handling, and resource lifetime preservation. Runtime specialization also needs evidence that the assumptions supporting its generated code stay valid.</p><p>Representative benchmarks must account for native throughput, compilation latency, warm and cold execution, memory use, synchronization, data movement, and supported devices. No comparative speed claim follows from the AOT/JIT spelling alone.</p><blockquote class="callout note"><p><strong>Current evidence.</strong> These pages are HTML design documentation. There is no Aevix compilation, execution, GPU run, benchmark, or FFI validation result here.</p></blockquote>
+</section>
+
+<section id="open-decisions" aria-labelledby="open-decisions-heading">
+<h2 id="open-decisions-heading">11. Open mechanisms at a glance</h2>
+<ul>
+<li>Selection triggers, compilation scheduling, thresholds, and profiling controls.</li>
+<li>Runtime fact validation, guards, specialization limits, and invalidation or replacement mechanics.</li>
+<li>Complete fallback/error policy, deployment packages, runtime inclusion, cache storage and eviction.</li>
+<li>Deferred GPU/parallel work: CPU/GPU division, device support and launch/transfer/completion syntax.</li>
+<li>Detailed generic lowering, AIR schema, backend interfaces, target ABI implementation and versioned runtime ABI.</li>
+<li>Safe-stop cleanup and custom cleanup declarations remain open; normal persistent shutdown order is already chosen.</li>
+</ul>
+</section>
+
+<section id="cpu-execution" aria-labelledby="cpu-execution-heading">
+<h2 id="cpu-execution-heading">12. ARM64 and x86-64 execution architecture</h2>
+<p><strong>Chosen initial target scope:</strong> ARM64 (AArch64) and x86-64, each on macOS and Linux. Windows is a later target; ARM32 is outside the initial scope. These are implementation requirements, not demonstrated execution support. GPU and parallel-language design are deferred while the CPU core is completed.</p>
+<div class="table-scroll" role="region" aria-label="Initial CPU and operating-system targets"><table><thead><tr><th scope="col">CPU</th><th scope="col">OS</th><th scope="col">Target requirements</th></tr></thead><tbody>
+<tr><th scope="row">AArch64</th><td>macOS</td><td>Apple platform ABI, SDK/deployment target, Mach-O linking and platform JIT memory rules.</td></tr>
+<tr><th scope="row">x86-64</th><td>macOS</td><td>Apple platform ABI, SDK/deployment target and Mach-O linking; separate generated code from AArch64.</td></tr>
+<tr><th scope="row">AArch64</th><td>Linux</td><td>AArch64 Linux ABI, selected libc/sysroot, ELF linking and compatible native runtime.</td></tr>
+<tr><th scope="row">x86-64</th><td>Linux</td><td>x86-64 Linux ABI, selected libc/sysroot, ELF linking and compatible native runtime.</td></tr>
+</tbody></table></div>
+<p>The exact minimum OS versions, initial Linux libc baseline and required SDK/toolchain versions remain release-matrix choices. A target description includes architecture, OS, environment/ABI, CPU features and data layout. Frontend checks may consult this target information for size, alignment and FFI decisions; a shared frontend does not imply target-independent pointer sizes or calling conventions.</p>
+<h3 id="execution-pipeline">Shared checks, target-specific generated code</h3>
+<ol><li>Parse and check Aevix source using one frontend, type system and ownership model. Preserve language-level semantics in AIR.</li><li>Lower AIR through the initial LLVM backend using the selected target's data layout and call ABI. LLVM IR with a target layout is not automatically a portable bytecode bundle.</li><li>For AOT, emit target object code and link the matching runtime and system libraries using an appropriate target linker and sysroot. Use the operating system's executable loader.</li><li>For execution from source, the proposed aevix-run tool uses the same checks and an ORC JIT targeting its executor process. It cannot directly execute incompatible CPU instructions or another OS ABI.</li><li>Use shared runtime startup and normal shutdown, including the existing persist initialization and cleanup contracts. Retain needed JIT code through cleanup callbacks.</li></ol>
+<p>LLVM code generation and ORC are the initial implementation route. The existing Backend/Native architecture-specific encoder folders remain later extension points. A custom native encoder, custom executable loader, emulator and remote executor are not required for the first implementation. Cross-compiling an object file does not establish that it can be linked or executed on the compiler's machine.</p>
+<div class="table-scroll" role="region" aria-label="Execution directory responsibilities"><table><thead><tr><th scope="col">Folder</th><th scope="col">Responsibility</th></tr></thead><tbody>
+<tr><th scope="row">include/aevix/Target and src/Target</th><td>One target description, CPU feature policy and ABI/data-layout selection. Backend adapters consume this description rather than defining a second target identity.</td></tr>
+<tr><th scope="row">include/aevix/Execution and src/Execution</th><td>Coordinate source execution, target compatibility, AOT/JIT entry and executable-code lifetime.</td></tr>
+<tr><th scope="row">Backend/LLVM and JIT/ORC</th><td>Implement LLVM lowering, code emission and ORC integration, using shared target/runtime contracts.</td></tr>
+<tr><th scope="row">include/aevix/Runtime/ABI</th><td>Version the compiler-to-runtime C ABI; initially prefer simple scalars, pointers, explicit lengths and output parameters. Native C++ objects and exceptions must not cross it implicitly.</td></tr>
+<tr><th scope="row">runtime/Startup, runtime/Platform and runtime/Arch</th><td>Common language lifecycle; OS memory/loader services; minimal ISA-specific feature and instruction-cache support. Share POSIX services but retain macOS/Linux-specific differences.</td></tr>
+<tr><th scope="row">cmake/Toolchains</th><td>Separate the machine building Aevix from the machine running it and from the target of generated Aevix code. Select matching SDKs, sysroots and runtime libraries.</td></tr>
+<tr><th scope="row">tools/aevix-run and tests/Portability</th><td>The proposed execution CLI and architecture/OS validation matrix. Folder presence is not an implemented runner.</td></tr>
+</tbody></table></div>
+<h3 id="execution-safety">Native execution and cache compatibility</h3>
+<p>AOT distribution uses an explicit portable CPU baseline for each target. Optional CPU instructions require an explicit target requirement or a validated runtime dispatch path; do not silently compile distributed code for the build machine's features. JIT feature selection is based on the executor's usable capabilities.</p>
+<p>Before installing or loading code, check the target, ABI and required CPU features. Cache identity must include source and dependencies, compiler/LLVM versions, language/runtime ABI, target triple, data layout and code-generation options. Cache paths and file format remain open. Cache hits do not create a second persist instance.</p>
+<p>OS-specific executable-memory allocation, write/execute transitions and required instruction-cache synchronization belong behind the platform/architecture interfaces. On macOS, apply the supported JIT memory and code-signing rules for the chosen deployment and Hardened Runtime configuration; do not solve compatibility by globally disabling protections.</p>
+<p>The initial code-retention policy keeps superseded JIT code and required metadata until orderly process shutdown, after callbacks and language cleanup can no longer use them. Reject incompatible function-signature or live-data-layout replacement. More precise code reclamation, hotness triggers and speculative deoptimization remain later work.</p>
+<h3 id="entry-contract">An explicit initial entry contract</h3>
+<p>The default executable entry module is <code>src/main.avx</code>, resolved under the configured source root. Selection of a different entry module belongs to the future project/driver configuration. The initial entry function is exactly one receiverless, non-generic, non-overloaded <code>i32 main()</code>. It does not need public visibility: the executable startup adapter selects that entry rather than importing a private declaration from an ordinary language module.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 main() {
+    return 0;
+}</code></pre>
+<p>All required top-level persist initialization succeeds before main begins. The i32 result goes to the platform exit adapter, with zero representing success; the operating system's observable exit-status representation is not promised to preserve every i32 bit. Command-line argument parameters, Result-returning main and async main are not initial entry forms. Libraries do not require main.</p>
+<p>A shared runtime startup wrapper supplies the platform ABI entry and calls the checked language entry using its matching generated ABI. Keep the compiler/runtime C ABI distinct from the operating-system entry ABI. The CMake toolchain builds a compiler/runtime for a selected host or cross-build environment; it must not accidentally determine the target of every Aevix program that compiler later emits.</p>
+<h3 id="execution-validation">Evidence required before declaring support</h3>
+<p>Run native AOT and JIT tests on all four architecture/OS combinations. Check arithmetic and Result behavior, ownership rejection, evaluation order, struct/enum calls and returns, C ABI round trips, persist identity and cleanup, CPU-feature rejection and platform JIT permissions. Cross-build and emulation checks can supplement this matrix but do not replace native execution evidence. No such Aevix execution evidence exists yet.</p>
+<p>Primary implementation references: <a href="https://llvm.org/docs/LangRef.html#target-triple">LLVM target triples</a>, <a href="https://clang.llvm.org/docs/CrossCompilation.html">Clang cross-compilation and sysroots</a>, <a href="https://llvm.org/docs/ORCv2.html">LLVM ORC architecture</a>, <a href="https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html">CMake toolchains</a> and <a href="https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon">Apple silicon JIT requirements</a>. These sources guide the architecture; they do not validate an Aevix implementation.</p>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">13. Continue through the language contract</h2>
+<nav class="page-navigation" aria-label="Related compilation references">
+<a href="Design_Principles.html"><span>Goals</span><strong>15 Design Principles</strong><p>The full selected language and compiler direction.</p></a>
+<a href="../operators/Checked_Arithmetic.html"><span>Failures</span><strong>Checked Arithmetic</strong><p>One checked arithmetic contract across compilation paths.</p></a>
+<a href="../scope_and_comments/Resource_Cleanup.html"><span>Resources</span><strong>Resource Cleanup</strong><p>Ownership release and pending-access lifetime boundaries.</p></a>
+<a href="../generics/Generic_Types.html"><span>Types</span><strong>Generic Types</strong><p>Type parameters do not imply one backend specialization strategy.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix Language · Language foundations</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

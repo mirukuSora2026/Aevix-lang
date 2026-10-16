@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Signal, observe, clean up and join as separate operations.">
+  <title>Task Cancellation — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Task.html" aria-current="true">Task</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Task.html">Task</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Task Cancellation</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Task Cancellation</h1><p class="doc-subtitle">Signal, observe, clean up and join as separate operations.</p><div class="doc-meta"><span class="meta-chip">CancellationSource / CancellationToken</span><span class="meta-chip">Task. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>12</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>task</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#request"><span class="toc-number">01</span><span>A request changes intent</span></a></li><li><a href="#propagation"><span class="toc-number">02</span><span>Token trees and notification</span></a></li><li><a href="#checkpoint"><span class="toc-number">03</span><span>Checkpoints and blocking work</span></a></li><li><a href="#timeout"><span class="toc-number">04</span><span>Timeout and racing outcomes</span></a></li><li><a href="#shutdown"><span class="toc-number">05</span><span>Graceful shutdown is a sequence</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Request and completion remain explicit</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Design requirements and sources</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Task pages"><h2>Task reference</h2><div class="family-links"><a href="Task.html">Task</a><a href="Task_Scope.html">Task Scope</a><a href="Task_Cancellation.html" aria-current="page">Task Cancellation</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Task Cancellation reference">
+<section id="request" aria-labelledby="request-heading">
+<h2 id="request-heading">1. A request changes intent
+</h2>
+<p>A CancellationSource owns permission to request cancellation. CancellationToken is a retained read-only notification capability handed to work. A request tells code to stop at a cooperative boundary and perform required cleanup; it does not erase already executed effects or prove termination. The source and token are proposed library types with fallible state allocation when needed.
+</p>
+<p>A task may finish normally between a cancellation query and request, or after noticing a request while it performs cleanup. The actual join outcome is authoritative. A cancellation flag and terminal phase are separate pieces of state, so a completed successful task can also report that cancellation was requested too late.
+</p>
+</section>
+<section id="propagation" aria-labelledby="propagation-heading">
+<h2 id="propagation-heading">2. Token trees and notification
+</h2>
+<p>A child token receives cancellation propagated from its parent. Cancelling a child does not cancel the parent or siblings. A shared clone of a token observes the same request state. The contract specifies request visibility after the requesting operation returns for the selected synchronization profile; it does not promise every independent child observes the transition simultaneously while propagation is in progress.
+</p>
+<p>Waiting for a token to be requested only acknowledges notification. It does not wait for every task using the token to stop. Task or scope joins provide the completion boundary. A notification wait must retain token state and register wakeups without a lost-wakeup race; repeatedly polling a bool in a busy loop is not the intended API.
+</p>
+</section>
+<section id="checkpoint" aria-labelledby="checkpoint-heading">
+<h2 id="checkpoint-heading">3. Checkpoints and blocking work
+</h2>
+<p>check_cancel is an explicit cooperative checkpoint returning a cancellation value. Yield, timer and I/O integrations can also expose request handling through their named contracts. A CPU-bound loop that never checks cancellation may run indefinitely. Running blocking work generally cannot be safely force-killed, so cancellation remains a request even when the host scheduler can remove not-yet-started jobs.
+</p>
+<p>A suspended operation is safe to cancel only when its own contract explains cleanup and side effects. Dropping a wait object does not automatically cancel the underlying operation. If I/O or GPU work was accepted externally, its lifetime obligations continue until completion or a proven safe abort. A host cancellation token cannot certify device quiescence.
+</p>
+</section>
+<section id="timeout" aria-labelledby="timeout-heading">
+<h2 id="timeout-heading">4. Timeout and racing outcomes
+</h2>
+<p>A timeout limits how long an observer waits, not how long work can continue. A timed-out task remains in its scope and retains captured loans. A function that requests cancellation on timeout must name that policy and still return a handle or await eventual completion. A deadline is monotonic-time based; clock precision and scheduler latency prevent a strict real-time bound.
+</p>
+<p>Race returns the winning terminal outcome together with unfinished loser handles. A loser that has already performed writes cannot be rolled back by cancelling it. Deterministic bias or tie-breaking belongs to an explicit selection policy; scheduler arrival order alone is not deterministic application semantics.
+</p>
+</section>
+<section id="shutdown" aria-labelledby="shutdown-heading">
+<h2 id="shutdown-heading">5. Graceful shutdown is a sequence
+</h2>
+<p>Graceful shutdown closes admission, sends requests, allows cleanup and joins tracked work. Each step can fail or wait for a noncooperative child. A timeout during shutdown must preserve ownership and scope obligations; it cannot free borrowed memory merely to meet a deadline. Detached owned work may follow a separate runtime shutdown policy because it does not borrow the caller stack.
+</p>
+<p>Unrecoverable process failure and fatal runtime termination are outside ordinary TaskError recovery. A supported caught unwind is reported only after the runtime has established safe cleanup of the task state. The API must not advertise every panic, allocator catastrophe or foreign thread termination as safely recoverable.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Request and completion remain explicit
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;CancellationSource, CancellationError&gt; created = Task.cancel_source();
+// Given a validated source and task handle; cancellation uses synchronized interior state.
+Result&lt;CancelRequest, CancellationError&gt; requested = Task.cancel_request(&amp;source);
+bool finished = Task.is_finished(&amp;job);
+Result&lt;i32, TaskError&gt; outcome = Task.join(job);</code></pre>
+<p>The bool finished may be false after a successful request and can become stale immediately. join consumes the result handle and establishes completion; requested is not a substitute for it.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Task-cancel_source"><td><code>Task.cancel_source()</code></td><td><code>Result&lt;CancellationSource, CancellationError&gt;</code></td><td>Creates independent unrequested state.</td><td>May allocate.</td>
+</tr>
+<tr id="Task-cancel_token"><td><code>Task.cancel_token(&amp;CancellationSource source)</code></td><td><code>CancellationToken</code></td><td>Retained read-only notification capability; source lifetime alone is not required afterward.</td><td>O(1) state retain.</td>
+</tr>
+<tr id="Task-cancel_child"><td><code>Task.cancel_child(&amp;CancellationToken parent)</code></td><td><code>Result&lt;CancellationSource, CancellationError&gt;</code></td><td>New child state receives parent propagation; child request does not affect parent.</td><td>May allocate/register.</td>
+</tr>
+<tr id="Task-cancel_clone"><td><code>Task.cancel_clone(&amp;CancellationToken token)</code></td><td><code>CancellationToken</code></td><td>Retained observer of the same request state, not a new independent child.</td><td>O(1) retain.</td>
+</tr>
+<tr id="Task-cancel_request"><td><code>Task.cancel_request(&amp;CancellationSource source)</code></td><td><code>Result&lt;CancelRequest, CancellationError&gt;</code></td><td>Idempotent request; reports newly-requested or already-requested state.</td><td>Notification/propagation cost.</td>
+</tr>
+<tr id="Task-cancel_requested"><td><code>Task.cancel_requested(&amp;CancellationToken token)</code></td><td><code>bool</code></td><td>Synchronized request snapshot; no completion guarantee.</td><td>O(1).</td>
+</tr>
+<tr id="Task-await_cancel"><td><code>Task.await_cancel(CancellationToken token)</code></td><td><code>Awaitable&lt;unit&gt;</code></td><td>Resolves once a request is visible; does not wait for task cleanup.</td><td>Wake registration/suspension.</td>
+</tr>
+<tr id="Task-cancel_and_join"><td><code>Task.cancel_and_join(Task&lt;T&gt; task)</code></td><td><code>Result&lt;T, TaskError&gt;</code></td><td>Requests then joins actual outcome; normal completion can win the race.</td><td>May wait indefinitely.</td>
+</tr>
+<tr id="Task-cancel_scope_and_wait"><td><code>Task.cancel_scope_and_wait(TaskScope scope)</code></td><td><code>Awaitable&lt;Result&lt;ScopeReport, ScopeError&gt;&gt;</code></td><td>Closes admission, requests cancellation, drains all accepted children.</td><td>May wait indefinitely.</td>
+</tr>
+<tr id="Task-deadline_after"><td><code>Task.deadline_after(Duration duration)</code></td><td><code>Result&lt;Deadline, TimerError&gt;</code></td><td>Checked monotonic deadline computation; no wall-clock dependency.</td><td>O(1).</td>
+</tr>
+<tr id="Task-wait_deadline"><td><code>Task.wait_deadline(&amp;Task&lt;T&gt; task, Deadline deadline)</code></td><td><code>Awaitable&lt;Result&lt;WaitStatus, TaskError&gt;&gt;</code></td><td>Observation only; expiry does not release captures or cancel task.</td><td>Timer scheduling cost.</td>
+</tr>
+<tr id="Task-race_with_policy"><td><code>Task.race_with_policy(Vector&lt;Task&lt;T&gt;&gt; tasks, RacePolicy policy)</code></td><td><code>Result&lt;RaceOutcome&lt;T&gt;, JoinError&gt;</code></td><td>Nonempty input; named tie policy; unfinished losers returned as handles.</td><td>Bookkeeping allocation possible.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Design requirements and sources
+</h2>
+<p>These contracts require both compiler lifetime analysis and runtime tracking. They are not inferred automatically from a user handle destructor, a Rust thread interface or Tokio behavior. The referenced systems provide comparison points; Aevix deliberately specifies its own structured default and error-as-value policy. No implementation, bounded shutdown guarantee or deadlock freedom is claimed.
+</p>
+<p><a href="Task.html">Task common reference</a> · <a href="Task_Scope.html">Scope</a> · <a href="Task_Cancellation.html">Cancellation</a> · <a href="../Pending/Pending.html">Device completion</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/future/trait.Future.html" target="_blank" rel="noopener noreferrer">Rust Future polling contract</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/thread/fn.scope.html" target="_blank" rel="noopener noreferrer">Rust scoped threads and lifetime boundary</a>
+</li>
+<li><a href="https://docs.rs/tokio/latest/tokio/task/struct.JoinHandle.html" target="_blank" rel="noopener noreferrer">Tokio JoinHandle lifecycle</a>
+</li>
+<li><a href="https://tokio.rs/tokio/topics/shutdown" target="_blank" rel="noopener noreferrer">Tokio graceful shutdown</a>
+</li>
+<li><a href="https://docs.rs/tokio-util/latest/tokio_util/sync/struct.CancellationToken.html" target="_blank" rel="noopener noreferrer">Tokio CancellationToken</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Task_Scope.html"><span>Previous reference</span>Task Scope</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

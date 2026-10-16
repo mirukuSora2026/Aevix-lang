@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Atomic shared ownership without implicit mutation or hidden deep copies.">
+  <title>Shared — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Shared.html" aria-current="true">Shared</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html" aria-current="true">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Shared.html">Shared</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Shared</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Shared</h1><p class="doc-subtitle">Atomic shared ownership without implicit mutation or hidden deep copies.</p><div class="doc-meta"><span class="meta-chip">Shared&lt;T&gt;</span><span class="meta-chip">Shared namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>23</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>rc</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Atomic Shared Ownership</span></a></li><li><a href="#Construction"><span class="toc-number">02</span><span>Construction and Count Overflow</span></a></li><li><a href="#Borrowing"><span class="toc-number">03</span><span>Read Access and Trait Bounds</span></a></li><li><a href="#Uniqueness"><span class="toc-number">04</span><span>Exclusive Access and Copy-on-Write</span></a></li><li><a href="#Recovery"><span class="toc-number">05</span><span>Extraction and Failure Ownership</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Complete Proposed Shared API</span></a></li><li><a href="#Lifecycle"><span class="toc-number">07</span><span>Cycles, Tasks, and Asynchronous Resources</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Examples and Related Contracts</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Shared pages"><h2>Shared reference</h2><div class="family-links"><a href="Shared.html" aria-current="page">Shared</a><a href="Shared_Mutation.html">Shared Mutation</a><a href="Shared_Threads.html">Shared Across Threads</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html" aria-current="true">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Shared reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Atomic Shared Ownership
+</h2>
+<p>Shared&lt;T&gt; owns one strong reference to a value and atomic control state. Moving a handle transfers that reference without incrementing it; explicit clone creates another strong handle without cloning T. Last-strong destruction finalizes the payload, while weak handles can keep control information alive. The model has no tracing collector. Shared cycles can leak values and external resources even though dangling dereferences remain forbidden.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> Functions, traits, error carriers, and callback notation specify intended contracts, not implemented APIs. Variables and parameters are type first; bindings are immutable by default. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. unit is a value type, distinct from return-position void.
+</p>
+</blockquote>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">2. Construction and Count Overflow
+</h2>
+<p>Allocating constructors return explicit errors and recover unused moved input on preflight failure. Cyclic construction exposes only a weak handle until T is initialized, preventing a read of partial state. Strong and weak counters cannot wrap to zero. This draft makes handle-clone overflow a RefCountError instead of silently saturating or prematurely destroying live storage. Handle cloning is allocation-free but performs atomic synchronization work.
+</p>
+</section>
+<section id="Borrowing" aria-labelledby="Borrowing-heading">
+<h2 id="Borrowing-heading">3. Read Access and Trait Bounds
+</h2>
+<p>Shared access normally exposes only &T. Reference counting does not make a non-thread-safe T safe to share, make an external object reentrant, or synchronize its mutable fields. Thread transfer and shared reading require the documented Send/Sync-style bounds. Mutability can live behind Mutex, RwLock, or appropriate atomics, whose guards and ordering rules remain necessary. Moving a Shared handle does not upload a tensor or make a host value device-addressable.
+</p>
+</section>
+<section id="Uniqueness" aria-labelledby="Uniqueness-heading">
+<h2 id="Uniqueness-heading">4. Exclusive Access and Copy-on-Write
+</h2>
+<p>get_mut must establish exclusive access atomically and account for weak promotion; a strong_count result of one is not such a proof. Explicit make_mut may allocate and clone T. Under this conservative draft it clones when any other strong or weak handles exist, rather than implicitly detaching weak observers through an undocumented optimization. The requesting handle then denotes a new allocation; observers of the old allocation remain attached to the old identity.
+</p>
+<p>CollectionError for make_mut and clone_value includes payload CloneError and allocation failure; an error preserves this handle and its prior allocation identity. Clone may still have external side effects that no ownership API can reverse.
+</p>
+</section>
+<section id="Recovery" aria-labelledby="Recovery-heading">
+<h2 id="Recovery-heading">5. Extraction and Failure Ownership
+</h2>
+<p>try_unwrap consumes a handle and atomically claims the value only when no other strong owner exists. A failed claim returns that handle. Weak references may remain but cannot resurrect a value after its strong count reaches zero. Fallible into_box and unwrap_or_clone specify input recovery on returned preflight or clone failure. A clone of T can retain its own shared resources, so extraction through Clone is not a promise of deep isolation.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Complete Proposed Shared API
+</h2>
+<div class="table-scroll" role="region" aria-label="Complete Proposed Shared API data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Shared-new"><th scope="row"><code>Shared.new(T value)</code></th><td><code>Result&lt;Shared&lt;T&gt;, InputError&lt;T&gt;&gt;</code></td><td>Allocate initialized value and atomic control storage; failure returns unused input.</td>
+</tr>
+<tr id="Shared-from_fn"><th scope="row"><code>Shared.from_fn(T, Make&lt;T&gt; make)</code></th><td><code>Result&lt;Shared&lt;T&gt;, CollectionError&gt;</code></td><td>Reserve before one-shot construction; clean partial allocation on unwind.</td>
+</tr>
+<tr id="Shared-try_from_fn"><th scope="row"><code>Shared.try_from_fn(T, TryMake&lt;T, E&gt; make)</code></th><td><code>Result&lt;Shared&lt;T&gt;, BuildError&lt;E&gt;&gt;</code></td><td>Reserve before callback; returned callback failure exposes its error.</td>
+</tr>
+<tr id="Shared-new_cyclic"><th scope="row"><code>Shared.new_cyclic(T, CyclicMake&lt;T, E&gt; make)</code></th><td><code>Result&lt;Shared&lt;T&gt;, BuildError&lt;E&gt;&gt;</code></td><td>Builder receives a weak construction handle; promotion is None until initialization succeeds.</td>
+</tr>
+<tr id="Shared-clone"><th scope="row"><code>Shared.clone(&amp;Shared&lt;T&gt; owner)</code></th><td><code>Result&lt;Shared&lt;T&gt;, RefCountError&gt;</code></td><td>Explicitly increment atomic strong count; overflow is an error, never wrapping; no T clone.</td>
+</tr>
+<tr id="Shared-as_ref"><th scope="row"><code>Shared.as_ref(&amp;Shared&lt;T&gt; owner)</code></th><td><code>&amp;T</code></td><td>Borrow initialized value for owner lifetime; O(1), no allocation.</td>
+</tr>
+<tr id="Shared-downgrade"><th scope="row"><code>Shared.downgrade(&amp;Shared&lt;T&gt; owner)</code></th><td><code>Result&lt;Weak&lt;T&gt;, RefCountError&gt;</code></td><td>Increment weak count without retaining the payload by itself.</td>
+</tr>
+<tr id="Shared-strong_count"><th scope="row"><code>Shared.strong_count(&amp;Shared&lt;T&gt; owner)</code></th><td><code>usize</code></td><td>Diagnostic snapshot only; not a uniqueness or synchronization proof.</td>
+</tr>
+<tr id="Shared-weak_count"><th scope="row"><code>Shared.weak_count(&amp;Shared&lt;T&gt; owner)</code></th><td><code>usize</code></td><td>Diagnostic user weak count snapshot; excludes implementation bookkeeping.</td>
+</tr>
+<tr id="Shared-ptr_equal"><th scope="row"><code>Shared.ptr_equal(&amp;Shared&lt;T&gt; left, &amp;Shared&lt;T&gt; right)</code></th><td><code>bool</code></td><td>Compare allocation identity, not value equality; no mutation permission.</td>
+</tr>
+<tr id="Shared-equal"><th scope="row"><code>Shared.equal(&amp;Shared&lt;T&gt; left, &amp;Shared&lt;T&gt; right)</code></th><td><code>bool</code></td><td>T: Eq; compare values, including user comparison cost.</td>
+</tr>
+<tr id="Shared-compare"><th scope="row"><code>Shared.compare(&amp;Shared&lt;T&gt; left, &amp;Shared&lt;T&gt; right, Compare&lt;T&gt; compare)</code></th><td><code>Ordering</code></td><td>Explicit value comparator; allocation address is not numeric ordering.</td>
+</tr>
+<tr id="Shared-get_mut"><th scope="row"><code>Shared.get_mut(&amp;mut Shared&lt;T&gt; owner)</code></th><td><code>Optional&lt;&amp;mut T&gt;</code></td><td>Atomically establish no other strong or weak handles; never infer it from count snapshots.</td>
+</tr>
+<tr id="Shared-make_mut"><th scope="row"><code>Shared.make_mut(&amp;mut Shared&lt;T&gt; owner)</code></th><td><code>Result&lt;&amp;mut T, CollectionError&gt;</code></td><td>T: Clone; clone into new allocation when other strong or weak handles exist; error preserves owner.</td>
+</tr>
+<tr id="Shared-try_unwrap"><th scope="row"><code>Shared.try_unwrap(Shared&lt;T&gt; owner)</code></th><td><code>Result&lt;T, Shared&lt;T&gt;&gt;</code></td><td>Atomically claim sole strong ownership; other strong owners return the original handle; weak handles may remain dead.</td>
+</tr>
+<tr id="Shared-into_box"><th scope="row"><code>Shared.into_box(Shared&lt;T&gt; owner)</code></th><td><code>Result&lt;Box&lt;T&gt;, OwnerError&lt;Shared&lt;T&gt;&gt;&gt;</code></td><td>Require sole strong ownership and any output allocation; returned failure preserves input.</td>
+</tr>
+<tr id="Shared-unwrap_or_clone"><th scope="row"><code>Shared.unwrap_or_clone(Shared&lt;T&gt; owner)</code></th><td><code>Result&lt;T, OwnerError&lt;Shared&lt;T&gt;&gt;&gt;</code></td><td>T: Clone; claim sole value or explicitly clone; clone failure returns original handle.</td>
+</tr>
+<tr id="Shared-clone_value"><th scope="row"><code>Shared.clone_value(&amp;Shared&lt;T&gt; owner)</code></th><td><code>Result&lt;T, CollectionError&gt;</code></td><td>T: Clone; clone the payload explicitly, not merely the ownership handle.</td>
+</tr>
+<tr id="Shared-allocation_bytes"><th scope="row"><code>Shared.allocation_bytes(&amp;Shared&lt;T&gt; owner)</code></th><td><code>usize</code></td><td>Report payload and documented control request bytes, excluding allocator overhead.</td>
+</tr>
+<tr id="Shared-payload_size"><th scope="row"><code>Shared.payload_size(T)</code></th><td><code>usize</code></td><td>Native T layout metadata, not deep heap usage.</td>
+</tr>
+<tr id="Shared-payload_alignment"><th scope="row"><code>Shared.payload_alignment(T)</code></th><td><code>usize</code></td><td>Required target alignment of initialized T.</td>
+</tr>
+<tr id="Shared-is_sendable"><th scope="row"><code>Shared.is_sendable(T)</code></th><td><code>bool</code></td><td>Compile-time trait/capability query; reference counting cannot make T transferable.</td>
+</tr>
+<tr id="Shared-is_shareable"><th scope="row"><code>Shared.is_shareable(T)</code></th><td><code>bool</code></td><td>Compile-time shared-access trait query; atomics protect counts, not arbitrary fields.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Lifecycle" aria-labelledby="Lifecycle-heading">
+<h2 id="Lifecycle-heading">7. Cycles, Tasks, and Asynchronous Resources
+</h2>
+<p>Weak back-edges can break known ownership cycles, but neither a lint nor reference counting proves global leak freedom. Cleanup may also be bypassed by process termination or intentionally retained ownership. Task and GPU resource safety cannot depend only on a user-visible handle’s destructor. A structured scope or runtime-owned completion lease must keep actual data alive until work has truly stopped, even when a notification handle is lost.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Examples and Related Contracts
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Shared&lt;i32&gt;, InputError&lt;i32&gt;&gt; owner = Shared.new(42);
+Shared.payload_size(i32);
+Shared.is_sendable(i32);</code></pre>
+<p>See <a href="Shared_Mutation.html">explicit shared mutation</a>, <a href="Shared_Threads.html">thread and task bounds</a>, and <a href="../Weak/Weak.html">Weak</a>. Counts are diagnostic observations, not permission to mutate or free. The API and conservative copy-on-write policy are Aevix proposals; primary Arc documentation is a comparison reference rather than an implementation claim.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" target="_blank" rel="noopener noreferrer">Rust Arc — atomic shared ownership and explicit cloning</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Shared_Mutation.html"><span>Next reference</span>Shared Mutation</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

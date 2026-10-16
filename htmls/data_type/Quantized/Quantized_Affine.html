@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="One scale and zero point, with no implicit raw-code arithmetic.">
+  <title>Affine Quantization — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Quantized.html" aria-current="true">Quantized</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Quantized.html">Quantized</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Affine Quantization</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Affine Quantization</h1><p class="doc-subtitle">One scale and zero point, with no implicit raw-code arithmetic.</p><div class="doc-meta"><span class="meta-chip">Affine&lt;I, F&gt;</span><span class="meta-chip">Quantized. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>10</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>Q</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#scheme"><span class="toc-number">01</span><span>One meaning for every code</span></a></li><li><a href="#rounding"><span class="toc-number">02</span><span>The rounding operation has a location</span></a></li><li><a href="#range"><span class="toc-number">03</span><span>Checking and saturation</span></a></li><li><a href="#calibration"><span class="toc-number">04</span><span>Calibration is a separate lossy policy</span></a></li><li><a href="#ownership"><span class="toc-number">05</span><span>Metadata replacement and raw payloads</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>A rounding-sensitive example</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Interchange boundary</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Quantized pages"><h2>Quantized reference</h2><div class="family-links"><a href="Quantized.html">Quantized</a><a href="Quantized_Affine.html" aria-current="page">Affine Quantization</a><a href="Quantized_PerAxis.html">Per-axis Quantization</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Affine Quantization reference">
+<section id="scheme" aria-labelledby="scheme-heading">
+<h2 id="scheme-heading">1. One meaning for every code
+</h2>
+<p>An affine scheme stores a positive finite scale s and integer zero point z. Integer code q reconstructs as (q-z)*s in the selected computation type. A per-tensor scheme applies the same mapping to every element, so an owning tensor stores the scheme once. Affine&lt;I, F&gt; is a proposed library record; I fixes code range and F fixes scale/division precision, without changing the primitive integer type itself.
+</p>
+<p>The code z reconstructs exact real zero before any floating multiplication. Other values generally form a finite grid in mathematical real arithmetic. Floating reconstruction can round or overflow, so the mathematical grid and an F-valued dequantized tensor are distinct. Re-encoding a reconstructed value need not preserve a code after scale conversion or computation-type changes.
+</p>
+</section>
+<section id="rounding" aria-labelledby="rounding-heading">
+<h2 id="rounding-heading">2. The rounding operation has a location
+</h2>
+<p>The proposed pipeline divides x by s in F, rounds that ratio according to the named mode, adds z in an exact integer domain, then checks or saturates to I. TiesEven chooses the even integer for a halfway ratio; TiesAway chooses the integer farther from zero; TowardZero truncates; Floor and Ceil follow mathematical direction. No rounding mode depends on the ambient host floating environment.
+</p>
+<p>An odd zero point can expose the difference between rounding before and after translation. For ratio 0.5 and z=1, TiesEven produces code 1 here. This order is part of serialized scheme-operation metadata and compiled kernel identity. A kernel that uses another ordering requires an explicit conversion profile rather than silently substituting results.
+</p>
+</section>
+<section id="range" aria-labelledby="range-heading">
+<h2 id="range-heading">3. Checking and saturation
+</h2>
+<p>Checked conversion fails whenever the rounded translated code is outside I. Saturating conversion clamps to I endpoints. Both reject NaN and infinite input by default. A finite ratio computation that overflows F can be clamped in the saturating path by sign, but must not invoke an undefined conversion to an implementation integer. The metadata remains valid even if the full reconstructed endpoint range exceeds F; checked endpoint queries report that limitation.
+</p>
+<p>Saturation changes value and is never an overflow exception substitute for unrelated arithmetic. A report can count clamped elements when the operation requests it. It cannot recover that count from an arbitrary raw payload later: a code at the minimum may be a natural endpoint or the result of saturation.
+</p>
+</section>
+<section id="calibration" aria-labelledby="calibration-heading">
+<h2 id="calibration-heading">4. Calibration is a separate lossy policy
+</h2>
+<p>Min/max calibration observes finite nonempty samples and derives a candidate scale and zero point under an explicit range-coverage policy. A constant-valued sample set has zero observed range and needs a named minimum-scale policy or an error. The library never inserts a hidden arbitrary epsilon. Symmetric calibration uses signed codes and zero point zero; its asymmetric endpoint range must still be considered when choosing scale.
+</p>
+<p>Calibration data is an input, not a retained hidden owner. Computing statistics may require a floating accumulator and a specific traversal order. Percentile or histogram calibration belongs to an optional library because its accuracy and memory costs differ from simple min/max. Calibration on Cpu and device work share policies but require explicit execution placement.
+</p>
+</section>
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">5. Metadata replacement and raw payloads
+</h2>
+<p>A scalar Affine record can be copied without heap allocation. A quantized owner with a tensor payload still moves its storage. Returning raw_view borrows codes read-only; it does not expose mutable metadata or authorize an untracked foreign pointer. into_raw consumes the wrapper and discards numerical interpretation only after all loans and queued leases permit ownership transfer.
+</p>
+<p>reinterpret_scheme deliberately changes the meaning of unchanged codes. requantize attempts to preserve reconstructed meaning through a named lossy conversion. Keeping these operations separate prevents an inexpensive metadata update from masquerading as a numeric conversion. Failed consuming conversions retain their original owner inside the error payload.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. A rounding-sensitive example
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Affine&lt;u8, f32&gt;, QuantizationError&gt; parameters = Quantized.affine&lt;u8, f32&gt;(2.0, 1);
+// After validating parameters as scheme_value: ratio 1.0 / 2.0 is 0.5.
+Result&lt;Quantized&lt;u8, Affine&lt;u8, f32&gt;&gt;, QuantizationError&gt; encoded = Quantized.quantize_checked&lt;u8, f32&gt;(1.0, scheme_value, RoundingMode.TiesEven);</code></pre>
+<p>The successful code is 1 under this draft contract, and its reconstructed value is 0.0. The example illustrates intentional precision loss. It does not unwrap Result or assume a final match syntax.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-affine_scale"><td><code>Quantized.affine_scale(Affine&lt;I, F&gt; scheme)</code></td><td><code>F</code></td><td>Copies the validated scalar scale.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-affine_zero"><td><code>Quantized.affine_zero(Affine&lt;I, F&gt; scheme)</code></td><td><code>I</code></td><td>Copies representable integer zero point.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-with_scale"><td><code>Quantized.with_scale(Affine&lt;I, F&gt; scheme, F scale)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>Constructs a new scheme; finite positive replacement required; no payload mutation.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-with_zero_point"><td><code>Quantized.with_zero_point(Affine&lt;I, F&gt; scheme, I zero_point)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>Constructs a new scheme; code range remains I.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-code_range"><td><code>Quantized.code_range&lt;I&gt;()</code></td><td><code>(I, I)</code></td><td>Storage minimum and maximum; not real reconstruction endpoints.</td><td>Compile-time constant.</td>
+</tr>
+<tr id="Quantized-real_range"><td><code>Quantized.real_range&lt;F&gt;(Affine&lt;I, F&gt; scheme)</code></td><td><code>Result&lt;(F, F), QuantizationError&gt;</code></td><td>Finite reconstructed endpoints required in requested F.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-quantize_scalar"><td><code>Quantized.quantize_scalar&lt;I, F&gt;(F value, Affine&lt;I, F&gt; scheme, QuantizationPolicy policy)</code></td><td><code>Result&lt;I, QuantizationError&gt;</code></td><td>Named rounding and checked/saturating range behavior; finite input.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-dequantize_scalar"><td><code>Quantized.dequantize_scalar&lt;F&gt;(I code, Affine&lt;I, F&gt; scheme)</code></td><td><code>F</code></td><td>Exact integer subtraction then F conversion and strict multiplication; infinity permitted.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-convert_scale"><td><code>Quantized.convert_scale&lt;F2&gt;(Affine&lt;I, F&gt; scheme)</code></td><td><code>Result&lt;Affine&lt;I, F2&gt;, QuantizationError&gt;</code></td><td>Explicit scale narrowing; requires finite positive result, but numeric mapping may change.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-is_symmetric"><td><code>Quantized.is_symmetric(Affine&lt;I, F&gt; scheme)</code></td><td><code>bool</code></td><td>Signed I and zero point zero; says nothing about perfectly symmetric code endpoints.</td><td>O(1).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Interchange boundary
+</h2>
+<p>These are proposed library contracts. The source operators inform comparison and interchange; they do not define Aevix behavior automatically. An adapter must test ties, negative values, saturation, zero points and scale precision against the exact external schema version. The common Quantized reference owns the rounding order and nonfinite-input policy.
+</p>
+<p><a href="Quantized.html">Quantized common reference</a> · <a href="../Tensor/Tensor_Shape.html">Shape constraints</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://onnx.ai/onnx/operators/onnx__QuantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX QuantizeLinear operator</a>
+</li>
+<li><a href="https://onnx.ai/onnx/operators/onnx__DequantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX DequantizeLinear operator</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/QuantDialect/" target="_blank" rel="noopener noreferrer">MLIR quantization dialect</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Quantized.html"><span>Previous reference</span>Quantized</a><a href="Quantized_PerAxis.html"><span>Next reference</span>Per-axis Quantization</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Eight bits, multiple encodings. FP8 is a format family, not an interchangeable scalar definition.">
+  <title>Float8 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Float.html" aria-current="true">Float</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Float.html">Float</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Float8</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Float8</h1><p class="doc-subtitle">Eight bits, multiple encodings. FP8 is a format family, not an interchangeable scalar definition.</p><div class="doc-meta"><span class="meta-chip">FP8</span><span class="meta-chip">Float. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Storage</dt><dd>1 byte</dd></div><div class="doc-stat"><dt>Formats</dt><dd>E4M3FN / E5M2</dd></div><div class="doc-stat"><dt>Status</dt><dd>extension draft</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>FP8</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Basic Information</span></a></li><li><a href="#Formats"><span class="toc-number">02</span><span>Encoding Comparison</span></a></li><li><a href="#Bit-Representation"><span class="toc-number">03</span><span>Bit Representation</span></a></li><li><a href="#Precision"><span class="toc-number">04</span><span>Precision &amp; Rounding</span></a></li><li><a href="#Conversion"><span class="toc-number">05</span><span>Conversion &amp; Special Values</span></a></li><li><a href="#Arithmetic"><span class="toc-number">06</span><span>Arithmetic &amp; Accumulation</span></a></li><li><a href="#Common-Functions"><span class="toc-number">07</span><span>Common Float Function Bindings</span></a></li><li><a href="#String-Byte"><span class="toc-number">08</span><span>string, Bytes &amp; Interoperability</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">09</span><span>CPU &amp; GPU Support</span></a></li><li><a href="#Type-Functions"><span class="toc-number">10</span><span>Float8-Specific Functions</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Float pages"><h2>Float reference</h2><div class="family-links"><a href="Float.html">Float</a><a href="Float_8.html" aria-current="page">Float8</a><a href="Float_16.html">Float16</a><a href="BFloat_16.html">BFloat16</a><a href="Float_32.html">Float32</a><a href="Float_64.html">Float64</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Float8 reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. Basic Information
+</h2>
+<p>The existing Float8 page documents an extension proposal. Aevix has not assigned an unqualified <code>f8</code> alias. The candidate code names <code>f8_e4m3fn</code> and <code>f8_e5m2</code> identify distinct encodings; their final spellings remain under review.
+</p>
+<blockquote class="callout warning">An eight-bit width alone does not determine the exponent bias, NaN encoding, infinity support, or signed-zero behavior. Always record the encoding in tensor and FFI metadata.
+</blockquote>
+</section>
+<section id="Formats" aria-labelledby="Formats-heading">
+<h2 id="Formats-heading">2. Encoding Comparison
+</h2>
+<div class="table-scroll" role="region" aria-label="Encoding Comparison data table">
+<table>
+<thead>
+<tr><th scope="col">Property</th><th scope="col">E4M3FN</th><th scope="col">E5M2</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Sign / exponent / fraction</td><td>1 / 4 / 3 bits</td><td>1 / 5 / 2 bits</td>
+</tr>
+<tr><td>Normal precision</td><td>4 significant bits</td><td>3 significant bits</td>
+</tr>
+<tr><td>Exponent bias</td><td>7</td><td>15</td>
+</tr>
+<tr><td>Maximum finite magnitude</td><td>448</td><td>57344</td>
+</tr>
+<tr><td>Minimum positive normal</td><td>2^-6</td><td>2^-14</td>
+</tr>
+<tr><td>Minimum positive subnormal</td><td>2^-9</td><td>2^-16</td>
+</tr>
+<tr><td>Spacing above 1</td><td>2^-3</td><td>2^-2</td>
+</tr>
+<tr><td>All consecutive integers guaranteed</td><td>−16 through +16</td><td>−8 through +8</td>
+</tr>
+<tr><td>Infinity</td><td>Not encoded</td><td>Positive and negative infinity</td>
+</tr>
+<tr><td>Zero / NaN</td><td>Signed zero and NaN</td><td>Signed zero and NaN</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>FN means finite encodings plus NaN, with no infinity. FNUZ variants are different encodings and are not aliases of the formats on this page.
+</p>
+</section>
+<section id="Bit-Representation" aria-labelledby="Bit-Representation-heading">
+<h2 id="Bit-Representation-heading">3. Bit Representation
+</h2>
+<p>E4M3FN repurposes encodings that a conventional IEEE-like interpretation would reserve for infinity. Do not apply the ordinary exponent-all-ones rule from f16/f32/f64. E5M2 uses the familiar all-ones exponent special-value structure.
+</p>
+<p>Both formats expose their numeric bit word through <code>u8</code> in <code>Float.to_bits</code> / <code>Float.from_bits</code>, while byte serialization uses <code>Array&lt;byte, 1&gt;</code>. These are distinct APIs and types. Bitcasting between the two FP8 formats changes the numerical interpretation, so serialized bytes must be accompanied by a format tag. There is no implicit <code>byte</code>/<code>u8</code> conversion; use <a href="../Byte/Byte.html">Byte</a> conversions explicitly.</p>
+</section>
+<section id="Precision" aria-labelledby="Precision-heading">
+<h2 id="Precision-heading">4. Precision &amp; Rounding
+</h2>
+<p>FP8 has very few significant bits. Most real-valued inputs are rounded on conversion, and spacing grows quickly with magnitude. Use explicit rounding and an explicit overflow policy. E4M3FN cannot produce infinity as the destination encoding; checked conversion must report out-of-range values or a named saturation policy must be selected.
+</p>
+<p>Round-to-nearest, ties-to-even is the candidate baseline. Exact conversion is available only for values the selected encoding can represent.
+</p>
+</section>
+<section id="Conversion" aria-labelledby="Conversion-heading">
+<h2 id="Conversion-heading">5. Conversion &amp; Special Values
+</h2>
+<p>Finite FP8 values are exactly representable in f32. Converting back to FP8 may lose precision. Signed zero, NaN payloads, non-finite inputs, and finite-range overflow require separate rules.
+</p>
+<p>The proposed API uses <code>Float.convert_exact</code>, <code>Float.convert</code>, <code>Float.to_bits</code>, and <code>Float.from_bits</code>. No implicit conversion between different FP8 encodings is permitted.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Float.convert(f8_e4m3fn, source, rounding);
+Float.convert_exact(f32, fp8_value);
+Float.to_bits(fp8_value);
+// FP8 type spellings and conversion policy are proposals.</code></pre>
+</section>
+<section id="Arithmetic" aria-labelledby="Arithmetic-heading">
+<h2 id="Arithmetic-heading">6. Arithmetic &amp; Accumulation
+</h2>
+<p>Storage support does not imply native scalar arithmetic, transcendental functions, or atomics. A backend may compute in an explicitly selected wider format and round into FP8 at declared boundaries.
+</p>
+<p>For dot products, specify f32 or another supported accumulator rather than treating repeated FP8 rounding as equivalent. Promotions, transfers, materialization, and emulation costs remain visible.
+</p>
+</section>
+<section id="Common-Functions" aria-labelledby="Common-Functions-heading">
+<h2 id="Common-Functions-heading">7. Common Float Function Bindings
+</h2>
+<div class="table-scroll" role="region" aria-label="Common Float Function Bindings data table">
+<table>
+<thead>
+<tr><th scope="col">Function family</th><th scope="col">FP8 binding</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Classification / sign predicates</td><td>bool, respecting format-specific infinity support</td>
+</tr>
+<tr><td>to_bits / from_bits</td><td>u8 ↔ the selected FP8 encoding</td>
+</tr>
+<tr><td>to_le_bytes / to_be_bytes</td><td>Array&lt;byte, 1&gt;</td>
+</tr>
+<tr><td>checked conversion</td><td>Result with range, precision, or special-value failure</td>
+</tr>
+<tr><td>next_up / next_down / next_after</td><td>E5M2 follows the infinity-capable contract; finite-only E4M3FN does not instantiate these unchecked functions</td>
+</tr>
+<tr><td>checked_next_up / checked_next_down / checked_next_after</td><td>Result: finite operands; error if no finite adjacent result exists</td>
+</tr>
+<tr><td>Math-library operations</td><td>Subject to target capability and explicit computation format</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>At the E4M3FN boundary, <code>Float.checked_next_up(448)</code> and <code>Float.checked_next_down(-448)</code> return a range error. They do not manufacture infinity or silently clamp. Interior neighbors follow the selected encoding’s grid. E5M2 unchecked neighbors may reach infinity, while checked neighbors report a non-finite result.
+</p>
+<p>The complete definitions belong to <a href="Float.html#Function-Reference">Float</a>. Unsupported instantiations are rejected instead of silently choosing another encoding.
+</p>
+</section>
+<section id="String-Byte" aria-labelledby="String-Byte-heading">
+<h2 id="String-Byte-heading">8. string, Bytes &amp; Interoperability
+</h2>
+<p>Little-endian and big-endian byte arrays are identical for a one-byte value. A byte stream still needs the exact FP8 format identity. Numeric text and raw-bit transport are different operations; shortest round-trip formatting must round back to the chosen encoding.
+</p>
+<p>Model-import conversion verifies dtype, scale metadata when present, rounding, tensor layout, and storage ownership. FP8 alone is not an integer quantization type and does not imply a scale or zero point.
+</p>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">9. CPU &amp; GPU Support
+</h2>
+<p>FP8 is a capability-gated extension proposal. Storage, conversion, matrix operations, scalar arithmetic, and special functions have separate support flags. An explicit emulation path may be offered; native performance is not guaranteed by this page.
+</p>
+<p>Strict and relaxed execution profiles must document flush-to-zero, saturation, NaN handling, and accumulator precision. AOT and JIT cannot choose different semantics for the same requested profile.
+</p>
+</section>
+<section id="Type-Functions" aria-labelledby="Type-Functions-heading">
+<h2 id="Type-Functions-heading">10. Float8-Specific Functions
+</h2>
+<p>No independent Float8 function namespace is introduced. Encoding-specific metadata specializes the common Float API. An unqualified f8 default, additional FNUZ encodings, and native backend coverage remain explicit design decisions.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design; Aevix API names and contracts are proposed independently.
+</p>
+<ul class="source-list">
+<li><a href="https://onnx.ai/onnx/technical/float8.html" target="_blank" rel="noopener noreferrer">ONNX Float8 encodings and conversion behavior</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/Builtin/" target="_blank" rel="noopener noreferrer">MLIR low-precision floating-point types</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Float.html"><span>Previous reference</span>Float</a><a href="Float_16.html"><span>Next reference</span>Float16</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

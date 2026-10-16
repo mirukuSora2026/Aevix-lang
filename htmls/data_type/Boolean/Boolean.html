@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Two logical values, explicit conversions, and predictable eager or lazy evaluation.">
+  <title>Boolean — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Boolean.html" aria-current="true">Boolean</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html" aria-current="true">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Boolean.html">Boolean</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Boolean</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Boolean</h1><p class="doc-subtitle">Two logical values, explicit conversions, and predictable eager or lazy evaluation.</p><div class="doc-meta"><span class="meta-chip">bool</span><span class="meta-chip">Boolean. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>design draft</dd></div><div class="doc-stat"><dt>Values</dt><dd>false · true</dd></div><div class="doc-stat"><dt>Copy</dt><dd>scalar value</dd></div><div class="doc-stat"><dt>API functions</dt><dd>20</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>bool</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Overview</span></a></li><li><a href="#Declaration"><span class="toc-number">02</span><span>Declarations and literals</span></a></li><li><a href="#Evaluation"><span class="toc-number">03</span><span>Eager calls and short circuiting</span></a></li><li><a href="#Representation"><span class="toc-number">04</span><span>Representation and valid values</span></a></li><li><a href="#Conversions"><span class="toc-number">05</span><span>Numeric and text conversion</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Function reference</span></a></li><li><a href="#Errors"><span class="toc-number">07</span><span>Errors and buffer atomicity</span></a></li><li><a href="#Parallel-Device"><span class="toc-number">08</span><span>Parallel and device use</span></a></li><li><a href="#Interop"><span class="toc-number">09</span><span>Foreign interfaces</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>Examples and boundary cases</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Boolean pages"><h2>Boolean reference</h2><div class="family-links"><a href="Boolean.html" aria-current="page">Boolean</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html" aria-current="true">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Boolean reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Overview
+</h2>
+<p><strong>Design draft.</strong> These are proposed Aevix APIs, not claims that a compiler or standard library implements them. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
+</p>
+<p><code>bool</code> represents exactly false and true. It is the type of conditions and predicates. Integers, strings, pointers, and Optional values do not implicitly become conditions. A presence check uses <code>Optional.is_some(value)</code>; integer truth conversion names its policy explicitly.
+</p>
+</section>
+<section id="Declaration" aria-labelledby="Declaration-heading">
+<h2 id="Declaration-heading">2. Declarations and literals
+</h2>
+<p>Declarations put the type first and are immutable by default. The tokens <code>true</code> and <code>false</code> have type bool independently of the default integer alias. A bool scalar is Copy; copying it does not allocate or share mutable state.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">bool ready = true;
+bool blocked = false;
+bool allowed = Boolean.and(ready, Boolean.not(blocked));</code></pre>
+</section>
+<section id="Evaluation" aria-labelledby="Evaluation-heading">
+<h2 id="Evaluation-heading">3. Eager calls and short circuiting
+</h2>
+<p>Ordinary function arguments are evaluated before a function call. <code>Boolean.and(expensive_a(), expensive_b())</code> therefore evaluates both calls. The chosen language operators <code>&amp;&amp;</code> and <code>||</code> take bool operands and evaluate the right operand only when required. The ternary <code>condition ? a : b</code> likewise evaluates only the selected branch. See <a href="../../grammar/operators/Operators.html">Operators and Expressions</a>.</p>
+<p><code>Boolean.then</code> accepts a callable and invokes it conditionally. <code>Boolean.select</code> receives two already constructed values. Neither name implies a hardware branch, constant-time execution, or a security timing guarantee.
+</p>
+</section>
+<section id="Representation" aria-labelledby="Representation-heading">
+<h2 id="Representation-heading">4. Representation and valid values
+</h2>
+<p>The semantic domain has two values. This draft proposes one addressable byte for a stored standalone bool, subject to a target ABI definition; it does not promise the same layout for vectors, tensor masks, packed records, or foreign booleans. Arbitrary byte patterns cannot be reinterpreted as valid bool values in safe code.
+</p>
+<p>A packed-bit container would be a separately specified representation with proxy and concurrency costs. <code>Vector&lt;bool&gt;</code> follows the ordinary contiguous-element model unless a distinct packed type is introduced.
+</p>
+</section>
+<section id="Conversions" aria-labelledby="Conversions-heading">
+<h2 id="Conversions-heading">5. Numeric and text conversion
+</h2>
+<p>There is no implicit bool-to-integer or integer-to-bool conversion. <code>Boolean.from_integer</code> validates an encoded logical value; <code>Boolean.from_nonzero</code> requests a different policy. The distinction prevents a corrupt flag value such as 2 from silently passing strict decoding.
+</p>
+<p>Formatting uses lowercase ASCII and no locale. Parsing does not trim whitespace. Caller-controlled trimming must happen before parsing if the input format allows it. UTF-8 text and raw byte storage remain distinct.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Function reference
+</h2>
+<p><code>T value</code> passes a value: Copy types are copied, and owning non-Copy values move without a deep clone. <code>&amp;T value</code> is a shared read borrow; <code>&amp;mut T value</code> is an exclusive modification borrow. Calls use <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code> respectively. Already borrowed references and view values are passed directly; adding another & changes the type. <code>*ref</code> accesses the referent. Ordinary <code>&amp;mut x</code> requires a <code>mut</code> owner; <code>mut T value</code> alone makes a by-value parameter locally mutable and does not modify the caller. Overlapping active borrows are checked until last use; disjoint regions may be split safely and no borrow outlives its source. Synchronized interior mutation follows its own type contract. <code>Fn(A) -&gt; B</code> describes a callable; returned-reference lifetime relationships remain documented in prose.
+</p>
+<h3>Logic and conditional values
+</h3>
+<div class="table-scroll" role="region" aria-label="Function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Proposed signature</th><th scope="col">Returns</th><th scope="col">Contract and constraints</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Boolean-not"><td><code>Boolean.not(bool value)</code></td><td><code>bool</code></td><td>Logical complement.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-and"><td><code>Boolean.and(bool left, bool right)</code></td><td><code>bool</code></td><td>Both arguments are evaluated before the call; true exactly when both are true.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-or"><td><code>Boolean.or(bool left, bool right)</code></td><td><code>bool</code></td><td>Both arguments are evaluated before the call; true when at least one is true.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-xor"><td><code>Boolean.xor(bool left, bool right)</code></td><td><code>bool</code></td><td>True exactly when the arguments differ.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-equal"><td><code>Boolean.equal(bool left, bool right)</code></td><td><code>bool</code></td><td>Equality of the two logical values.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-compare"><td><code>Boolean.compare(bool left, bool right)</code></td><td><code>Ordering</code></td><td>Proposed total order: false precedes true. This is not an integer coercion.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-select"><td><code>Boolean.select(bool condition, T yes, T no)</code></td><td><code>T</code></td><td>Eagerly constructed alternatives; moves the selected value and destroys the unselected value once.</td><td>O(1) selection + drop cost</td>
+</tr>
+<tr id="Boolean-then"><td><code>Boolean.then(bool condition, Fn() -&gt; T make)</code></td><td><code>Optional&lt;T&gt;</code></td><td>Calls make once only when true; otherwise returns None. No speculative observable callback evaluation.</td><td>O(1) + optional callback</td>
+</tr>
+<tr id="Boolean-then_some"><td><code>Boolean.then_some(bool condition, T value)</code></td><td><code>Optional&lt;T&gt;</code></td><td>The value is eager; false destroys it and returns None.</td><td>O(1) + possible drop</td>
+</tr>
+<tr id="Boolean-ok_or"><td><code>Boolean.ok_or(bool condition, E error)</code></td><td><code>Result&lt;unit, E&gt;</code></td><td>True returns Ok(Unit.value()); false moves error. An unused eager error is destroyed.</td><td>O(1) + possible drop</td>
+</tr>
+<tr id="Boolean-ok_or_else"><td><code>Boolean.ok_or_else(bool condition, Fn() -&gt; E make_error)</code></td><td><code>Result&lt;unit, E&gt;</code></td><td>Constructs an error only when false.</td><td>O(1) + optional callback</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Conversions, text, and slice reductions
+</h3>
+<div class="table-scroll" role="region" aria-label="Function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Proposed signature</th><th scope="col">Returns</th><th scope="col">Contract and constraints</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Boolean-to_integer"><td><code>Boolean.to_integer&lt;T&gt;(bool value)</code></td><td><code>T</code></td><td>T must be an integer type; false maps to 0 and true to 1 exactly.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-from_integer"><td><code>Boolean.from_integer&lt;T&gt;(T value)</code></td><td><code>Result&lt;bool, BooleanError&gt;</code></td><td>Only integer 0 and 1 are accepted; every other value is InvalidRepresentation.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-from_nonzero"><td><code>Boolean.from_nonzero&lt;T&gt;(T value)</code></td><td><code>bool</code></td><td>Explicit integer truth conversion: zero is false and every nonzero integer is true.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-parse"><td><code>Boolean.parse(string_view text)</code></td><td><code>Result&lt;bool, BooleanError&gt;</code></td><td>Accepts the complete lowercase tokens true and false only; no trimming, numeric aliases, or locale rules.</td><td>O(length), no allocation</td>
+</tr>
+<tr id="Boolean-format"><td><code>Boolean.format(bool value)</code></td><td><code>Result&lt;string, AllocError&gt;</code></td><td>Returns lowercase true or false as an owning UTF-8 string.</td><td>O(1) bytes; explicit allocation</td>
+</tr>
+<tr id="Boolean-format_into"><td><code>Boolean.format_into(bool value, MutSlice&lt;byte&gt; output)</code></td><td><code>Result&lt;usize, BufferError&gt;</code></td><td>Writes 4 or 5 ASCII bytes; no terminator. Checks capacity first and leaves output unchanged on insufficient space.</td><td>O(1), no allocation</td>
+</tr>
+<tr id="Boolean-all"><td><code>Boolean.all(Slice&lt;bool&gt; values)</code></td><td><code>bool</code></td><td>True for an empty slice; reads in order and stops at the first false.</td><td>O(n) worst case</td>
+</tr>
+<tr id="Boolean-any"><td><code>Boolean.any(Slice&lt;bool&gt; values)</code></td><td><code>bool</code></td><td>False for an empty slice; reads in order and stops at the first true.</td><td>O(n) worst case</td>
+</tr>
+<tr id="Boolean-count_true"><td><code>Boolean.count_true(Slice&lt;bool&gt; values)</code></td><td><code>usize</code></td><td>Counts true elements; result cannot exceed the valid slice length.</td><td>O(n)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Errors" aria-labelledby="Errors-heading">
+<h2 id="Errors-heading">7. Errors and buffer atomicity
+</h2>
+<p><code>BooleanError</code> is a proposed error enum covering InvalidRepresentation and InvalidText. <code>BufferError</code> includes required and available byte counts. The formatting buffer is unchanged when capacity validation fails; no partially encoded logical token is exposed as success.
+</p>
+<p>The pure scalar operations cannot overflow. A callback failure is governed by that callback contract. No Boolean helper turns an allocation failure into false.
+</p>
+</section>
+<section id="Parallel-Device" aria-labelledby="Parallel-Device-heading">
+<h2 id="Parallel-Device-heading">8. Parallel and device use
+</h2>
+<p>Immutable bool values can be copied into independent work. Concurrent writes to the same bool still require an exclusive borrow, a lock, or a supported <code>Atomic&lt;bool&gt;</code> operation. Copy does not make unsynchronized shared writes safe.
+</p>
+<p>A CPU bool is not automatically a SIMD lane mask or GPU predicate register. Conversion to those representations is explicit in the corresponding APIs. Moving a bool value has no device-transfer semantics.
+</p>
+</section>
+<section id="Interop" aria-labelledby="Interop-heading">
+<h2 id="Interop-heading">9. Foreign interfaces
+</h2>
+<p>C _Bool, C++ bool, Python bool, and foreign integer flags have different binding rules. A binding validates and converts values using the foreign ABI; a raw address does not establish the representation contract. Python object reference management belongs to the Python boundary, not Boolean scalar storage.
+</p>
+<p>See <code>byte</code> <a href="../Byte/Byte.html">storage rules</a> and <a href="../Atomic/Atomic.html">atomic capabilities</a> before exposing mutable foreign flags.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10. Examples and boundary cases
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;bool, BooleanError&gt; valid = Boolean.from_integer(1);
+Result&lt;bool, BooleanError&gt; invalid = Boolean.from_integer(2);
+Result&lt;bool, BooleanError&gt; token = Boolean.parse(&quot;true&quot;);
+bool nonzero = Boolean.from_nonzero(-3);
+i32 encoded = Boolean.to_integer&lt;i32&gt;(ready);</code></pre>
+<p>These examples distinguish strict validation from intentional nonzero conversion. A malformed input returns an error value; an already evaluated argument is never retroactively made lazy.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.bool.html" target="_blank" rel="noopener noreferrer">Rust bool reference: logical values and eager/lazy helpers</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

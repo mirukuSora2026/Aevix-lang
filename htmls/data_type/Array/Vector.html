@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Array-family guide with canonical Vector API links and preserved reference anchors.">
+  <title>Vector — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Array.html" aria-current="true">Array</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html" aria-current="true">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Array.html">Array</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Vector</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Vector</h1><p class="doc-subtitle">Array-family guide with links to the canonical Vector reference.</p><div class="doc-meta"><span class="meta-chip">Vector&lt;T&gt;</span><span class="meta-chip">Vector. namespace</span><span>Array-family guide · canonical API linked</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>[N]</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Dynamic Length &amp; Separate Ownership</span></a></li><li><a href="#Length-Capacity"><span class="toc-number">02</span><span>Length, Capacity &amp; Checked Growth</span></a></li><li><a href="#Ownership-Move"><span class="toc-number">03</span><span>Move, Clone &amp; Consuming Errors</span></a></li><li><a href="#Borrow-Invalidation"><span class="toc-number">04</span><span>Borrowing &amp; Reallocation</span></a></li><li><a href="#Failure-Initialization"><span class="toc-number">05</span><span>Failure Guarantees &amp; Partial Work</span></a></li><li><a href="#Zero-Sized"><span class="toc-number">06</span><span>Empty, Zero-Sized &amp; Resource Elements</span></a></li><li><a href="#Function-Reference"><span class="toc-number">07</span><span>Canonical Vector API Links</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Type-First Examples</span></a></li><li><a href="#Complexity"><span class="toc-number">09</span><span>Algorithmic Cost &amp; Observation</span></a></li><li><a href="#Targets-Text-Interop"><span class="toc-number">10</span><span>Parallelism, Text &amp; Interoperability</span></a></li><li><a href="#Related"><span class="toc-number">11</span><span>Related Array Types &amp; Research Scope</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Array pages"><h2>Array reference</h2><div class="family-links"><a href="Array.html">Array</a><a href="Static_Array.html">Static Array</a><a href="Vector.html" aria-current="page">Vector</a><a href="Slice.html">Slice</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html" aria-current="true">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Vector reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Dynamic Length &amp; Separate Ownership
+</h2>
+<div class="callout draft-note"><strong>Array-family guide.</strong> The <a href="../Vector/Vector.html">Vector reference</a> is the single canonical catalog for Vector signatures, returned errors, ownership, and costs. This page preserves Array-family navigation and existing links; it does not define a second API.</div><p><code>Vector&lt;T&gt;</code> owns a contiguous buffer whose length can change at runtime. Unlike fixed <code>Array&lt;T, N&gt;</code>, its capacity can grow through explicit fallible operations.</p>
+</section>
+<section id="Length-Capacity" aria-labelledby="Length-Capacity-heading">
+<h2 id="Length-Capacity-heading">2. Length, Capacity &amp; Checked Growth
+</h2>
+<p>Length counts initialized elements; capacity counts reserved slots. Reserve does not initialize elements, and clear does not automatically release capacity. Read the canonical <a href="../Vector/Vector.html#Length-Capacity">length and checked-growth contract</a> and <a href="../Vector/Vector_Growth.html">growth guide</a>.</p>
+</section>
+<section id="Ownership-Move" aria-labelledby="Ownership-Move-heading">
+<h2 id="Ownership-Move-heading">3. Move, Clone &amp; Consuming Errors
+</h2>
+<p>Passing or assigning a Vector owner moves ownership by default. Explicit copy or clone creates separate storage, and consuming failures must state whether they return the original input or clean partially processed values. See <a href="../Vector/Vector.html#Ownership-Move">move, clone, and error ownership</a>.</p>
+</section>
+<section id="Borrow-Invalidation" aria-labelledby="Borrow-Invalidation-heading">
+<h2 id="Borrow-Invalidation-heading">4. Borrowing &amp; Reallocation
+</h2>
+<p>Shared and exclusive references use <code>&amp;T</code> and <code>&amp;mut T</code>. Taking <code>&amp;mut owner</code> requires a <code>mut</code> owner binding; existing borrowed views are passed directly. Conflicting live borrows forbid owner moves, structural changes, and reallocation even when spare capacity exists. See <a href="../Vector/Vector.html#Borrow-Invalidation">borrowing and invalidation</a>.</p>
+</section>
+<section id="Failure-Initialization" aria-labelledby="Failure-Initialization-heading">
+<h2 id="Failure-Initialization-heading">5. Failure Guarantees &amp; Partial Work
+</h2>
+<p>Allocation, bounds, and callback errors follow each canonical function row. Preflight failure can preserve an owner, while some bulk or consuming callbacks have only the documented partial-progress guarantee. No general rollback is implied. See <a href="../Vector/Vector.html#Failure-Initialization">failure and partial-initialization rules</a>.</p>
+</section>
+<section id="Zero-Sized" aria-labelledby="Zero-Sized-heading">
+<h2 id="Zero-Sized-heading">6. Empty, Zero-Sized &amp; Resource Elements
+</h2>
+<p>Empty buffers and zero-sized elements still have logical lengths, borrow restrictions, callback counts, and possible cleanup effects. See <a href="../Vector/Vector.html#Zero-Sized">empty, zero-sized, and resource elements</a>.</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">7. Canonical Vector API Links
+</h2>
+<p>The complete signatures, return types, borrow or ownership guarantees, and costs live only in the <a href="../Vector/Vector.html#Function-Reference">canonical Vector API catalog</a>. The entries below preserve every former function anchor and link to its authoritative row.</p><p>Callback labels such as <code>Transform</code>, <code>TryTransform</code>, and <code>RefTransform</code> are descriptive callback contracts in the canonical catalog, not aliases for the <code>Map&lt;K, V&gt;</code> collection type.</p>
+<h3>Construction</h3>
+<ul>
+<li id="Vector-new"><a href="../Vector/Vector.html#Vector-new"><code>Vector.new</code></a></li>
+<li id="Vector-with_capacity"><a href="../Vector/Vector.html#Vector-with_capacity"><code>Vector.with_capacity</code></a></li>
+<li id="Vector-from_array"><a href="../Vector/Vector.html#Vector-from_array"><code>Vector.from_array</code></a></li>
+<li id="Vector-from_slice_copy"><a href="../Vector/Vector.html#Vector-from_slice_copy"><code>Vector.from_slice_copy</code></a></li>
+<li id="Vector-from_slice_clone"><a href="../Vector/Vector.html#Vector-from_slice_clone"><code>Vector.from_slice_clone</code></a></li>
+<li id="Vector-from_fn"><a href="../Vector/Vector.html#Vector-from_fn"><code>Vector.from_fn</code></a></li>
+<li id="Vector-try_from_fn"><a href="../Vector/Vector.html#Vector-try_from_fn"><code>Vector.try_from_fn</code></a></li>
+<li id="Vector-repeat_copy"><a href="../Vector/Vector.html#Vector-repeat_copy"><code>Vector.repeat_copy</code></a></li>
+<li id="Vector-repeat_clone"><a href="../Vector/Vector.html#Vector-repeat_clone"><code>Vector.repeat_clone</code></a></li>
+<li id="Vector-collect"><a href="../Vector/Vector.html#Vector-collect"><code>Vector.collect</code></a></li>
+</ul>
+<h3>Length and capacity</h3>
+<ul>
+<li id="Vector-len"><a href="../Vector/Vector.html#Vector-len"><code>Vector.len</code></a></li>
+<li id="Vector-capacity"><a href="../Vector/Vector.html#Vector-capacity"><code>Vector.capacity</code></a></li>
+<li id="Vector-is_empty"><a href="../Vector/Vector.html#Vector-is_empty"><code>Vector.is_empty</code></a></li>
+<li id="Vector-byte_len"><a href="../Vector/Vector.html#Vector-byte_len"><code>Vector.byte_len</code></a></li>
+<li id="Vector-allocation_bytes"><a href="../Vector/Vector.html#Vector-allocation_bytes"><code>Vector.allocation_bytes</code></a></li>
+<li id="Vector-spare_capacity"><a href="../Vector/Vector.html#Vector-spare_capacity"><code>Vector.spare_capacity</code></a></li>
+<li id="Vector-max_len"><a href="../Vector/Vector.html#Vector-max_len"><code>Vector.max_len</code></a></li>
+</ul>
+<h3>Explicit capacity management</h3>
+<ul>
+<li id="Vector-reserve"><a href="../Vector/Vector.html#Vector-reserve"><code>Vector.reserve</code></a></li>
+<li id="Vector-reserve_exact"><a href="../Vector/Vector.html#Vector-reserve_exact"><code>Vector.reserve_exact</code></a></li>
+<li id="Vector-shrink_to"><a href="../Vector/Vector.html#Vector-shrink_to"><code>Vector.shrink_to</code></a></li>
+<li id="Vector-shrink_to_fit"><a href="../Vector/Vector.html#Vector-shrink_to_fit"><code>Vector.shrink_to_fit</code></a></li>
+</ul>
+<h3>Borrowing and access</h3>
+<ul>
+<li id="Vector-as_slice"><a href="../Vector/Vector.html#Vector-as_slice"><code>Vector.as_slice</code></a></li>
+<li id="Vector-as_mut_slice"><a href="../Vector/Vector.html#Vector-as_mut_slice"><code>Vector.as_mut_slice</code></a></li>
+<li id="Vector-slice"><a href="../Vector/Vector.html#Vector-slice"><code>Vector.slice</code></a></li>
+<li id="Vector-slice_mut"><a href="../Vector/Vector.html#Vector-slice_mut"><code>Vector.slice_mut</code></a></li>
+<li id="Vector-get"><a href="../Vector/Vector.html#Vector-get"><code>Vector.get</code></a></li>
+<li id="Vector-get_mut"><a href="../Vector/Vector.html#Vector-get_mut"><code>Vector.get_mut</code></a></li>
+<li id="Vector-at"><a href="../Vector/Vector.html#Vector-at"><code>Vector.at</code></a></li>
+<li id="Vector-at_mut"><a href="../Vector/Vector.html#Vector-at_mut"><code>Vector.at_mut</code></a></li>
+<li id="Vector-first"><a href="../Vector/Vector.html#Vector-first"><code>Vector.first</code></a></li>
+<li id="Vector-last"><a href="../Vector/Vector.html#Vector-last"><code>Vector.last</code></a></li>
+<li id="Vector-first_mut"><a href="../Vector/Vector.html#Vector-first_mut"><code>Vector.first_mut</code></a></li>
+<li id="Vector-last_mut"><a href="../Vector/Vector.html#Vector-last_mut"><code>Vector.last_mut</code></a></li>
+</ul>
+<h3>Insertion, removal, and replacement</h3>
+<ul>
+<li id="Vector-push"><a href="../Vector/Vector.html#Vector-push"><code>Vector.push</code></a></li>
+<li id="Vector-push_within_capacity"><a href="../Vector/Vector.html#Vector-push_within_capacity"><code>Vector.push_within_capacity</code></a></li>
+<li id="Vector-pop"><a href="../Vector/Vector.html#Vector-pop"><code>Vector.pop</code></a></li>
+<li id="Vector-insert"><a href="../Vector/Vector.html#Vector-insert"><code>Vector.insert</code></a></li>
+<li id="Vector-remove"><a href="../Vector/Vector.html#Vector-remove"><code>Vector.remove</code></a></li>
+<li id="Vector-swap_remove"><a href="../Vector/Vector.html#Vector-swap_remove"><code>Vector.swap_remove</code></a></li>
+<li id="Vector-replace"><a href="../Vector/Vector.html#Vector-replace"><code>Vector.replace</code></a></li>
+<li id="Vector-set"><a href="../Vector/Vector.html#Vector-set"><code>Vector.set</code></a></li>
+<li id="Vector-append"><a href="../Vector/Vector.html#Vector-append"><code>Vector.append</code></a></li>
+<li id="Vector-extend_copy"><a href="../Vector/Vector.html#Vector-extend_copy"><code>Vector.extend_copy</code></a></li>
+<li id="Vector-extend_clone"><a href="../Vector/Vector.html#Vector-extend_clone"><code>Vector.extend_clone</code></a></li>
+<li id="Vector-extend_from_within"><a href="../Vector/Vector.html#Vector-extend_from_within"><code>Vector.extend_from_within</code></a></li>
+</ul>
+<h3>Length changes and filtering</h3>
+<ul>
+<li id="Vector-truncate"><a href="../Vector/Vector.html#Vector-truncate"><code>Vector.truncate</code></a></li>
+<li id="Vector-clear"><a href="../Vector/Vector.html#Vector-clear"><code>Vector.clear</code></a></li>
+<li id="Vector-resize_copy"><a href="../Vector/Vector.html#Vector-resize_copy"><code>Vector.resize_copy</code></a></li>
+<li id="Vector-resize_clone"><a href="../Vector/Vector.html#Vector-resize_clone"><code>Vector.resize_clone</code></a></li>
+<li id="Vector-resize_with"><a href="../Vector/Vector.html#Vector-resize_with"><code>Vector.resize_with</code></a></li>
+<li id="Vector-try_resize_with"><a href="../Vector/Vector.html#Vector-try_resize_with"><code>Vector.try_resize_with</code></a></li>
+<li id="Vector-retain"><a href="../Vector/Vector.html#Vector-retain"><code>Vector.retain</code></a></li>
+<li id="Vector-try_retain"><a href="../Vector/Vector.html#Vector-try_retain"><code>Vector.try_retain</code></a></li>
+<li id="Vector-dedup"><a href="../Vector/Vector.html#Vector-dedup"><code>Vector.dedup</code></a></li>
+<li id="Vector-dedup_by"><a href="../Vector/Vector.html#Vector-dedup_by"><code>Vector.dedup_by</code></a></li>
+<li id="Vector-drain"><a href="../Vector/Vector.html#Vector-drain"><code>Vector.drain</code></a></li>
+<li id="Vector-extract_if"><a href="../Vector/Vector.html#Vector-extract_if"><code>Vector.extract_if</code></a></li>
+<li id="Vector-split_off"><a href="../Vector/Vector.html#Vector-split_off"><code>Vector.split_off</code></a></li>
+</ul>
+<h3>Duplication and maps</h3>
+<ul>
+<li id="Vector-clone"><a href="../Vector/Vector.html#Vector-clone"><code>Vector.clone</code></a></li>
+<li id="Vector-copy"><a href="../Vector/Vector.html#Vector-copy"><code>Vector.copy</code></a></li>
+<li id="Vector-clone_from"><a href="../Vector/Vector.html#Vector-clone_from"><code>Vector.clone_from</code></a></li>
+<li id="Vector-map"><a href="../Vector/Vector.html#Vector-map"><code>Vector.map</code></a></li>
+<li id="Vector-try_map"><a href="../Vector/Vector.html#Vector-try_map"><code>Vector.try_map</code></a></li>
+<li id="Vector-map_ref"><a href="../Vector/Vector.html#Vector-map_ref"><code>Vector.map_ref</code></a></li>
+<li id="Vector-filter_clone"><a href="../Vector/Vector.html#Vector-filter_clone"><code>Vector.filter_clone</code></a></li>
+</ul>
+<h3>Ordering and searches</h3>
+<ul>
+<li id="Vector-swap_vectors"><a href="../Vector/Vector.html#Vector-swap_vectors"><code>Vector.swap_vectors</code></a></li>
+<li id="Vector-reverse"><a href="../Vector/Vector.html#Vector-reverse"><code>Vector.reverse</code></a></li>
+<li id="Vector-rotate_left"><a href="../Vector/Vector.html#Vector-rotate_left"><code>Vector.rotate_left</code></a></li>
+<li id="Vector-rotate_right"><a href="../Vector/Vector.html#Vector-rotate_right"><code>Vector.rotate_right</code></a></li>
+<li id="Vector-sort"><a href="../Vector/Vector.html#Vector-sort"><code>Vector.sort</code></a></li>
+<li id="Vector-sort_unstable"><a href="../Vector/Vector.html#Vector-sort_unstable"><code>Vector.sort_unstable</code></a></li>
+<li id="Vector-is_sorted"><a href="../Vector/Vector.html#Vector-is_sorted"><code>Vector.is_sorted</code></a></li>
+<li id="Vector-contains"><a href="../Vector/Vector.html#Vector-contains"><code>Vector.contains</code></a></li>
+<li id="Vector-position"><a href="../Vector/Vector.html#Vector-position"><code>Vector.position</code></a></li>
+<li id="Vector-rposition"><a href="../Vector/Vector.html#Vector-rposition"><code>Vector.rposition</code></a></li>
+<li id="Vector-find"><a href="../Vector/Vector.html#Vector-find"><code>Vector.find</code></a></li>
+<li id="Vector-count"><a href="../Vector/Vector.html#Vector-count"><code>Vector.count</code></a></li>
+<li id="Vector-binary_search"><a href="../Vector/Vector.html#Vector-binary_search"><code>Vector.binary_search</code></a></li>
+<li id="Vector-lower_bound"><a href="../Vector/Vector.html#Vector-lower_bound"><code>Vector.lower_bound</code></a></li>
+<li id="Vector-upper_bound"><a href="../Vector/Vector.html#Vector-upper_bound"><code>Vector.upper_bound</code></a></li>
+<li id="Vector-equal"><a href="../Vector/Vector.html#Vector-equal"><code>Vector.equal</code></a></li>
+<li id="Vector-compare"><a href="../Vector/Vector.html#Vector-compare"><code>Vector.compare</code></a></li>
+</ul>
+<h3>Iteration and fixed conversion</h3>
+<ul>
+<li id="Vector-iter"><a href="../Vector/Vector.html#Vector-iter"><code>Vector.iter</code></a></li>
+<li id="Vector-iter_mut"><a href="../Vector/Vector.html#Vector-iter_mut"><code>Vector.iter_mut</code></a></li>
+<li id="Vector-into_iter"><a href="../Vector/Vector.html#Vector-into_iter"><code>Vector.into_iter</code></a></li>
+<li id="Vector-fold"><a href="../Vector/Vector.html#Vector-fold"><code>Vector.fold</code></a></li>
+<li id="Vector-try_fold"><a href="../Vector/Vector.html#Vector-try_fold"><code>Vector.try_fold</code></a></li>
+<li id="Vector-all"><a href="../Vector/Vector.html#Vector-all"><code>Vector.all</code></a></li>
+<li id="Vector-any"><a href="../Vector/Vector.html#Vector-any"><code>Vector.any</code></a></li>
+<li id="Vector-into_array"><a href="../Vector/Vector.html#Vector-into_array"><code>Vector.into_array</code></a></li>
+<li id="Vector-to_array_copy"><a href="../Vector/Vector.html#Vector-to_array_copy"><code>Vector.to_array_copy</code></a></li>
+<li id="Vector-to_array_clone"><a href="../Vector/Vector.html#Vector-to_array_clone"><code>Vector.to_array_clone</code></a></li>
+</ul>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Type-First Examples
+</h2>
+<p>The following declarations use the chosen type-first syntax. Fallible allocation remains explicit as a <code>Result</code>; a Vector move does not clone its buffer.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Vector&lt;i32&gt; items = Vector.new(i32);
+usize count = Vector.len(&amp;items);
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; duplicate = Vector.copy(&amp;items);</code></pre><p>See <a href="../Vector/Vector.html#Examples">canonical examples</a> and the <a href="../../grammar/operators/Error_Propagation.html">error-handling rules</a> for <code>?</code> propagation.</p>
+</section>
+<section id="Complexity" aria-labelledby="Complexity-heading">
+<h2 id="Complexity-heading">9. Algorithmic Cost &amp; Observation
+</h2>
+<p>Buffer growth may relocate all existing elements, even when end insertion is amortized O(1). Copy, clone, callbacks, and element cleanup retain their costs. The authoritative per-function costs are in the <a href="../Vector/Vector.html#Function-Reference">canonical API</a>; see also <a href="../Vector/Vector.html#Complexity">algorithmic cost and observation</a>.</p>
+</section>
+<section id="Targets-Text-Interop" aria-labelledby="Targets-Text-Interop-heading">
+<h2 id="Targets-Text-Interop-heading">10. Parallelism, Text &amp; Interoperability
+</h2>
+<p>Disjoint write views can support parallel work only with compatible element traits and safe captured
+                    state. Shared owners, interior mutability, and foreign aliases require their own synchronization; a
+                    Vector type alone does not make T race-free.
+                
+</p>
+                
+<p>CPU/GPU transfer is explicit and separate from Vector move or clone. Kernels and asynchronous work
+                    must keep buffers alive, validate layout and shape, and respect device capabilities. No GPU
+                    allocation or kernel support is promised here.
+                
+</p>
+                
+<p><code>Vector&lt;char&gt;</code> contains Unicode scalar values; it is not UTF-8 storage. Use <a
+                        href="../String/string.html">string</a> for text. <a href="../Byte/Byte.html">byte</a> is
+                    distinct from u8. FFI needs explicit allocator ownership, length/capacity, element representation,
+                    and borrow duration; native metadata is not a stable C++ or Swift ABI.
+                
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">11. Related Array Types &amp; Research Scope
+</h2>
+<p>Use <a href="Static_Array.html">Static Array</a> when the extent belongs in the type, <a
+                        href="Slice.html">Slice</a> to borrow without ownership, and <a href="Array.html">Array</a> for
+                    shared family rules.
+                
+</p>
+                
+<p>The primary references were checked for capacity, reallocation, borrow invalidation, fallible
+                    reservation, algorithm preconditions, and explicit cost. Aevix’s default move and error-value
+                    choices are its own proposals; existing-language behavior is not automatically inherited.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design
+                    proposals.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank"
+                           rel="noopener noreferrer">Rust fixed-size array reference</a>
+                    
+</li>
+                    
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank"
+                           rel="noopener noreferrer">Rust Vec ownership and capacity reference</a>
+                    
+</li>
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank"
+                           rel="noopener noreferrer">Rust slice operations and disjoint borrowing</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: array</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: vector</a>
+                    
+</li>
+                    
+<li>
+                        <a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md"
+                           target="_blank" rel="noopener noreferrer">Swift Evolution: inline array design discussion</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Static_Array.html"><span>Previous reference</span>Static Array</a><a href="Slice.html"><span>Next reference</span>Slice</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

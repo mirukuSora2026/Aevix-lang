@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Borrowed descriptors, strided access and explicit materialization.">
+  <title>Tensor Views — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Tensor.html" aria-current="true">Tensor</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Tensor.html">Tensor</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tensor Views</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Tensor Views</h1><p class="doc-subtitle">Borrowed descriptors, strided access and explicit materialization.</p><div class="doc-meta"><span class="meta-chip">TensorView&lt;T, S, P&gt;</span><span class="meta-chip">Tensor. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>12</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[S]</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>A borrowed tensor descriptor</span></a></li><li><a href="#strides"><span class="toc-number">02</span><span>Strides, origin and bounds</span></a></li><li><a href="#mutation"><span class="toc-number">03</span><span>Aliasing and mutation</span></a></li><li><a href="#copy"><span class="toc-number">04</span><span>Reshaping versus copying</span></a></li><li><a href="#lifetime"><span class="toc-number">05</span><span>Iteration and asynchronous leases</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Descriptor-only operations</span></a></li><li><a href="#specialized-functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Design boundary and related pages</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Tensor pages"><h2>Tensor reference</h2><div class="family-links"><a href="Tensor.html">Tensor</a><a href="Tensor_Shape.html">Tensor Shape</a><a href="Tensor_View.html" aria-current="page">Tensor Views</a><a href="Tensor_Device.html">Tensor Device</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tensor Views reference">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1. A borrowed tensor descriptor
+</h2>
+<p>TensorView&lt;T, S, P&gt; grants read access to elements through a validated shape, origin and stride descriptor. It owns no element buffer and cannot outlive the storage loan. MutTensorView&lt;T, S, P&gt; is a candidate exclusive descriptor; it grants mutation only when each logical location identifies a distinct initialized element. These are library ownership forms, not an escape from the core borrow checker.
+</p>
+<p>The owner cannot move, resize, transfer away, deallocate or expose conflicting mutable access while a view is live. Multiple read views may coexist. A GPU view is a device-side access capability and metadata handle; it does not authorize host dereference. Passing a view into an asynchronous submission extends its loan to the operation scope until quiescence.
+</p>
+</section>
+<section id="strides" aria-labelledby="strides-heading">
+<h2 id="strides-heading">2. Strides, origin and bounds
+</h2>
+<p>A stride is measured in elements in this draft. Signed strides permit reversed traversal when origin and the complete reachable span remain inside the same allocation. All offset computations are checked. Empty views have no element access; their descriptor still has valid allocation identity and a canonical in-bounds or one-past origin. Safe APIs do not form out-of-bounds pointers even for a lane that will later be masked off.
+</p>
+<p>Logical byte length differs from the physical span occupied by a strided view. Padding, reversed order and skipped elements make them diverge. A foreign descriptor must supply allocation size, element width, alignment and lifetime evidence; raw strides alone cannot establish memory safety. GPU backend restrictions can reject a valid abstract view if the operation cannot lower that layout.
+</p>
+</section>
+<section id="mutation" aria-labelledby="mutation-heading">
+<h2 id="mutation-heading">3. Aliasing and mutation
+</h2>
+<p>Broadcasting with a repeated address, overlapping sliding windows and arbitrary repeated gathers are read-only. An exclusive view requires a proof of injectivity or a checked construction that establishes it. Bounds safety alone does not prevent two logical elements from racing on the same physical location. A failed alias proof returns LayoutError rather than choosing a potentially racy kernel.
+</p>
+<p>Splitting an exclusive view is safe only when both returned views are disjoint. The parent exclusive borrow remains consumed while the children exist. Combining views must verify a shared allocation relationship and compatible loans, not merely adjacent integer addresses. The safe catalog deliberately avoids a general unchecked from-pointer constructor.
+</p>
+</section>
+<section id="copy" aria-labelledby="copy-heading">
+<h2 id="copy-heading">4. Reshaping versus copying
+</h2>
+<p>A view reshape succeeds only when the existing traversal order can represent the target without moving elements. Transposition usually preserves storage while changing strides, and may prevent a later flatten_view. A requested materialization copies logical elements into a fresh owner with the named contiguous order. contiguous_copy always creates an independent owner, even if input was already contiguous.
+</p>
+<p>No function silently chooses between returning an alias and an independent owner based on runtime layout. This makes mutation behavior and allocation visible. A compiler can remove a copy when it proves observational equivalence, but the public ownership result and failure semantics remain those of the requested operation.
+</p>
+</section>
+<section id="lifetime" aria-labelledby="lifetime-heading">
+<h2 id="lifetime-heading">5. Iteration and asynchronous leases
+</h2>
+<p>Element iteration over Cpu storage follows logical lexicographic order unless an explicit order descriptor says otherwise. An iterator borrows the view and owner. A mutable iterator yields nonoverlapping exclusive element references and cannot return a second reference to an element already loaned. Generic view iterators cannot run CPU loads over device-only storage.
+</p>
+<p>Submitting a kernel with a borrowed view registers the allocation, metadata and lifetime lease before the device can access them. Losing the user Pending handle does not end that lease. The enclosing device scope must establish quiescence before borrowed storage can leave scope. Device loss that leaves quiescence unknown cannot be downgraded to a normal error that immediately frees the buffer.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Descriptor-only operations
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">// Given a validated read-only Cpu tensor owner named image.
+Result&lt;TensorView&lt;f32, Shape&lt;3, 2&gt;, Cpu&gt;, ShapeError&gt; transposed = Tensor.transpose_view(&amp;image, 0, 1);
+Result&lt;TensorView&lt;f32, Shape&lt;6&gt;, Cpu&gt;, LayoutError&gt; flat = Tensor.flatten_view(&amp;image);
+// Given a separate initialized, injective owner named prepared_owner.
+mut Tensor&lt;f32, Shape&lt;2, 3&gt;, Cpu&gt; writable = prepared_owner;
+MutTensorView&lt;f32, Shape&lt;2, 3&gt;, Cpu&gt; editable = Tensor.view_mut(&amp;mut writable);</code></pre>
+<p>The static types here illustrate a 2-by-3 input. A compiler may reject an incompatible declared result before execution. Dynamic input uses a dynamic view descriptor and retains checked results. Neither statement copies element storage or converts its placement.
+</p>
+</section>
+<section id="specialized-functions" aria-labelledby="specialized-functions-heading">
+<h2 id="specialized-functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-reverse_view"><td><code>Tensor.reverse_view(X value, usize axis)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>Checked signed stride reversal with adjusted origin; axis valid.</td><td>O(rank); no element copy.</td>
+</tr>
+<tr id="Tensor-diagonal_view"><td><code>Tensor.diagonal_view(X value, usize axis_a, usize axis_b, isize offset)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>Axes distinct and valid; checked origin/stride sum; read-only by default.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-window_view"><td><code>Tensor.window_view(X value, usize axis, usize width, usize step)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>width and step positive; overlapping windows remain read-only; extent formula checked.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-split_view"><td><code>Tensor.split_view(X value, usize axis, usize at)</code></td><td><code>Result&lt;(V, V), TensorError&gt;</code></td><td>at in inclusive split range; both views borrow same owner.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-split_mut"><td><code>Tensor.split_mut(M value, usize axis, usize at)</code></td><td><code>Result&lt;(M, M), TensorError&gt;</code></td><td>Consumes exclusive parent loan; resulting regions proven disjoint.</td><td>O(rank); no allocation of elements.</td>
+</tr>
+<tr id="Tensor-is_injective"><td><code>Tensor.is_injective(X value)</code></td><td><code>Result&lt;bool, LayoutError&gt;</code></td><td>Sound alias classification; unsupported expensive proof may return error rather than guess.</td><td>May depend on rank/layout proof.</td>
+</tr>
+<tr id="Tensor-is_same_storage"><td><code>Tensor.is_same_storage(X a, X b)</code></td><td><code>bool</code></td><td>Compares allocation identity, not logical equality or loan compatibility.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-overlap"><td><code>Tensor.overlap(X a, X b)</code></td><td><code>Result&lt;Overlap, LayoutError&gt;</code></td><td>Returns Disjoint, Overlap or Unknown; Unknown does not authorize concurrent mutation.</td><td>Layout-dependent checked analysis.</td>
+</tr>
+<tr id="Tensor-as_slice"><td><code>Tensor.as_slice(X value)</code></td><td><code>Result&lt;Slice&lt;T&gt;, LayoutError&gt;</code></td><td>Cpu only; contiguous logical order and alignment required; read loan retained.</td><td>O(rank); no copy.</td>
+</tr>
+<tr id="Tensor-as_mut_slice"><td><code>Tensor.as_mut_slice(M value)</code></td><td><code>Result&lt;MutSlice&lt;T&gt;, LayoutError&gt;</code></td><td>Cpu only; contiguous injective exclusive view required.</td><td>O(rank); no copy.</td>
+</tr>
+<tr id="Tensor-iter"><td><code>Tensor.iter(X value)</code></td><td><code>TensorIter&lt;T&gt;</code></td><td>Cpu borrowed logical-order read iterator; no hidden transfer.</td><td>O(1) iterator plus O(rank) index state.</td>
+</tr>
+<tr id="Tensor-iter_mut"><td><code>Tensor.iter_mut(M value)</code></td><td><code>Result&lt;TensorMutIter&lt;T&gt;, LayoutError&gt;</code></td><td>Cpu only; proves nonoverlap before yielding exclusive elements.</td><td>Proof cost plus traversal.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Design boundary and related pages
+</h2>
+<p>All signatures are proposed library contracts. AOT and JIT preserve the same validation, lifetime and numeric semantics. An optimization may remove a proven redundant operation, but must preserve observable errors and synchronization boundaries. Supporting descriptor types and generic shape spellings remain design candidates; parameter passing uses the approved value, &amp;T and &amp;mut T forms. Returned-reference lifetime notation remains conceptual.
+</p>
+<p><a href="Tensor.html">Tensor common reference</a> · <a href="Tensor_Shape.html">Shape</a> · <a href="Tensor_View.html">Views</a> · <a href="Tensor_Device.html">Device execution</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/TensorOps/" target="_blank" rel="noopener noreferrer">MLIR Tensor dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/MemRef/" target="_blank" rel="noopener noreferrer">MLIR MemRef dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/ShapeDialect/" target="_blank" rel="noopener noreferrer">MLIR Shape dialect</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy broadcasting</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.copies.html" target="_blank" rel="noopener noreferrer">NumPy copies and views</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Tensor_Shape.html"><span>Previous reference</span>Tensor Shape</a><a href="Tensor_Device.html"><span>Next reference</span>Tensor Device</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

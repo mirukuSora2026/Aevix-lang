@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Semantic portability, explicit lowering profiles and stable interchange choices.">
+  <title>Portable SIMD — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Simd.html" aria-current="true">Simd</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Simd.html">Simd</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Portable SIMD</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Portable SIMD</h1><p class="doc-subtitle">Semantic portability, explicit lowering profiles and stable interchange choices.</p><div class="doc-meta"><span class="meta-chip">Simd&lt;T, N&gt; / SimdProfile</span><span class="meta-chip">Simd. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>10</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>N×T</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>Portable is a behavior contract</span></a></li><li><a href="#lowering"><span class="toc-number">02</span><span>Compiler specialization and observation</span></a></li><li><a href="#floats"><span class="toc-number">03</span><span>Floating-point portability limits</span></a></li><li><a href="#abi"><span class="toc-number">04</span><span>Memory, alignment and FFI</span></a></li><li><a href="#bitcast"><span class="toc-number">05</span><span>Representation conversions are values</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Capabilities are queries, not benchmarks</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Reference scope</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Simd pages"><h2>Simd reference</h2><div class="family-links"><a href="Simd.html">Simd</a><a href="Simd_Mask.html">SIMD Mask</a><a href="Simd_Portable.html" aria-current="page">Portable SIMD</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Portable SIMD reference">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1. Portable is a behavior contract
+</h2>
+<p>A portable profile promises a defined result for supported scalar types, lane counts and operations. It does not promise that a vector equals one hardware register, that all lanes execute simultaneously, or that a particular instruction set exists. Lowering can use scalar code or several vectors. A stricter NativeRequired profile can reject targets that lack the requested native support, while keeping numerical meaning unchanged.
+</p>
+<p>CPU and GPU profiles are separate capability sets. A value accepted by a Cpu profile may not be supported inside a selected GPU kernel. Capability reports distinguish scalar type support, width/lane support, operation support and strict floating behavior. Runtime dispatch can select among already compatible implementations, not silently replace strict arithmetic with a relaxed approximation.
+</p>
+</section>
+<section id="lowering" aria-labelledby="lowering-heading">
+<h2 id="lowering-heading">2. Compiler specialization and observation
+</h2>
+<p>The compiler may specialize N, scalar type, known alignment and target features. It may remove redundant checks when doing so preserves observable failures and active memory accesses. AOT and JIT share the same result and error contract. Dispatch metadata and compile options are part of compiled identity, avoiding a cache hit that uses an incompatible numeric profile.
+</p>
+<p>A lowering report can describe native widths, fallback fragments and feature requirements. Such a report is diagnostic data, not a stable schedule or timing contract. Vendor compiler versions may choose different instruction sequences without changing the program meaning. Performance claims require measurements on the actual target and workload.
+</p>
+</section>
+<section id="floats" aria-labelledby="floats-heading">
+<h2 id="floats-heading">3. Floating-point portability limits
+</h2>
+<p>The strict scalar floating profile controls NaN classification, signed zero, infinities, rounding and subnormal handling. Float vectorization cannot silently flush subnormals or reassociate reductions. Explicit FMA uses fused semantics even on a target that needs a slower implementation or an unsupported-capability report. Approximate reciprocal and math instructions belong in a named optional profile.
+</p>
+<p>Logical reduction order is separate from selected vector width. A left-to-right accumulator must remain left-to-right even if the compiler divides the input into fragments. A requested tree order may have target-dependent tree structure only when its policy explicitly permits that variation. Exact cross-target NaN payload reproduction is not implied by ordinary numeric operations.
+</p>
+</section>
+<section id="abi" aria-labelledby="abi-heading">
+<h2 id="abi-heading">4. Memory, alignment and FFI
+</h2>
+<p>A Simd value has no default stable C vector ABI. Passing it to native code requires an adapter that names the target ABI and verifies width, alignment and feature requirements. The portable interchange route is explicit Array conversion or an initialized Slice buffer. A repr or layout annotation would be a separate language decision rather than inferred from lane count.
+</p>
+<p>Ordinary load/store accepts element-aligned slices without a hidden stronger native alignment precondition. An aligned fast path takes a validated alignment witness tied to the allocation and offset. A foreign alignment claim must be checked or lie behind an explicit unsafe boundary. The witness does not prove bounds or exclusive ownership.
+</p>
+<p>AlignmentError is a proposed standalone library error for invalid alignment, incompatible allocation identity or checked address overflow. Alignment validation does not require an otherwise unrelated SIMD lane-count parameter.
+</p>
+</section>
+<section id="bitcast" aria-labelledby="bitcast-heading">
+<h2 id="bitcast-heading">5. Representation conversions are values
+</h2>
+<p>bitcast operates on a target-independent logical bit sequence: scalar lane representations are concatenated in lane order with least-significant bit first within each lane, then partitioned into destination lanes. Total bit widths must match. This defines a value conversion independently of host byte endianness; serialization into bytes still needs an explicit endian format.
+</p>
+<p>All source and destination scalar bit patterns must be valid for the selected numeric types. Mask and bool are excluded because their representation is not an arbitrary numeric bitstring. The conversion never creates aliased references or a pointer with a new alignment assumption. Foreign ABI bitcasts require a separately named target adapter.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Capabilities are queries, not benchmarks
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">CapabilityReport support = Simd.supports&lt;f32, 4&gt;(target, SimdOperation.Add, SimdProfile.Portable);
+Result&lt;SimdPlan, SimdCompileError&gt; plan = Simd.plan&lt;f32, 4&gt;(target, SimdProfile.Portable);</code></pre>
+<p>target is an existing validated target descriptor. The returned plan reports a possible lowering and feature requirements; it does not reserve future runtime resources or guarantee native execution. A program may retain the portable profile and accept scalar fallback, or explicitly require native features and handle a capability error.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-supports"><td><code>Simd.supports&lt;T, N&gt;(Target target, SimdOperation operation, SimdProfile profile)</code></td><td><code>CapabilityReport</code></td><td>Separates semantic support from native lowering support and performance.</td><td>Query only.</td>
+</tr>
+<tr id="Simd-plan"><td><code>Simd.plan&lt;T, N&gt;(Target target, SimdProfile profile)</code></td><td><code>Result&lt;SimdPlan, SimdCompileError&gt;</code></td><td>Validates lane/type/profile requirements and proposes lowering fragments.</td><td>Compilation/descriptor allocation may fail.</td>
+</tr>
+<tr id="Simd-native_width"><td><code>Simd.native_width&lt;T&gt;(Target target)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>Preferred native lane width when meaningful; absence is valid.</td><td>Query; not a maximum legal N.</td>
+</tr>
+<tr id="Simd-required_features"><td><code>Simd.required_features(&amp;SimdPlan plan)</code></td><td><code>FeatureSetView</code></td><td>Borrowed target feature requirements for selected lowering.</td><td>O(1) view.</td>
+</tr>
+<tr id="Simd-lowering_kind"><td><code>Simd.lowering_kind(&amp;SimdPlan plan)</code></td><td><code>LoweringKind</code></td><td>Native, Split or Scalar summary; not a register allocation guarantee.</td><td>O(1).</td>
+</tr>
+<tr id="Simd-validate_alignment"><td><code>Simd.validate_alignment(Slice&lt;T&gt; source, usize offset, usize alignment)</code></td><td><code>Result&lt;AlignmentWitness, AlignmentError&gt;</code></td><td>Positive power-of-two alignment and checked address validated; witness borrows allocation.</td><td>O(1); does not prove bounds for N.</td>
+</tr>
+<tr id="Simd-load_aligned"><td><code>Simd.load_aligned&lt;T, N&gt;(Slice&lt;T&gt; source, usize start, AlignmentWitness alignment)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Witness matches allocation/start and native alignment; full N-element bounds checked.</td><td>O(N); no raw pointer escape.</td>
+</tr>
+<tr id="Simd-store_aligned"><td><code>Simd.store_aligned(MutSlice&lt;T&gt; destination, usize start, AlignmentWitness alignment, V value)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>Matching witness and exclusive full range required before write.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-export_array"><td><code>Simd.export_array(V value)</code></td><td><code>Array&lt;T, N&gt;</code></td><td>Stable logical lane interchange through ordinary Array element rules.</td><td>O(N); no native vector ABI claim.</td>
+</tr>
+<tr id="Simd-import_array"><td><code>Simd.import_array&lt;T, N&gt;(Array&lt;T, N&gt; values)</code></td><td><code>V</code></td><td>Explicit lane-value import, independent of foreign vector registers.</td><td>O(N).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Reference scope
+</h2>
+<p>All interfaces here are proposals. Rust portable SIMD documentation is explicitly experimental and is used only as an official comparison source. LLVM vector IR is a lowering vocabulary; its poison and undefined-behavior preconditions are not safe Aevix contracts. The language must validate every condition required by its own observable semantics.
+</p>
+<p><a href="Simd.html">Simd common reference</a> · <a href="Simd_Mask.html">Masks</a> · <a href="Simd_Portable.html">Portable lowering</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Simd.html" target="_blank" rel="noopener noreferrer">Rust experimental portable SIMD</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Mask.html" target="_blank" rel="noopener noreferrer">Rust experimental SIMD mask</a>
+</li>
+<li><a href="https://llvm.org/docs/LangRef.html#vector-type" target="_blank" rel="noopener noreferrer">LLVM vector types and operations</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Simd_Mask.html"><span>Previous reference</span>SIMD Mask</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

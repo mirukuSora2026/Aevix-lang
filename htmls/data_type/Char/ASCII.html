@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Locale-independent helpers for the seven-bit subset of char.">
+  <title>ASCII — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Char.html" aria-current="true">Char</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html" aria-current="true">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Char.html">Char</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">ASCII</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>ASCII</h1><p class="doc-subtitle">Locale-independent helpers for the seven-bit subset of char.</p><div class="doc-meta"><span class="meta-chip">char</span><span class="meta-chip">Char. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>char</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>ASCII Is a Subset of char</span></a></li><li><a href="#Classification"><span class="toc-number">02</span><span>Fixed Classification Rules</span></a></li><li><a href="#Case-Mapping"><span class="toc-number">03</span><span>ASCII Case Mapping</span></a></li><li><a href="#Digits"><span class="toc-number">04</span><span>Digit Parsing and Radix</span></a></li><li><a href="#Encoding"><span class="toc-number">05</span><span>Checked Encoding and Decoding</span></a></li><li><a href="#Unicode-Differences"><span class="toc-number">06</span><span>Different Unicode Answers</span></a></li><li><a href="#Storage-Cost"><span class="toc-number">07</span><span>Ownership and Cost</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Examples and Related References</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Char pages"><h2>Char reference</h2><div class="family-links"><a href="Char.html">Char</a><a href="Unicode_Scalar.html">Unicode Scalar</a><a href="ASCII.html" aria-current="page">ASCII</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html" aria-current="true">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="ASCII reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. ASCII Is a Subset of char
+</h2>
+<p>ASCII covers U+0000 through U+007F. An ASCII scalar remains <code>char</code>; this page creates no
+                    char8 primitive and no permissive eight-bit text encoding. The 128 code points include controls and
+                    DEL. Their UTF-8 spelling is one byte, but a high-bit byte is not ASCII and does not independently
+                    establish a UTF-8 character. The subset does not imply that every control is suitable in a message.
+                
+</p>
+                
+<blockquote class="callout note">
+                    
+<p><strong>Design draft.</strong> Names, support records, and conceptual syntax describe proposed
+                        Aevix contracts. They do not claim implementation or measured performance. Declarations put the
+                        type first and bindings are immutable by default. MutSlice&lt;T&gt; denotes an exclusive writable view; <code>mut</code>, <code>&amp;T</code>, and <code>&amp;mut T</code> follow the chosen declaration and borrow rules. Catalog-specific support records and signatures remain proposals.
+                    
+</p>
+                
+</blockquote>
+</section>
+<section id="Classification" aria-labelledby="Classification-heading">
+<h2 id="Classification-heading">2. Fixed Classification Rules
+</h2>
+<p>The Char.ascii_* predicates use explicit numeric rules and never consult process locale. Non-ASCII
+                    input is false rather than falling back to Unicode classification. This draft chooses five
+                    whitespace characters: tab, line feed, form feed, carriage return, and space. Vertical tab is false
+                    here even though Unicode White_Space includes it. Printable includes space, while graphic excludes
+                    it; neither property is a protocol validator or a terminal safety guarantee.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Fixed Classification Rules data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-ascii_is_alphabetic">
+                            <th scope="row"><code>Char.ascii_is_alphabetic(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>A–Z or a–z; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_alphanumeric">
+                            <th scope="row"><code>Char.ascii_is_alphanumeric(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>ASCII letter or decimal digit; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_uppercase">
+                            <th scope="row"><code>Char.ascii_is_uppercase(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>A–Z; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_lowercase">
+                            <th scope="row"><code>Char.ascii_is_lowercase(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>a–z; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_digit">
+                            <th scope="row"><code>Char.ascii_is_digit(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>0–9; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_hex_digit">
+                            <th scope="row"><code>Char.ascii_is_hex_digit(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>0–9, A–F, or a–f; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_octal_digit">
+                            <th scope="row"><code>Char.ascii_is_octal_digit(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>0–7; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_binary_digit">
+                            <th scope="row"><code>Char.ascii_is_binary_digit(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>0 or 1; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_whitespace">
+                            <th scope="row"><code>Char.ascii_is_whitespace(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>HT, LF, FF, CR, or SPACE; VT excluded; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_control">
+                            <th scope="row"><code>Char.ascii_is_control(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>U+0000…U+001F or U+007F; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_graphic">
+                            <th scope="row"><code>Char.ascii_is_graphic(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>U+0021…U+007E; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_printable">
+                            <th scope="row"><code>Char.ascii_is_printable(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>U+0020…U+007E; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_punctuation">
+                            <th scope="row"><code>Char.ascii_is_punctuation(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Graphic ASCII excluding letters and digits; non-ASCII returns false, without
+                                allocation.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_blank">
+                            <th scope="row"><code>Char.ascii_is_blank(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>SPACE or horizontal tab; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_is_sign">
+                            <th scope="row"><code>Char.ascii_is_sign(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Plus or minus; non-ASCII returns false, without allocation.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Case-Mapping" aria-labelledby="Case-Mapping-heading">
+<h2 id="Case-Mapping-heading">3. ASCII Case Mapping
+</h2>
+<p>Case transforms change only the 26 basic Latin letters. Their scalar results never expand and require
+                    no allocation. Non-ASCII input remains unchanged, so comparing é with É ignores no distinction. The
+                    helpers do not perform international folding, normalization, or locale-sensitive sorting. A
+                    comparator can still order unchanged non-ASCII scalars numerically: ASCII folding names the
+                    transformation, not a precondition that both inputs are ASCII. Whole-text matching belongs to the
+                    string contract.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="ASCII Case Mapping data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-ascii_to_lowercase">
+                            <th scope="row"><code>Char.ascii_to_lowercase(char c)</code></th>
+                            <td><code>char</code></td>
+                            <td>Map A–Z to a–z; all other scalars remain unchanged.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_to_uppercase">
+                            <th scope="row"><code>Char.ascii_to_uppercase(char c)</code></th>
+                            <td><code>char</code></td>
+                            <td>Map a–z to A–Z; all other scalars remain unchanged.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_equal_ignore_case">
+                            <th scope="row"><code>Char.ascii_equal_ignore_case(char left, char right)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Compare after ASCII folding; never Unicode-fold non-ASCII scalars.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_compare_ignore_case">
+                            <th scope="row"><code>Char.ascii_compare_ignore_case(char left, char right)</code></th>
+                            <td><code>Ordering</code></td>
+                            <td>Compare scalar values after ASCII folding; no locale or allocation.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Digits" aria-labelledby="Digits-heading">
+<h2 id="Digits-heading">4. Digit Parsing and Radix
+</h2>
+<p>ASCII decimal digits are 0 through 9. Radix helpers additionally recognize basic Latin letters, with
+                    uppercase and lowercase denoting the same value. A radix outside 2…36 is an error; an allowed radix
+                    with a non-digit produces None. Arabic-Indic and fullwidth decimal digits remain valid Unicode
+                    scalars but fail ASCII digit tests. Whole numeric strings need explicit sign, separators, range, and
+                    consumption rules beyond this one-scalar helper.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Digit Parsing and Radix data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-ascii_digit_value">
+                            <th scope="row"><code>Char.ascii_digit_value(char c, u32 radix)</code></th>
+                            <td><code>Result&lt;Optional&lt;u32&gt;, CharError&gt;</code></td>
+                            <td>Require radix 2…36; accept ASCII digits and letters only.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Encoding" aria-labelledby="Encoding-heading">
+<h2 id="Encoding-heading">5. Checked Encoding and Decoding
+</h2>
+<p>Encoding bridges a scalar and an opaque byte only after range validation. A valid byte such as 0xff
+                    cannot be ASCII-decoded. U+00FF also does not become ASCII merely because its numeric value fits in
+                    u8. NUL is valid ASCII rather than an automatic end marker. Whole-input parsing rejects trailing
+                    text after a valid prefix. Scalar and byte results are independent value copies; their constructors
+                    do not establish ownership of a surrounding buffer.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Checked Encoding and Decoding data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-ascii_from_u8">
+                            <th scope="row"><code>Char.ascii_from_u8(u8 value)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>Accept 0…127, including NUL and controls; reject high-bit input.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_encode">
+                            <th scope="row"><code>Char.ascii_encode(char c)</code></th>
+                            <td><code>Result&lt;byte, CharError&gt;</code></td>
+                            <td>Encode one ASCII scalar as one byte; reject non-ASCII values.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_decode">
+                            <th scope="row"><code>Char.ascii_decode(byte value)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>Decode one seven-bit byte; reject values 128…255.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_parse">
+                            <th scope="row"><code>Char.ascii_parse(string_view text)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>Require exactly one ASCII scalar and consume the whole input.</td>
+                        
+</tr>
+                        
+<tr id="Char-ascii_escape">
+                            <th scope="row"><code>Char.ascii_escape(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate an ASCII diagnostic escape; reject non-ASCII input.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Unicode-Differences" aria-labelledby="Unicode-Differences-heading">
+<h2 id="Unicode-Differences-heading">6. Different Unicode Answers
+</h2>
+<p>Use <a href="Char.html">Char</a> for Unicode properties and full mapping proposals. A Unicode letter
+                    can lie outside ASCII, a numeric property can denote a fraction, and a decimal digit need not have
+                    an ASCII byte spelling. ASCII-only rules are useful for a protocol grammar, but that grammar must
+                    also define delimiters, escaping, length, and validation. No function automatically turns a scalar
+                    into a valid identifier or validates a complete request.
+                
+</p>
+</section>
+<section id="Storage-Cost" aria-labelledby="Storage-Cost-heading">
+<h2 id="Storage-Cost-heading">7. Ownership and Cost
+</h2>
+<p>Classification and single-scalar ASCII transformations allocate no heap storage. This bounded
+                    complexity does not certify one native instruction or cryptographic timing. Diagnostic
+                    <code>string</code> output allocates through an explicit Result path. Input views retain their
+                    owner’s lifetime, while returned scalar values are independent. <code>Vector&lt;char&gt;</code> need
+                    not have the same representation as <code>Vector&lt;byte&gt;</code>. Choose text and raw storage
+                    deliberately; scalar copying is not copying an owning container.
+                
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Examples and Related References
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">char letter = &#x27;A&#x27;;
+Char.ascii_is_alphabetic(letter); // true
+Char.ascii_to_lowercase(letter); // a
+Char.ascii_is_digit(&#x27;９&#x27;); // false
+Char.ascii_equal_ignore_case(&#x27;é&#x27;, &#x27;É&#x27;); // false
+Char.ascii_from_u8(0xff); // error</code></pre>
+                
+<p>See <a href="../Byte/Byte.html">Byte</a> for raw patterns and <a
+                        href="../String/string.html">string</a> for text sequences. Unicode versioning affects property
+                    tables, but these ASCII numeric ranges remain explicit in the Aevix contract. Sources explain
+                    comparison behavior; the proposed namespace and error types do not claim an already implemented
+                    compiler or standard library.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design
+                    proposals.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://doc.rust-lang.org/std/ascii/index.html" target="_blank"
+                           rel="noopener noreferrer">Rust ASCII — locale-independent ASCII helpers</a>
+                    
+</li>
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.char.html" target="_blank"
+                           rel="noopener noreferrer">Rust char — comparison for scalar and mapping APIs</a>
+                    
+</li>
+                    
+<li><a href="https://www.unicode.org/reports/tr44/" target="_blank" rel="noopener noreferrer">Unicode
+                        Character Database — versioned properties</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Unicode_Scalar.html"><span>Previous reference</span>Unicode Scalar</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

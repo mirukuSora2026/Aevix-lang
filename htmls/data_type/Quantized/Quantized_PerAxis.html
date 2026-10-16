@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Channel metadata follows axes, views and ownership.">
+  <title>Per-axis Quantization — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Quantized.html" aria-current="true">Quantized</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Quantized.html">Quantized</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Per-axis Quantization</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Per-axis Quantization</h1><p class="doc-subtitle">Channel metadata follows axes, views and ownership.</p><div class="doc-meta"><span class="meta-chip">PerAxis&lt;I, F&gt;</span><span class="meta-chip">Quantized. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>10</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>Q</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>An axis selects the scale entry</span></a></li><li><a href="#ownership"><span class="toc-number">02</span><span>One metadata owner, many element codes</span></a></li><li><a href="#transforms"><span class="toc-number">03</span><span>Axis-aware shape transformations</span></a></li><li><a href="#arithmetic"><span class="toc-number">04</span><span>Kernel and contraction constraints</span></a></li><li><a href="#interchange"><span class="toc-number">05</span><span>Foreign descriptors and packed data</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Per-axis metadata construction</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Interchange boundary</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Quantized pages"><h2>Quantized reference</h2><div class="family-links"><a href="Quantized.html">Quantized</a><a href="Quantized_Affine.html">Affine Quantization</a><a href="Quantized_PerAxis.html" aria-current="page">Per-axis Quantization</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Per-axis Quantization reference">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1. An axis selects the scale entry
+</h2>
+<p>A per-axis scheme associates every integer tensor element with a scale and zero point selected by one logical coordinate. For tensor shape [D0,...,Dr-1] and axis a, both metadata arrays have length Da. Every scale is finite and positive; every zero point is representable in the storage type. Rank-zero payloads cannot carry a per-axis scheme because they have no axis.
+</p>
+<p>A zero selected extent permits empty metadata arrays. Such a tensor has no elements that need a scale entry, but axis validity and the rest of its shape still require validation. Calibration on empty channels reports an explicit missing-data error instead of manufacturing a scale. Fixed-rank static constraints can reject known metadata mismatches during compilation; runtime metadata lengths remain checked.
+</p>
+</section>
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">2. One metadata owner, many element codes
+</h2>
+<p>The scheme owns its scale and zero-point arrays or is an explicitly named borrowed SchemeView tied to their owner. A quantized tensor does not repeat those arrays in every element. Cloning the full value deep-copies payload and owned metadata; making a view only borrows them. Queued device work retains both leases until quiescence, including after handle abandonment.
+</p>
+<p>Metadata is immutable while values use it. A mutable slice to scales cannot coexist with a quantized read view or an in-flight kernel that interprets those scales. Constructing a new scheme validates it independently. Shared metadata requires a real Shared owner with the same ownership rules as any other allocation; a copied pointer is not ownership.
+</p>
+</section>
+<section id="transforms" aria-labelledby="transforms-heading">
+<h2 id="transforms-heading">3. Axis-aware shape transformations
+</h2>
+<p>Transposing tensor axes changes the scheme axis to its new logical position. Slicing along that axis slices metadata with the same start, length and step; slicing another axis keeps the metadata coordinate unchanged. A reshape is valid without numeric conversion only when it preserves a provable mapping from every new logical element to the same channel parameter. Equal element count alone is insufficient.
+</p>
+<p>Broadcasting the quantized axis requires special care: a singleton channel may repeat the same metadata logically, but an arbitrary new channel size cannot gain new independent scales. Concatenating along the quantized axis concatenates metadata in the same order as codes. Concatenating another axis requires identical parameter meaning or explicit requantization first.
+</p>
+</section>
+<section id="arithmetic" aria-labelledby="arithmetic-heading">
+<h2 id="arithmetic-heading">4. Kernel and contraction constraints
+</h2>
+<p>A per-axis matmul backend may support only selected axis positions and operand roles. The adapter checks this capability before submission; it does not silently collapse channel scales into one scalar. The dot/matmul contract names accumulator precision and how scale products apply to contraction and output axes. A scale varying along the contracted dimension generally cannot be factored out as one multiplier.
+</p>
+<p>Raw code sums require corresponding zero-point and scale accounting. A backend using a narrower accumulator or another saturation rule must be selected through an explicit alternative profile. Portable semantics do not guarantee a native per-channel instruction sequence. Error reports distinguish a mathematically valid scheme from a backend-unsupported layout.
+</p>
+</section>
+<section id="interchange" aria-labelledby="interchange-heading">
+<h2 id="interchange-heading">5. Foreign descriptors and packed data
+</h2>
+<p>Interchange records include rank, selected logical axis, metadata lengths, scale type, integer signedness and ownership. Negative-axis conventions are normalized by the adapter using checked arithmetic and the external schema version. Packed 4-bit or 2-bit payloads require an explicit bit order, padding policy and logical element count; they are optional encodings, not standard Array&lt;i8&gt; memory.
+</p>
+<p>Exporting raw bytes alone loses quantization meaning. Native object layout, pointer width and metadata structure are not stable serialization. Imported buffers must prove allocation span, alignment and lifetime, or be explicitly copied into owned storage. Device-only metadata cannot be read on the host through a descriptor without an explicit transfer.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Per-axis metadata construction
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Vector&lt;f32&gt; scales = prepared_scales;
+Vector&lt;i8&gt; zeros = prepared_zero_points;
+Result&lt;PerAxis&lt;i8, f32&gt;, QuantizationInputError&lt;(Vector&lt;f32&gt;, Vector&lt;i8&gt;)&gt;&gt; channels = Quantized.per_axis&lt;i8, f32&gt;(1, scales, zeros, tensor_shape);</code></pre>
+<p>The input vectors move into the validated scheme on success; the proposed error payload retains them when ownership was accepted before validation failed. Their lengths must equal dimension 1. A successful scheme does not copy or move the tensor element buffer.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-axis"><td><code>Quantized.axis(&amp;PerAxis&lt;I, F&gt; scheme)</code></td><td><code>usize</code></td><td>Returns validated logical parameter axis.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-scales"><td><code>Quantized.scales(Q value)</code></td><td><code>Slice&lt;F&gt;</code></td><td>Read-only borrowed parameter array; no device-to-host copy.</td><td>O(1); host-accessible metadata only.</td>
+</tr>
+<tr id="Quantized-zero_points"><td><code>Quantized.zero_points(Q value)</code></td><td><code>Slice&lt;I&gt;</code></td><td>Read-only zero-point array tied to scheme lifetime.</td><td>O(1); no copy.</td>
+</tr>
+<tr id="Quantized-channel_scheme"><td><code>Quantized.channel_scheme(Q value, usize channel)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>Copies one validated channel&#x27;s parameters; bounds checked.</td><td>O(1); host-accessible metadata.</td>
+</tr>
+<tr id="Quantized-permute_axes"><td><code>Quantized.permute_axes(Q value, AxisList permutation)</code></td><td><code>Result&lt;QuantizedView, QuantizationError&gt;</code></td><td>Read-only tensor view plus correctly remapped quantized axis.</td><td>O(rank); no element copy.</td>
+</tr>
+<tr id="Quantized-slice_channels"><td><code>Quantized.slice_channels(Q value, Range&lt;usize&gt; channels)</code></td><td><code>Result&lt;QuantizedView, QuantizationError&gt;</code></td><td>Borrowed code/metadata slices preserve parameter correspondence.</td><td>O(rank); no element copy.</td>
+</tr>
+<tr id="Quantized-reshape_preserving_axis"><td><code>Quantized.reshape_preserving_axis(Q value, ShapeLike shape)</code></td><td><code>Result&lt;QuantizedView, QuantizationError&gt;</code></td><td>Requires proof that every element keeps the same parameter index; otherwise error.</td><td>Shape/layout analysis; no implicit recoding.</td>
+</tr>
+<tr id="Quantized-concatenate_channels"><td><code>Quantized.concatenate_channels(Slice&lt;Q&gt; inputs)</code></td><td><code>Result&lt;Quantized&lt;S, PerAxis&lt;I, F&gt;&gt;, QuantizationError&gt;</code></td><td>Same non-channel shapes and types; concatenates codes and metadata.</td><td>O(elements + channels); allocates.</td>
+</tr>
+<tr id="Quantized-calibrate_per_axis"><td><code>Quantized.calibrate_per_axis&lt;I, F&gt;(R samples, usize axis, CalibrationPolicy policy)</code></td><td><code>Result&lt;PerAxis&lt;I, F&gt;, QuantizationError&gt;</code></td><td>Every nonempty channel finite; empty/missing channel statistics error.</td><td>O(N); allocates metadata.</td>
+</tr>
+<tr id="Quantized-convert_per_axis_scale"><td><code>Quantized.convert_per_axis_scale&lt;F2&gt;(Q value)</code></td><td><code>Result&lt;Quantized&lt;S, PerAxis&lt;I, F2&gt;&gt;, QuantizationError&gt;</code></td><td>Explicit metadata precision conversion and independent owner copy; all scales stay positive finite.</td><td>O(N + channels); allocates.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Interchange boundary
+</h2>
+<p>These are proposed library contracts. The source operators inform comparison and interchange; they do not define Aevix behavior automatically. An adapter must test ties, negative values, saturation, zero points and scale precision against the exact external schema version. The common Quantized reference owns the rounding order and nonfinite-input policy.
+</p>
+<p><a href="Quantized.html">Quantized common reference</a> · <a href="../Tensor/Tensor_Shape.html">Shape constraints</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://onnx.ai/onnx/operators/onnx__QuantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX QuantizeLinear operator</a>
+</li>
+<li><a href="https://onnx.ai/onnx/operators/onnx__DequantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX DequantizeLinear operator</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/QuantDialect/" target="_blank" rel="noopener noreferrer">MLIR quantization dialect</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Quantized_Affine.html"><span>Previous reference</span>Affine Quantization</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

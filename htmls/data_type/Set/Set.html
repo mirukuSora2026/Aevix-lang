@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Owned unique members with hashed lookup and explicit representative policies.">
+  <title>Set — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Set.html" aria-current="true">Set</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Set.html">Set</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Set</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Set</h1><p class="doc-subtitle">Owned unique members with hashed lookup and explicit representative policies.</p><div class="doc-meta"><span class="meta-chip">Set&lt;T&gt;</span><span class="meta-chip">Set namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>25</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>{T}</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Hashed set</span></a></li><li><a href="#Member-Invariants"><span class="toc-number">02</span><span>Stable membership semantics</span></a></li><li><a href="#Representatives"><span class="toc-number">03</span><span>Canonical representatives</span></a></li><li><a href="#Errors-Ownership"><span class="toc-number">04</span><span>Errors and borrowing</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>Set function reference</span></a></li><li><a href="#Algebra-Cost"><span class="toc-number">06</span><span>Algebra and complexity</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>Examples</span></a></li><li><a href="#Targets-Related"><span class="toc-number">08</span><span>Targets and related collections</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Set pages"><h2>Set reference</h2><div class="family-links"><a href="Set.html" aria-current="page">Set</a><a href="Ordered_Set.html">OrderedSet</a><a href="Set_Algebra.html">Set algebra</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Set reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Hashed set
+</h2>
+<p>Set&lt;T&gt; owns one representative per equivalence class. It provides membership and uniqueness without associating a separate value. The default is randomized hashing with unspecified iteration order; OrderedSet is a separate sorted collection. The set handle moves its allocation and members rather than copying each element. Empty storage is permitted, and every stored member remains initialized.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> Function names, callbacks, iterators, traits, and error carriers define proposed Aevix contracts. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. Bindings are immutable unless declared mut; unit is a value type. No implementation or device-support claim follows from this catalog.
+</p>
+</blockquote>
+</section>
+<section id="Member-Invariants" aria-labelledby="Member-Invariants-heading">
+<h2 id="Member-Invariants-heading">2. Stable membership semantics
+</h2>
+<p>Equality must be an equivalence relation, and equal members must hash equally under the chosen policy. Those meanings remain stable while a member is stored. Public APIs never yield &amp;mut T for a member: editing a value that determines its bucket would break lookup. For intentional changes, take the owner, edit it outside the set, then reinsert with explicit failure handling. Interior state and custom callbacks remain subject to the same rule.
+</p>
+</section>
+<section id="Representatives" aria-labelledby="Representatives-heading">
+<h2 id="Representatives-heading">3. Canonical representatives
+</h2>
+<p>An equal query can differ from the stored object in metadata excluded by equality. get borrows the stored representative; take transfers it. insert preserves it and destroys a successful duplicate input, whereas replace returns the previous owner and installs the incoming one. try_insert rejects duplicates with input recovery. These differences avoid accidental destruction of meaningful external-resource owners or silent replacement of canonical data.
+</p>
+</section>
+<section id="Errors-Ownership" aria-labelledby="Errors-Ownership-heading">
+<h2 id="Errors-Ownership-heading">4. Errors and borrowing
+</h2>
+<p>InputError retains unused incoming ownership on duplicate rejection or growth preflight failure. CollectionError covers checked size, allocation, seed initialization, and fallible clone errors. Borrowed construction leaves its source intact; partial output is destroyed on failure. Rehash cannot occur while a member reference or iterator is live, even if spare capacity exists. Callback unwind keeps safe initialization but does not undo previous removals or external effects. Broken user equality/hash logic may produce incorrect results, but safe implementations must not create out-of-bounds access or aliased mutable references.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. Set function reference
+</h2>
+<div class="table-scroll" role="region" aria-label="Set function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Set-new"><th scope="row"><code>Set.new(T)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>Initialize an empty randomized hashed set; report seed initialization failure. Empty construction need not allocate buckets; expected O(1).</td>
+</tr>
+<tr id="Set-with_capacity"><th scope="row"><code>Set.with_capacity(T, usize minimum)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>Reserve at least minimum distinct members; checked size and allocation failure return errors; O(capacity) initialization.</td>
+</tr>
+<tr id="Set-with_hasher"><th scope="row"><code>Set.with_hasher(T, HashPolicy policy)</code></th><td><code>Result&lt;Set&lt;T&gt;, InputError&lt;HashPolicy&gt;&gt;</code></td><td>Use an explicit policy and recover it on initialization failure. Collision resistance and deterministic behavior depend on that policy.</td>
+</tr>
+<tr id="Set-from_values"><th scope="row"><code>Set.from_values(Slice&lt;T&gt; values)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>Explicitly clone borrowed values, keeping the first representative of equal inputs. Destroy duplicate clones and partial output on failure; source remains untouched.</td>
+</tr>
+<tr id="Set-len"><th scope="row"><code>Set.len(&amp;Set&lt;T&gt; set)</code></th><td><code>usize</code></td><td>Return distinct stored member count; O(1).</td>
+</tr>
+<tr id="Set-capacity"><th scope="row"><code>Set.capacity(&amp;Set&lt;T&gt; set)</code></th><td><code>usize</code></td><td>Lower bound on total members storable without bucket growth; O(1), not a byte count.</td>
+</tr>
+<tr id="Set-is_empty"><th scope="row"><code>Set.is_empty(&amp;Set&lt;T&gt; set)</code></th><td><code>bool</code></td><td>Test count zero; O(1).</td>
+</tr>
+<tr id="Set-reserve"><th scope="row"><code>Set.reserve(&amp;mut Set&lt;T&gt; set, usize additional)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>Check len + additional, then reserve before commit. Allocation/size failure preserves members; rehash may take O(capacity).</td>
+</tr>
+<tr id="Set-shrink_to"><th scope="row"><code>Set.shrink_to(&amp;mut Set&lt;T&gt; set, usize minimum)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>Try to reduce excess capacity without removing members; may keep more than requested. Error preserves contents; O(capacity) rehash.</td>
+</tr>
+<tr id="Set-clear"><th scope="row"><code>Set.clear(&amp;mut Set&lt;T&gt; set)</code></th><td><code>unit</code></td><td>Destroy all members and retain bucket capacity; O(capacity) plus destructors; bytes are not promised scrubbed.</td>
+</tr>
+<tr id="Set-contains"><th scope="row"><code>Set.contains(&amp;Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>bool</code></td><td>Check equality/hash-compatible borrowed query; expected O(1), worst O(n), plus query work.</td>
+</tr>
+<tr id="Set-get"><th scope="row"><code>Set.get(&amp;Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>Optional&lt;&amp;T&gt;</code></td><td>Borrow the canonical stored representative; no clone or ownership transfer.</td>
+</tr>
+<tr id="Set-insert"><th scope="row"><code>Set.insert(&amp;mut Set&lt;T&gt; set, T value)</code></th><td><code>Result&lt;bool, InputError&lt;T&gt;&gt;</code></td><td>Return true for a new member. Equal existing member is kept; success false destroys the unused incoming value. Preflight growth failure returns incoming owner.</td>
+</tr>
+<tr id="Set-try_insert"><th scope="row"><code>Set.try_insert(&amp;mut Set&lt;T&gt; set, T value)</code></th><td><code>Result&lt;&amp;T, InputError&lt;T&gt;&gt;</code></td><td>Insert only if absent and borrow the inserted member. Duplicate or growth failure returns incoming value; duplicate error may also borrow stored representative.</td>
+</tr>
+<tr id="Set-replace"><th scope="row"><code>Set.replace(&amp;mut Set&lt;T&gt; set, T value)</code></th><td><code>Result&lt;Optional&lt;T&gt;, InputError&lt;T&gt;&gt;</code></td><td>Insert or replace an equal stored representative and return the old owner. Preflight failure retains incoming value and leaves set unchanged.</td>
+</tr>
+<tr id="Set-remove"><th scope="row"><code>Set.remove(&amp;mut Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>bool</code></td><td>Remove an equal member and destroy it; return whether present. Expected O(1), worst O(n), plus destruction.</td>
+</tr>
+<tr id="Set-take"><th scope="row"><code>Set.take(&amp;mut Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>Optional&lt;T&gt;</code></td><td>Remove and transfer stored representative without cloning; None when absent.</td>
+</tr>
+<tr id="Set-iter"><th scope="row"><code>Set.iter(&amp;Set&lt;T&gt; set)</code></th><td><code>Iterator&lt;&amp;T&gt;</code></td><td>Borrow members in unspecified order. Full traversal may scan O(capacity); mutation is excluded for the lease.</td>
+</tr>
+<tr id="Set-drain"><th scope="row"><code>Set.drain(&amp;mut Set&lt;T&gt; set)</code></th><td><code>Drain&lt;T&gt;</code></td><td>Remove all members through an exclusive owning iterator. Drop destroys unyielded members and retains bucket capacity; O(capacity) total.</td>
+</tr>
+<tr id="Set-retain"><th scope="row"><code>Set.retain(&amp;mut Set&lt;T&gt; set, Predicate&lt;&amp;T&gt; keep)</code></th><td><code>unit</code></td><td>Retain accepted members; predicate has only shared member access. Unwind preserves initialized owners but not prior removals; O(capacity) plus callback/drop work.</td>
+</tr>
+<tr id="Set-extract_if"><th scope="row"><code>Set.extract_if(&amp;mut Set&lt;T&gt; set, Predicate&lt;&amp;T&gt; remove)</code></th><td><code>ExtractIterator&lt;T&gt;</code></td><td>Lazily remove visited matching members. Dropping the iterator leaves unvisited members stored; shared member access cannot change hash meaning.</td>
+</tr>
+<tr id="Set-into_iter"><th scope="row"><code>Set.into_iter(Set&lt;T&gt; set)</code></th><td><code>OwningIterator&lt;T&gt;</code></td><td>Move members out in unspecified order; iterator owns remaining members and buckets until destroyed.</td>
+</tr>
+<tr id="Set-clone"><th scope="row"><code>Set.clone(&amp;Set&lt;T&gt; set)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>Explicitly clone members and policy; clone/allocation error cleans partial output. O(capacity) plus cloning; source remains live.</td>
+</tr>
+<tr id="Set-equal"><th scope="row"><code>Set.equal(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>bool</code></td><td>Compare membership independent of bucket order; expected O(n), worst O(n squared), plus equality/hash work.</td>
+</tr>
+<tr id="Set-hasher"><th scope="row"><code>Set.hasher(&amp;Set&lt;T&gt; set)</code></th><td><code>&amp;HashPolicy</code></td><td>Borrow policy for inspection; cannot change member hash semantics through this reference; O(1).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Algebra-Cost" aria-labelledby="Algebra-Cost-heading">
+<h2 id="Algebra-Cost-heading">6. Algebra and complexity
+</h2>
+<p>Relations and lazy union/intersection/difference live on the <a href="Set_Algebra.html">set algebra page</a>. Lazy views borrow inputs without allocating a result; owned output uses explicitly named copy or clone operations and Result. Expected constant-time membership is not a collision-proof worst-case guarantee. Full iteration may scan capacity, and hashing, equality, cloning, and finalizers add costs beyond bucket operations. No fixed hash algorithm, reproducible seed, or cryptographic guarantee is implied.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7. Examples
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Set&lt;i32&gt;, CollectionError&gt; identifiers = Set.with_capacity(i32, 64);
+Array&lt;i32, 4&gt; repeated = [3, 1, 3, 2];
+Result&lt;Set&lt;i32&gt;, CollectionError&gt; unique = Set.from_values(Slice.from_array(&amp;repeated));</code></pre>
+<p>Construction returns Result, so the caller must handle failure before applying membership operations. Duplicate source values do not turn a set into a multiset. The array remains the owner of its original four integers.
+</p>
+</section>
+<section id="Targets-Related" aria-labelledby="Targets-Related-heading">
+<h2 id="Targets-Related-heading">8. Targets and related collections
+</h2>
+<p>A set is a host owning collection. Shared thread access requires appropriate synchronization and payload bounds; hashing is not a concurrency primitive. GPU code needs explicit device-compatible storage or a supported specialized collection. Host bucket pointers, capacity, and random seed do not define a portable byte encoding. See <a href="Ordered_Set.html">OrderedSet</a>, <a href="../Map/Map.html">Map</a>, <a href="../Vector/Vector.html">Vector</a>, <a href="../Array/Array.html">Array</a>, and <a href="../String/string.html">string</a>.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.HashSet.html" target="_blank" rel="noopener noreferrer">Rust HashSet reference: membership, representatives, iteration, and set operations</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/collections/struct.BTreeSet.html" target="_blank" rel="noopener noreferrer">Rust BTreeSet reference: ordered membership and ranges</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Ordered_Set.html"><span>Next reference</span>OrderedSet</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

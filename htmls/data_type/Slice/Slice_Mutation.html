@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Disjoint writable ranges, callbacks, and lifetimes without hidden ownership.">
+  <title>Exclusive Slice Views — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Slice.html" aria-current="true">Slice</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html" aria-current="true">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Slice.html">Slice</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Exclusive Slice Views</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Exclusive Slice Views</h1><p class="doc-subtitle">Disjoint writable ranges, callbacks, and lifetimes without hidden ownership.</p><div class="doc-meta"><span class="meta-chip">MutSlice&lt;T&gt;</span><span class="meta-chip">Slice namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>0</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>&amp;[T]</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Exclusive-View"><span class="toc-number">01</span><span>One Exclusive View, No New Owner</span></a></li><li><a href="#Disjoint-Ranges"><span class="toc-number">02</span><span>Disjointness Is an Actual Range Proof</span></a></li><li><a href="#Overlap"><span class="toc-number">03</span><span>Copying, Moving, and Overlap</span></a></li><li><a href="#Algorithms"><span class="toc-number">04</span><span>Callbacks and Partial Failure</span></a></li><li><a href="#Lifetimes"><span class="toc-number">05</span><span>Borrowed Results and Escaping Handles</span></a></li><li><a href="#Parallelism"><span class="toc-number">06</span><span>Parallel Disjointness and Suspension</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>Read Example and Related Contracts</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Slice pages"><h2>Slice reference</h2><div class="family-links"><a href="Slice.html">Slice</a><a href="Slice_Mutation.html" aria-current="page">Exclusive Slice Views</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html" aria-current="true">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Exclusive Slice Views reference">
+<section id="Exclusive-View" aria-labelledby="Exclusive-View-heading">
+<h2 id="Exclusive-View-heading">1. One Exclusive View, No New Owner
+</h2>
+<p>MutSlice&lt;T&gt; describes an exclusive writable borrow of initialized contiguous values. It does not own an allocation and does not free the source when the descriptor ends. Creating it requires an existing exclusive capability over the owner or source view. Moving a descriptor transfers that borrow capability; copying arbitrary mutable descriptors is not permitted. Ordinary read Slice&lt;T&gt; descriptors can be copied only while their inherited lifetime remains valid.
+</p>
+<p>Passing an existing view directly to a known <code>MutSlice&lt;U&gt;</code> or <code>&amp;mut U</code> parameter forms a temporary reborrow under the <a href="../../declaration/Function_Declaration.html#reborrowing">chosen function rule</a>. Its source capability is suspended while derived references, views or iterators remain live, including loans inside Optional or Result and any cleanup that may access their referent. Ending the call alone does not end such a returned loan. Reborrowing uses the existing exclusive capability and does not require a mut binding for the descriptor itself.</p>
+<p>Ordinary assignment, initialization, return and a generic <code>T value</code> argument still move a non-Copy descriptor. T being instantiated as MutSlice does not make a generic value parameter borrowing. All current mutable Slice catalog inputs are borrowing inputs; see the <a href="Slice.html#Parameter-Reborrowing">common parameter modes</a> for the distinction. No general move expression or implicit capability copy is added.</p>
+</section>
+<section id="Disjoint-Ranges" aria-labelledby="Disjoint-Ranges-heading">
+<h2 id="Disjoint-Ranges-heading">2. Disjointness Is an Actual Range Proof
+</h2>
+<p>Splitting an exclusive view produces nonoverlapping child ranges. The parent capability is suspended while children live, so it cannot access overlapping elements concurrently. Empty ranges can share a boundary without denoting a shared element. Implementations validate indices before producing references; they must not create invalid references and test bounds afterward. Scalar count arithmetic and target element layout limits still apply.
+</p>
+</section>
+<section id="Overlap" aria-labelledby="Overlap-heading">
+<h2 id="Overlap-heading">3. Copying, Moving, and Overlap
+</h2>
+<p>A separate read source and writable destination must satisfy the normal aliasing rules. Overlapping ranges cannot be smuggled in by constructing two independent mutable descriptors. Where the common catalog offers an overlap-safe within-view operation, one exclusive parent capability supplies the proof and the algorithm states its move or copy requirements. Byte movement does not license duplicating arbitrary resource-owning T values.
+</p>
+</section>
+<section id="Algorithms" aria-labelledby="Algorithms-heading">
+<h2 id="Algorithms-heading">4. Callbacks and Partial Failure
+</h2>
+<p>Sorts, mutation callbacks, and fallible transforms retain initialized storage even when callbacks fail or unwind under the selected runtime profile. The basic guarantee may leave a permutation or completed element updates; external side effects are not rolled back. A consistent total comparator is required for ordered algorithms. Floating-point input needs an explicit NaN ordering rather than ordinary partial comparison. Allocation-bearing stable sorts publish scratch and failure behavior.
+</p>
+</section>
+<section id="Lifetimes" aria-labelledby="Lifetimes-heading">
+<h2 id="Lifetimes-heading">5. Borrowed Results and Escaping Handles
+</h2>
+<p>Returning a slice, reference, iterator, or mapped view preserves the original owner’s lifetime dependency. Packing the descriptor into Shared does not lengthen that dependency or turn borrowed data into owned storage. Safe FFI adapters must validate the external owner, initialized count, alignment, access permissions, and mutation exclusion. A release callback belongs to a separately owning adapter, not an ordinary slice destructor.
+</p>
+</section>
+<section id="Parallelism" aria-labelledby="Parallelism-heading">
+<h2 id="Parallelism-heading">6. Parallel Disjointness and Suspension
+</h2>
+<p>Disjoint element ranges are useful for host parallelism only when element and capture bounds also permit transfer. Internal references in T may still connect to shared resources; splitting indices is not proof against every internal data race. Scoped jobs finish before borrowed ranges expire. Device access needs explicit placement and Pending lifetime management. Holding an exclusive host view does not make that memory kernel-addressable or synchronized.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7. Read Example and Related Contracts
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">mut Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
+MutSlice&lt;i32&gt; writable = Slice.from_array_mut(&amp;mut values);
+Slice.reverse(writable);
+Slice&lt;i32&gt; view = Slice.from_array(&amp;values);
+Result&lt;Slice&lt;i32&gt;, BoundsError&gt; middle = Slice.subslice(view, 1, 3);
+Optional&lt;&amp;i32&gt; first = Slice.first(view);</code></pre>
+<p>The owner is mut before its exclusive borrow is created. The writable view is passed directly; its final use ends before the later shared owner borrow. See <a href="Slice.html#Function-Reference">the existing complete Slice catalog</a> for individual mutable functions and <a href="../Vector/Vector_Growth.html">Vector Growth</a> for owner invalidation. A numeric slice is not validated UTF-8 text; raw byte and Unicode boundaries remain explicit.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank" rel="noopener noreferrer">Rust fixed-size array reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank" rel="noopener noreferrer">Rust Vec ownership and capacity reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank" rel="noopener noreferrer">Rust slice operations and disjoint borrowing</a>
+</li>
+<li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ working draft: array</a>
+</li>
+<li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ working draft: vector</a>
+</li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md" target="_blank" rel="noopener noreferrer">Swift Evolution: inline array design discussion</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Slice.html"><span>Previous reference</span>Slice</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="Read and exclusive writable views with explicit lifetimes, disjoint splitting, and a complete proposed API.">
+    <title>Slice — Aevix Docs</title>
+    <link rel="stylesheet" href="../../css/root.css?v=3">
+    <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+    <div class="header">
+        <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark"
+                                                                                     aria-hidden="true">A</span><span
+                class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span
+                class="brand-label">Documentation</span></a>
+        <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Array.html" aria-current="true">Array</a>
+            <details class="type-menu">
+                <summary>All types</summary>
+                <div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a
+                        href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a
+                        href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a
+                        href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a
+                        href="../Array/Array.html" aria-current="true">Array</a><a
+                        href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a
+                        href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a
+                        href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a
+                        href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a
+                        href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a
+                        href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a
+                        href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a
+                        href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a
+                        href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a
+                        href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div>
+            </details>
+        </nav>
+        <span class="draft-badge">DESIGN DRAFT</span>
+    </div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span
+            class="separator" aria-hidden="true">/</span><a href="Array.html">Array</a><span class="separator"
+                                                                                             aria-hidden="true">/</span><span
+            aria-current="page">Slice</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">DATA TYPE REFERENCE</p>
+            <h1>Slice</h1>
+            <p class="doc-subtitle">Array-family guide with links to the canonical Slice reference.</p>
+            <div class="doc-meta"><span class="meta-chip">Slice&lt;T&gt;</span><span
+                    class="meta-chip">Slice. namespace</span><span>Array-family guide · canonical API linked</span><a
+                    href="../index.html#Language-Rules">Chosen language rules</a></div>
+            <dl class="doc-stats">
+                <div class="doc-stat">
+                    <dt>Ownership</dt>
+                    <dd>Borrowed</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Length</dt>
+                    <dd>Runtime view metadata</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Write access</dt>
+                    <dd>Exclusive MutSlice</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>API functions</dt>
+                    <dd>64</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="type-mark" aria-hidden="true"><strong>[N]</strong><span>type reference</span></div>
+    </header>
+    <div class="docs-layout">
+        <aside class="table" aria-label="Reference navigation">
+            <details class="toc" open>
+                <summary>On this page</summary>
+                <ol>
+                    <li><a href="#Overview"><span class="toc-number">01</span><span>Borrowed Contiguous Views</span></a>
+                    </li>
+                    <li><a href="#Lifetime"><span
+                            class="toc-number">02</span><span>Owner Lifetime &amp; Invalidation</span></a></li>
+                    <li><a href="#Mutability-Splitting"><span class="toc-number">03</span><span>Exclusive Access &amp; Disjoint Regions</span></a>
+                    </li>
+                    <li><a href="#Ranges-Empty"><span
+                            class="toc-number">04</span><span>Bounds, Empty Views &amp; Chunks</span></a></li>
+                    <li><a href="#Copy-Errors"><span
+                            class="toc-number">05</span><span>Copy, Clone &amp; Error Atomicity</span></a></li>
+                    <li><a href="#Algorithms"><span
+                            class="toc-number">06</span><span>Algorithm Requirements &amp; Cost</span></a></li>
+                    <li><a href="#Function-Reference"><span class="toc-number">07</span><span>Canonical Slice API Links</span></a>
+                    </li>
+                    <li><a href="#Examples"><span class="toc-number">08</span><span>Type-First Examples</span></a></li>
+                    <li><a href="#Parallelism-Devices"><span class="toc-number">09</span><span>Parallelism, GPU Work &amp; FFI</span></a>
+                    </li>
+                    <li><a href="#Text-Related"><span class="toc-number">10</span><span>Text, Bytes &amp; Related Collections</span></a>
+                    </li>
+                    <li><a href="#Sources"><span
+                            class="toc-number">11</span><span>Sources &amp; Design References</span></a></li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="Array pages"><h2>Array reference</h2>
+                <div class="family-links"><a href="Array.html">Array</a><a href="Static_Array.html">Static Array</a><a
+                        href="Vector.html">Vector</a><a href="Slice.html" aria-current="page">Slice</a></div>
+            </nav>
+            <nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2>
+                <div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a
+                        href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a
+                        href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a
+                        href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a
+                        href="../Array/Array.html" aria-current="true">Array</a><a
+                        href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a
+                        href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a
+                        href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a
+                        href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a
+                        href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a
+                        href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a
+                        href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a
+                        href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a
+                        href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a
+                        href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="Slice reference">
+            <section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Borrowed Contiguous Views
+                </h2>
+<div class="callout draft-note"><strong>Array-family guide.</strong> The <a href="../Slice/Slice.html">Slice reference</a> is the single canonical catalog for Slice signatures, returned errors, borrowing, and costs. This page preserves Array-family navigation and existing links; it does not define a second API.</div><p><code>Slice&lt;T&gt;</code> is a shared read view and <code>MutSlice&lt;T&gt;</code> is an exclusive writable view of an initialized contiguous range. Neither view owns or allocates its backing elements.</p>
+</section>
+            <section id="Lifetime" aria-labelledby="Lifetime-heading">
+<h2 id="Lifetime-heading">2. Owner Lifetime &amp; Invalidation
+                </h2>
+<p>A view cannot outlive its owner or survive an invalidating move, reallocation, or cleanup. Metadata alone does not keep a buffer alive. See <a href="../Slice/Slice.html#Lifetime">owner lifetimes and invalidation</a>.</p>
+</section>
+            <section id="Mutability-Splitting" aria-labelledby="Mutability-Splitting-heading">
+<h2 id="Mutability-Splitting-heading">3. Exclusive Access &amp; Disjoint Regions
+                </h2>
+<p>Exclusive access rules apply to the backing elements. Checked splits can create disjoint writable subranges; unrestricted overlapping writable views are not allowed. See <a href="../Slice/Slice.html#Mutability-Splitting">exclusive access and disjoint regions</a>.</p>
+</section>
+            <section id="Ranges-Empty" aria-labelledby="Ranges-Empty-heading">
+<h2 id="Ranges-Empty-heading">4. Bounds, Empty Views &amp; Chunks
+                </h2>
+<p>View ranges are half-open, including valid empty ranges at the end. Chunk and window widths must be positive, and access returns the Optional or Result specified by its API. See <a href="../Slice/Slice.html#Ranges-Empty">bounds, empty views, and chunks</a>.</p>
+</section>
+            <section id="Copy-Errors" aria-labelledby="Copy-Errors-heading">
+<h2 id="Copy-Errors-heading">5. Copy, Clone &amp; Error Atomicity
+                </h2>
+<p>Duplicating a shared view copies metadata, not elements or ownership. Owned copies and clones are explicit; clone-based mutation can keep a valid replaced prefix after failure. See <a href="../Slice/Slice.html#Copy-Errors">copy, clone, and failure guarantees</a>.</p>
+</section>
+            <section id="Algorithms" aria-labelledby="Algorithms-heading">
+<h2 id="Algorithms-heading">6. Algorithm Requirements &amp; Cost
+                </h2>
+<p>Search indices are relative to the view. Sorted searches require a consistent comparator and sorted input; stable sorting may allocate scratch storage. See <a href="../Slice/Slice.html#Algorithms">algorithm requirements and costs</a>.</p>
+</section>
+            <section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">7. Canonical Slice API Links
+                </h2>
+<p>The complete signatures, return types, borrow or ownership guarantees, and costs live only in the <a href="../Slice/Slice.html#Function-Reference">canonical Slice API catalog</a>. The entries below preserve every former function anchor and link to its authoritative row.</p><h3 id="Parameter-Reborrowing">Known view inputs are reborrowed</h3><p>Known <code>MutSlice&lt;U&gt;</code> and <code>&amp;mut U</code> parameters reborrow compatible exclusive capabilities; a generic by-value <code>T</code> parameter still moves a non-Copy view. Derived results retain their parent loan until all uses and cleanup accesses end. Read the <a href="../Slice/Slice.html#Parameter-Reborrowing">Slice parameter contract</a> and <a href="../../declaration/Function_Declaration.html#reborrowing">function reborrow rule</a>.</p>
+<h3>Safe view construction</h3>
+<ul>
+<li id="Slice-empty"><a href="../Slice/Slice.html#Slice-empty"><code>Slice.empty</code></a></li>
+<li id="Slice-from_array"><a href="../Slice/Slice.html#Slice-from_array"><code>Slice.from_array</code></a></li>
+<li id="Slice-from_array_mut"><a href="../Slice/Slice.html#Slice-from_array_mut"><code>Slice.from_array_mut</code></a></li>
+<li id="Slice-from_vector"><a href="../Slice/Slice.html#Slice-from_vector"><code>Slice.from_vector</code></a></li>
+<li id="Slice-from_vector_mut"><a href="../Slice/Slice.html#Slice-from_vector_mut"><code>Slice.from_vector_mut</code></a></li>
+<li id="Slice-as_read"><a href="../Slice/Slice.html#Slice-as_read"><code>Slice.as_read</code></a></li>
+</ul>
+<h3>Metadata and access</h3>
+<ul>
+<li id="Slice-len"><a href="../Slice/Slice.html#Slice-len"><code>Slice.len</code></a></li>
+<li id="Slice-is_empty"><a href="../Slice/Slice.html#Slice-is_empty"><code>Slice.is_empty</code></a></li>
+<li id="Slice-byte_len"><a href="../Slice/Slice.html#Slice-byte_len"><code>Slice.byte_len</code></a></li>
+<li id="Slice-get"><a href="../Slice/Slice.html#Slice-get"><code>Slice.get</code></a></li>
+<li id="Slice-get_mut"><a href="../Slice/Slice.html#Slice-get_mut"><code>Slice.get_mut</code></a></li>
+<li id="Slice-at"><a href="../Slice/Slice.html#Slice-at"><code>Slice.at</code></a></li>
+<li id="Slice-at_mut"><a href="../Slice/Slice.html#Slice-at_mut"><code>Slice.at_mut</code></a></li>
+<li id="Slice-first"><a href="../Slice/Slice.html#Slice-first"><code>Slice.first</code></a></li>
+<li id="Slice-last"><a href="../Slice/Slice.html#Slice-last"><code>Slice.last</code></a></li>
+<li id="Slice-first_mut"><a href="../Slice/Slice.html#Slice-first_mut"><code>Slice.first_mut</code></a></li>
+<li id="Slice-last_mut"><a href="../Slice/Slice.html#Slice-last_mut"><code>Slice.last_mut</code></a></li>
+</ul>
+<h3>Subranges and disjoint splits</h3>
+<ul>
+<li id="Slice-subslice"><a href="../Slice/Slice.html#Slice-subslice"><code>Slice.subslice</code></a></li>
+<li id="Slice-subslice_mut"><a href="../Slice/Slice.html#Slice-subslice_mut"><code>Slice.subslice_mut</code></a></li>
+<li id="Slice-split_at"><a href="../Slice/Slice.html#Slice-split_at"><code>Slice.split_at</code></a></li>
+<li id="Slice-split_at_mut"><a href="../Slice/Slice.html#Slice-split_at_mut"><code>Slice.split_at_mut</code></a></li>
+<li id="Slice-split_first"><a href="../Slice/Slice.html#Slice-split_first"><code>Slice.split_first</code></a></li>
+<li id="Slice-split_first_mut"><a href="../Slice/Slice.html#Slice-split_first_mut"><code>Slice.split_first_mut</code></a></li>
+<li id="Slice-split_last"><a href="../Slice/Slice.html#Slice-split_last"><code>Slice.split_last</code></a></li>
+<li id="Slice-split_last_mut"><a href="../Slice/Slice.html#Slice-split_last_mut"><code>Slice.split_last_mut</code></a></li>
+</ul>
+<h3>Chunks and windows</h3>
+<ul>
+<li id="Slice-chunks"><a href="../Slice/Slice.html#Slice-chunks"><code>Slice.chunks</code></a></li>
+<li id="Slice-chunks_mut"><a href="../Slice/Slice.html#Slice-chunks_mut"><code>Slice.chunks_mut</code></a></li>
+<li id="Slice-chunks_exact"><a href="../Slice/Slice.html#Slice-chunks_exact"><code>Slice.chunks_exact</code></a></li>
+<li id="Slice-chunks_exact_mut"><a href="../Slice/Slice.html#Slice-chunks_exact_mut"><code>Slice.chunks_exact_mut</code></a></li>
+<li id="Slice-windows"><a href="../Slice/Slice.html#Slice-windows"><code>Slice.windows</code></a></li>
+</ul>
+<h3>Writable algorithms</h3>
+<ul>
+<li id="Slice-copy_from"><a href="../Slice/Slice.html#Slice-copy_from"><code>Slice.copy_from</code></a></li>
+<li id="Slice-clone_from"><a href="../Slice/Slice.html#Slice-clone_from"><code>Slice.clone_from</code></a></li>
+<li id="Slice-copy_within"><a href="../Slice/Slice.html#Slice-copy_within"><code>Slice.copy_within</code></a></li>
+<li id="Slice-swap"><a href="../Slice/Slice.html#Slice-swap"><code>Slice.swap</code></a></li>
+<li id="Slice-fill_copy"><a href="../Slice/Slice.html#Slice-fill_copy"><code>Slice.fill_copy</code></a></li>
+<li id="Slice-fill_clone"><a href="../Slice/Slice.html#Slice-fill_clone"><code>Slice.fill_clone</code></a></li>
+<li id="Slice-reverse"><a href="../Slice/Slice.html#Slice-reverse"><code>Slice.reverse</code></a></li>
+<li id="Slice-rotate_left"><a href="../Slice/Slice.html#Slice-rotate_left"><code>Slice.rotate_left</code></a></li>
+<li id="Slice-rotate_right"><a href="../Slice/Slice.html#Slice-rotate_right"><code>Slice.rotate_right</code></a></li>
+</ul>
+<h3>Search and prefix/suffix checks</h3>
+<ul>
+<li id="Slice-contains"><a href="../Slice/Slice.html#Slice-contains"><code>Slice.contains</code></a></li>
+<li id="Slice-position"><a href="../Slice/Slice.html#Slice-position"><code>Slice.position</code></a></li>
+<li id="Slice-rposition"><a href="../Slice/Slice.html#Slice-rposition"><code>Slice.rposition</code></a></li>
+<li id="Slice-find"><a href="../Slice/Slice.html#Slice-find"><code>Slice.find</code></a></li>
+<li id="Slice-binary_search"><a href="../Slice/Slice.html#Slice-binary_search"><code>Slice.binary_search</code></a></li>
+<li id="Slice-lower_bound"><a href="../Slice/Slice.html#Slice-lower_bound"><code>Slice.lower_bound</code></a></li>
+<li id="Slice-upper_bound"><a href="../Slice/Slice.html#Slice-upper_bound"><code>Slice.upper_bound</code></a></li>
+<li id="Slice-starts_with"><a href="../Slice/Slice.html#Slice-starts_with"><code>Slice.starts_with</code></a></li>
+<li id="Slice-ends_with"><a href="../Slice/Slice.html#Slice-ends_with"><code>Slice.ends_with</code></a></li>
+<li id="Slice-partition_point"><a href="../Slice/Slice.html#Slice-partition_point"><code>Slice.partition_point</code></a></li>
+</ul>
+<h3>Ordering and equality</h3>
+<ul>
+<li id="Slice-sort"><a href="../Slice/Slice.html#Slice-sort"><code>Slice.sort</code></a></li>
+<li id="Slice-sort_unstable"><a href="../Slice/Slice.html#Slice-sort_unstable"><code>Slice.sort_unstable</code></a></li>
+<li id="Slice-is_sorted"><a href="../Slice/Slice.html#Slice-is_sorted"><code>Slice.is_sorted</code></a></li>
+<li id="Slice-equal"><a href="../Slice/Slice.html#Slice-equal"><code>Slice.equal</code></a></li>
+<li id="Slice-compare"><a href="../Slice/Slice.html#Slice-compare"><code>Slice.compare</code></a></li>
+</ul>
+<h3>Iteration and folds</h3>
+<ul>
+<li id="Slice-iter"><a href="../Slice/Slice.html#Slice-iter"><code>Slice.iter</code></a></li>
+<li id="Slice-iter_mut"><a href="../Slice/Slice.html#Slice-iter_mut"><code>Slice.iter_mut</code></a></li>
+<li id="Slice-fold"><a href="../Slice/Slice.html#Slice-fold"><code>Slice.fold</code></a></li>
+<li id="Slice-try_fold"><a href="../Slice/Slice.html#Slice-try_fold"><code>Slice.try_fold</code></a></li>
+</ul>
+<h3>Owned copies and fixed borrowed views</h3>
+<ul>
+<li id="Slice-to_vector_copy"><a href="../Slice/Slice.html#Slice-to_vector_copy"><code>Slice.to_vector_copy</code></a></li>
+<li id="Slice-to_vector_clone"><a href="../Slice/Slice.html#Slice-to_vector_clone"><code>Slice.to_vector_clone</code></a></li>
+<li id="Slice-to_array_copy"><a href="../Slice/Slice.html#Slice-to_array_copy"><code>Slice.to_array_copy</code></a></li>
+<li id="Slice-to_array_clone"><a href="../Slice/Slice.html#Slice-to_array_clone"><code>Slice.to_array_clone</code></a></li>
+<li id="Slice-as_array"><a href="../Slice/Slice.html#Slice-as_array"><code>Slice.as_array</code></a></li>
+<li id="Slice-as_array_mut"><a href="../Slice/Slice.html#Slice-as_array_mut"><code>Slice.as_array_mut</code></a></li>
+</ul>
+</section>
+            <section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Type-First Examples
+                </h2>
+<p>A Slice borrows its owner. Creating an owned Vector copy has a separate, fallible allocation.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
+Slice&lt;i32&gt; view = Slice.from_array(&amp;values);
+usize count = Slice.len(view);
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; owned_copy = Slice.to_vector_copy(view);</code></pre><p>See <a href="../Slice/Slice.html#Examples">canonical examples</a> and <a href="../Slice/Slice_Mutation.html">exclusive Slice views</a>.</p>
+</section>
+            <section id="Parallelism-Devices" aria-labelledby="Parallelism-Devices-heading">
+                <h2 id="Parallelism-Devices-heading">9. Parallelism, GPU Work &amp; FFI
+                </h2>
+                <p>Read sharing requires T to support safe shared access. Disjoint write ranges can support parallel
+                    processing only with compatible element traits and callback captures. A split is an aliasing proof,
+                    not universal race-safety for arbitrary internal references.
+                </p>
+                <p>A slice is not a device pointer. Borrowing CPU storage does not perform an upload, synchronize GPU
+                    work, or make that storage kernel-accessible. Explicit transfer and asynchronous lifetime rules
+                    belong to the execution and Tensor design.
+                </p>
+                <p>Foreign borrowed buffers need a duration, initialized element count, alignment, access permission,
+                    and external-mutation contract. The owner must not free or reallocate during the borrow. Release
+                    callbacks belong to the owning adapter, not to an ordinary Slice destructor.
+                </p>
+            </section>
+            <section id="Text-Related" aria-labelledby="Text-Related-heading">
+                <h2 id="Text-Related-heading">10. Text, Bytes &amp; Related Collections
+                </h2>
+                <p><code>Slice&lt;char&gt;</code> indexes Unicode scalar values. It is not a UTF-8
+                    <code>string_view</code>, and a numeric or raw-byte slice is not validated text. See the lowercase
+                    <a href="../String/string.html">string reference</a> for encoding boundaries.
+                </p>
+                <p><a href="../Byte/Byte.html">byte</a> is distinct from u8; a slice cast must not silently substitute
+                    one element type for the other. Endianness, serialization, and FFI layout also need explicit
+                    conversion.
+                </p>
+                <p>Use <a href="Array.html">Array</a> for common family rules, <a href="Static_Array.html">Static
+                    Array</a> for fixed ownership, and <a href="Vector.html">Vector</a> for dynamic ownership. The
+                    primary sources inform this proposal; no compiler, allocator, ABI, or device implementation is
+                    claimed.
+                </p>
+            </section>
+            <section id="Sources" aria-labelledby="Sources-heading">
+                <h2 id="Sources-heading">11. Sources &amp; Design References
+                </h2>
+                <p>Primary references inform the design. Aevix names, signatures, and contracts are original design
+                    proposals.
+                </p>
+                <ul class="source-list">
+                    <li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank"
+                           rel="noopener noreferrer">Rust fixed-size array reference</a>
+                    </li>
+                    <li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank"
+                           rel="noopener noreferrer">Rust Vec ownership and capacity reference</a>
+                    </li>
+                    <li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank"
+                           rel="noopener noreferrer">Rust slice operations and disjoint borrowing</a>
+                    </li>
+                    <li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: array</a>
+                    </li>
+                    <li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: vector</a>
+                    </li>
+                    <li>
+                        <a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md"
+                           target="_blank" rel="noopener noreferrer">Swift Evolution: inline array design discussion</a>
+                    </li>
+                </ul>
+            </section>
+            <nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Vector.html"><span>Previous reference</span>Vector</a>
+            </nav>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span>
+    </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Return types first, explicit argument permissions, and explicit normal returns.">
+    <title>Function Declaration — Aevix Docs</title>
+    <link rel="stylesheet" href="../css/root.css?v=4">
+    <link rel="preload" href="../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="../js/docs.js?v=3" defer></script>
+</head>
+<body><a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+    <div class="header"><a class="brand" href="../data_type/index.html" aria-label="Aevix documentation"><span
+            class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span
+            class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+        <nav class="header-nav" aria-label="Reference sections"><a href="../errors/index.html">Errors</a><a href="index.html"
+                                                                   aria-current="true">Declarations</a>
+            <details class="type-menu">
+                <summary>All types</summary>
+                <div class="type-menu-links"><a href="../data_type/Boolean/Boolean.html">Boolean</a><a
+                        href="../data_type/Integer/Integer.html">Integer</a><a href="../data_type/Float/Float.html">Float</a><a
+                        href="../data_type/Complex/Complex.html">Complex</a><a
+                        href="../data_type/Char/Char.html">Char</a><a href="../data_type/Byte/Byte.html">Byte</a><a
+                        href="../data_type/String/string.html">string</a><a
+                        href="../data_type/Array/Array.html">Array</a><a
+                        href="../data_type/Vector/Vector.html">Vector</a><a
+                        href="../data_type/Slice/Slice.html">Slice</a><a
+                        href="../data_type/Tuple/Tuple.html">Tuple</a><a href="../data_type/Unit/Unit.html">Unit</a><a
+                        href="../data_type/Never/Never.html">Never</a><a
+                        href="../data_type/Range/Range.html">Range</a><a href="../data_type/Optional/Optional.html">Optional</a><a
+                        href="../data_type/Result/Result.html">Result</a><a href="../data_type/Box/Box.html">Box</a><a
+                        href="../data_type/Shared/Shared.html">Shared</a><a
+                        href="../data_type/Weak/Weak.html">Weak</a><a
+                        href="../data_type/Atomic/Atomic.html">Atomic</a><a
+                        href="../data_type/Mutex/Mutex.html">Mutex</a><a
+                        href="../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../data_type/Map/Map.html">Map</a><a
+                        href="../data_type/Set/Set.html">Set</a><a href="../data_type/Tensor/Tensor.html">Tensor</a><a
+                        href="../data_type/Quantized/Quantized.html">Quantized</a><a href="../data_type/Simd/Simd.html">Simd</a><a
+                        href="../data_type/Task/Task.html">Task</a><a
+                        href="../data_type/Pending/Pending.html">Pending</a></div>
+            </details>
+            <a href="../grammar/index.html">Grammar</a></nav>
+        <span class="draft-badge">DESIGN REFERENCE</span></div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../data_type/index.html">Language reference</a><span
+            class="separator" aria-hidden="true">/</span><a href="index.html">Declarations</a><span class="separator"
+                                                                                                    aria-hidden="true">/</span><span
+            aria-current="page">Function Declaration</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">DECLARATION REFERENCE</p>
+            <h1>Function Declaration</h1>
+            <p class="doc-subtitle">Return types first, explicit argument permissions, and explicit normal returns.</p>
+            <div class="doc-meta"><span class="meta-chip">Function declaration</span><span class="meta-chip">Chosen rules + open decisions</span><a
+                    href="../data_type/index.html#Language-Rules">Language rules overview</a></div>
+            <dl class="doc-stats">
+                <div class="doc-stat">
+                    <dt>Status</dt>
+                    <dd>Design reference</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Parameters</dt>
+                    <dd>Value / &amp;T / &amp;mut T</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Returns</dt>
+                    <dd>Explicit on every normal non-void exit</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="type-mark" aria-hidden="true"><strong>f()</strong><span>declaration</span></div>
+    </header>
+    <div class="docs-layout">
+        <aside class="table" aria-label="Reference navigation">
+            <details class="toc" open>
+                <summary>On this page</summary>
+                <ol>
+                    <li><a href="#overview"><span class="toc-number">01</span><span>Function declarations: the agreed contract</span></a>
+                    </li>
+                    <li><a href="#declaration-form"><span class="toc-number">02</span><span>Return type first, then name and parameters</span></a>
+                    </li>
+                    <li><a href="#parameter-forms"><span class="toc-number">03</span><span>Parameter forms and matching calls</span></a>
+                    </li>
+                    <li><a href="#by-value"><span class="toc-number">04</span><span>Value inputs copy scalars and move owners</span></a>
+                    </li>
+                    <li><a href="#parameter-immutability"><span class="toc-number">05</span><span>Parameter bindings are immutable by default</span></a>
+                    </li>
+                    <li><a href="#mutable-value-parameters"><span class="toc-number">06</span><span>mut changes the callee-local value</span></a>
+                    </li>
+                    <li><a href="#read-borrows"><span class="toc-number">07</span><span>Shared read parameters use &amp;T</span></a>
+                    </li>
+                    <li><a href="#write-borrows"><span class="toc-number">08</span><span>Exclusive write parameters use &amp;mut T</span></a>
+                    </li>
+                    <li><a href="#forwarding-and-views"><span class="toc-number">09</span><span>Forward references and borrowed views directly</span></a>
+                    </li>
+                    <li><a href="#overlap-and-lifetimes"><span class="toc-number">10</span><span>Loans follow overlapping storage and last use</span></a>
+                    </li>
+                    <li><a href="#explicit-return"><span class="toc-number">11</span><span>Every normal non-void path returns explicitly</span></a>
+                    </li>
+                    <li><a href="#unit-void-never"><span class="toc-number">12</span><span>unit, void and never have different contracts</span></a>
+                    </li>
+                    <li><a href="#result-and-optional"><span class="toc-number">13</span><span>Errors and absence are ordinary returned values</span></a>
+                    </li>
+                    <li><a href="#diagnostics"><span class="toc-number">14</span><span>Diagnostic categories and rejected examples</span></a>
+                    </li>
+                    <li><a href="#costs-and-compilation"><span class="toc-number">15</span><span>Calls preserve ownership and cost contracts</span></a>
+                    </li>
+                    <li><a href="#open-decisions"><span class="toc-number">16</span><span>Open decisions and related declarations</span></a>
+                    </li>
+                    <li><a href="#Sources"><span class="toc-number">17</span><span>Sources and design references</span></a>
+                    </li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="Declaration pages"><h2>Declaration reference</h2>
+                <div class="family-links"><a href="index.html">Overview</a><a
+                        href="Variable_Declaration.html">Variables</a><a href="Function_Declaration.html"
+                                                                         aria-current="page">Functions</a></div>
+            </nav>
+            <nav class="family-nav" aria-label="Related reference"><h2>Related reference</h2>
+                <div class="family-links"><a href="../data_type/index.html">All 29 types</a><a
+                        href="../data_type/Unit/Unit.html">unit</a><a href="../data_type/Never/Never.html">never</a><a
+                        href="../data_type/Result/Result.html">Result</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="Function Declaration reference">
+            <section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. Function
+                declarations: the agreed contract</h2>
+                <p>A function names a computation, declares how inputs are received, and states what normal completion
+                    returns. Aevix puts the return type before the function name and the parameter type before each
+                    parameter name. Parameter bindings are immutable by default. Ownership transfer and borrowing are
+                    visible at the call site.</p>
+                <p>This page records chosen Aevix rules as a design reference. It does not claim an implemented parser,
+                    borrow checker, compiler diagnostic or ABI. Examples use existing data-type APIs. The chosen
+                    condition and loop forms are documented in <a href="../grammar/control_flow/index.html">Control
+                        Flow</a>. Open features remain separate from the agreed function contract.</p></section>
+            <section id="declaration-form" aria-labelledby="declaration-form-heading"><h2 id="declaration-form-heading">
+                2. Return type first, then name and parameters</h2>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 identity(i32 value) {
+    return value;
+}
+
+i32 use_identity() {
+    i32 source = 12;
+    rsn result = identity(source);
+    return result;
+}</code></pre>
+                <p>identity receives and explicitly returns an i32 value. Empty parentheses declare no parameters. A
+                    call supplies arguments in their parameter positions. Every statement, including a declaration,
+                    assignment, call statement or return, ends with a semicolon. Braces delimit function and
+                    control-flow blocks; no extra semicolon is required after a function body.</p>
+                <p>rsn statically infers result as i32 from the call. It does not request a dynamic type. Return and
+                    parameter types in these declarations are explicit. Local inference does not settle a future
+                    shorthand for inferred function signatures.</p><p>The same return-type-first declaration applies inside <a href="../grammar/user_defined_types/Methods_and_Factories.html">structs and enums</a>. A function without a self receiver is called through its type, such as User.new(...). The ordinary new function name does not request hidden heap allocation. An instance method explicitly declares &amp;User self, &amp;mut User self, or User self; receiver borrowing may be automatic or written explicitly at the call.</p></section>
+            <section id="parameter-forms" aria-labelledby="parameter-forms-heading"><h2 id="parameter-forms-heading">3.
+                Parameter forms and matching calls</h2>
+                <div class="table-wrap">
+                    <div class="table-scroll" role="region" aria-label="Parameter forms and matching calls data table">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th scope="col">Parameter declaration</th>
+                                <th scope="col">Call argument</th>
+                                <th scope="col">Permission and ownership</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr id="function-param-value">
+                                <td>T value</td>
+                                <td>x</td>
+                                <td>Copy values are copied; an owning non-Copy value moves into the function.</td>
+                            </tr>
+                            <tr id="function-param-read">
+                                <td>&amp;T value</td>
+                                <td>&amp;x</td>
+                                <td>Shared read borrow; caller retains ownership and compatible read aliases.</td>
+                            </tr>
+                            <tr id="function-param-write">
+                                <td>&amp;mut T value</td>
+                                <td>&amp;mut x</td>
+                                <td>Exclusive write borrow; an ordinary writable owner needs a mut binding.</td>
+                            </tr>
+                            <tr id="function-param-local-mut">
+                                <td>mut T value</td>
+                                <td>x</td>
+                                <td>Mutable callee-local value; no new right to change caller storage.</td>
+                            </tr>
+                            <tr id="function-param-reference">
+                                <td>&amp;T value or &amp;mut T value</td>
+                                <td>existing_reference</td>
+                                <td>Pass an already compatible reference directly, without another &amp;.</td>
+                            </tr>
+                            <tr id="function-param-view">
+                                <td>Slice&lt;T&gt;, MutSlice&lt;T&gt; or string_view</td>
+                                <td>existing_view</td>
+                                <td>The view already carries its borrowing capability; pass it directly. A declared MutSlice parameter reborrows an existing exclusive view under the rules below.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <p>T is explanatory type notation, not a generic-function declaration. Concrete examples use i32, string
+                    and existing containers. mut T and &amp;mut T distinguish which storage may change, independently of
+                    compiler inlining.</p></section>
+            <section id="by-value" aria-labelledby="by-value-heading"><h2 id="by-value-heading">4. Value inputs copy
+                scalars and move owners</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">string relay_owned(string value) {
+    return value;
+}
+
+string transfer_once(string original) {
+    string moved = relay_owned(original);
+    return moved;
+}</code></pre>
+                <p>i32 is Copy, so identity(source) leaves source usable. An owning string moves when passed by value.
+                    In transfer_once, original becomes unavailable after relay_owned receives it; moved receives the
+                    returned owner and is then returned to this function&#x27;s caller. No string contents are silently
+                    deep-cloned.</p>
+                <p>An immutable owner may move. Immutability forbids ordinary mutation or reassignment; it does not pin
+                    ownership in place. Borrow when temporary access should preserve caller ownership. An independent
+                    duplicate requires an explicit copy/clone operation and its cost and error contract.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: original has already moved into relay_owned.
+string use_after_move(string original) {
+    string moved = relay_owned(original);
+    return original;
+}</code></pre>
+            </section>
+            <section id="parameter-immutability" aria-labelledby="parameter-immutability-heading"><h2
+                    id="parameter-immutability-heading">5. Parameter bindings are immutable by default</h2>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: value is an immutable by-value parameter.
+i32 overwrite_parameter(i32 value) {
+    value = 0;
+    return value;
+}</code></pre>
+                <p>A function may read or move value according to its type, but cannot reassign that binding without
+                    mut. The rule applies inside the function regardless of caller mutability. Passing a mutable i32
+                    still supplies a separate copied scalar; the caller&#x27;s mut permission does not transfer through
+                    a value argument.</p>
+                <p>An owning argument instead moves. Mutating that moved owner does not create an alias to a caller
+                    binding that has lost ownership. Reference binding mutability and access to the referenced storage
+                    are separate concerns.</p></section>
+            <section id="mutable-value-parameters" aria-labelledby="mutable-value-parameters-heading"><h2
+                    id="mutable-value-parameters-heading">6. mut changes the callee-local value</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 reset_copy(mut i32 value) {
+    value = 0;
+    return value;
+}
+
+i32 keep_original() {
+    i32 original = 10;
+    i32 changed = reset_copy(original);
+    return original;
+}</code></pre>
+                <p>reset_copy may replace its local copy. changed is 0, while original remains 10. The caller needs no
+                    mut binding because the call requests no write borrow. Assignment is used here instead of
+                    arithmetic, avoiding any assumption about overflow or arithmetic-error handling.</p>
+                <p>For an owner, mut allows callee-local mutation after the move. It does not automatically return
+                    ownership: returning, storing or destroying the owner follows the function body and resource
+                    contract.</p></section>
+            <section id="read-borrows" aria-labelledby="read-borrows-heading"><h2 id="read-borrows-heading">7. Shared
+                read parameters use &amp;T</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 read_value(&amp;i32 value) {
+    return *value;
+}
+
+i32 read_original() {
+    i32 number = 10;
+    &amp;i32 reference = &amp;number;
+    i32 first = read_value(&amp;number);
+    i32 second = read_value(reference);
+    return second;
+}</code></pre>
+                <p>&amp;number creates a shared read borrow. *value accesses the borrowed i32, and returning it copies
+                    that scalar. The function does not acquire ownership of number. Compatible read borrows may coexist,
+                    including reference and the temporary borrow supplied for first.</p>
+                <p>reference already has type &amp;i32. read_value(reference) passes the requested capability directly;
+                    adding &amp; would introduce another reference layer. A shared reference does not authorize ordinary
+                    writes through its target. Interior synchronized types follow their separately declared
+                    contracts.</p></section>
+            <section id="write-borrows" aria-labelledby="write-borrows-heading"><h2 id="write-borrows-heading">8.
+                Exclusive write parameters use &amp;mut T</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">void set_value(&amp;mut i32 target, i32 value) {
+    *target = value;
+}
+
+i32 update_original() {
+    mut i32 number = 10;
+    set_value(&amp;mut number, 20);
+    return number;
+}</code></pre>
+                <p>*target = value changes caller storage, so number must be declared mut to create this ordinary write
+                    borrow. After the call&#x27;s loan ends, the caller reads number and observes 20.</p>
+                <p>The target binding is immutable, yet its &amp;mut i32 capability permits writing the referent.
+                    Reassigning target to another reference would change the binding and is not allowed here. Making a
+                    shared &amp;i32 binding locally mutable cannot upgrade its referent permission.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: number is not a mutable owner binding.
+void borrow_immutable_owner() {
+    i32 number = 10;
+    set_value(&amp;mut number, 20);
+}</code></pre>
+            </section>
+            <section id="forwarding-and-views" aria-labelledby="forwarding-and-views-heading"><h2
+                    id="forwarding-and-views-heading">9. Forward references and borrowed views directly</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">void forward_write(&amp;mut i32 target, i32 value) {
+    set_value(target, value);
+}
+
+usize count_values(Slice&lt;i32&gt; values) {
+    return Slice.len(values);
+}
+
+usize forward_view(Slice&lt;i32&gt; values) {
+    return count_values(values);
+}</code></pre>
+                <p>forward_write already receives an exclusive reference. Passing target directly forwards the requested
+                    access; it does not manufacture a second independent write capability. Overlap and lifetime checks
+                    remain active. Adding &amp; mechanically is not a conversion rule.</p>
+                <p>Slice&lt;T&gt;, MutSlice&lt;T&gt; and string_view already carry borrowing capabilities. count_values
+                    receives a slice descriptor directly, not ownership of its element allocation. Vector&lt;i32&gt; by
+                    value instead moves the owning container, while &amp;Vector&lt;i32&gt; borrows that owner. The
+                    signature must express the intended boundary; a plain view is not automatically wrapped in another
+                    reference.</p>
+                <h3 id="reborrowing">Reborrow known exclusive parameters; move ordinary values</h3>
+                <p>After type normalization, a formal parameter whose known outer form is
+                    <code>&amp;mut U</code> or <code>MutSlice&lt;U&gt;</code> automatically reborrows a compatible
+                    existing exclusive reference or view passed directly. U may itself be a generic type parameter.
+                    This lends a derived capability; it does not move the source binding or copy an exclusive loan.
+                    Conflicting use of the parent capability is suspended until that derived loan ends.</p>
+                <p>The same distinction applies when an API returns a borrowed reference, view or iterator. Loans
+                    nested inside Optional, Result or another returned value remain connected to the parent.
+                    The parent does not become available merely because the call returned: every remaining derived
+                    loan must have ended, including any possible referent access during cleanup. A compatible
+                    shared-reference or read-view argument still preserves its original source lifetime.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">void reverse_twice(MutSlice&lt;i32&gt; values) {
+    Slice.reverse(values);
+    Slice.reverse(values);
+    return;
+}</code></pre>
+                <p>Each reverse call declares a MutSlice parameter and finishes its temporary reborrow before the
+                    next call. values need not be a mut binding: its existing exclusive referent capability permits
+                    the reborrow, while reassigning the descriptor would require separate binding mutability.</p>
+                <p>A formal parameter declared as an ordinary generic <code>T value</code> keeps value passing.
+                    Even when T is later instantiated as <code>&amp;mut i32</code> or <code>MutSlice&lt;i32&gt;</code>,
+                    the non-Copy capability moves. Generic instantiation does not change that declaration into a
+                    borrowed parameter. Ordinary value assignment, initialization and return follow the same move
+                    rule. Passing a non-Copy view to the generic value parameter of Optional.some, Result.ok or
+                    <code>identity&lt;T&gt;</code> likewise moves it. These operations do not gain automatic reborrowing solely from
+                    their eventual concrete type. This rule adds no general move expression.</p>
+                <p>Borrowing behavior follows the declared parameter and API contract; automatic method receiver
+                    borrowing is not a universal wrapper conversion or delayed activation of an exclusive loan.
+                    See <a href="../grammar/functions/Generic_Functions.html">generic function contracts</a> and
+                    the <a href="../data_type/Slice/Slice.html#Parameter-Reborrowing">Slice parameter modes</a>.</p>
+                <p><a href="../data_type/Slice/Slice.html">Slice and MutSlice</a> · <a
+                        href="../data_type/Vector/Vector.html">Vector ownership</a></p></section>
+            <section id="overlap-and-lifetimes" aria-labelledby="overlap-and-lifetimes-heading"><h2
+                    id="overlap-and-lifetimes-heading">10. Loans follow overlapping storage and last use</h2>
+                <p>For overlapping regions, ordinary safe access allows compatible shared reads or one exclusive write
+                    borrow. A write borrow conflicts with another live access when their permissions and regions
+                    overlap. Different variables can still view the same allocation. A collection API must establish
+                    disjointness before dividing exclusive access.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 last_use_example() {
+    mut i32 number = 10;
+    &amp;i32 observed = &amp;number;
+    i32 snapshot = *observed;
+    set_value(&amp;mut number, 20);
+    return number;
+}</code></pre>
+                <p>observed is last used before set_value, so its read loan no longer conflicts with the later write. If
+                    that reference is used afterward, the loan spans the write and causes a conflict:</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: reader remains live across the exclusive write.
+i32 conflicting_borrow() {
+    mut i32 number = 10;
+    &amp;i32 reader = &amp;number;
+    set_value(&amp;mut number, 20);
+    return *reader;
+}</code></pre>
+                <p>Last-use analysis never extends owner storage. A borrowed result cannot outlive its source, and a
+                    function cannot return a borrow of a destroyed local. A single borrowed input gives an obvious
+                    semantic source; multiple inputs need an unambiguous relationship. Exact annotation and elision
+                    policies for reference-returning signatures remain open, so no guessed lifetime grammar is presented
+                    here.</p></section>
+            <section id="explicit-return" aria-labelledby="explicit-return-heading"><h2 id="explicit-return-heading">11.
+                Every normal non-void path returns explicitly</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose_value(bool outer, bool inner, i32 left, i32 middle, i32 right) {
+    if (outer) {
+        if (inner) {
+            return left;
+        } else {
+            return middle;
+        }
+    } else {
+        return right;
+    }
+}</code></pre>
+                <p>Every normal path in this illustrative conditional structure explicitly returns an i32. A return
+                    completes the current function with its declared value. A final expression is not an implicit
+                    return. Reachable non-void fallthrough must be rejected rather than supplied with a default
+                    result.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: evaluating value does not return it.
+i32 no_implicit_return(i32 value) {
+    value;
+}</code></pre>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: the false path falls through without a result.
+i32 missing_path(bool enabled, i32 value) {
+    if (enabled) {
+        return value;
+    }
+}</code></pre>
+                <p>Genuinely diverging paths have no normal completion and need no impossible return. That exception
+                    follows the actual operation contract; expecting a branch never to happen does not justify a
+                    reachable missing return.</p></section>
+            <section id="unit-void-never" aria-labelledby="unit-void-never-heading"><h2 id="unit-void-never-heading">12.
+                unit, void and never have different contracts</h2>
+                <div class="table-wrap">
+                    <div class="table-scroll" role="region"
+                         aria-label="unit, void and never have different contracts data table">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th scope="col">Return spelling</th>
+                                <th scope="col">Normal completion</th>
+                                <th scope="col">Return requirement</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr id="function-return-ordinary">
+                                <td>i32, string and other value types</td>
+                                <td>Produces the declared value.</td>
+                                <td>Explicit compatible value on every normal path.</td>
+                            </tr>
+                            <tr id="function-return-unit">
+                                <td>unit</td>
+                                <td>Produces its sole value.</td>
+                                <td>Explicit return Unit.value(); on every normal path.</td>
+                            </tr>
+                            <tr id="function-return-void">
+                                <td>void</td>
+                                <td>Completes without a value.</td>
+                                <td>Fallthrough or bare return; is permitted.</td>
+                            </tr>
+                            <tr id="function-return-never">
+                                <td>never</td>
+                                <td>Cannot complete normally.</td>
+                                <td>No fabricated value or impossible return is required.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">unit complete_value() {
+    return Unit.value();
+}
+
+void complete_without_value() {
+    return;
+}
+
+void empty_action() {
+}</code></pre>
+                <p>unit is an ordinary value type usable in containers and Result. A unit-returning function is
+                    non-void. void is a return-position marker, not a storable value or container element. Calling
+                    empty_action as a statement does not implicitly produce a unit value.</p>
+                <p>never has no valid values. There is no default constructor, implicit zero or fake result for it.
+                    Divergence can mean endless work, termination or another genuinely non-returning operation; the
+                    resource behavior belongs to that operation&#x27;s contract. A never declaration alone does not
+                    promise cleanup.</p>
+                <p><a href="../data_type/Unit/Unit.html">unit and void</a> · <a href="../data_type/Never/Never.html">never</a>
+                </p></section>
+            <section id="result-and-optional" aria-labelledby="result-and-optional-heading"><h2
+                    id="result-and-optional-heading">13. Errors and absence are ordinary returned values</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i32, i32&gt; require_available(bool available, i32 value) {
+    if (available) {
+        return Result.ok(value);
+    }
+    return Result.err(404);
+}
+
+Optional&lt;i32&gt; maybe_value(bool present, i32 value) {
+    if (present) {
+        return Optional.some(value);
+    }
+    return Optional.none&lt;i32&gt;();
+}</code></pre>
+                <p>Err is normal completion carrying an error payload. None represents absence. The examples explicitly
+                    return their wrapper values. A Result-returning function may also spell an error-only early return
+                    with the chosen postfix <code>?</code>; ordinary successful returns still require
+                    <code>return</code>. The declared return type provides constructor context for Result.ok and
+                    Result.err; constructing a variant alone does not transfer control.</p>
+                <p>The caller receives the declared Result or Optional. <a
+                        href="../grammar/operators/Error_Propagation.html">Postfix <code>?</code></a> extracts an Ok
+                    value or explicitly returns an Err from a compatible Result-returning function. <a
+                            href="../grammar/operators/Checked_Arithmetic.html"><code>checked(expression)</code></a>
+                    makes directly written integer calculation failures into Result values. No implicit unwrap, error
+                    conversion or exception-catching syntax is introduced. Owning payloads still move; borrowed payloads
+                    remain constrained by their source lifetimes.</p>
+                <p><a href="../data_type/Result/Result.html">Result</a> · <a href="../data_type/Optional/Optional.html">Optional</a>
+                </p></section>
+            <section id="diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">14. Diagnostic
+                categories and rejected examples</h2>
+                <p>These categories describe required semantic rejection, not implemented error codes or exact compiler
+                    messages. Intentionally rejected blocks carry data-expected=&quot;compile-error&quot; metadata.
+                    Their statements still use semicolons.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: bool is not the declared i32 return type.
+i32 wrong_result() {
+    return true;
+}</code></pre>
+                <div class="table-wrap">
+                    <div class="table-scroll" role="region"
+                         aria-label="Diagnostic categories and rejected examples data table">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th scope="col">Category</th>
+                                <th scope="col">Reason</th>
+                                <th scope="col">Repair</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr id="function-diagnostic-immutable">
+                                <th scope="row">Immutable binding</th>
+                                <td>Assignment to an immutable parameter or reference binding.</td>
+                                <td>Use mut only when local rebinding is intended.</td>
+                            </tr>
+                            <tr id="function-diagnostic-move">
+                                <th scope="row">Moved owner</th>
+                                <td>Use of an owner after its by-value move.</td>
+                                <td>Borrow it, return ownership or explicitly clone.</td>
+                            </tr>
+                            <tr id="function-diagnostic-write">
+                                <th scope="row">Write permission</th>
+                                <td>&amp;mut of an ordinary immutable owner, or write through &amp;T.</td>
+                                <td>Use a mut owner and the appropriate exclusive borrow.</td>
+                            </tr>
+                            <tr id="function-diagnostic-overlap">
+                                <th scope="row">Borrow conflict</th>
+                                <td>Conflicting live loans of overlapping storage.</td>
+                                <td>End the earlier loan or prove genuinely disjoint regions.</td>
+                            </tr>
+                            <tr id="function-diagnostic-return">
+                                <th scope="row">Return contract</th>
+                                <td>Missing return, bare return in a value function, or incompatible result type.</td>
+                                <td>Return a compatible value on every normal path.</td>
+                            </tr>
+                            <tr id="function-diagnostic-escape">
+                                <th scope="row">Lifetime escape</th>
+                                <td>Borrowed output could outlive its source.</td>
+                                <td>Return an owner or establish a valid source lifetime.</td>
+                            </tr>
+                            <tr id="function-diagnostic-void">
+                                <th scope="row">No-value completion</th>
+                                <td>Treating void completion as a storable value.</td>
+                                <td>Use a unit-returning contract when a value is needed.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <section id="costs-and-compilation" aria-labelledby="costs-and-compilation-heading"><h2
+                    id="costs-and-compilation-heading">15. Calls preserve ownership and cost contracts</h2>
+                <p>Inlining, eliminating redundant scalar copies and optimizing move representation preserve observable
+                    values, ownership, alias restrictions and declared failures. By-value input never silently
+                    authorizes a deep clone. A shared borrow never authorizes ordinary mutation merely because generated
+                    machine code could write through its address.</p>
+                <p>AOT and JIT preserve the same function-level meaning. This syntax alone does not schedule a Task,
+                    submit GPU work or transfer a buffer. Atomic and Mutex operations can expose synchronized interior
+                    mutation under their own rules; an arbitrary &amp;T does not gain those permissions. Function
+                    declarations do not promise a stable foreign calling convention.</p></section>
+            <section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">16.
+                Open decisions and related declarations</h2>
+                <p>Generic functions, overloads, trailing constant defaults, named arguments and <code>i32 values[]</code> variadic parameter spelling are chosen in <a href="../grammar/functions/index.html">Functions and Calls</a>. Full module paths and import lookup are chosen in <a href="../grammar/modules/index.html">Modules and Imports</a>. Const functions, closures, function-pointer types, standalone forward-prototype syntax and async/GPU declaration grammar remain open. The initial executable entry is <a href="../grammar/foundations/Compilation_Model.html#entry-contract">i32 main()</a> in the selected entry module. Reference-return lifetime annotation and
+                    elision remain open as well. The chosen <code>public</code>/<code>private</code> visibility rules
+                    are documented in <a href="../grammar/scope_and_comments/Scope_and_Visibility.html">Scope and
+                        Visibility</a>. These free-function examples do not establish a forward-prototype form. <a href="../grammar/interfaces/Interfaces.html">Interface requirements</a> use bodyless method declarations; default methods may provide bodies and require override when replaced.</p>
+                <p>mut, rsn, const and persist are chosen declaration concepts documented in Variable Declaration. const
+                    does not establish a const-function qualifier; persist specifies storage duration rather than static
+                    methods or function members. An ordinary immutable binding may receive a runtime result.</p>
+                <p>The primary sources below were read as comparison material. Aevix follows the choices stated on this
+                    page; foreign implicit-return, prototype, default-argument and ABI rules are not imported
+                    automatically. Examples are source-level design examples, not output from a working Aevix
+                    compiler.</p>
+                <p><a href="Variable_Declaration.html">Variable Declaration</a> · <a href="../data_type/index.html">Data
+                    Type Reference</a> · <a href="../data_type/Vector/Vector.html">Vector</a> · <a
+                        href="../data_type/Slice/Slice.html">Slice</a></p><p><a href="../grammar/generics/Generic_Types.html">User-defined type generics</a> use &lt;T&gt;, and <a href="../grammar/generics/Type_Constraints.html">type constraints</a> use where T implements Copy. Generic functions put <code>&lt;T&gt;</code> after the function name and <code>where</code> after the parameter list. Multiple requirements use commas and repeat their subject, as detailed in <a href="../grammar/functions/Generic_Functions.html">Generic Functions</a>. Enums reuse struct type functions and self methods and can implement ordinary interfaces.</p></section>
+            <section id="Sources" aria-labelledby="Sources-heading"><h2 id="Sources-heading">17. Sources and design
+                references</h2>
+                <p>Aevix rules are identified as chosen or open in this document. Primary references provide
+                    comparisons; their language rules are not silently adopted.</p>
+                <ul class="source-list">
+                    <li><a href="https://doc.rust-lang.org/reference/items/functions.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Reference — Functions (comparison source)</a></li>
+                    <li><a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Programming Language — References and Borrowing</a></li>
+                    <li><a href="https://eel.is/c++draft/dcl.fct" target="_blank" rel="noopener noreferrer">C++ working
+                        draft — Function declarators</a></li>
+                    <li><a href="https://eel.is/c++draft/stmt.return" target="_blank" rel="noopener noreferrer">C++
+                        working draft — Return statement</a></li>
+                </ul>
+            </section>
+            <nav class="page-navigation" aria-label="Adjacent reference pages"><a
+                    href="Variable_Declaration.html"><span>Previous reference</span>Variables</a></nav>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix Language · Declaration reference</span><span>Design specification · compiler implementation not implied</span>
+    </footer>
+</main>
+</body>
+</html>

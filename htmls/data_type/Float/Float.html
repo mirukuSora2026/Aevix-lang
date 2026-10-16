@@ -1,0 +1,2475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Binary floating-point formats, explicit numerical contracts, and the complete
+                proposed Float namespace.">
+  <title>Float — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Float.html" aria-current="true">Float</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Float.html">Float</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Float</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Float</h1><p class="doc-subtitle">Binary floating-point formats, explicit numerical contracts, and the complete
+                proposed Float namespace.</p><div class="doc-meta"><span class="meta-chip">fN</span><span class="meta-chip">Float. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>fN</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Basic Information</span></a></li><li><a href="#Numerical-Model"><span class="toc-number">02</span><span>Numerical Model &amp; Literals</span></a></li><li><a href="#Function-Notation"><span class="toc-number">03</span><span>Function Notation &amp; Error Contracts</span></a></li><li><a href="#Function-Reference"><span class="toc-number">04</span><span>Complete Function Catalog</span></a></li><li><a href="#Metadata"><span class="toc-number">05</span><span>Format Metadata &amp; Constants</span></a></li><li><a href="#Classification"><span class="toc-number">06</span><span>Classification &amp; Sign</span></a></li><li><a href="#Arithmetic"><span class="toc-number">07</span><span>Arithmetic &amp; Magnitude</span></a></li><li><a href="#Checked-Arithmetic"><span class="toc-number">08</span><span>Checked Arithmetic Proposals</span></a></li><li><a href="#Comparison"><span class="toc-number">09</span><span>Ordering, Selection &amp; Approximation</span></a></li><li><a href="#Rounding-Remainders"><span class="toc-number">10</span><span>Rounding, Fractional Parts &amp; Remainders</span></a></li><li><a href="#Neighbors-Decomposition"><span class="toc-number">11</span><span>Neighbors, ULPs &amp; Decomposition</span></a></li><li><a href="#Powers-Logs"><span class="toc-number">12</span><span>Roots, Powers, Exponentials &amp; Logarithms</span></a></li><li><a href="#Trigonometry"><span class="toc-number">13</span><span>Trigonometric &amp; Angular Functions</span></a></li><li><a href="#Hyperbolic"><span class="toc-number">14</span><span>Hyperbolic Functions</span></a></li><li><a href="#Special-Functions"><span class="toc-number">15</span><span>Special Functions — Optional Math Module</span></a></li><li><a href="#Extended-Special-Functions"><span class="toc-number">16</span><span>Extended Scientific Functions — Optional Candidates</span></a></li><li><a href="#Conversion"><span class="toc-number">17</span><span>Explicit Numeric Conversion</span></a></li><li><a href="#Byte-Representation"><span class="toc-number">18</span><span>Byte Representation &amp; Buffer Access</span></a></li><li><a href="#Parsing-Formatting"><span class="toc-number">19</span><span>Parsing &amp; Formatting</span></a></li><li><a href="#Reductions"><span class="toc-number">20</span><span>Accurate Reductions — Optional Numeric Library</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">21</span><span>CPU, GPU, AOT &amp; JIT</span></a></li><li><a href="#Examples"><span class="toc-number">22</span><span>Examples &amp; Edge Cases</span></a></li><li><a href="#Sources"><span class="toc-number">23</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Float pages"><h2>Float reference</h2><div class="family-links"><a href="Float.html" aria-current="page">Float</a><a href="Float_8.html">Float8</a><a href="Float_16.html">Float16</a><a href="BFloat_16.html">BFloat16</a><a href="Float_32.html">Float32</a><a href="Float_64.html">Float64</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Float reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. Basic Information
+</h2>
+<p>Aevix provides binary floating-point values through <code>f16</code>, <code>bf16</code>,
+                    <code>f32</code>, and <code>f64</code>. The convenience alias <code>float</code> is exactly <code>f64</code>.
+                    Scalars copy their value without heap allocation. Owning arrays and tensors retain their own
+                    ownership contracts.
+                
+</p>
+                
+<blockquote class="callout note">
+                    
+<p><strong>Design draft.</strong> This reference records proposed contracts and a comprehensive
+                        function catalog. It does not claim compiler implementation, final grammar, or verified hardware
+                        support. Every function uses the <code>Float.</code> namespace; instance methods are excluded.
+                    
+</p>
+                
+</blockquote>
+                
+<div class="table-scroll" role="region" aria-label="Basic Information data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Reference</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Format</th>
+                            <th scope="col">Status</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <th scope="row">Float · 16-bit</th>
+                            <td>f16</td>
+                            <td>IEEE binary16</td>
+                            <td>Selected type; detailed API contracts proposed</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Brain floating point</th>
+                            <td>bf16</td>
+                            <td>16-bit bfloat16</td>
+                            <td>Selected type; seven stored fraction bits</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Float · 32-bit</th>
+                            <td>f32</td>
+                            <td>IEEE binary32</td>
+                            <td>Selected type</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Float · 64-bit</th>
+                            <td>f64 / float</td>
+                            <td>IEEE binary64</td>
+                            <td>Selected type and default alias</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Float · 8-bit</th>
+                            <td>E4M3FN / E5M2 candidates</td>
+                            <td>Format-specific FP8 encodings</td>
+                            <td>Open extension; no universal f8 alias approved</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>See the <a href="Float_16.html">16-bit</a>, <a href="Float_32.html">32-bit</a>, <a
+                        href="Float_64.html">64-bit</a>, and <a href="Float_8.html">FP8 candidate</a> references. <code>bf16</code>
+                    and <code>f16</code> are different formats despite equal storage width. FP8 formats can differ in
+                    infinity and NaN support, as documented by <a
+                            href="https://onnx.ai/onnx/technical/float8.html">ONNX</a>.
+                
+</p>
+</section>
+<section id="Numerical-Model" aria-labelledby="Numerical-Model-heading">
+<h2 id="Numerical-Model-heading">2. Numerical Model &amp; Literals
+</h2>
+<p><strong>Proposed baseline:</strong> round ordinary core arithmetic to the destination format using
+                    nearest, ties to even; retain signed zeros and gradual underflow. AOT and JIT must preserve this
+                    contract. Reassociation, reciprocal substitution, fused contraction, and subnormal flushing require
+                    an explicit alternative numerical profile. Wider internal instructions are permitted only when
+                    observable results match the specified operation.
+                
+</p>
+                
+<p>IEEE formats encode finite values, <code>+0</code>, <code>-0</code>, infinities, and NaNs. Overflow
+                    may produce infinity; tiny results may become subnormal or zero. These are numeric results, not
+                    memory-safety failures. For supported IEEE formats, <code>Float.sqrt(-1.0)</code> yields NaN while
+                    <code>Float.checked_sqrt(-1.0)</code> returns a recoverable error under the proposal below.
+                    Finite-only formats need their own out-of-range contract.
+                
+</p>
+                
+<p>NaN compares unequal to every value, including itself; ordinary ordering is partial. Arithmetic need
+                    not preserve NaN payloads. Explicit bit and byte operations preserve representations. Strict core
+                    arithmetic does not establish identical transcendental-library results across devices: each math
+                    profile must publish its accuracy and reproducibility guarantees. These distinctions reflect the <a
+                            href="https://llvm.org/docs/LangRef.html#floating-point-environment">LLVM floating-point
+                        model</a> and <a href="https://doc.rust-lang.org/std/primitive.f32.html">Rust f32 guarantees</a>.
+                
+</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">float ordinary = 3.25;       // float aliases f64
+f32 small = 3.25;     // contextual literal rounding
+f64 value = 0.1;      // nearest representable approximation
+Float.is_nan(Float.sqrt(-1.0)); // true under the draft IEEE contract</code></pre>
+                
+<p>Decimal literals describe mathematical values and are rounded directly to their contextual type.
+                    Typed values never acquire implicit numeric casts. Explicit NaN and infinity constructors avoid
+                    silently accepting an overflowing finite literal. Hexadecimal floating-point literals remain a
+                    grammar proposal.
+                
+</p>
+</section>
+<section id="Function-Notation" aria-labelledby="Function-Notation-heading">
+<h2 id="Function-Notation-heading">3. Function Notation &amp; Error Contracts
+</h2>
+<p>API names and format parameters remain descriptive; T value, &amp;T value, and &amp;mut T value are chosen parameter forms. <code>T</code> denotes a supported floating
+                    format; arguments marked <code>x</code>, <code>y</code>, or <code>a</code> have that same
+                    <code>T</code> unless stated otherwise. <code>D</code> is a destination float, <code>I</code> an
+                    integer type, <code>U</code> the same-width unsigned bit type, and <code>B</code> the storage byte
+                    count. Type arguments are explicit namespace parameters, such as <code>Float.epsilon(f32)</code>.
+                
+</p>
+                
+<p><code>FloatClass</code>, <code>RoundingMode</code>, <code>Ordering</code>, <code>FloatError</code>,
+                    <code>ParseError</code>, <code>FormatError</code>, <code>ByteError</code>, <code>FloatParts</code>,
+                    and capability descriptors are proposed support types. They are not additions to the approved scalar
+                    list. Rounding modes are <code>TiesEven</code>, <code>TiesAway</code>, <code>TowardZero</code>,
+                    <code>TowardPositive</code>, and <code>TowardNegative</code>.
+                
+</p>
+                
+<p>The checked arithmetic proposal rejects nonfinite operands, invalid domains, zero divisors, and
+                    finite-result overflow. Rounded finite values, subnormals, and gradual underflow remain successful
+                    results; it does not promise exact arithmetic or detect every underflow. Checks are ordinary <code>Result</code>
+                    values and must not silently inherit host <code>errno</code>, exceptions, or global rounding state.
+                    Functions unsupported by a format or selected backend produce a compile-time capability diagnostic.
+                
+</p>
+                
+<p>Proposed <code>FloatError.OutOfRange</code> reports a requested adjacent value that has no finite
+                    encoding. Proposed <code>FormatError</code> variants include <code>InvalidSpecification</code>,
+                    <code>BufferTooSmall</code>, and <code>AllocationFailed</code>. string-producing formatting
+                    functions return allocation failure through <code>Result</code>; caller-buffer formatting validates
+                    capacity separately and performs no heap allocation.
+                
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">4. Complete Function Catalog
+</h2>
+<p>Every proposed function is listed individually below with a conceptual signature, result type, and
+                    contract. Core format operations and optional scientific-library candidates are distinguished; a
+                    listed signature is not a promise of native support on every target.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Complete Function Catalog data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function group</th>
+                            <th scope="col">Individual signatures</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <td><a href="#Metadata">Format Metadata &amp; Constants</a></td>
+                            <td>29</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Classification">Classification &amp; Sign</a></td>
+                            <td>12</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Arithmetic">Arithmetic &amp; Magnitude</a></td>
+                            <td>13</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Checked-Arithmetic">Checked Arithmetic Proposals</a></td>
+                            <td>12</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Comparison">Ordering, Selection &amp; Approximation</a></td>
+                            <td>10</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Rounding-Remainders">Rounding, Fractional Parts &amp; Remainders</a></td>
+                            <td>13</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Neighbors-Decomposition">Neighbors, ULPs &amp; Decomposition</a></td>
+                            <td>15</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Powers-Logs">Roots, Powers, Exponentials &amp; Logarithms</a></td>
+                            <td>15</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Trigonometry">Trigonometric &amp; Angular Functions</a></td>
+                            <td>18</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Hyperbolic">Hyperbolic Functions</a></td>
+                            <td>6</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Special-Functions">Special Functions — Optional Math Module</a></td>
+                            <td>7</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Extended-Special-Functions">Extended Scientific Functions — Optional
+                                Candidates</a></td>
+                            <td>21</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Conversion">Explicit Numeric Conversion</a></td>
+                            <td>10</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Byte-Representation">Byte Representation &amp; Buffer Access</a></td>
+                            <td>10</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Parsing-Formatting">Parsing &amp; Formatting</a></td>
+                            <td>8</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="#Reductions">Accurate Reductions — Optional Numeric Library</a></td>
+                            <td>6</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Metadata" aria-labelledby="Metadata-heading">
+<h2 id="Metadata-heading">5. Format Metadata &amp; Constants
+</h2>
+<p>Metadata is compile-time information. <code>min_value</code> is the most negative finite value,
+                    avoiding Java’s different meaning for <code>Double.MIN_VALUE</code>. Exponent limits below use
+                    normalized <code>m × 2^e</code>, with <code>1 ≤ |m| &lt; 2</code>, rather than C’s shifted exponent
+                    convention. Compare <a
+                            href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html">Java
+                        Double metadata</a>.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Format Metadata &amp; Constants data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-min_value">
+                            <th scope="row"><code>Float.min_value(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Most negative finite representable value.</td>
+                        
+</tr>
+                        
+<tr id="Float-max_value">
+                            <th scope="row"><code>Float.max_value(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Largest positive finite representable value.</td>
+                        
+</tr>
+                        
+<tr id="Float-min_positive_normal">
+                            <th scope="row"><code>Float.min_positive_normal(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Smallest positive normalized value.</td>
+                        
+</tr>
+                        
+<tr id="Float-min_positive_subnormal">
+                            <th scope="row"><code>Float.min_positive_subnormal(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Smallest positive subnormal; requires support.</td>
+                        
+</tr>
+                        
+<tr id="Float-epsilon">
+                            <th scope="row"><code>Float.epsilon(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Spacing above one; not a universal comparison tolerance.</td>
+                        
+</tr>
+                        
+<tr id="Float-bit_width">
+                            <th scope="row"><code>Float.bit_width(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Number of storage bits.</td>
+                        
+</tr>
+                        
+<tr id="Float-byte_width">
+                            <th scope="row"><code>Float.byte_width(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Storage bytes; not a universal ABI or alignment promise.</td>
+                        
+</tr>
+                        
+<tr id="Float-radix">
+                            <th scope="row"><code>Float.radix(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Two for the binary formats in this reference.</td>
+                        
+</tr>
+                        
+<tr id="Float-precision_bits">
+                            <th scope="row"><code>Float.precision_bits(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Significand precision, including the implicit leading bit.</td>
+                        
+</tr>
+                        
+<tr id="Float-exponent_bits">
+                            <th scope="row"><code>Float.exponent_bits(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Stored exponent-field width.</td>
+                        
+</tr>
+                        
+<tr id="Float-fraction_bits">
+                            <th scope="row"><code>Float.fraction_bits(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Stored fraction-field width.</td>
+                        
+</tr>
+                        
+<tr id="Float-min_exponent">
+                            <th scope="row"><code>Float.min_exponent(T)</code></th>
+                            <td><code>i32</code></td>
+                            <td>Exponent of the smallest positive normal value.</td>
+                        
+</tr>
+                        
+<tr id="Float-max_exponent">
+                            <th scope="row"><code>Float.max_exponent(T)</code></th>
+                            <td><code>i32</code></td>
+                            <td>Largest exponent of a finite normalized value.</td>
+                        
+</tr>
+                        
+<tr id="Float-min_exponent10">
+                            <th scope="row"><code>Float.min_exponent10(T)</code></th>
+                            <td><code>i32</code></td>
+                            <td>Least k for which 10^k is normal and finite.</td>
+                        
+</tr>
+                        
+<tr id="Float-max_exponent10">
+                            <th scope="row"><code>Float.max_exponent10(T)</code></th>
+                            <td><code>i32</code></td>
+                            <td>Greatest k for which 10^k is finite.</td>
+                        
+</tr>
+                        
+<tr id="Float-decimal_digits">
+                            <th scope="row"><code>Float.decimal_digits(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Guaranteed decimal-to-binary-to-decimal significant digits, within range.</td>
+                        
+</tr>
+                        
+<tr id="Float-max_digits10">
+                            <th scope="row"><code>Float.max_digits10(T)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Digits sufficient for a finite binary-value round trip.</td>
+                        
+</tr>
+                        
+<tr id="Float-max_exact_integer">
+                            <th scope="row"><code>Float.max_exact_integer(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Largest n with every integer from -n through n exact.</td>
+                        
+</tr>
+                        
+<tr id="Float-supports_infinity">
+                            <th scope="row"><code>Float.supports_infinity(T)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Whether the format has infinity encodings.</td>
+                        
+</tr>
+                        
+<tr id="Float-supports_nan">
+                            <th scope="row"><code>Float.supports_nan(T)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Whether the format has NaN encodings.</td>
+                        
+</tr>
+                        
+<tr id="Float-supports_subnormal">
+                            <th scope="row"><code>Float.supports_subnormal(T)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Whether the format has subnormal encodings.</td>
+                        
+</tr>
+                        
+<tr id="Float-positive_zero">
+                            <th scope="row"><code>Float.positive_zero(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Construct positive zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-negative_zero">
+                            <th scope="row"><code>Float.negative_zero(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Construct negative zero; requires signed-zero support.</td>
+                        
+</tr>
+                        
+<tr id="Float-infinity">
+                            <th scope="row"><code>Float.infinity(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Construct positive infinity; requires support.</td>
+                        
+</tr>
+                        
+<tr id="Float-neg_infinity">
+                            <th scope="row"><code>Float.neg_infinity(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Construct negative infinity; requires support.</td>
+                        
+</tr>
+                        
+<tr id="Float-nan">
+                            <th scope="row"><code>Float.nan(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Construct the format’s documented quiet NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-pi">
+                            <th scope="row"><code>Float.pi(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded mathematical π.</td>
+                        
+</tr>
+                        
+<tr id="Float-tau">
+                            <th scope="row"><code>Float.tau(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded mathematical 2π.</td>
+                        
+</tr>
+                        
+<tr id="Float-e">
+                            <th scope="row"><code>Float.e(T)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded mathematical e.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Classification" aria-labelledby="Classification-heading">
+<h2 id="Classification-heading">6. Classification &amp; Sign
+</h2>
+<p>Classification reads values; it does not allocate. Sign-bit inspection distinguishes signed zero and
+                    can inspect a NaN sign without assigning it numeric meaning.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Classification &amp; Sign data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-classify">
+                            <th scope="row"><code>Float.classify(x)</code></th>
+                            <td><code>FloatClass</code></td>
+                            <td>Zero, Subnormal, Normal, Infinite, or Nan.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_finite">
+                            <th scope="row"><code>Float.is_finite(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>True for zeros, subnormals, and normal finite values.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_nan">
+                            <th scope="row"><code>Float.is_nan(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>True for any supported NaN encoding.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_infinite">
+                            <th scope="row"><code>Float.is_infinite(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>True for either infinity.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_normal">
+                            <th scope="row"><code>Float.is_normal(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Finite, nonzero, and normalized.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_subnormal">
+                            <th scope="row"><code>Float.is_subnormal(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Finite, nonzero, below the normal threshold.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_zero">
+                            <th scope="row"><code>Float.is_zero(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>True for either signed zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_sign_negative">
+                            <th scope="row"><code>Float.is_sign_negative(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Inspect the sign bit, including zero and NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_sign_positive">
+                            <th scope="row"><code>Float.is_sign_positive(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Inspect an unset sign bit.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_integer">
+                            <th scope="row"><code>Float.is_integer(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Finite value with no fractional component.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_positive">
+                            <th scope="row"><code>Float.is_positive(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Numeric x &gt; 0; false for zero and NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-is_negative">
+                            <th scope="row"><code>Float.is_negative(x)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Numeric x &lt; 0; false for zero and NaN.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Arithmetic" aria-labelledby="Arithmetic-heading">
+<h2 id="Arithmetic-heading">7. Arithmetic &amp; Magnitude
+</h2>
+<p>Ordinary arithmetic uses the numerical baseline. <code>fma</code> requests one final rounding; it is
+                    deliberately distinct from separate multiplication and addition. Unchecked IEEE division can produce
+                    signed infinity or NaN. Functions that require infinity or NaN are unavailable on a format lacking
+                    those results until an explicit alternative policy is selected.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Arithmetic &amp; Magnitude data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-add">
+                            <th scope="row"><code>Float.add(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded x + y.</td>
+                        
+</tr>
+                        
+<tr id="Float-sub">
+                            <th scope="row"><code>Float.sub(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded x - y.</td>
+                        
+</tr>
+                        
+<tr id="Float-mul">
+                            <th scope="row"><code>Float.mul(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded x × y.</td>
+                        
+</tr>
+                        
+<tr id="Float-div">
+                            <th scope="row"><code>Float.div(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded x / y; IEEE special results permitted.</td>
+                        
+</tr>
+                        
+<tr id="Float-neg">
+                            <th scope="row"><code>Float.neg(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Invert sign, preserving other representation bits.</td>
+                        
+</tr>
+                        
+<tr id="Float-abs">
+                            <th scope="row"><code>Float.abs(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Clear sign; preserve non-sign representation bits.</td>
+                        
+</tr>
+                        
+<tr id="Float-copy_sign">
+                            <th scope="row"><code>Float.copy_sign(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Magnitude and payload from x; sign bit from y.</td>
+                        
+</tr>
+                        
+<tr id="Float-signum">
+                            <th scope="row"><code>Float.signum(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>±1 for nonzero values; preserve signed zero; propagate NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-recip">
+                            <th scope="row"><code>Float.recip(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Rounded reciprocal 1/x.</td>
+                        
+</tr>
+                        
+<tr id="Float-fma">
+                            <th scope="row"><code>Float.fma(x, y, z)</code></th>
+                            <td><code>T</code></td>
+                            <td>x × y + z with one final rounding.</td>
+                        
+</tr>
+                        
+<tr id="Float-fdim">
+                            <th scope="row"><code>Float.fdim(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Positive difference; +0 when x ≤ y; propagate NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-midpoint">
+                            <th scope="row"><code>Float.midpoint(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Average finite endpoints without avoidable intermediate overflow.</td>
+                        
+</tr>
+                        
+<tr id="Float-lerp">
+                            <th scope="row"><code>Float.lerp(a, b, t)</code></th>
+                            <td><code>T</code></td>
+                            <td>Interpolation; finite endpoints remain finite for 0 ≤ t ≤ 1.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Checked-Arithmetic" aria-labelledby="Checked-Arithmetic-heading">
+<h2 id="Checked-Arithmetic-heading">8. Checked Arithmetic Proposals
+</h2>
+<p>Every row follows the checked finite-input contract above. Error variants include <code>NonFiniteInput</code>,
+                    <code>DivisionByZero</code>, <code>Domain</code>, and <code>Overflow</code>. This layer is an Aevix
+                    proposal, not behavior borrowed wholesale from another language.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Checked Arithmetic Proposals data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-checked_add">
+                            <th scope="row"><code>Float.checked_add(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite rounded sum or error.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_sub">
+                            <th scope="row"><code>Float.checked_sub(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite rounded difference or error.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_mul">
+                            <th scope="row"><code>Float.checked_mul(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite rounded product or error.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_div">
+                            <th scope="row"><code>Float.checked_div(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Reject either zero divisor and nonfinite result.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_fma">
+                            <th scope="row"><code>Float.checked_fma(x, y, z)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Single-rounding finite result or error.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_recip">
+                            <th scope="row"><code>Float.checked_recip(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Reject zero and finite-result overflow.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_sqrt">
+                            <th scope="row"><code>Float.checked_sqrt(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require finite x ≥ 0; preserve negative zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_log">
+                            <th scope="row"><code>Float.checked_log(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require finite x &gt; 0; natural logarithm.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_exp">
+                            <th scope="row"><code>Float.checked_exp(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite exponential; rounded underflow may succeed.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_pow">
+                            <th scope="row"><code>Float.checked_pow(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require a finite real power with finite result.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_fmod">
+                            <th scope="row"><code>Float.checked_fmod(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite operands; nonzero divisor.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_remainder">
+                            <th scope="row"><code>Float.checked_remainder(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite operands; nonzero divisor; nearest-even quotient.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Comparison" aria-labelledby="Comparison-heading">
+<h2 id="Comparison-heading">9. Ordering, Selection &amp; Approximation
+</h2>
+<p><code>min</code> and <code>max</code> propagate NaN. Their <code>_number</code> counterparts prefer
+                    the non-NaN operand; both choose signed zeros consistently. Approximate equality requires
+                    caller-selected finite nonnegative tolerances and is not a valid equivalence relation for map keys.
+                    <code>total_compare</code> instead follows IEEE total ordering, including signed zeros and NaN
+                    representation distinctions, as discussed by <a
+                            href="https://doc.rust-lang.org/std/primitive.f64.html#method.total_cmp">Rust total_cmp</a>.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Ordering, Selection &amp; Approximation data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-partial_compare">
+                            <th scope="row"><code>Float.partial_compare(x, y)</code></th>
+                            <td><code>Optional&lt;Ordering&gt;</code></td>
+                            <td>None when either argument is NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-total_compare">
+                            <th scope="row"><code>Float.total_compare(x, y)</code></th>
+                            <td><code>Ordering</code></td>
+                            <td>Total representation order; -0 precedes +0.</td>
+                        
+</tr>
+                        
+<tr id="Float-bit_equal">
+                            <th scope="row"><code>Float.bit_equal(x, y)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Exact representation equality; distinguishes NaN payloads and signed zeros.</td>
+                        
+</tr>
+                        
+<tr id="Float-min">
+                            <th scope="row"><code>Float.min(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Propagate NaN; -0 wins a zero tie.</td>
+                        
+</tr>
+                        
+<tr id="Float-max">
+                            <th scope="row"><code>Float.max(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Propagate NaN; +0 wins a zero tie.</td>
+                        
+</tr>
+                        
+<tr id="Float-min_number">
+                            <th scope="row"><code>Float.min_number(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Prefer numeric operand; -0 wins; two NaNs return NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-max_number">
+                            <th scope="row"><code>Float.max_number(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Prefer numeric operand; +0 wins; two NaNs return NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-clamp">
+                            <th scope="row"><code>Float.clamp(x, low, high)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require ordered non-NaN bounds; propagate a NaN x.</td>
+                        
+</tr>
+                        
+<tr id="Float-approx_equal">
+                            <th scope="row"><code>Float.approx_equal(x, y, abs_tol, rel_tol)</code></th>
+                            <td><code>Result&lt;bool, FloatError&gt;</code></td>
+                            <td>Validate tolerances; compare absolute or relative error; NaN is false.</td>
+                        
+</tr>
+                        
+<tr id="Float-ulp_distance">
+                            <th scope="row"><code>Float.ulp_distance(x, y)</code></th>
+                            <td><code>Result&lt;U, FloatError&gt;</code></td>
+                            <td>Count finite representable steps; treat signed zeros as one value.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>The proposed finite comparison checks <code>|x-y| ≤ max(abs_tol, rel_tol × max(|x|, |y|))</code>,
+                    using scaled evaluation when needed to avoid intermediate overflow. Equal infinities return true;
+                    NaN and unequal infinities return false after tolerance validation.
+                
+</p>
+</section>
+<section id="Rounding-Remainders" aria-labelledby="Rounding-Remainders-heading">
+<h2 id="Rounding-Remainders-heading">10. Rounding, Fractional Parts &amp; Remainders
+</h2>
+<p>Integral-valued rounding returns <code>T</code>, not an integer; use an explicit conversion
+                    afterward. <code>fmod</code>, IEEE <code>remainder</code>, and Euclidean remainder are separate
+                    operations. They are not interchangeable with a host language’s <code>%</code>. Compare <a
+                            href="https://docs.python.org/3/library/math.html#math.remainder">Python remainder
+                        contracts</a>.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Rounding, Fractional Parts &amp; Remainders data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-floor">
+                            <th scope="row"><code>Float.floor(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Round toward negative infinity.</td>
+                        
+</tr>
+                        
+<tr id="Float-ceil">
+                            <th scope="row"><code>Float.ceil(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Round toward positive infinity.</td>
+                        
+</tr>
+                        
+<tr id="Float-trunc">
+                            <th scope="row"><code>Float.trunc(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Round toward zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-round">
+                            <th scope="row"><code>Float.round(x, mode)</code></th>
+                            <td><code>T</code></td>
+                            <td>Explicit RoundingMode; no inherited process-wide mode.</td>
+                        
+</tr>
+                        
+<tr id="Float-round_ties_even">
+                            <th scope="row"><code>Float.round_ties_even(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Nearest integer-valued float; ties choose even.</td>
+                        
+</tr>
+                        
+<tr id="Float-round_ties_away">
+                            <th scope="row"><code>Float.round_ties_away(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Nearest integer-valued float; ties move away from zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-fract">
+                            <th scope="row"><code>Float.fract(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>x minus trunc(x); infinite input yields NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-modf">
+                            <th scope="row"><code>Float.modf(x)</code></th>
+                            <td><code>(T, T)</code></td>
+                            <td>Fractional then integral part; preserve sign, including infinity’s fractional zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-fmod">
+                            <th scope="row"><code>Float.fmod(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Remainder using a quotient truncated toward zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-remainder">
+                            <th scope="row"><code>Float.remainder(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Remainder using nearest integer quotient, ties even.</td>
+                        
+</tr>
+                        
+<tr id="Float-remquo">
+                            <th scope="row"><code>Float.remquo(x, y)</code></th>
+                            <td><code>(T, i32)</code></td>
+                            <td>IEEE remainder plus signed low three quotient bits.</td>
+                        
+</tr>
+                        
+<tr id="Float-div_euclid">
+                            <th scope="row"><code>Float.div_euclid(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Integral-valued quotient paired with Euclidean remainder.</td>
+                        
+</tr>
+                        
+<tr id="Float-rem_euclid">
+                            <th scope="row"><code>Float.rem_euclid(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Nonnegative remainder; rounding can equal |y| at a boundary.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Neighbors-Decomposition" aria-labelledby="Neighbors-Decomposition-heading">
+<h2 id="Neighbors-Decomposition-heading">11. Neighbors, ULPs &amp; Decomposition
+</h2>
+<p>Spacing depends on magnitude: <code>epsilon(T)</code> measures spacing near one. The greatest finite
+                    value still has a finite ULP. Nonfinite ULP handling differs between ecosystems; Aevix proposes the
+                    explicit contract below. Compare <a
+                            href="https://developer.apple.com/documentation/swift/floatingpoint/ulp">Swift ulp</a> and
+                    <a href="https://developer.apple.com/documentation/swift/floatingpoint/significand">Swift
+                        significand</a>.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Neighbors, ULPs &amp; Decomposition data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-next_up">
+                            <th scope="row"><code>Float.next_up(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Requires an infinity-capable format; next greater value; +infinity remains itself; NaN
+                                propagates.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Float-next_down">
+                            <th scope="row"><code>Float.next_down(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Requires an infinity-capable format; next smaller value; -infinity remains itself; NaN
+                                propagates.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Float-next_after">
+                            <th scope="row"><code>Float.next_after(x, toward)</code></th>
+                            <td><code>T</code></td>
+                            <td>Requires an infinity-capable format; step toward target; equality returns target,
+                                including its zero sign.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Float-checked_next_up">
+                            <th scope="row"><code>Float.checked_next_up(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require finite x; return adjacent greater finite value; otherwise OutOfRange.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_next_down">
+                            <th scope="row"><code>Float.checked_next_down(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require finite x; return adjacent smaller finite value; otherwise OutOfRange.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_next_after">
+                            <th scope="row"><code>Float.checked_next_after(x, toward)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require both operands finite; equality returns target; otherwise require a finite
+                                adjacent value.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Float-ulp">
+                            <th scope="row"><code>Float.ulp(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Local positive spacing; minimum subnormal at zero; NaN for nonfinite input.</td>
+                        
+</tr>
+                        
+<tr id="Float-frexp">
+                            <th scope="row"><code>Float.frexp(x)</code></th>
+                            <td><code>(T, i32)</code></td>
+                            <td>Signed fraction |m| in [0.5,1), exponent; zero/nonfinite use exponent zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-ldexp">
+                            <th scope="row"><code>Float.ldexp(x, i32 exponent)</code></th>
+                            <td><code>T</code></td>
+                            <td>Scale by 2^exponent with final destination rounding.</td>
+                        
+</tr>
+                        
+<tr id="Float-scalbn">
+                            <th scope="row"><code>Float.scalbn(x, i32 exponent)</code></th>
+                            <td><code>T</code></td>
+                            <td>Scale by radix^exponent; radix is two here.</td>
+                        
+</tr>
+                        
+<tr id="Float-ilogb">
+                            <th scope="row"><code>Float.ilogb(x)</code></th>
+                            <td><code>Result&lt;i32, FloatError&gt;</code></td>
+                            <td>floor(log2(|x|)); reject zero and nonfinite input.</td>
+                        
+</tr>
+                        
+<tr id="Float-significand">
+                            <th scope="row"><code>Float.significand(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Signed normalized significand; preserve zero and special-value categories.</td>
+                        
+</tr>
+                        
+<tr id="Float-exponent">
+                            <th scope="row"><code>Float.exponent(x)</code></th>
+                            <td><code>Result&lt;i32, FloatError&gt;</code></td>
+                            <td>Normalized binary exponent; reject zero and nonfinite input.</td>
+                        
+</tr>
+                        
+<tr id="Float-binade">
+                            <th scope="row"><code>Float.binade(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Signed power-of-two scale; preserve zero; nonfinite input yields NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-decompose_bits">
+                            <th scope="row"><code>Float.decompose_bits(x)</code></th>
+                            <td><code>FloatParts&lt;U&gt;</code></td>
+                            <td>Raw sign, exponent field, and fraction field; no numeric conversion.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p><strong>Proposed format boundary contract:</strong> plain <code>next_up</code>,
+                    <code>next_down</code>, and <code>next_after</code> instantiate only for infinity-capable formats.
+                    They are unavailable for finite-only E4M3FN. The three checked variants may instantiate for every
+                    supported finite floating format whose backend exposes representation-neighbor operations; they
+                    reject nonfinite operands with <code>NonFiniteInput</code> and an absent or nonfinite adjacent
+                    result with <code>OutOfRange</code>. They never saturate silently.
+                
+</p>
+                
+<p>For proposed E4M3FN, <code>checked_next_up(448)</code> is an <code>OutOfRange</code> error. For E5M2,
+                    stepping above the greatest finite value would reach infinity and the checked operation also returns
+                    <code>OutOfRange</code>. For <code>checked_next_after</code>, numerically equal operands succeed
+                    immediately with the target representation: a <code>-0</code> source and <code>+0</code> target
+                    return <code>+0</code>, and the reverse returns <code>-0</code>.
+                
+</p>
+</section>
+<section id="Powers-Logs" aria-labelledby="Powers-Logs-heading">
+<h2 id="Powers-Logs-heading">12. Roots, Powers, Exponentials &amp; Logarithms
+</h2>
+<p>These are math-library functions. Their accuracy profile must be documented; IEEE storage alone does
+                    not guarantee correctly rounded transcendental results. Ordinary real-domain violations produce NaN
+                    on supporting formats; zero logarithms produce negative infinity. Small-argument <code>expm1</code>
+                    and <code>log1p</code> avoid cancellation in the naive formulas.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Roots, Powers, Exponentials &amp; Logarithms data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-sqrt">
+                            <th scope="row"><code>Float.sqrt(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Square root; x &lt; 0 produces NaN; -0 is preserved.</td>
+                        
+</tr>
+                        
+<tr id="Float-cbrt">
+                            <th scope="row"><code>Float.cbrt(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Real cube root, including negative finite values.</td>
+                        
+</tr>
+                        
+<tr id="Float-hypot">
+                            <th scope="row"><code>Float.hypot(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Euclidean magnitude without avoidable square overflow; infinity dominates NaN.</td>
+                        
+</tr>
+                        
+<tr id="Float-hypot3">
+                            <th scope="row"><code>Float.hypot3(x, y, z)</code></th>
+                            <td><code>T</code></td>
+                            <td>Three-dimensional Euclidean magnitude with scaled intermediates.</td>
+                        
+</tr>
+                        
+<tr id="Float-pow">
+                            <th scope="row"><code>Float.pow(x, y)</code></th>
+                            <td><code>T</code></td>
+                            <td>Real power; negative finite base requires integral exponent.</td>
+                        
+</tr>
+                        
+<tr id="Float-powi">
+                            <th scope="row"><code>Float.powi(x, i32 exponent)</code></th>
+                            <td><code>T</code></td>
+                            <td>Integer exponent; negative exponents compute reciprocals.</td>
+                        
+</tr>
+                        
+<tr id="Float-exp">
+                            <th scope="row"><code>Float.exp(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Natural exponential e^x.</td>
+                        
+</tr>
+                        
+<tr id="Float-exp2">
+                            <th scope="row"><code>Float.exp2(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Base-two exponential.</td>
+                        
+</tr>
+                        
+<tr id="Float-exp10">
+                            <th scope="row"><code>Float.exp10(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Base-ten exponential.</td>
+                        
+</tr>
+                        
+<tr id="Float-expm1">
+                            <th scope="row"><code>Float.expm1(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>e^x - 1, evaluated accurately near zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-log">
+                            <th scope="row"><code>Float.log(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Natural logarithm; real domain x ≥ 0 with zero pole.</td>
+                        
+</tr>
+                        
+<tr id="Float-log2">
+                            <th scope="row"><code>Float.log2(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Base-two logarithm; same domain and zero pole.</td>
+                        
+</tr>
+                        
+<tr id="Float-log10">
+                            <th scope="row"><code>Float.log10(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Base-ten logarithm; same domain and zero pole.</td>
+                        
+</tr>
+                        
+<tr id="Float-log1p">
+                            <th scope="row"><code>Float.log1p(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>ln(1+x); x = -1 is a pole; x &lt; -1 is invalid.</td>
+                        
+</tr>
+                        
+<tr id="Float-log_base">
+                            <th scope="row"><code>Float.log_base(x, base)</code></th>
+                            <td><code>T</code></td>
+                            <td>Require x &gt; 0 and base &gt; 0, base ≠ 1.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Trigonometry" aria-labelledby="Trigonometry-heading">
+<h2 id="Trigonometry-heading">13. Trigonometric &amp; Angular Functions
+</h2>
+<p>Angles are radians unless the name specifies degrees. Infinite arguments to ordinary sine, cosine, or
+                    tangent produce NaN in the draft profile. Pi-scaled functions avoid first rounding a multiplication
+                    by π. Compare <a href="https://docs.julialang.org/en/v1/base/math/#Base.Math.sinpi">Julia’s
+                        pi-scaled functions</a>.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Trigonometric &amp; Angular Functions data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-sin">
+                            <th scope="row"><code>Float.sin(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Sine in radians.</td>
+                        
+</tr>
+                        
+<tr id="Float-cos">
+                            <th scope="row"><code>Float.cos(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Cosine in radians.</td>
+                        
+</tr>
+                        
+<tr id="Float-tan">
+                            <th scope="row"><code>Float.tan(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Tangent in radians; near-pole accuracy is profile-dependent.</td>
+                        
+</tr>
+                        
+<tr id="Float-sin_cos">
+                            <th scope="row"><code>Float.sin_cos(x)</code></th>
+                            <td><code>(T, T)</code></td>
+                            <td>Sine and cosine together; shared argument reduction.</td>
+                        
+</tr>
+                        
+<tr id="Float-asin">
+                            <th scope="row"><code>Float.asin(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Inverse sine; real domain [-1,1].</td>
+                        
+</tr>
+                        
+<tr id="Float-acos">
+                            <th scope="row"><code>Float.acos(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Inverse cosine; real domain [-1,1].</td>
+                        
+</tr>
+                        
+<tr id="Float-atan">
+                            <th scope="row"><code>Float.atan(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Inverse tangent in radians.</td>
+                        
+</tr>
+                        
+<tr id="Float-atan2">
+                            <th scope="row"><code>Float.atan2(y, x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Quadrant-aware angle; signed-zero cases distinguish branch boundaries.</td>
+                        
+</tr>
+                        
+<tr id="Float-sinpi">
+                            <th scope="row"><code>Float.sinpi(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>sin(πx) without explicit π multiplication.</td>
+                        
+</tr>
+                        
+<tr id="Float-cospi">
+                            <th scope="row"><code>Float.cospi(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>cos(πx) without explicit π multiplication.</td>
+                        
+</tr>
+                        
+<tr id="Float-tanpi">
+                            <th scope="row"><code>Float.tanpi(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>tan(πx); half-integer poles follow documented signed-infinity rules.</td>
+                        
+</tr>
+                        
+<tr id="Float-sin_cos_pi">
+                            <th scope="row"><code>Float.sin_cos_pi(x)</code></th>
+                            <td><code>(T, T)</code></td>
+                            <td>Pi-scaled sine and cosine together.</td>
+                        
+</tr>
+                        
+<tr id="Float-sinc">
+                            <th scope="row"><code>Float.sinc(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Normalized sin(πx)/(πx); return one at zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_degrees">
+                            <th scope="row"><code>Float.to_degrees(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Convert radians to degrees.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_radians">
+                            <th scope="row"><code>Float.to_radians(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Convert degrees to radians.</td>
+                        
+</tr>
+                        
+<tr id="Float-sin_degrees">
+                            <th scope="row"><code>Float.sin_degrees(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Sine of a degree-valued angle.</td>
+                        
+</tr>
+                        
+<tr id="Float-cos_degrees">
+                            <th scope="row"><code>Float.cos_degrees(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Cosine of a degree-valued angle.</td>
+                        
+</tr>
+                        
+<tr id="Float-tan_degrees">
+                            <th scope="row"><code>Float.tan_degrees(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Tangent of a degree-valued angle; explicit pole contract required.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Hyperbolic" aria-labelledby="Hyperbolic-heading">
+<h2 id="Hyperbolic-heading">14. Hyperbolic Functions
+</h2>
+<p>These functions share the selected math accuracy profile. Ordinary overflow or domain results use
+                    supported IEEE special values.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Hyperbolic Functions data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-sinh">
+                            <th scope="row"><code>Float.sinh(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Hyperbolic sine.</td>
+                        
+</tr>
+                        
+<tr id="Float-cosh">
+                            <th scope="row"><code>Float.cosh(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Hyperbolic cosine.</td>
+                        
+</tr>
+                        
+<tr id="Float-tanh">
+                            <th scope="row"><code>Float.tanh(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Hyperbolic tangent; infinite inputs approach ±1.</td>
+                        
+</tr>
+                        
+<tr id="Float-asinh">
+                            <th scope="row"><code>Float.asinh(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Inverse hyperbolic sine; all finite real inputs.</td>
+                        
+</tr>
+                        
+<tr id="Float-acosh">
+                            <th scope="row"><code>Float.acosh(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Inverse hyperbolic cosine; real domain x ≥ 1.</td>
+                        
+</tr>
+                        
+<tr id="Float-atanh">
+                            <th scope="row"><code>Float.atanh(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Inverse hyperbolic tangent; |x| &lt; 1, poles at ±1.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Special-Functions" aria-labelledby="Special-Functions-heading">
+<h2 id="Special-Functions-heading">15. Special Functions — Optional Math Module
+</h2>
+<p>This optional library tier does not make every operation a compiler intrinsic. GPU availability and
+                    accuracy are individually declared. Gamma-sign information is returned directly; no shared <code>signgam</code>
+                    state is exposed. Compare <a
+                            href="https://sourceware.org/glibc/manual/2.42/html_node/Special-Functions.html">GNU libm
+                        special functions</a>.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Special Functions — Optional Math Module data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-erf">
+                            <th scope="row"><code>Float.erf(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Error function; real finite arguments.</td>
+                        
+</tr>
+                        
+<tr id="Float-erfc">
+                            <th scope="row"><code>Float.erfc(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Complementary error function, avoiding subtraction cancellation.</td>
+                        
+</tr>
+                        
+<tr id="Float-gamma">
+                            <th scope="row"><code>Float.gamma(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>Real gamma; nonpositive integers are poles.</td>
+                        
+</tr>
+                        
+<tr id="Float-lgamma">
+                            <th scope="row"><code>Float.lgamma(x)</code></th>
+                            <td><code>T</code></td>
+                            <td>ln(|gamma(x)|); gamma poles produce infinity.</td>
+                        
+</tr>
+                        
+<tr id="Float-lgamma_sign">
+                            <th scope="row"><code>Float.lgamma_sign(x)</code></th>
+                            <td><code>Result&lt;(T, i32), FloatError&gt;</code></td>
+                            <td>Finite input; return log magnitude and sign; reject poles.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_gamma">
+                            <th scope="row"><code>Float.checked_gamma(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite input; reject poles and finite-result overflow.</td>
+                        
+</tr>
+                        
+<tr id="Float-checked_lgamma">
+                            <th scope="row"><code>Float.checked_lgamma(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Finite input; reject gamma poles and nonfinite output.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Extended-Special-Functions" aria-labelledby="Extended-Special-Functions-heading">
+<h2 id="Extended-Special-Functions-heading">16. Extended Scientific Functions — Optional Candidates
+</h2>
+<p>The following broader catalog is an optional module proposal informed by the <a
+                        href="https://eel.is/c++draft/sf.cmath">C++ special-function specification</a>. Every entry
+                    returns a recoverable error for an unsupported order, invalid real domain, singularity, or
+                    output-range failure. Library support limits must be explicit; they are never undefined behavior.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Extended Scientific Functions — Optional Candidates data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-beta">
+                            <th scope="row"><code>Float.beta(x, y)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Beta function; require finite positive x and y.</td>
+                        
+</tr>
+                        
+<tr id="Float-bessel_j">
+                            <th scope="row"><code>Float.bessel_j(order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Cylindrical first-kind Bessel; candidate domain finite order ≥ 0, x ≥ 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-bessel_y">
+                            <th scope="row"><code>Float.bessel_y(order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Cylindrical second-kind Bessel; order ≥ 0, x &gt; 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-bessel_i">
+                            <th scope="row"><code>Float.bessel_i(order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Modified first-kind Bessel; order ≥ 0, x ≥ 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-bessel_k">
+                            <th scope="row"><code>Float.bessel_k(order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Modified second-kind Bessel; order ≥ 0, x &gt; 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-spherical_bessel_j">
+                            <th scope="row"><code>Float.spherical_bessel_j(u32 order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Spherical first-kind Bessel; finite x ≥ 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-spherical_bessel_y">
+                            <th scope="row"><code>Float.spherical_bessel_y(u32 order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Spherical second-kind Bessel; finite x &gt; 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-elliptic_k">
+                            <th scope="row"><code>Float.elliptic_k(k)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Complete first-kind integral; finite |k| &lt; 1.</td>
+                        
+</tr>
+                        
+<tr id="Float-elliptic_e">
+                            <th scope="row"><code>Float.elliptic_e(k)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Complete second-kind integral; finite |k| ≤ 1.</td>
+                        
+</tr>
+                        
+<tr id="Float-elliptic_pi">
+                            <th scope="row"><code>Float.elliptic_pi(k, n)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Complete third-kind integral; finite |k| &lt; 1, n &lt; 1.</td>
+                        
+</tr>
+                        
+<tr id="Float-elliptic_f">
+                            <th scope="row"><code>Float.elliptic_f(k, phi)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Incomplete first-kind integral; finite |k| &lt; 1, phi finite.</td>
+                        
+</tr>
+                        
+<tr id="Float-elliptic_e_incomplete">
+                            <th scope="row"><code>Float.elliptic_e_incomplete(k, phi)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Incomplete second-kind integral; finite |k| ≤ 1, phi finite.</td>
+                        
+</tr>
+                        
+<tr id="Float-elliptic_pi_incomplete">
+                            <th scope="row"><code>Float.elliptic_pi_incomplete(k, n, phi)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Incomplete third-kind integral; finite |k| &lt; 1, n &lt; 1, phi finite.</td>
+                        
+</tr>
+                        
+<tr id="Float-exp_integral">
+                            <th scope="row"><code>Float.exp_integral(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Real exponential integral Ei; finite nonzero x.</td>
+                        
+</tr>
+                        
+<tr id="Float-hermite">
+                            <th scope="row"><code>Float.hermite(u32 order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Physicists’ Hermite polynomial; finite x.</td>
+                        
+</tr>
+                        
+<tr id="Float-laguerre">
+                            <th scope="row"><code>Float.laguerre(u32 order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Laguerre polynomial; finite x ≥ 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-assoc_laguerre">
+                            <th scope="row"><code>Float.assoc_laguerre(u32 n, u32 m, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Associated Laguerre polynomial; finite x ≥ 0.</td>
+                        
+</tr>
+                        
+<tr id="Float-legendre">
+                            <th scope="row"><code>Float.legendre(u32 order, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Legendre polynomial; finite |x| ≤ 1.</td>
+                        
+</tr>
+                        
+<tr id="Float-assoc_legendre">
+                            <th scope="row"><code>Float.assoc_legendre(u32 l, u32 m, x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Associated Legendre; m ≤ l, finite |x| ≤ 1; phase convention explicit.</td>
+                        
+</tr>
+                        
+<tr id="Float-spherical_legendre">
+                            <th scope="row"><code>Float.spherical_legendre(u32 l, u32 m, theta)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Normalized spherical associated Legendre; m ≤ l; angle convention explicit.</td>
+                        
+</tr>
+                        
+<tr id="Float-zeta">
+                            <th scope="row"><code>Float.zeta(x)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Real Riemann zeta; finite x ≠ 1.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>Detailed comparison references: <a href="https://eel.is/c++draft/sf.cmath.cyl.bessel.j">Bessel
+                    domains</a>, <a href="https://eel.is/c++draft/sf.cmath.ellint.1">elliptic integration</a>, and <a
+                        href="https://eel.is/c++draft/sf.cmath.assoc.legendre">Legendre phase conventions</a>. Aevix’s
+                    narrower checked domains are proposals.
+                
+</p>
+</section>
+<section id="Conversion" aria-labelledby="Conversion-heading">
+<h2 id="Conversion-heading">17. Explicit Numeric Conversion
+</h2>
+<p>Converting a number is different from reinterpreting its bits. Exact float-to-float conversion
+                    preserves mathematical value and signed zero; NaN payload conversion requires a separate encoding
+                    policy. Float-to-integer conversion maps either signed zero to integer zero, because integers have
+                    no separate negative-zero representation. Rounded conversion exposes its rounding mode. Integer
+                    conversion checks the rounded integer against exact integer bounds; comparing against a rounded
+                    floating representation of <code>I.MAX</code> is insufficient.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Explicit Numeric Conversion data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-convert_exact">
+                            <th scope="row"><code>Float.convert_exact(D, x)</code></th>
+                            <td><code>Result&lt;D, FloatError&gt;</code></td>
+                            <td>Require exact finite representation and signed-zero preservation.</td>
+                        
+</tr>
+                        
+<tr id="Float-convert">
+                            <th scope="row"><code>Float.convert(D, x, mode)</code></th>
+                            <td><code>Result&lt;D, FloatError&gt;</code></td>
+                            <td>Explicit rounding; reject unsupported special values and finite overflow.</td>
+                        
+</tr>
+                        
+<tr id="Float-convert_saturating">
+                            <th scope="row"><code>Float.convert_saturating(D, x, mode)</code></th>
+                            <td><code>Result&lt;D, FloatError&gt;</code></td>
+                            <td>Explicit finite-range clamping; reject NaN and define infinity clamping.</td>
+                        
+</tr>
+                        
+<tr id="Float-from_integer_exact">
+                            <th scope="row"><code>Float.from_integer_exact(T, I value)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require exact integer representation in T.</td>
+                        
+</tr>
+                        
+<tr id="Float-from_integer">
+                            <th scope="row"><code>Float.from_integer(T, I value, mode)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Rounded integer conversion; reject finite-range overflow.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_integer_exact">
+                            <th scope="row"><code>Float.to_integer_exact(I, x)</code></th>
+                            <td><code>Result&lt;I, FloatError&gt;</code></td>
+                            <td>Finite, integral, and within exact destination bounds.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_integer">
+                            <th scope="row"><code>Float.to_integer(I, x, mode)</code></th>
+                            <td><code>Result&lt;I, FloatError&gt;</code></td>
+                            <td>Round explicitly, then validate destination range.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_integer_saturating">
+                            <th scope="row"><code>Float.to_integer_saturating(I, x, mode)</code></th>
+                            <td><code>Result&lt;I, FloatError&gt;</code></td>
+                            <td>Clamp after rounding; infinities clamp; NaN is an error.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_bits">
+                            <th scope="row"><code>Float.to_bits(x)</code></th>
+                            <td><code>U</code></td>
+                            <td>Read exact representation, including NaN payload and signed zero.</td>
+                        
+</tr>
+                        
+<tr id="Float-from_bits">
+                            <th scope="row"><code>Float.from_bits(T, U bits)</code></th>
+                            <td><code>T</code></td>
+                            <td>Interpret a same-width encoding; not a numeric integer conversion.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Byte-Representation" aria-labelledby="Byte-Representation-heading">
+<h2 id="Byte-Representation-heading">18. Byte Representation &amp; Buffer Access
+</h2>
+<p>Raw serialization uses <code>byte</code>, the opaque octet type documented in <a href="../Byte/Byte.html">Byte</a>, rather than the numeric integer <code>u8</code>. There is no implicit conversion between them: use <code>Byte.from_u8</code> or <code>Byte.to_u8</code> explicitly for each octet when a numeric value is needed. Numeric bit-word APIs retain their documented unsigned integer types.</p>
+<p>Fixed-width encodings return stack-friendly <code>Array</code> values; they do not allocate a <code>Vector</code>.
+                    Byte order is explicit. Native order is useful for local interop, while portable storage uses little
+                    or big endian. Reading signaling NaN bits must not promise subsequent arithmetic preserves signaling
+                    state.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Byte Representation &amp; Buffer Access data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-to_le_bytes">
+                            <th scope="row"><code>Float.to_le_bytes(x)</code></th>
+                            <td><code>Array&lt;byte, B&gt;</code></td>
+                            <td>Exact representation, least-significant byte first.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_be_bytes">
+                            <th scope="row"><code>Float.to_be_bytes(x)</code></th>
+                            <td><code>Array&lt;byte, B&gt;</code></td>
+                            <td>Exact representation, most-significant byte first.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_ne_bytes">
+                            <th scope="row"><code>Float.to_ne_bytes(x)</code></th>
+                            <td><code>Array&lt;byte, B&gt;</code></td>
+                            <td>Exact representation in target-native byte order.</td>
+                        
+</tr>
+                        
+<tr id="Float-from_le_bytes">
+                            <th scope="row"><code>Float.from_le_bytes(T, Array&lt;byte, B&gt; bytes)</code></th>
+                            <td><code>T</code></td>
+                            <td>Decode exactly B bytes in little-endian order.</td>
+                        
+</tr>
+                        
+<tr id="Float-from_be_bytes">
+                            <th scope="row"><code>Float.from_be_bytes(T, Array&lt;byte, B&gt; bytes)</code></th>
+                            <td><code>T</code></td>
+                            <td>Decode exactly B bytes in big-endian order.</td>
+                        
+</tr>
+                        
+<tr id="Float-from_ne_bytes">
+                            <th scope="row"><code>Float.from_ne_bytes(T, Array&lt;byte, B&gt; bytes)</code></th>
+                            <td><code>T</code></td>
+                            <td>Decode exactly B bytes in native order.</td>
+                        
+</tr>
+                        
+<tr id="Float-read_le">
+                            <th scope="row"><code>Float.read_le(T, Slice&lt;byte&gt; bytes)</code></th>
+                            <td><code>Result&lt;T, ByteError&gt;</code></td>
+                            <td>Require exact encoded width; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Float-read_be">
+                            <th scope="row"><code>Float.read_be(T, Slice&lt;byte&gt; bytes)</code></th>
+                            <td><code>Result&lt;T, ByteError&gt;</code></td>
+                            <td>Require exact encoded width; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Float-write_le">
+                            <th scope="row"><code>Float.write_le(x, MutSlice&lt;byte&gt; out)</code></th>
+                            <td><code>Result&lt;usize, ByteError&gt;</code></td>
+                            <td>Write B bytes; reject insufficient capacity before writing.</td>
+                        
+</tr>
+                        
+<tr id="Float-write_be">
+                            <th scope="row"><code>Float.write_be(x, MutSlice&lt;byte&gt; out)</code></th>
+                            <td><code>Result&lt;usize, ByteError&gt;</code></td>
+                            <td>Write B bytes; explicit exclusive borrow.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">f32 value = 1.5;
+Array&lt;byte, 4&gt; bytes = Float.to_be_bytes(value);
+f32 decoded = Float.from_be_bytes(f32, bytes);
+u32 bits = Float.to_bits(value); // Numeric bit word, not a byte buffer</code></pre>
+</section>
+<section id="Parsing-Formatting" aria-labelledby="Parsing-Formatting-heading">
+<h2 id="Parsing-Formatting-heading">19. Parsing &amp; Formatting
+</h2>
+<p>Proposed parsing is locale-independent ASCII: optional sign, decimal point, and exponent. It consumes
+                    the complete input; whitespace, separators, and special-value spellings require explicit options.
+                    Finite overflow is an error. Default formatting round-trips finite values and preserves signed zero;
+                    ordinary text need not preserve NaN payloads. Decimal precision limits and parsing resource limits
+                    must be documented.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Parsing &amp; Formatting data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-parse">
+                            <th scope="row"><code>Float.parse(T, string_view text)</code></th>
+                            <td><code>Result&lt;T, ParseError&gt;</code></td>
+                            <td>Whole-input decimal parse; default finite values only.</td>
+                        
+</tr>
+                        
+<tr id="Float-parse_with">
+                            <th scope="row"><code>Float.parse_with(T, string_view text, options)</code></th>
+                            <td><code>Result&lt;T, ParseError&gt;</code></td>
+                            <td>Explicit whitespace, separators, special values, and rounding policy.</td>
+                        
+</tr>
+                        
+<tr id="Float-parse_exact">
+                            <th scope="row"><code>Float.parse_exact(T, string_view text)</code></th>
+                            <td><code>Result&lt;T, ParseError&gt;</code></td>
+                            <td>Reject any finite decimal value requiring rounding.</td>
+                        
+</tr>
+                        
+<tr id="Float-parse_hex">
+                            <th scope="row"><code>Float.parse_hex(T, string_view text)</code></th>
+                            <td><code>Result&lt;T, ParseError&gt;</code></td>
+                            <td>Explicit hexadecimal significand and binary exponent grammar.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_string">
+                            <th scope="row"><code>Float.to_string(x)</code></th>
+                            <td><code>Result&lt;string, FormatError&gt;</code></td>
+                            <td>Allocate shortest round-trip decimal representation.</td>
+                        
+</tr>
+                        
+<tr id="Float-to_hex_string">
+                            <th scope="row"><code>Float.to_hex_string(x)</code></th>
+                            <td><code>Result&lt;string, FormatError&gt;</code></td>
+                            <td>Allocate hexadecimal floating representation; payload policy separate.</td>
+                        
+</tr>
+                        
+<tr id="Float-format">
+                            <th scope="row"><code>Float.format(x, spec)</code></th>
+                            <td><code>Result&lt;string, FormatError&gt;</code></td>
+                            <td>Allocated fixed, scientific, or general format; precision explicit.</td>
+                        
+</tr>
+                        
+<tr id="Float-format_into">
+                            <th scope="row"><code>Float.format_into(x, MutSlice&lt;byte&gt; out, spec)</code></th>
+                            <td><code>Result&lt;usize, FormatError&gt;</code></td>
+                            <td>UTF-8 ASCII output without heap allocation; report insufficient space.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>All string-producing functions above return <code>Result&lt;string, FormatError&gt;</code>, including
+                    <code>AllocationFailed</code>. <code>format_into</code> instead writes into an exclusively borrowed
+                    caller buffer and reports insufficient capacity through <code>BufferTooSmall</code>; it does not
+                    acquire a heap allocation.
+                
+</p>
+</section>
+<section id="Reductions" aria-labelledby="Reductions-heading">
+<h2 id="Reductions-heading">20. Accurate Reductions — Optional Numeric Library
+</h2>
+<p>Reduction order affects results. These candidates accept borrowed finite sequences and return a
+                    <code>Result</code>; accumulation type is explicit. Parallel versions must expose the selected
+                    reproducibility policy. Empty sums and products use zero and one; an empty mean is an error.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Accurate Reductions — Optional Numeric Library data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Float-sum">
+                            <th scope="row"><code>Float.sum(T, Slice&lt;T&gt; values)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Documented sequential order; finite-input checked reduction.</td>
+                        
+</tr>
+                        
+<tr id="Float-sum_compensated">
+                            <th scope="row"><code>Float.sum_compensated(T, Slice&lt;T&gt; values)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Compensated summation; improved accuracy without an exactness promise.</td>
+                        
+</tr>
+                        
+<tr id="Float-sum_precise">
+                            <th scope="row"><code>Float.sum_precise(T, Slice&lt;T&gt; values)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Exact finite accumulation followed by one specified rounding.</td>
+                        
+</tr>
+                        
+<tr id="Float-product">
+                            <th scope="row"><code>Float.product(T, Slice&lt;T&gt; values)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Documented sequential multiplication order.</td>
+                        
+</tr>
+                        
+<tr id="Float-dot">
+                            <th scope="row"><code>Float.dot(T, Slice&lt;T&gt; left, Slice&lt;T&gt; right)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require equal lengths; specify accumulation and fusion policy.</td>
+                        
+</tr>
+                        
+<tr id="Float-mean">
+                            <th scope="row"><code>Float.mean(T, Slice&lt;T&gt; values)</code></th>
+                            <td><code>Result&lt;T, FloatError&gt;</code></td>
+                            <td>Require nonempty finite input; avoid unnecessary sum overflow.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">21. CPU, GPU, AOT &amp; JIT
+</h2>
+<p>Backend capabilities cover storage, core arithmetic, conversion, subnormals, math functions, and
+                    atomic operations separately. A format may be storable without native arithmetic. Unsupported
+                    operations require an explicit fallback choice or a compilation diagnostic; they must not silently
+                    lower precision, flush subnormals, or move a tensor between CPU and GPU.
+                
+</p>
+                
+<p>Low-precision tensor storage does not imply low-precision accumulation. Select an accumulation type
+                    explicitly. JIT specialization retains the same selected numerical profile as AOT. Parallel
+                    reductions use a documented order or an explicit nondeterministic profile. An opt-in fast-math
+                    profile can improve throughput, but the allowed changes to NaN, infinity, signed zero, fusion, and
+                    reassociation must be individually stated.
+                
+</p>
+                
+<p>Global floating-point environment mutation, host-specific exception flags, unbounded-precision
+                    floats, decimal arithmetic, arbitrary random generation, complex arithmetic, and tensor allocation
+                    are outside this scalar namespace. Safe bit conversion is included; unchecked float-to-integer
+                    conversion is not proposed as a safe default. These remain separate design decisions.
+                
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">22. Examples &amp; Edge Cases
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Float.sqrt(9.0);                  // 3.0
+Float.is_nan(Float.sqrt(-1.0));   // true: IEEE-style result
+Float.checked_sqrt(-1.0);         // Result error: Domain
+Float.round_ties_even(2.5);       // 2.0
+Float.round_ties_away(2.5);       // 3.0
+Float.is_sign_negative(-0.0);     // true
+Float.total_compare(-0.0, 0.0);   // Less
+Float.fmod(-5.5, 2.0);           // -1.5
+Float.remainder(5.5, 2.0);        // -0.5
+Float.frexp(6.0);                 // (0.75, 3)
+Float.from_integer_exact(f32, 16_777_217); // precision-loss error
+Float.approx_equal(0.1 + 0.2, 0.3, 1e-12, 1e-12); // successful true</code></pre>
+                
+<p>Approximation checks must handle nonfinite values before subtraction: equal infinities compare
+                    approximately equal, NaN never does, and unequal infinities compare false. Tolerances remain
+                    explicit. Hashing and map-key equality need a separately selected representation policy; ordinary
+                    NaN-sensitive numeric equality is insufficient.
+                
+</p>
+                
+<p>The external references explain their own languages and libraries. They inform this independent Aevix
+                    draft; they do not certify Aevix behavior or performance. The catalog spans core functions and
+                    optional library candidates rather than asserting universal implementation of every function.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">23. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design; Aevix API names and contracts are proposed independently.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.f32.html" target="_blank"
+                           rel="noopener noreferrer">Rust f32 — format, core rounding, arithmetic, and
+                        representation</a>
+                    
+</li>
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.f64.html" target="_blank"
+                           rel="noopener noreferrer">Rust f64 — total order, next values, conversions, and math
+                        catalog</a>
+                    
+</li>
+                    
+<li><a href="https://developer.apple.com/documentation/swift/floatingpoint/significand"
+                           target="_blank" rel="noopener noreferrer">Swift significand — normalized decomposition</a>
+                    
+</li>
+                    
+<li><a href="https://developer.apple.com/documentation/swift/floatingpoint/ulp" target="_blank"
+                           rel="noopener noreferrer">Swift ulp — local spacing and edge cases</a>
+                    
+</li>
+                    
+<li><a href="https://developer.apple.com/documentation/swift/float/nextdown" target="_blank"
+                           rel="noopener noreferrer">Swift nextDown — adjacent representable values</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/cmath.syn" target="_blank" rel="noopener noreferrer">C++
+                        working draft — cmath function catalog</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/c.math.lerp" target="_blank" rel="noopener noreferrer">C++
+                        working draft — interpolation guarantees</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/sf.cmath" target="_blank" rel="noopener noreferrer">C++ working
+                        draft — mathematical special functions</a>
+                    
+</li>
+                    
+<li><a href="https://sourceware.org/glibc/manual/2.42/html_node/Arithmetic-Functions.html"
+                           target="_blank" rel="noopener noreferrer">GNU C Library 2.42 — arithmetic functions</a>
+                    
+</li>
+                    
+<li><a href="https://sourceware.org/glibc/manual/2.42/html_node/Special-Functions.html"
+                           target="_blank" rel="noopener noreferrer">GNU C Library 2.42 — special functions and
+                        reentrant gamma sign</a>
+                    
+</li>
+                    
+<li><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Double.html"
+                           target="_blank" rel="noopener noreferrer">Java Double — range, precision, equality, and
+                        representations</a>
+                    
+</li>
+                    
+<li><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Math.html"
+                           target="_blank" rel="noopener noreferrer">Java Math — floating-point mathematical
+                        functions</a>
+                    
+</li>
+                    
+<li><a href="https://docs.python.org/3/library/math.html" target="_blank" rel="noopener noreferrer">Python
+                        math — remainders, FMA, decomposition, and special functions</a>
+                    
+</li>
+                    
+<li><a href="https://docs.julialang.org/en/v1/base/math/" target="_blank" rel="noopener noreferrer">Julia
+                        Mathematics — pi-scaled trigonometry and accurate small-argument functions</a>
+                    
+</li>
+                    
+<li><a href="https://llvm.org/docs/LangRef.html#floating-point-environment" target="_blank"
+                           rel="noopener noreferrer">LLVM Language Reference — floating-point environment and fast-math
+                        flags</a>
+                    
+</li>
+                    
+<li><a href="https://onnx.ai/onnx/technical/float8.html" target="_blank" rel="noopener noreferrer">ONNX
+                        — FP8 format distinctions</a>
+                    
+</li>
+                    
+<li><a href="https://sourceware.org/glibc/manual/2.42/html_node/Normalization-Functions.html"
+                           target="_blank" rel="noopener noreferrer">GNU C Library 2.42 — normalization and exponent
+                        scaling</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/sf.cmath.cyl.bessel.j" target="_blank"
+                           rel="noopener noreferrer">C++ working draft — cylindrical Bessel domain</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/sf.cmath.ellint.1" target="_blank" rel="noopener noreferrer">C++
+                        working draft — incomplete elliptic integral domain</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/sf.cmath.assoc.legendre" target="_blank"
+                           rel="noopener noreferrer">C++ working draft — associated Legendre convention</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Float_8.html"><span>Next reference</span>Float8</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

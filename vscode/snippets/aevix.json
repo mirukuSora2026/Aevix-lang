@@ -1,0 +1,266 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "${1:i32} ${2:name}(${3:i32 value}) {",
+      "\t${4:return value;}",
+      "}"
+    ],
+    "description": "Type-first function with an explicit return."
+  },
+  "Void function": {
+    "prefix": "fnvoid",
+    "body": [
+      "void ${1:name}(${2}) {",
+      "\t${3}",
+      "\treturn;",
+      "}"
+    ],
+    "description": "Void function."
+  },
+  "Main": {
+    "prefix": "main",
+    "body": [
+      "i32 main() {",
+      "\t${1}",
+      "\treturn 0;",
+      "}"
+    ],
+    "description": "Program entry point."
+  },
+  "Variable": {
+    "prefix": "var",
+    "body": "${1:i32} ${2:value} = ${3:0};",
+    "description": "Immutable typed variable."
+  },
+  "Mutable variable": {
+    "prefix": "mut",
+    "body": "mut ${1:i32} ${2:value} = ${3:0};",
+    "description": "Explicitly mutable binding."
+  },
+  "Inferred variable": {
+    "prefix": "rsn",
+    "body": "rsn ${1:value} = ${2:0};",
+    "description": "Infer a variable type."
+  },
+  "Constant": {
+    "prefix": "const",
+    "body": "const ${1:i32} ${2:VALUE} = ${3:0};",
+    "description": "Compile-time constant."
+  },
+  "Persistent value": {
+    "prefix": "persist",
+    "body": "persist ${1:i32} ${2:value} = ${3:0};",
+    "description": "Persistent storage; requires compiler runtime support."
+  },
+  "Struct": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:Point} implements Copy {",
+      "\tpublic ${2:i32} ${3:x};",
+      "};"
+    ],
+    "description": "Value type; fields are private unless public."
+  },
+  "Enum": {
+    "prefix": "enum",
+    "body": [
+      "enum ${1:Event} {",
+      "\t${2:Quit};",
+      "\t${3:Move} { public i32 x; public i32 y; };",
+      "};"
+    ],
+    "description": "Tagged union with named payload fields."
+  },
+  "Interface": {
+    "prefix": "interface",
+    "body": [
+      "interface ${1:Named} {",
+      "\t${2:i32} ${3:value}(&Self self);",
+      "};"
+    ],
+    "description": "Static interface requirement."
+  },
+  "Generic function": {
+    "prefix": "generic",
+    "body": [
+      "T ${1:identity}<T>(T value) where T implements Copy {",
+      "\treturn value;",
+      "}"
+    ],
+    "description": "Generic function with a where constraint."
+  },
+  "If": {
+    "prefix": "if",
+    "body": [
+      "if (${1:condition}) {",
+      "\t${2}",
+      "}"
+    ],
+    "description": "Parentheses required around condition."
+  },
+  "If else": {
+    "prefix": "ifelse",
+    "body": [
+      "if (${1:condition}) {",
+      "\t${2}",
+      "} else {",
+      "\t${3}",
+      "}"
+    ],
+    "description": "Conditional statement."
+  },
+  "While": {
+    "prefix": "while",
+    "body": [
+      "while (${1:condition}) {",
+      "\t${2}",
+      "}"
+    ],
+    "description": "While loop."
+  },
+  "C-style for": {
+    "prefix": "for",
+    "body": [
+      "for (mut i32 ${1:i} = 0; ${1:i} < ${2:10}; ${1:i}++) {",
+      "\t${3}",
+      "}"
+    ],
+    "description": "Counted for loop."
+  },
+  "Enhanced for": {
+    "prefix": "foreach",
+    "body": [
+      "for (${1:i32} ${2:value} : ${3:values}) {",
+      "\t${4}",
+      "}"
+    ],
+    "description": "Enhanced iteration."
+  },
+  "Range for": {
+    "prefix": "forrange",
+    "body": [
+      "for (${1:i32} ${2:i} in ${3:0}..${4:10}) {",
+      "\t${5}",
+      "}"
+    ],
+    "description": "Half-open range iteration."
+  },
+  "Switch": {
+    "prefix": "switch",
+    "body": [
+      "switch (${1:value}) {",
+      "\tcase ${2:0}:",
+      "\t\t${3}",
+      "\t\tbreak;",
+      "\tdefault:",
+      "\t\tbreak;",
+      "}"
+    ],
+    "description": "Switch with explicit break."
+  },
+  "Enum case": {
+    "prefix": "caseenum",
+    "body": [
+      "case ${1:Event}.${2:Move} { i32 ${3:dx} = x, i32 ${4:dy} = y }:",
+      "\t${5}",
+      "\tbreak;"
+    ],
+    "description": "Named payload bindings in a switch case."
+  },
+  "Read method": {
+    "prefix": "method",
+    "body": [
+      "${1:i32} ${2:value}(&${3:Type} self) {",
+      "\treturn ${4:0};",
+      "}"
+    ],
+    "description": "Method with an explicit shared receiver."
+  },
+  "Mutable method": {
+    "prefix": "methodmut",
+    "body": [
+      "void ${1:update}(&mut ${2:Type} self, ${3:i32 value}) {",
+      "\t${4}",
+      "\treturn;",
+      "}"
+    ],
+    "description": "Method with an explicit mutable receiver."
+  },
+  "Static array": {
+    "prefix": "array",
+    "body": "${1:i32} ${2:values}[${3:3}] = [${4:1, 2, 3}];",
+    "description": "Fixed-length array."
+  },
+  "Multidimensional array": {
+    "prefix": "array2d",
+    "body": "${1:i32} ${2:grid}[2][3] = [[1, 2, 3], [4, 5, 6]];",
+    "description": "Contiguous, fixed-size nested arrays."
+  },
+  "Dynamic nested array": {
+    "prefix": "vector2d",
+    "body": "${1:i32} ${2:grid}[](2) = [[1, 2], [3, 4, 5]]?;",
+    "description": "Nested dynamic vectors; requires allocation and Result support."
+  },
+  "Import": {
+    "prefix": "import",
+    "body": "import ${1:math.vector};",
+    "description": "Import a module using its full path."
+  },
+  "Selective import": {
+    "prefix": "importfrom",
+    "body": "import ${1:math.vector} { ${2:Point, dot} };",
+    "description": "Import selected public names."
+  },
+  "Re-export": {
+    "prefix": "export",
+    "body": "public import ${1:math.vector} { ${2:Point} };",
+    "description": "Explicit named re-export."
+  },
+  "Documentation comment": {
+    "prefix": "doc",
+    "body": [
+      "/*",
+      " * ${1:Description.}",
+      " * @parameter ${2:value} ${3:Description.}",
+      " * @return ${4:Description.}",
+      " * @version ${5:0.1.0}",
+      " */"
+    ],
+    "description": "Aevix enhanced block documentation."
+  },
+  "Deprecated documentation": {
+    "prefix": "deprecated",
+    "body": [
+      "/*",
+      " * @deprecated ${1:Use replacement instead.}",
+      " * @deprecated_at ${2:0.2.0}",
+      " */"
+    ],
+    "description": "Document deprecation and the target version."
+  },
+  "C external declaration": {
+    "prefix": "extern",
+    "body": "extern \"C\" ${1:i32} ${2:function}(${3:i32 value});",
+    "description": "External C function declaration; requires compiler FFI support."
+  },
+  "Variadic function": {
+    "prefix": "variadic",
+    "body": [
+      "usize ${1:count}(${2:i32} ${3:values}[]) {",
+      "    return Slice.len(${3:values});",
+      "}"
+    ],
+    "description": "A homogeneous read-only argument pack backed by call-frame storage; no hidden heap allocation."
+  },
+  "Result propagation function": {
+    "prefix": "resultfn",
+    "body": [
+      "Result<${1:i32}, ${2:i32}> ${3:compute}(${4:bool available}) {",
+      "    ${1:i32} ${5:value} = ${6:fetch}(${7:available})?;",
+      "    return Result.ok(${5:value});",
+      "}"
+    ],
+    "description": "Propagate an owned Result with an exactly matching error type."
+  }
+}

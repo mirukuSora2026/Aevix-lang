@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="The i8 (Int8 reference): signed values, eight-bit boundaries, and explicit
+                conversion rules.">
+  <title>Int8 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Integer.html" aria-current="true">Integer</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Integer.html">Integer</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Int8</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Int8</h1><p class="doc-subtitle">The i8 (Int8 reference): signed values, eight-bit boundaries, and explicit
+                conversion rules.</p><div class="doc-meta"><span class="meta-chip">i8</span><span class="meta-chip">Integer. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>i8</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Basic Information</span></a></li><li><a href="#Value-Range"><span class="toc-number">02</span><span>Value Range &amp; Bit Representation</span></a></li><li><a href="#Literals"><span class="toc-number">03</span><span>Literals &amp; Type Inference</span></a></li><li><a href="#Value-Copying"><span class="toc-number">04</span><span>Value Copying &amp; Storage</span></a></li><li><a href="#Type-Conversion"><span class="toc-number">05</span><span>Type Conversion</span></a></li><li><a href="#Arithmetic-Boundaries"><span class="toc-number">06</span><span>Arithmetic Boundary Values</span></a></li><li><a href="#Bitwise-Operations"><span class="toc-number">07</span><span>Bitwise Operation Characteristics</span></a></li><li><a href="#String-Byte"><span class="toc-number">08</span><span>string &amp; Byte Representation</span></a></li><li><a href="#Return-Types"><span class="toc-number">09</span><span>Return Types of Common Functions</span></a></li><li><a href="#Arrays-Tensors"><span class="toc-number">10</span><span>Arrays, Tensors &amp; Execution Targets</span></a></li><li><a href="#Int8-Functions"><span class="toc-number">11</span><span>Int8-Specific Functions</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Integer pages"><h2>Integer reference</h2><div class="family-links"><a href="Integer.html">Integer</a><a href="Integer_8.html" aria-current="page">Int8</a><a href="Integer_16.html">Integer · 16-bit</a><a href="Integer_32.html">Integer · 32-bit</a><a href="Integer_64.html">Integer · 64-bit</a><a href="Unsigned_Integer_8.html">Unsigned Integer · 8-bit</a><a href="Unsigned_Integer_16.html">Unsigned Integer · 16-bit</a><a href="Unsigned_Integer_32.html">Unsigned Integer · 32-bit</a><a href="Unsigned_Integer_64.html">Unsigned Integer · 64-bit</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Int8 reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. Basic Information
+</h2>
+<p><code>i8</code> is a signed, fixed-width integer with an eight-bit value representation. “Int8” names
+                    this reference page; an <code>int8</code> code alias has not been approved. The default
+                    <code>int</code> alias remains <code>i32</code>.
+                
+</p>
+                
+<blockquote class="callout note">
+                    
+<p><strong>Design draft.</strong> The policies and <code>Integer.</code> function spellings below
+                        are proposals. Examples illustrate intended behavior; they do not claim a working compiler,
+                        final grammar, or validated runtime.
+                    
+</p>
+                
+</blockquote>
+                
+<div class="table-scroll" role="region" aria-label="Basic Information data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Property</th>
+                            <th scope="col">i8 behavior</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <th scope="row">Code type</th>
+                            <td><code>i8</code></td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Value representation</th>
+                            <td>8 bits; 1 byte</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Signed range</th>
+                            <td><code>-128</code> through <code>127</code></td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Distinct values</th>
+                            <td>256</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Representation</th>
+                            <td>Two’s complement</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Value semantics</th>
+                            <td>Copy</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>One byte describes the value representation. It does not promise one-byte registers, stack slots,
+                    alignment, containing structures, or a universal foreign-function ABI. See the <a
+                            href="Integer.html">common Integer reference</a> for shared contracts.
+                
+</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Integer.min_value(i8);  // -128
+Integer.max_value(i8);  // 127
+Integer.bit_width(i8);  // 8
+Integer.byte_width(i8); // 1
+Integer.is_signed(i8);  // true</code></pre>
+</section>
+<section id="Value-Range" aria-labelledby="Value-Range-heading">
+<h2 id="Value-Range-heading">2. Value Range &amp; Bit Representation
+</h2>
+<p>The highest bit has weight <code>-128</code>; the remaining bits contribute nonnegative powers of
+                    two. Every eight-bit pattern represents one valid <code>i8</code> value. There is no separate
+                    negative zero.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Value Range &amp; Bit Representation data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Bit pattern</th>
+                            <th scope="col">Signed value</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <th scope="row">00000000</th>
+                            <td><code>0</code></td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">01111111</th>
+                            <td><code>127</code></td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">10000000</th>
+                            <td><code>-128</code></td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">11111111</th>
+                            <td><code>-1</code></td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>The same bits may denote a different unsigned value: <code>11111111</code> is <code>255</code> as
+                    <code>u8</code>. Two’s complement specifies representation; it does not make ordinary arithmetic
+                    wrap automatically.
+                
+</p>
+</section>
+<section id="Literals" aria-labelledby="Literals-heading">
+<h2 id="Literals-heading">3. Literals &amp; Type Inference
+</h2>
+<p>An expected <code>i8</code> type constrains a numeric literal to this range. Decimal, hexadecimal,
+                    and binary spellings describe numeric values unless an explicit bit reinterpretation is requested.
+                    Therefore numeric <code>0xff</code> means <code>255</code> and cannot initialize <code>i8</code>
+                    directly.
+                
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i8 low = -128;   // valid minimum literal
+i8 high = 127;   // valid maximum literal
+i8 bad = 128;    // compile-time range error
+i8 hex = 0xff;   // compile-time range error
+int ordinary = 12;   // int aliases i32</code></pre>
+                
+<p>The minimum literal is accepted as a signed value. Negating an already typed <code>-128:i8</code> is
+                    a separate arithmetic operation and may fail; literal checking must not confuse these cases.
+                
+</p>
+</section>
+<section id="Value-Copying" aria-labelledby="Value-Copying-heading">
+<h2 id="Value-Copying-heading">4. Value Copying &amp; Storage
+</h2>
+<p>Copying an <code>i8</code> duplicates its value without a heap allocation or ownership transfer.
+                    Changing the copy does not change the original. Passing or returning an <code>i8</code> follows the
+                    same scalar rule.
+                
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i8 original = 12;
+i8 copy = original; // both values remain usable</code></pre>
+                
+<p>This property does not make every container copyable. <code>Vector&lt;i8&gt;</code>, owning tensors,
+                    and boxed storage follow their ownership rules. <code>Array&lt;i8, N&gt;</code> copying follows the
+                    array contract and may copy many elements. A slice or tensor view borrows storage; it does not
+                    duplicate its elements.
+                
+</p>
+</section>
+<section id="Type-Conversion" aria-labelledby="Type-Conversion-heading">
+<h2 id="Type-Conversion-heading">5. Type Conversion
+</h2>
+<p>Typed numeric values never gain an implicit cast merely because a destination looks large enough. Use
+                    an explicit conversion operation. Widening preserves the signed mathematical value; bit
+                    reinterpretation preserves the bits.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Type Conversion data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conversion</th>
+                            <th scope="col">Value rule</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <th scope="row">i8 → i16 / i32 / i64 / isize</th>
+                            <td>Every value fits in supported targets whose destination width is at least eight bits;
+                                signed widening preserves negative values.
+                            </td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">i8 → u8 / u16 / u32 / u64 / usize</th>
+                            <td>Only nonnegative values convert successfully. A wider unsigned destination still cannot
+                                represent a negative value.
+                            </td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Other integers → i8</th>
+                            <td>Successful conversion requires <code>-128 ≤ value ≤ 127</code>.</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">i8 → f16 / bf16 / f32 / f64</th>
+                            <td>Every i8 value is exactly representable in all four formats; the conversion remains
+                                explicit.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p><code>Integer.convert</code> checks representability. <code>widen</code> expresses a value-preserving
+                    wider destination. <code>bitcast</code>, <code>saturating_convert</code>, and
+                    <code>wrapping_convert</code> have distinct contracts: reinterpretation, clamping, and modular
+                    conversion. They must not be interchangeable shortcuts. Floating-point conversion back to
+                    <code>i8</code> also follows the common policy for fractions, infinities, NaN, and range errors.
+                
+</p>
+</section>
+<section id="Arithmetic-Boundaries" aria-labelledby="Arithmetic-Boundaries-heading">
+<h2 id="Arithmetic-Boundaries-heading">6. Arithmetic Boundary Values
+</h2>
+<p>Ordinary integer arithmetic returns the same integer type and checks overflow, unsigned underflow, and division by zero. A runtime failure safely stops execution; it does not return <code>Result</code>. Use lexical <code>checked(expression)</code> or a named <code>Integer.checked_*</code> API to receive <code>Result&lt;T, IntegerError&gt;</code>, then handle it or propagate it explicitly with <code>?</code>. This boundary is the same in debug/release and AOT/JIT execution. Wrapping and saturating operations remain explicit alternatives. See <a href="../../grammar/operators/Checked_Arithmetic.html">Checked Arithmetic</a> for covered operations and the separate open edge cases.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Integer.checked_add(127:i8, 1:i8);    // overflow
+Integer.wrapping_add(127:i8, 1:i8);   // -128
+Integer.saturating_add(127:i8, 1:i8); // 127
+Integer.unsigned_abs(-128:i8);       // 128:u8
+Integer.abs_diff(-128:i8, 127:i8);   // 255:u8</code></pre>
+                
+<p><code>-(-128)</code>, signed <code>abs(-128)</code>, and <code>-128 / -1</code> cannot produce an
+                    <code>i8</code> result. Dividing by zero also fails. The proposed remainder rule gives <code>-128 %
+                        -1 = 0</code>; this requires deliberate backend handling and remains a draft decision. Wrapping
+                    and saturating behavior must be requested explicitly, including at this minimum boundary.
+                
+</p>
+</section>
+<section id="Bitwise-Operations" aria-labelledby="Bitwise-Operations-heading">
+<h2 id="Bitwise-Operations-heading">7. Bitwise Operation Characteristics
+</h2>
+<p>Bit counts inspect exactly eight bits. For zero, leading and trailing zero counts are <code>8</code>;
+                    its one-count and unsigned bit length are <code>0</code>. Signed inputs are interpreted as their
+                    fixed-width bit patterns where the common function permits them.
+                
+</p>
+                
+<p>A strict shift count must lie in <code>0…7</code>. Negative or oversized counts return an error
+                    rather than inheriting hardware masking. Count validation is separate from bits lost by a left
+                    shift; the common shift contract determines whether that loss is checked or explicitly permitted.
+                
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Integer.shift_right(-3:i8, 1); // successful Result containing -2
+// Arithmetic right shift rounds downward; -3 / 2 instead yields -1.</code></pre>
+                
+<p>Rotation uses counts modulo eight: rotating by eight leaves the value unchanged. Rotation keeps
+                    displaced bits, unlike shifting. <code>reverse_bits</code> reverses all eight positions; <code>swap_bytes</code>
+                    leaves a one-byte value unchanged.
+                
+</p>
+</section>
+<section id="String-Byte" aria-labelledby="String-Byte-heading">
+<h2 id="String-Byte-heading">8. string &amp; Byte Representation
+</h2>
+<p>These encoding APIs return <code>Array&lt;byte, 1&gt;</code> and their fixed-width inverse APIs accept the same type. <code>byte</code> is distinct from numeric <code>u8</code>; use <a href="../Byte/Byte.html">Byte</a> conversions explicitly instead of relying on an implicit conversion.</p>
+<p>Numeric parsing reads a signed mathematical value. Parsing decimal <code>&quot;127&quot;</code> into
+                    <code>i8</code> succeeds; <code>&quot;128&quot;</code> fails. Parsing <code>&quot;ff&quot;</code>
+                    with radix 16 denotes <code>255</code> and fails, while <code>&quot;-80&quot;</code> denotes <code>-128</code>.
+                
+</p>
+                
+<p>A byte reinterpretation is different: interpreting the single byte <code>0xff</code> as
+                    <code>i8</code> yields <code>-1</code>. A numeric conversion from <code>255:u8</code> to
+                    <code>i8</code> must still fail.
+                
+</p>
+                
+<p><code>Integer.to_le_bytes</code> and <code>to_be_bytes</code> each produce the same single byte for
+                    <code>i8</code>; their inverse operations consume exactly one byte. Endianness changes byte order,
+                    so it cannot distinguish a one-byte representation. Formatting <code>-1:i8</code> numerically is not
+                    automatically a request for the hexadecimal bit pattern <code>ff</code>.
+                
+</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i8 value = -1;
+Array&lt;byte, 1&gt; bytes = Integer.to_be_bytes(value);
+u8 numeric = Byte.to_u8(bytes[0]); // 255; explicit numeric view
+i8 decoded = Integer.from_be_bytes(i8, bytes);</code></pre>
+</section>
+<section id="Return-Types" aria-labelledby="Return-Types-heading">
+<h2 id="Return-Types-heading">9. Return Types of Common Functions
+</h2>
+<p>Successful value-preserving arithmetic returns <code>i8</code>. Wider mathematical results need an
+                    explicitly wider destination or a specialized return type; they do not silently change this scalar’s
+                    type.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Return Types of Common Functions data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function family</th>
+                            <th scope="col">i8-specific consequence</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <th scope="row">min_value / max_value</th>
+                            <td><code>i8</code></td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">unsigned_abs / abs_diff</th>
+                            <td><code>u8</code>, covering <code>128</code> and <code>255</code> respectively</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Strict shift operations</th>
+                            <td><code>Result&lt;i8, …&gt;</code> under the draft common contract</td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Bit counts and width metadata</th>
+                            <td>The common count type; counts range from <code>0</code> to <code>8</code>, rather than
+                                returning i8 by inheritance.
+                            </td>
+                        
+</tr>
+                        
+<tr>
+                            <th scope="row">Byte encoding</th>
+                            <td>A one-byte array under the common byte contract</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Arrays-Tensors" aria-labelledby="Arrays-Tensors-heading">
+<h2 id="Arrays-Tensors-heading">10. Arrays, Tensors &amp; Execution Targets
+</h2>
+<p><code>Array&lt;i8, N&gt;</code> stores fixed-width signed elements. <code>Tensor&lt;i8, Shape, Place&gt;</code>
+                    adds shape and placement; those properties do not enlarge an element’s range. Allocation sizes,
+                    dimension products, and indexing use checked size arithmetic, not i8 arithmetic.
+                
+</p>
+                
+<p>CPU AOT, CPU JIT, and GPU execution must preserve the same i8 value and error policies. Eight-bit
+                    storage does not guarantee native eight-bit arithmetic, atomic support, or a particular GPU speed. A
+                    backend may use wider instructions while preserving the observable i8 behavior. For comparison,
+                    Vulkan exposes 8-bit shader support as a feature with separate storage-class restrictions.
+                
+</p>
+                
+<p>A raw i8 tensor is not automatically quantized: scale, zero point, accumulation width, and conversion
+                    rules belong to quantization metadata. A GPU <code>Pending</code> retains the required storage until
+                    actual completion. Completion alone does not establish CPU visibility; transfer and synchronization
+                    follow the common memory contract.
+                
+</p>
+</section>
+<section id="Int8-Functions" aria-labelledby="Int8-Functions-heading">
+<h2 id="Int8-Functions-heading">11. Int8-Specific Functions
+</h2>
+<p>No i8-only functions are currently proposed. Use the shared <code>Integer.</code> namespace with i8
+                    values or an explicit i8 destination. This page specializes ranges, boundary examples, storage
+                    representation, and return consequences; it does not redefine the entire integer API.
+                
+</p>
+                
+<p>The linked external references informed comparison of arithmetic and target behavior. They specify
+                    their own languages and backends; they do not establish that the proposed Aevix compiler or runtime
+                    has implemented these guarantees.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design; Aevix API names and contracts are proposed independently.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://doc.rust-lang.org/reference/expressions/operator-expr.html" target="_blank"
+                           rel="noopener noreferrer">Rust Reference — operator expressions and integer boundaries</a>
+                    
+</li>
+                    
+<li><a href="https://llvm.org/docs/LangRef.html#arithmetic-with-overflow-intrinsics" target="_blank"
+                           rel="noopener noreferrer">LLVM Language Reference — defined overflow-checking intrinsics</a>
+                    
+</li>
+                    
+<li>
+                        <a href="https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceShaderFloat16Int8Features.html"
+                           target="_blank" rel="noopener noreferrer">Vulkan Specification — 8-bit shader support and
+                            storage-class limits</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Integer.html"><span>Previous reference</span>Integer</a><a href="Integer_16.html"><span>Next reference</span>Integer · 16-bit</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

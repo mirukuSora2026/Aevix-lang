@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Quiescence, success, memory domains and host readability.">
+  <title>Pending Visibility — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Pending.html" aria-current="true">Pending</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html" aria-current="true">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Pending.html">Pending</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Pending Visibility</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Pending Visibility</h1><p class="doc-subtitle">Quiescence, success, memory domains and host readability.</p><div class="doc-meta"><span class="meta-chip">CompletionToken / DeviceReady&lt;T&gt; / HostReady&lt;T&gt;</span><span class="meta-chip">Pending. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>12</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>…</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#distinctions"><span class="toc-number">01</span><span>Four separate questions</span></a></li><li><a href="#order"><span class="toc-number">02</span><span>Execution order and memory dependencies</span></a></li><li><a href="#host"><span class="toc-number">03</span><span>Host acquire and mappings</span></a></li><li><a href="#failure"><span class="toc-number">04</span><span>Failure and unknown quiescence</span></a></li><li><a href="#bridge"><span class="toc-number">05</span><span>Host tasks and visibility evidence</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Readiness is typed evidence</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Backend boundary</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Pending pages"><h2>Pending reference</h2><div class="family-links"><a href="Pending.html">Pending</a><a href="Pending_Transfer.html">Pending Transfers</a><a href="Pending_Visibility.html" aria-current="page">Pending Visibility</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html" aria-current="true">Pending</a></div></nav></aside><article class="content" aria-label="Pending Visibility reference">
+<section id="distinctions" aria-labelledby="distinctions-heading">
+<h2 id="distinctions-heading">1. Four separate questions
+</h2>
+<p>A consumer must distinguish whether a producer stopped accessing resources, whether it succeeded, whether its writes are visible to the consumer domain and whether that consumer can address the storage. A completed failure can be quiescent without valid output. Successful device-ready storage can remain inaccessible to a host pointer. These facts cannot be compressed into one unchecked ready bool.
+</p>
+<p>CompletionToken is a retained generation-specific dependency capability. DeviceReady&lt;T&gt; pairs a successful output with device-use readiness. HostReady&lt;T&gt; additionally proves supported host access and the required acquire/cache operations while retaining ownership or a mapping loan. None is a universal fence for unrelated allocations or future submissions.
+</p>
+</section>
+<section id="order" aria-labelledby="order-heading">
+<h2 id="order-heading">2. Execution order and memory dependencies
+</h2>
+<p>Queue order determines when commands execute under a selected queue profile. A memory dependency also makes relevant writes available and visible to specified consumers. Cross-queue or cross-device use requires an explicit adapter-supported dependency and memory-domain transition. An execution-only event is insufficient for a read-after-write dependency if visibility has not been established.
+</p>
+<p>A dependency names producer generation, allocation accesses, consumer queue/domain and relevant access modes. Reusing a native event object requires a fresh token generation. Importing an external token needs a documented producer scope and ownership lifetime; a raw integer event handle cannot prove those facts. Dependency cycles and incompatible device identities are checked errors when detectable.
+</p>
+</section>
+<section id="host" aria-labelledby="host-heading">
+<h2 id="host-heading">3. Host acquire and mappings
+</h2>
+<p>Host acquire is permitted only for host-accessible output. It waits or checks the required successful completion, performs backend cache invalidation or domain operations when needed and grants a host-access loan or owner. Device-only allocations return UnsupportedHostAccess; the caller requests an explicit download. A shared virtual address alone is insufficient.
+</p>
+<p>Mapping retains the allocation and prohibits conflicting device access for its mapped loan. Releasing the host map can require an explicit release/flush operation before subsequent device reads. A coherent memory capability can remove certain cache steps while leaving ordering and loan exclusivity intact. Safe APIs must not expose an uninitialized or partial failed output as an ordinary initialized Slice.
+</p>
+</section>
+<section id="failure" aria-labelledby="failure-heading">
+<h2 id="failure-heading">4. Failure and unknown quiescence
+</h2>
+<p>A quiescent execution error reports that no further accesses from the failed work can occur, together with output validity. Resource cleanup and borrowed-loan release can then follow the declared report. Device or session loss may leave quiescence unknown. In that case a normal error return must not authorize deallocation, mutation or scope exit for memory the device may still access.
+</p>
+<p>The adapter must establish safe quiescence, retain/quarantine owned storage or use an explicitly fatal termination policy before borrowed storage could be released. Returning to safe code with a dangling device reference is forbidden. A timeout or cancellation request cannot be used as a substitute for this proof, even if a user no longer cares about the result.
+</p>
+</section>
+<section id="bridge" aria-labelledby="bridge-heading">
+<h2 id="bridge-heading">5. Host tasks and visibility evidence
+</h2>
+<p>A host Task waiting for Pending can integrate device completion with a scheduler. It retains the same device resource leases and does not invent host coherence. A Task producing a Gpu tensor may carry a successful device-ready value while still requiring download before Cpu indexing. Error layers remain distinct: task scheduling/lifecycle failure surrounds the device Result.
+</p>
+<p>Locks and host atomics do not automatically establish device memory visibility. Shared&lt;T&gt; reference counting retains memory but does not flush GPU caches or permit concurrent mutation. Device-scope completion, host acquire and explicit release define the legal handoff points. The exact target barriers are an adapter responsibility, not an implicit consequence of a language-level bool.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Readiness is typed evidence
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">// Given an accepted submission whose output is host-accessible.
+mut Pending&lt;HostBuffer&lt;f32&gt;&gt; pending_host_output = prepared_host_output;
+Result&lt;Optional&lt;HostReady&lt;HostBuffer&lt;f32&gt;&gt;&gt;, DeviceError&gt; readable = Pending.acquire_host(&amp;mut pending_host_output);
+// Existing producer token is moved into a dependency on the borrowed destination queue.
+Result&lt;QueueDependency, DeviceError&gt; ordered = Pending.after(&amp;consumer_queue, producer_token);</code></pre>
+<p>An absent readable value means output is not available for taking. A successful ordered dependency schedules the declared producer-to-consumer relation; it does not give immediate host access to either allocation.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Pending-quiescence"><td><code>Pending.quiescence(&amp;Pending&lt;T&gt; operation)</code></td><td><code>Quiescence</code></td><td>ProvenActive, ProvenQuiescent or Unknown classification; Unknown never releases loans.</td><td>Nonblocking query/report.</td>
+</tr>
+<tr id="Pending-visibility"><td><code>Pending.visibility(&amp;Pending&lt;T&gt; operation)</code></td><td><code>VisibilityReport</code></td><td>Declared ready consumer domains and outstanding acquire requirements.</td><td>Diagnostic query; no access grant.</td>
+</tr>
+<tr id="Pending-validate_dependency"><td><code>Pending.validate_dependency(&amp;CompletionToken producer, &amp;Queue consumer, AccessSpec access)</code></td><td><code>Result&lt;DependencyReport, DeviceError&gt;</code></td><td>Checks generation, device, access scopes and compatible memory transition.</td><td>Host validation; may query backend.</td>
+</tr>
+<tr id="Pending-acquire_device"><td><code>Pending.acquire_device(DeviceReady&lt;T&gt; value, &amp;Queue consumer, AccessSpec access)</code></td><td><code>Result&lt;DeviceReady&lt;T&gt;, DeviceError&gt;</code></td><td>Makes explicit device consumer dependency/visibility transition; no host transfer.</td><td>May enqueue barrier/wait.</td>
+</tr>
+<tr id="Pending-map_host"><td><code>Pending.map_host(HostReady&lt;T&gt; value, HostAccess access)</code></td><td><code>Result&lt;HostMap&lt;T&gt;, DeviceError&gt;</code></td><td>Creates scoped map loan only for host-addressable initialized storage; exclusivity checked.</td><td>May map/invalidate; no implicit bulk download.</td>
+</tr>
+<tr id="Pending-host_slice"><td><code>Pending.host_slice(&amp;HostMap&lt;T&gt; mapping)</code></td><td><code>Slice&lt;T&gt;</code></td><td>Borrowed initialized host elements; cannot outlive map or conflict with exclusive device use.</td><td>O(1); host-readable mapping only.</td>
+</tr>
+<tr id="Pending-host_slice_mut"><td><code>Pending.host_slice_mut(&amp;mut HostMap&lt;T&gt; mapping)</code></td><td><code>MutSlice&lt;T&gt;</code></td><td>Exclusive initialized host elements; map access mode must permit writes.</td><td>O(1); map loan retained.</td>
+</tr>
+<tr id="Pending-release_host"><td><code>Pending.release_host(HostMap&lt;T&gt; mapping, &amp;Queue consumer)</code></td><td><code>Result&lt;DeviceReady&lt;T&gt;, DeviceError&gt;</code></td><td>Consumes host map, flushes/releases as required and establishes legal device handoff.</td><td>May synchronize; no simultaneous conflicting access.</td>
+</tr>
+<tr id="Pending-token_generation"><td><code>Pending.token_generation(&amp;CompletionToken token)</code></td><td><code>SubmissionGeneration</code></td><td>Immutable generation identity; cannot certify a newer native event recording.</td><td>O(1).</td>
+</tr>
+<tr id="Pending-import_token"><td><code>Pending.import_token(ForeignCompletion descriptor, ImportPolicy policy)</code></td><td><code>Result&lt;CompletionToken, DeviceError&gt;</code></td><td>Validated ownership, generation, completion scope and memory-domain semantics required.</td><td>Adapter-specific fallible import.</td>
+</tr>
+<tr id="Pending-session_status"><td><code>Pending.session_status(&amp;DeviceContext device)</code></td><td><code>DeviceSessionStatus</code></td><td>Reports healthy/lost/quarantined state; does not itself prove all leases quiescent.</td><td>Runtime query.</td>
+</tr>
+<tr id="Pending-drain_device"><td><code>Pending.drain_device(&amp;DeviceContext device)</code></td><td><code>Result&lt;DeviceDrainReport, DeviceError&gt;</code></td><td>Establishes quiescence for accepted tracked work or follows unrecoverable session policy; never frees live borrowed storage on error.</td><td>May wait; no bounded completion promise.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Backend boundary
+</h2>
+<p>The device adapter must map these proposed contracts onto actual queue, event, cache and allocation rules. CUDA and Vulkan sources demonstrate why asynchronous naming, event completion and memory visibility cannot be treated as one universal guarantee. The documentation specifies required behavior; it does not prove a working implementation on any device.
+</p>
+<p><a href="Pending.html">Pending common reference</a> · <a href="Pending_Transfer.html">Transfers</a> · <a href="Pending_Visibility.html">Visibility</a> · <a href="../Tensor/Tensor_Device.html">Tensor device operations</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__EVENT.html" target="_blank" rel="noopener noreferrer">CUDA Runtime event management</a>
+</li>
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html" target="_blank" rel="noopener noreferrer">CUDA API synchronization behavior</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/chapters/synchronization.html" target="_blank" rel="noopener noreferrer">Vulkan synchronization and memory dependencies</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/appendices/memorymodel.html" target="_blank" rel="noopener noreferrer">Vulkan memory model</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Pending_Transfer.html"><span>Previous reference</span>Pending Transfers</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

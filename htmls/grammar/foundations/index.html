@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="The 15 Aevix principles and the shared semantic model for AOT compilation and selective JIT execution.">
+<title>Language Foundations — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><span>Language foundations</span><span class="separator" aria-hidden="true">/</span><span aria-current="page">Language Foundations</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">LANGUAGE DESIGN REFERENCE</p><h1>Language Foundations</h1><p class="doc-subtitle">The 15 Aevix principles and the shared semantic model for AOT compilation and selective JIT execution.</p><div class="doc-meta"><span class="meta-chip">Confirmed rules + open decisions</span><span class="meta-chip">English reference</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Principles</dt><dd>15</dd></div><div class="doc-stat"><dt>Compilation</dt><dd>AOT + selective JIT</dd></div><div class="doc-stat"><dt>Evidence</dt><dd>Design specification</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>15</strong><span>design goals</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="Reference navigation">
+<details class="toc" open><summary>On this page</summary><ol>
+<li><a href="#overview"><span class="toc-number">01</span><span>State the goals and the chosen boundaries</span></a></li>
+<li><a href="#references"><span class="toc-number">02</span><span>Two foundation references</span></a></li>
+<li><a href="#small-example"><span class="toc-number">03</span><span>Keep ordinary source simple and explicit</span></a></li>
+<li><a href="#chosen-direction"><span class="toc-number">04</span><span>Confirmed direction and open mechanisms</span></a></li>
+<li><a href="#evidence"><span class="toc-number">05</span><span>Implementation evidence is a later milestone</span></a></li>
+<li><a href="#related"><span class="toc-number">06</span><span>Read the source-level contracts</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="Language foundations pages"><h2>Language foundations</h2><div class="family-links">
+<a href="index.html" aria-current="page">Overview</a>
+<a href="Design_Principles.html">15 design principles</a>
+<a href="Compilation_Model.html">AOT and selective JIT</a>
+</div></nav>
+<nav class="family-nav" aria-label="Related language sections"><h2>Language reference</h2><div class="family-links"><a href="../index.html">Grammar overview</a><a href="../foundations/index.html">Foundations</a><a href="../user_defined_types/index.html">User-defined types</a><a href="../enums/Enums.html">Enums</a><a href="../generics/Generic_Types.html">Generic types</a><a href="../../declaration/index.html">Declarations</a><a href="../../data_type/index.html">Data types</a></div></nav>
+</aside>
+<article class="content" aria-label="Language Foundations reference">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1. State the goals and the chosen boundaries</h2>
+<p>Aevix aims for C++-class native performance and safety at least at the level targeted by Rust, together with approachable syntax and a unified CPU/GPU programming model. These are user-selected design goals, not comparative benchmark results, formal safety proof, or evidence of an implemented compiler.</p><p>The confirmed execution direction is ahead-of-time compilation as the baseline plus selective just-in-time compilation. Both paths must preserve the same type, ownership, error, evaluation, and cost semantics.</p>
+</section>
+
+<section id="references" aria-labelledby="references-heading">
+<h2 id="references-heading">2. Two foundation references</h2>
+<nav class="page-navigation" aria-label="Foundation references">
+<a href="Design_Principles.html"><span>Language direction</span><strong>15 Design Principles</strong><p>The complete goals, their source-level consequences, and the evidence each still requires.</p></a>
+<a href="Compilation_Model.html"><span>Execution direction</span><strong>AOT and Selective JIT</strong><p>One semantic contract across execution paths, with mechanism choices explicitly open.</p></a>
+</nav>
+</section>
+
+<section id="small-example" aria-labelledby="small-example-heading">
+<h2 id="small-example-heading">3. Keep ordinary source simple and explicit</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 add(i32 first, i32 second) {
+    return first + second;
+}
+
+i32 result = add(10, 20);
+mut i32 accumulated = result;
+accumulated += 1;</code></pre><p>Types appear before names, bindings are immutable unless mut is present, statements end with semicolons, and a value-returning function spells return. Ordinary integer arithmetic retains its selected safety contract; compiler optimization cannot silently change that contract.</p>
+</section>
+
+<section id="chosen-direction" aria-labelledby="chosen-direction-heading">
+<h2 id="chosen-direction-heading">4. Confirmed direction and open mechanisms</h2>
+<div class="table-scroll" role="region" aria-label="Foundation design status">
+<table>
+<thead><tr>
+<th scope="col">Area</th>
+<th scope="col">Confirmed direction</th>
+<th scope="col">Still open</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">Compilation</th>
+<td>AOT baseline with selective JIT.</td>
+<td>Triggers, cache, installation, fallback, and deployment packaging.</td>
+</tr>
+<tr>
+<th scope="row">Safety</th>
+<td>Static typing and ownership/borrowing guide memory and parallel safety.</td>
+<td>Compiler implementation, full unsafe/FFI boundary rules, and verification evidence.</td>
+</tr>
+<tr>
+<th scope="row">Compute</th>
+<td>AI-native Tensor/Shape support and a unified CPU/GPU model.</td>
+<td>Kernel syntax, target scheduling, memory representation, and backend coverage.</td>
+</tr>
+<tr>
+<th scope="row">Cost</th>
+<td>Copies, allocation contracts, and CPU/GPU transfers remain visible.</td>
+<td>Final diagnostics, profiling, and target-specific mechanisms.</td>
+</tr>
+<tr>
+<th scope="row">Extensibility</th>
+<td>An extensible compiler can support backends such as LLVM and MLIR.</td>
+<td>Exact intermediate representations, passes, and plugin/backend interfaces.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="evidence" aria-labelledby="evidence-heading">
+<h2 id="evidence-heading">5. Implementation evidence is a later milestone</h2>
+<p>The documentation records design choices and example syntax. Native throughput, race rejection, leak prevention, GPU execution, interoperability, and JIT optimization require their respective implementations and validation. No runnable Aevix compiler, benchmark suite, deployment package, or stable ABI is demonstrated by these HTML pages.</p><p>The detailed type catalog contains proposed standard APIs. A proposed API table does not establish that its backend, allocator, synchronization protocol, or foreign binding has been implemented.</p>
+</section>
+
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">6. Read the source-level contracts</h2>
+<nav class="page-navigation" aria-label="Related language contracts">
+<a href="../user_defined_types/index.html"><span>Values</span><strong>User-defined Types</strong><p>Named fields, typed receivers, and explicit Copy opt-in.</p></a>
+<a href="../../declaration/index.html"><span>Syntax</span><strong>Declarations</strong><p>Type-first variables, inferred types, and explicit returns.</p></a>
+<a href="../operators/index.html"><span>Evaluation</span><strong>Operators</strong><p>Checked arithmetic, evaluation order, and error exits.</p></a>
+<a href="../../data_type/index.html"><span>Value catalog</span><strong>Data Types</strong><p>The numeric, text, ownership, concurrency, and tensor families.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix Language · Language foundations</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

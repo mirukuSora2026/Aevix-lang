@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Put type parameters after the function name, state requirements after parameters, and resolve calls without hidden conversions.">
+<title>Generic Functions — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">Functions and calls</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Generic Functions</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">FUNCTION REFERENCE</p><h1>Generic Functions</h1><p class="doc-subtitle">Put type parameters after the function name, state requirements after parameters, and resolve calls without hidden conversions.</p><div class="doc-meta"><span class="meta-chip">Chosen rules + open decisions</span><span class="meta-chip">Explicit types and cost</span><a href="../../declaration/Function_Declaration.html">Basic declarations</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Declaration</dt><dd>Return type first</dd></div><div class="doc-stat"><dt>Constraints</dt><dd>After parameters</dd></div><div class="doc-stat"><dt>Inference</dt><dd>Arguments, then gaps</dd></div><div class="doc-stat"><dt>Explicit arguments</dt><dd>Complete list</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>&lt;T, U&gt;</strong><span>functions</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>Name the function before its type parameters</span></a></li><li><a href="#multiple-types"><span class="toc-number">02</span><span>Match multiple type parameters in order</span></a></li><li><a href="#where-placement"><span class="toc-number">03</span><span>Place where after ordinary parameters</span></a></li><li><a href="#multiple-requirements"><span class="toc-number">04</span><span>Every comma-separated requirement must hold</span></a></li><li><a href="#body-checking"><span class="toc-number">05</span><span>Check the body against its declared contracts</span></a></li><li><a href="#argument-inference"><span class="toc-number">06</span><span>Resolve typed arguments before literal defaults</span></a></li><li><a href="#destination-inference"><span class="toc-number">07</span><span>Use a destination only to fill unresolved parameters</span></a></li><li><a href="#retained-inference"><span class="toc-number">08</span><span>A destination cannot replace an inferred type</span></a></li><li><a href="#ownership"><span class="toc-number">09</span><span>Copy, move and borrows stay type dependent</span></a></li><li><a href="#diagnostics"><span class="toc-number">10</span><span>Reject missing arguments and conflicting evidence</span></a></li><li><a href="#boundaries"><span class="toc-number">11</span><span>Keep function inference separate from type construction</span></a></li></ol></details><nav class="family-nav" aria-label="Function pages"><h2>Functions and calls</h2><div class="family-links"><a href="index.html">Overview</a><a href="Generic_Functions.html" aria-current="page">Generic functions</a><a href="Overloading.html">Overloading</a><a href="Arguments_and_Defaults.html">Arguments and defaults</a><a href="Variadic_Parameters.html">Variadic parameters</a></div></nav><nav class="family-nav" aria-label="Related language reference"><h2>Related reference</h2><div class="family-links"><a href="../../declaration/Function_Declaration.html">Basic function declarations</a><a href="../generics/index.html">Generic types</a><a href="../interfaces/index.html">Interfaces</a><a href="../modules/index.html">Modules and imports</a><a href="../persistent_storage/index.html">Persistent storage</a><a href="../../data_type/index.html">All data types</a></div></nav></aside><article class="content" aria-label="Generic Functions reference">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. Name the function before its type parameters</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">T identity&lt;T&gt;(T value) {
+    return value;
+}
+
+void use_identity() {
+    i32 first = identity(10);
+    i32 second = identity&lt;i32&gt;(20);
+    return;
+}</code></pre><p>Capital T is a type parameter declared by the function’s name-following angle brackets. Its scope includes the return type, parameter types, requirements and body. A call may infer its type arguments from inputs or explicitly supply the full type-argument list. The normal successful return is still written with return; the body’s final expression is not an implicit return.</p></section><section id="multiple-types" aria-labelledby="multiple-types-heading"><h2 id="multiple-types-heading">2. Match multiple type parameters in order</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">T first_of&lt;T, U&gt;(T first, U second) {
+    return first;
+}
+
+void use_first_of() {
+    i32 inferred = first_of(10, true);
+    i32 explicit_types = first_of&lt;i32, bool&gt;(20, false);
+    return;
+}</code></pre><p>T corresponds to the first explicit type argument and U to the second. Each type parameter must have one uniquely determined, consistent type. The second value parameter is an ordinary value argument: its ownership follows its type even though this simple function does not return it.</p><p>This initial rule has no partial explicit type-argument lists, wildcard placeholders or default type parameters. Omitting the entire list requests inference; writing a list requires all declared parameters.</p></section><section id="where-placement" aria-labelledby="where-placement-heading"><h2 id="where-placement-heading">3. Place where after ordinary parameters</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">T copy_value&lt;T&gt;(&amp;T value) where T implements Copy {
+    return *value;
+}
+
+void use_copy_value() {
+    i32 original = 7;
+    i32 duplicate = copy_value(&amp;original);
+    i32 retained = original;
+    return;
+}</code></pre><p>The where clause comes after the closing parenthesis of the parameter list and before the function body. Copy applies to T, not merely to the shared reference &amp;T. This permits returning a copied pointee without moving it out of borrowed storage. original remains usable.</p><p>The receiver and parameter access contracts still matter: a requirement does not grant mutation through a shared borrow, create a clone operation or prolong the source lifetime.</p></section><section id="multiple-requirements" aria-labelledby="multiple-requirements-heading"><h2 id="multiple-requirements-heading">4. Every comma-separated requirement must hold</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">interface Leveled {
+    public i32 get_level(&amp;Self self);
+};
+
+i32 copied_level&lt;T&gt;(&amp;T value)
+    where T implements Copy, T implements Leveled {
+    T duplicate = *value;
+    return duplicate.get_level();
+}
+
+T copied_first&lt;T, U&gt;(&amp;T first, &amp;U second)
+    where T implements Copy, U implements Copy {
+    U inspected = *second;
+    return *first;
+}</code></pre><p>Repeat the subject for each requirement: <code>where T implements Copy, T implements Leveled</code>, or separate subjects such as T and U. Commas express conjunction; they are not alternatives and do not imply a default implementation. Newlines in the examples do not move the where clause from its selected position.</p><p>The same known Copy distinction applies to generic containers: a requirement on T does not automatically make a containing struct or enum Copy. Combining a type’s own implements list with its where clause is a separate type-declaration question.</p></section><section id="body-checking" aria-labelledby="body-checking-heading"><h2 id="body-checking-heading">5. Check the body against its declared contracts</h2><p>A generic body may use the operations valid for every permitted argument: ordinary ownership transfer and borrowing, statically known types, and the capabilities guaranteed by its declared requirements. It cannot rely on an extra method merely because one concrete caller happens to provide it.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: no Leveled requirement makes get_level available on T;
+i32 missing_contract&lt;T&gt;(&amp;T value) {
+    return value.get_level();
+}</code></pre><p>AOT or JIT specialization must preserve these source-level validity rules. The same declaration cannot become legal only because one compilation path happens to know a convenient concrete type. No particular monomorphization or shared-code strategy is selected here.</p></section><section id="argument-inference" aria-labelledby="argument-inference-heading"><h2 id="argument-inference-heading">6. Resolve typed arguments before literal defaults</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">T first_of_same&lt;T&gt;(T first, T second) {
+    return first;
+}
+
+void use_typed_evidence() {
+    i64 wide = 40;
+    i64 first = first_of_same(10, wide);
+    i64 second = first_of_same(wide, 20);
+    return;
+}</code></pre><p>The typed i64 argument supplies T = i64 in either source position. The untyped integer literal can then match that expected numeric type. The compiler must not fix the earlier literal to i32 before collecting the later typed argument’s information.</p><div class="table-wrap"><div class="table-scroll" role="region" tabindex="0" aria-label="Generic call inference order"><table><thead><tr><th scope="col">Stage</th><th scope="col">Rule</th></tr></thead><tbody><tr><th scope="row">Declared explicit type arguments</th><td>If supplied, the complete ordered list fixes the type parameters and is checked against arguments and requirements.</td></tr><tr><th scope="row">Typed argument information</th><td>Collect compatible type constraints from the call’s inputs without silently converting typed numeric values.</td></tr><tr><th scope="row">Untyped literals</th><td>Use resolved parameter context where available; otherwise apply the settled i32 integer and f64 real defaults.</td></tr><tr><th scope="row">Declared destination</th><td>Fill only type parameters still unresolved after argument-based inference.</td></tr><tr><th scope="row">Completion</th><td>Reject unresolved, inconsistent or requirement-violating substitutions.</td></tr></tbody></table></div></div><p>This is type checking, not expression evaluation order. Argument expressions still execute left to right in source order. The compiler does not execute later arguments early to obtain their static types.</p></section><section id="destination-inference" aria-labelledby="destination-inference-heading"><h2 id="destination-inference-heading">7. Use a destination only to fill unresolved parameters</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">enum ExampleError {
+    Invalid;
+};
+
+Result&lt;T, E&gt; success&lt;T, E&gt;(T value) {
+    return Result.ok(value);
+}
+
+void use_destination() {
+    Result&lt;i32, ExampleError&gt; result = success(10);
+    return;
+}</code></pre><p>The input fixes T as i32. E has no argument source, so the declared destination Result&lt;i32, ExampleError&gt; supplies ExampleError. The function’s own declared return type provides the constructor context for Result.ok; there is no implicit wrapping return.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: rsn supplies no destination error type for unresolved E;
+void unresolved_error_type() {
+    rsn result = success(10);
+    return;
+}</code></pre><p>No arbitrary default error type is invented. An explicitly complete call such as <code>success&lt;i32, ExampleError&gt;(10)</code> also supplies both parameters.</p></section><section id="retained-inference" aria-labelledby="retained-inference-heading"><h2 id="retained-inference-heading">8. A destination cannot replace an inferred type</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: identity(10) has T = i32 before destination checking;
+void incompatible_destination() {
+    f64 result = identity(10);
+    return;
+}</code></pre><pre class="code-block"><code class="language-aevix" data-language="aevix">void explicit_numeric_context() {
+    i64 result = identity&lt;i64&gt;(10);
+    return;
+}</code></pre><p>Explicit i64 gives the untyped integer literal its parameter context. It is not an implicit conversion of an already typed i32 variable. If input evidence has already established a type, a different receiving variable type cannot revise it. Borrowing and move checks also remain unchanged.</p></section><section id="ownership" aria-labelledby="ownership-heading"><h2 id="ownership-heading">9. Copy, move and borrows stay type dependent</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">string relay_string(string original) {
+    string transferred = identity(original);
+    return transferred;
+}</code></pre><p>The existing owning string argument moves into identity and moves back through the returned value. This example receives an already owned string; it does not silently allocate from a text literal. A text literal is a string_view under the current text contract, and making an owning string requires its explicit fallible constructor.</p><p>The absence of a Copy bound does not prohibit an ordinary value transfer. It prevents assuming that T can be duplicated. Borrowed T values retain the source permissions and lifetime; generic code does not erase those facts.</p></section><section id="diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">10. Reject missing arguments and conflicting evidence</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: first_of declares both T and U;
+void partial_explicit_list() {
+    i32 result = first_of&lt;i32&gt;(10, true);
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: already typed arguments disagree about the same T;
+void conflicting_arguments() {
+    i32 narrow = 1;
+    i64 wide = 2;
+    i32 result = first_of_same(narrow, wide);
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: owning string is not Copy;
+string invalid_copy(string original) {
+    return copy_value(&amp;original);
+}</code></pre><p>These blocks use the earlier declarations on this page. Rejections are semantic design requirements, not observed compiler output or established diagnostic codes.</p></section><section id="boundaries" aria-labelledby="boundaries-heading"><h2 id="boundaries-heading">11. Keep function inference separate from type construction</h2><p>The selected inference rules apply to generic function calls. They do not establish omission or inference of type arguments for generic struct, enum or interface construction. Continue writing explicit concrete type arguments there according to the existing <a href="../generics/Generic_Types.html">generic type reference</a>.</p><ul><li>Partial/wildcard/default function type arguments are unsupported in the initial rule.</li><li>Lifetime and constant/Shape parameters, higher-ranked bounds, associated-type constraints and generic-method dynamic eligibility remain open.</li><li>Type-declaration implements/where ordering, specialization policy, generic ABI and backend lowering remain open.</li></ul><p><a href="../../declaration/Function_Declaration.html">Basic function declarations</a> · <a href="../../declaration/Variable_Declaration.html">Variables and literal types</a> · <a href="../generics/Generic_Types.html">Generic types</a> · <a href="../interfaces/Interfaces.html">Interfaces</a> · <a href="../modules/index.html">Modules and imports</a> · <a href="../persistent_storage/index.html">Persistent storage</a></p><p><a href="Overloading.html">Overloading</a> explains how inferred generic candidates interact with concrete functions.</p></section>
+<nav class="page-navigation" aria-label="Adjacent function reference pages"><a href="index.html"><span>Related reference</span>Overview</a><a href="Overloading.html"><span>Related reference</span>Overloading</a><a href="Arguments_and_Defaults.html"><span>Related reference</span>Arguments and defaults</a><a href="Variadic_Parameters.html"><span>Related reference</span>Variadic parameters</a></nav></article></div>
+<footer class="page-footer"><span>Aevix Language · Function reference</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

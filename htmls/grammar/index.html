@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="Design principles, values, user-defined types, interfaces, generics, control flow and lifetimes.">
+    <title>Grammar — Aevix Docs</title>
+    <link rel="stylesheet" href="../css/root.css?v=4">
+    <link rel="preload" href="../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+    <div class="header"><a class="brand" href="../data_type/index.html" aria-label="Aevix documentation"><span
+            class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span
+            class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+        <nav class="header-nav" aria-label="Reference sections"><a href="../errors/index.html">Errors</a><a href="index.html" aria-current="page">Grammar</a><a
+                href="../declaration/index.html">Declarations</a>
+            <details class="type-menu">
+                <summary>All types</summary>
+                <div class="type-menu-links"><a href="../data_type/Boolean/Boolean.html">Boolean</a><a
+                        href="../data_type/Integer/Integer.html">Integer</a><a href="../data_type/Float/Float.html">Float</a><a
+                        href="../data_type/Complex/Complex.html">Complex</a><a
+                        href="../data_type/Char/Char.html">Char</a><a href="../data_type/Byte/Byte.html">Byte</a><a
+                        href="../data_type/String/string.html">string</a><a
+                        href="../data_type/Array/Array.html">Array</a><a
+                        href="../data_type/Vector/Vector.html">Vector</a><a
+                        href="../data_type/Slice/Slice.html">Slice</a><a
+                        href="../data_type/Tuple/Tuple.html">Tuple</a><a href="../data_type/Unit/Unit.html">Unit</a><a
+                        href="../data_type/Never/Never.html">Never</a><a
+                        href="../data_type/Range/Range.html">Range</a><a href="../data_type/Optional/Optional.html">Optional</a><a
+                        href="../data_type/Result/Result.html">Result</a><a href="../data_type/Box/Box.html">Box</a><a
+                        href="../data_type/Shared/Shared.html">Shared</a><a
+                        href="../data_type/Weak/Weak.html">Weak</a><a
+                        href="../data_type/Atomic/Atomic.html">Atomic</a><a
+                        href="../data_type/Mutex/Mutex.html">Mutex</a><a
+                        href="../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../data_type/Map/Map.html">Map</a><a
+                        href="../data_type/Set/Set.html">Set</a><a href="../data_type/Tensor/Tensor.html">Tensor</a><a
+                        href="../data_type/Quantized/Quantized.html">Quantized</a><a href="../data_type/Simd/Simd.html">Simd</a><a
+                        href="../data_type/Task/Task.html">Task</a><a
+                        href="../data_type/Pending/Pending.html">Pending</a></div>
+            </details>
+        </nav>
+        <span class="draft-badge">DESIGN REFERENCE</span></div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../data_type/index.html">Language reference</a><span
+            class="separator" aria-hidden="true">/</span><span aria-current="page">Grammar</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">GRAMMAR REFERENCE</p>
+            <h1>Grammar</h1>
+            <p class="doc-subtitle">Design principles, values, user-defined types, interfaces, generics, control flow and lifetimes.</p>
+            <div class="doc-meta"><span class="meta-chip">Chosen rules and open decisions</span><span class="meta-chip">Original Aevix design</span>
+            </div>
+            <dl class="doc-stats">
+                <div class="doc-stat">
+                    <dt>Grammar categories</dt>
+                    <dd>11</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Declarations</dt>
+                    <dd>Separate reference</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Semantics</dt>
+                    <dd>Chosen + open</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Status</dt>
+                    <dd>Design reference</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="type-mark" aria-hidden="true"><strong>{ }</strong><span>grammar</span></div>
+    </header>
+    <div class="docs-layout">
+        <aside class="table" aria-label="Reference navigation">
+            <details class="toc" open>
+                <summary>On this page</summary>
+                <ol>
+                    <li><a href="#Overview"><span class="toc-number">01</span><span>Grammar reference</span></a></li>
+                    <li><a href="#Categories"><span
+                            class="toc-number">02</span><span>Eleven reference categories</span></a></li>
+                    <li><a href="#Declarations"><span
+                            class="toc-number">03</span><span>Start with declarations</span></a></li>
+                    <li><a href="#Example"><span
+                            class="toc-number">04</span><span>Shared syntax across the reference</span></a></li>
+                    <li><a href="#Boundaries"><span class="toc-number">05</span><span>Semantic boundaries</span></a>
+                    </li>
+                    <li><a href="#Open-Decisions"><span class="toc-number">06</span><span>Open design and implementation status</span></a>
+                    </li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="Grammar categories"><h2>Grammar reference</h2>
+                <div class="family-links"><a href="index.html" aria-current="page">Overview</a><a
+                        href="operators/index.html">Operators</a><a href="operators/Parsing_Rules.html">Parsing rules</a><a href="control_flow/index.html">Control flow</a><a
+                        href="scope_and_comments/index.html">Scope and comments</a><a href="foundations/index.html">Foundations</a><a href="user_defined_types/index.html">Structs and methods</a><a href="interfaces/index.html">Interfaces</a><a href="enums/index.html">Enums</a><a href="generics/index.html">Generics</a><a href="functions/index.html">Functions and calls</a><a href="modules/index.html">Modules and imports</a><a href="persistent_storage/index.html">Persistent storage</a></div>
+            </nav>
+            <nav class="family-nav" aria-label="Related language references"><h2>Related reference</h2>
+                <div class="family-links"><a href="../declaration/index.html">Declarations</a><a
+                        href="../data_type/index.html">All data types</a><a href="operators/index.html">Operators and
+                    expressions</a><a href="control_flow/index.html">Control flow</a><a href="review/index.html">Consistency review</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="Grammar reference">
+            <section id="Overview" aria-labelledby="Overview-heading"><h2 id="Overview-heading">1. Grammar
+                reference</h2>
+                <p>Aevix documents its expression, control-flow, declaration, and lifetime rules as an original language
+                    design. These pages separate chosen behavior from unresolved syntax and policies. They do not claim
+                    a working parser, optimizer, runtime, GPU backend, or diagnostic implementation.</p>
+                <p>Type-first declarations, immutable defaults, explicit mut, static rsn inference, explicit numeric
+                    conversion, and ownership-aware borrowing provide the common foundation. No comparison language
+                    silently supplies missing rules.</p></section>
+            <section id="Categories" aria-labelledby="Categories-heading"><h2 id="Categories-heading">2. Eleven reference categories</h2>
+                <nav class="page-navigation" aria-label="Grammar categories"><a
+                        href="operators/index.html"><span>Values</span><strong>Operators and Expressions</strong>
+                    <p>Arithmetic, comparisons, assignment, increment/decrement, checked expressions, and Result
+                        propagation.</p></a><a href="control_flow/index.html"><span>Execution</span><strong>Control
+                    Flow</strong>
+                    <p>Conditions, while, three for forms, switch cases, and control-flow targets.</p></a><a
+                        href="scope_and_comments/index.html"><span>Regions and metadata</span><strong>Scope and
+                    Comments</strong>
+                    <p>Visibility, no shadowing, resource cleanup, and ordinary documentation comments.</p></a><a href="foundations/index.html"><span>Design goals</span><strong>Language Foundations</strong><p>The fifteen principles, AOT and selective JIT, safety and explicit costs.</p></a><a href="user_defined_types/index.html"><span>Value structure</span><strong>Structs and Methods</strong><p>Named fields, private access, factories, self receivers, moves and Copy.</p></a><a href="interfaces/index.html"><span>Shared contracts</span><strong>Interfaces and Dynamic Dispatch</strong><p>Self, default methods, override, borrowed dyn views and owned dynamic boxes.</p></a><a href="enums/index.html"><span>Variant data</span><strong>Enums and Enum Switch</strong><p>Empty and data-carrying variants, borrowing, consumption, scopes and exhaustive branches.</p></a><a href="generics/index.html"><span>Reusable types</span><strong>Generic Types and Constraints</strong><p>Type parameters with angle brackets and where T implements Copy.</p></a><a href="functions/index.html"><span>Reusable behavior</span><strong>Functions and Calls</strong><p>Generic inference, overloads, defaults, named arguments and the chosen values[] variadic spelling.</p></a><a href="modules/index.html"><span>Source organization</span><strong>Modules and Imports</strong><p>File paths, selected names, wildcards, reexports and package boundaries.</p></a><a href="persistent_storage/index.html"><span>Process lifetime</span><strong>Persistent Storage</strong><p>Startup and first-use initialization, shared access and normal shutdown.</p></a></nav>
+            </section>
+            <section id="Declarations" aria-labelledby="Declarations-heading"><h2 id="Declarations-heading">3. Start
+                with declarations</h2>
+                <nav class="page-navigation" aria-label="Declaration and data type references"><a
+                        href="../declaration/index.html"><span>Syntax foundation</span><strong>Declarations</strong>
+                    <p>Variables, functions, value/reference parameters, explicit returns, unit, and void.</p></a><a
+                        href="../data_type/index.html"><span>Value foundation</span><strong>Data Types</strong>
+                    <p>Primitive values, collections, ownership, synchronization, and CPU/GPU resource contracts.</p>
+                </a></nav>
+                <p>A local owner, a borrowed reference, and a returned value have different lifetime effects. The
+                    grammar pages preserve the linked types’ established contracts rather than inventing implicit copies
+                    or allocations.</p></section>
+            <section id="Example" aria-labelledby="Example-heading"><h2 id="Example-heading">4. Shared syntax across the
+                reference</h2>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 size = 128;
+mut i32 count = 0;
+rsn inferred = 128;
+const i32 LIMIT = 100;
+&amp;i32 reference = &amp;size;
+i32 observed = *reference;</code></pre>
+                <p>These declaration fragments use semicolons and fixed static types. Expressions and control flow
+                    operate within the same ownership and borrowing rules. The detailed pages label intentionally
+                    rejected examples rather than silently repairing them.</p></section>
+            <section id="Boundaries" aria-labelledby="Boundaries-heading"><h2 id="Boundaries-heading">5. Semantic
+                boundaries</h2>
+                <div class="table-scroll" role="region" aria-label="Grammar semantic boundaries">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Boundary</th>
+                            <th scope="col">Design rule</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <th scope="row">Names and storage</th>
+                            <td>Public visibility cannot extend lifetime or turn a local into process storage.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Mutation and aliases</th>
+                            <td>Mut and writable references do not permit conflicting access.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Errors and normal exits</th>
+                            <td>Recoverable Result propagation follows normal cleanup; an ordinary safety stop is not
+                                the same exit.
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Device work</th>
+                            <td>Accepted in-flight resources remain retained, and borrowed locals require quiescence
+                                before release.
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Documentation</th>
+                            <td>Metadata describes declarations and does not rewrite executable semantics.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="Open-Decisions" aria-labelledby="Open-Decisions-heading"><h2 id="Open-Decisions-heading">6.
+                Open design and implementation status</h2>
+                <p>Each reference labels its remaining questions. Custom cleanup functions, partial moves with user-defined cleanup, enum representation, full dynamic-call eligibility, reference-return lifetime notation and project configuration formats remain open. Module paths and imports, generic function calls, overload selection, named/default arguments and persist initialization and normal shutdown now have chosen rules in their focused references. Structs, interfaces, enums, type generics and independent switch-case scopes are documented as chosen rules. Documentation describes a design; it does not establish a working compiler or backend.</p>
+                <p>Read declarations first, then operators, control flow, and scope rules. Use the type reference
+                    whenever an operation depends on ownership, placement, or an error contract.</p></section>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix Language · Grammar reference</span><span>Design specification · compiler implementation not implied</span>
+    </footer>
+</main>
+</body>
+</html>

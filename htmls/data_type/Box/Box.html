@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="One initialized value, one owner, and explicit allocation recovery.">
+  <title>Box — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Box.html" aria-current="true">Box</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html" aria-current="true">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Box.html">Box</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Box</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Box</h1><p class="doc-subtitle">One initialized value, one owner, and explicit allocation recovery.</p><div class="doc-meta"><span class="meta-chip">Box&lt;T&gt;</span><span class="meta-chip">Box namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>22</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>box</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Unique Initialized Heap Ownership</span></a></li><li><a href="#Construction"><span class="toc-number">02</span><span>Fallible Construction and Recovery</span></a></li><li><a href="#Borrowing"><span class="toc-number">03</span><span>Borrows and Movement</span></a></li><li><a href="#Copy-Clone"><span class="toc-number">04</span><span>Copy, Clone, and Mapping</span></a></li><li><a href="#Lifetime"><span class="toc-number">05</span><span>Destruction, Resources, and Threads</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Complete Proposed Box API</span></a></li><li><a href="#Specializations"><span class="toc-number">07</span><span>Arrays and Foreign Interfaces</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Examples and Related Owners</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Box pages"><h2>Box reference</h2><div class="family-links"><a href="Box.html" aria-current="page">Box</a><a href="Box_Slices.html">Boxed Arrays and Views</a><a href="Box_FFI.html">Box and Foreign Interfaces</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html" aria-current="true">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Box reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Unique Initialized Heap Ownership
+</h2>
+<p>Box&lt;T&gt; uniquely owns one initialized T and its associated allocation. Moving a box transfers that ownership; it does not clone T or turn the allocation into shared storage. Ordinary destruction runs T’s finalization and releases matching storage. The allocation can be absent for zero-sized payloads while logical ownership and destructor obligations remain real. A box is not a raw address and does not make a self-referential value automatically pinned.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> Functions, traits, error carriers, and callback notation specify intended contracts, not implemented APIs. Variables and parameters are type first; bindings are immutable by default. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. unit is a value type, distinct from return-position void.
+</p>
+</blockquote>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">2. Fallible Construction and Recovery
+</h2>
+<p>Allocation checks native layout, alignment, and target object bounds before value installation. A constructor consuming T returns the unused input on a returned preflight failure. Builder forms reserve first and call the builder exactly once; if a fallible builder fails, only initialized output is finalized. This is not a promise to reverse external callback effects or recover from process termination. Constructors do not expose uninitialized memory as a safe T value.
+</p>
+</section>
+<section id="Borrowing" aria-labelledby="Borrowing-heading">
+<h2 id="Borrowing-heading">3. Borrows and Movement
+</h2>
+<p>Read access can coexist with other reads; writing requires one exclusive capability. A borrow is tied to both owner lifetime and the relevant initialized value. Moving the box handle does not move its heap payload physically, but the language still rejects owner operations that conflict with live borrows. Replacing or extracting T can move that value. Use a separately specified pinning abstraction when code relies on stronger address-stability guarantees.
+</p>
+<p><strong>Chosen dynamic-interface integration.</strong> <a href="../../grammar/interfaces/Owned_Dynamic_Interfaces.html">Box&lt;dyn Interface&gt;</a> owns its concrete payload and supports explicit Box.into_dyn conversion. Calls to eligible borrowed-self methods may use owner.method(...) with automatic payload access and borrowing; Box.as_ref(&amp;owner) and Box.as_mut(&amp;mut owner) expose explicit views. Ownership and exclusive access remain checked. Value-self extraction, name collisions and dynamic payload extraction through Box.into_inner remain open. The Box.new allocation result must still be handled explicitly.</p></section>
+<section id="Copy-Clone" aria-labelledby="Copy-Clone-heading">
+<h2 id="Copy-Clone-heading">4. Copy, Clone, and Mapping
+</h2>
+<p>Copy and Clone describe the pointee operation, not implicit box duplication. Both explicit duplication calls allocate separate unique storage. A cloned T may itself contain a Shared handle, so cloning does not imply deep isolation. Mapping must preallocate before consuming a recoverable source when it promises an owner-returning allocation error. A callback that consumes T and then fails has a different error carrier and cannot honestly promise the original T back.
+</p>
+</section>
+<section id="Lifetime" aria-labelledby="Lifetime-heading">
+<h2 id="Lifetime-heading">5. Destruction, Resources, and Threads
+</h2>
+<p>A normal owning drop destroys initialized payload exactly once, subject to the runtime’s termination policy. This is not absolute leak prevention: intentionally unreachable ownership, process exit, or a leaked surrounding graph can prevent resource cleanup. Transfer to another host thread requires T: Send; shared read references require T: Sync. These names describe safety traits, not a guarantee that arbitrary foreign resources are thread-compatible. GPU access needs separate placement and completion contracts.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Complete Proposed Box API
+</h2>
+<p>All fallible allocation paths below return explicit errors. InputError and OwnerError retain moved inputs on the documented preflight failures. By-value owning arguments move, Copy arguments copy, and reference arguments borrow; returned references remain bounded by their source loans. Complexity includes T-sized moves, Clone, Drop, comparison, and callbacks rather than treating every pointee operation as one instruction.
+</p>
+<div class="table-scroll" role="region" aria-label="Complete Proposed Box API data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Box-new"><th scope="row"><code>Box.new(T value)</code></th><td><code>Result&lt;Box&lt;T&gt;, InputError&lt;T&gt;&gt;</code></td><td>Allocate initialized unique storage; size or allocation failure returns the unused value.</td>
+</tr>
+<tr id="Box-from_fn"><th scope="row"><code>Box.from_fn(T, Make&lt;T&gt; make)</code></th><td><code>Result&lt;Box&lt;T&gt;, CollectionError&gt;</code></td><td>Reserve before calling the one-shot constructor; no large temporary is required.</td>
+</tr>
+<tr id="Box-try_from_fn"><th scope="row"><code>Box.try_from_fn(T, TryMake&lt;T, E&gt; make)</code></th><td><code>Result&lt;Box&lt;T&gt;, BuildError&lt;E&gt;&gt;</code></td><td>Reserve then construct once; callback failure cleans allocated storage.</td>
+</tr>
+<tr id="Box-default"><th scope="row"><code>Box.default(T)</code></th><td><code>Result&lt;Box&lt;T&gt;, CollectionError&gt;</code></td><td>T: Default; allocate and construct one value; expose failure.</td>
+</tr>
+<tr id="Box-copy"><th scope="row"><code>Box.copy(&amp;Box&lt;T&gt; source)</code></th><td><code>Result&lt;Box&lt;T&gt;, CollectionError&gt;</code></td><td>T: Copy; allocate independent storage and copy the value.</td>
+</tr>
+<tr id="Box-clone"><th scope="row"><code>Box.clone(&amp;Box&lt;T&gt; source)</code></th><td><code>Result&lt;Box&lt;T&gt;, CollectionError&gt;</code></td><td>T: Clone; allocate independent storage; clone failure preserves source.</td>
+</tr>
+<tr id="Box-as_ref"><th scope="row"><code>Box.as_ref(&amp;Box&lt;T&gt; owner)</code></th><td><code>&amp;T</code></td><td>Borrow the initialized value; O(1), lifetime bounded by owner.</td>
+</tr>
+<tr id="Box-as_mut"><th scope="row"><code>Box.as_mut(&amp;mut Box&lt;T&gt; owner)</code></th><td><code>&amp;mut T</code></td><td>Exclusive borrow; owner movement, extraction, and conflicting access stay suspended.</td>
+</tr>
+<tr id="Box-replace"><th scope="row"><code>Box.replace(&amp;mut Box&lt;T&gt; owner, T replacement)</code></th><td><code>T</code></td><td>Move out old value and install initialized replacement; no new allocation.</td>
+</tr>
+<tr id="Box-swap"><th scope="row"><code>Box.swap(&amp;mut Box&lt;T&gt; left, &amp;mut Box&lt;T&gt; right)</code></th><td><code>unit</code></td><td>Swap ownership handles under distinct exclusive borrows; O(1), no payload clone.</td>
+</tr>
+<tr id="Box-into_inner"><th scope="row"><code>Box.into_inner(Box&lt;T&gt; owner)</code></th><td><code>T</code></td><td>Move out value and release allocation; no payload clone.</td>
+</tr>
+<tr id="Box-into_dyn"><th scope="row"><code>Box.into_dyn(Box&lt;T&gt; owner)</code></th><td><code>Box&lt;dyn Interface&gt;</code></td><td>Chosen conversion: move the concrete box into the target-inferred interface owner. T must implement that interface. No additional allocation, payload clone or device transfer; preserve concrete cleanup and borrowed-source lifetimes.</td></tr>
+<tr id="Box-into_shared"><th scope="row"><code>Box.into_shared(Box&lt;T&gt; owner)</code></th><td><code>Result&lt;Shared&lt;T&gt;, OwnerError&lt;Box&lt;T&gt;&gt;&gt;</code></td><td>May allocate shared control storage; failure returns the original box.</td>
+</tr>
+<tr id="Box-map"><th scope="row"><code>Box.map(Box&lt;T&gt; owner, Transform&lt;T, U&gt; transform)</code></th><td><code>Result&lt;Box&lt;U&gt;, OwnerError&lt;Box&lt;T&gt;&gt;&gt;</code></td><td>Preallocate output before consuming T; allocation failure returns source; unwind does not roll back callback effects.</td>
+</tr>
+<tr id="Box-try_map"><th scope="row"><code>Box.try_map(Box&lt;T&gt; owner, TryTransform&lt;T, U, E&gt; transform)</code></th><td><code>Result&lt;Box&lt;U&gt;, BoxMapError&lt;T, E&gt;&gt;</code></td><td>Preflight failure returns owner; a callback error after consuming T cannot reconstruct it.</td>
+</tr>
+<tr id="Box-flatten"><th scope="row"><code>Box.flatten(Box&lt;Box&lt;T&gt;&gt; owner)</code></th><td><code>Box&lt;T&gt;</code></td><td>Move out the inner box and destroy outer storage; no inner-value clone.</td>
+</tr>
+<tr id="Box-payload_size"><th scope="row"><code>Box.payload_size(T)</code></th><td><code>usize</code></td><td>Native size of T, excluding allocator and separately owned resources; compile-time metadata.</td>
+</tr>
+<tr id="Box-payload_alignment"><th scope="row"><code>Box.payload_alignment(T)</code></th><td><code>usize</code></td><td>Required target alignment of T, not a universal C ABI assertion.</td>
+</tr>
+<tr id="Box-allocation_bytes"><th scope="row"><code>Box.allocation_bytes(&amp;Box&lt;T&gt; owner)</code></th><td><code>usize</code></td><td>Payload allocation request size; excludes allocator bookkeeping.</td>
+</tr>
+<tr id="Box-same_allocation"><th scope="row"><code>Box.same_allocation(&amp;Box&lt;T&gt; left, &amp;Box&lt;T&gt; right)</code></th><td><code>bool</code></td><td>Compare allocation identities, not value equality or an aliasing permission.</td>
+</tr>
+<tr id="Box-equal"><th scope="row"><code>Box.equal(&amp;Box&lt;T&gt; left, &amp;Box&lt;T&gt; right)</code></th><td><code>bool</code></td><td>T: Eq; compare pointee values; add user comparison cost.</td>
+</tr>
+<tr id="Box-compare"><th scope="row"><code>Box.compare(&amp;Box&lt;T&gt; left, &amp;Box&lt;T&gt; right, Compare&lt;T&gt; compare)</code></th><td><code>Ordering</code></td><td>Compare values using an explicit consistent comparator; no implicit pointer order.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Specializations" aria-labelledby="Specializations-heading">
+<h2 id="Specializations-heading">7. Arrays and Foreign Interfaces
+</h2>
+<p>A box containing an Array owns that array’s inline elements; a box containing a Vector owns its vector handle, whose buffer follows Vector rules. A box containing Slice merely owns a borrowed descriptor and does not acquire its referent. See <a href="Box_Slices.html">Boxed Arrays and Views</a>. Foreign adoption and release require allocator, lifetime, and finalization contracts; <a href="Box_FFI.html">Box and FFI</a> explicitly keeps unchecked adoption outside safe constructors.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Examples and Related Owners
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Box&lt;i32&gt;, InputError&lt;i32&gt;&gt; value = Box.new(42);
+Box.payload_size(i32);
+Box.payload_alignment(i32);</code></pre>
+<p>The result’s Ok branch owns the new box; its Err branch owns the rejected input. For chosen borrowing, ownership and enum branch syntax, see the <a href="../../grammar/index.html">grammar reference</a>. Other function-specific API syntax remains draft. See <a href="../Shared/Shared.html">Shared</a> for refcounted ownership and <a href="../Vector/Vector.html">Vector</a> for growable storage. The primary reference informs this independent proposal; no allocator implementation or physical ABI is claimed.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/boxed/struct.Box.html" target="_blank" rel="noopener noreferrer">Rust Box — unique heap ownership and allocation contracts</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Box_Slices.html"><span>Next reference</span>Boxed Arrays and Views</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

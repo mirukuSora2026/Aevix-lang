@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Range-based, C-style, and enhanced for loops plus while, increments, and structured exits.">
+  <title>Loops — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html" aria-current="true">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">Control Flow</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Loops</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">GRAMMAR REFERENCE</p><h1>Loops</h1><p class="doc-subtitle">Range-based, C-style, and enhanced for loops plus while, increments, and structured exits.</p><div class="doc-meta"><span class="meta-chip">Range values + literals</span><span class="meta-chip">Prefix / postfix ++ --</span><span class="meta-chip">C++ style exits</span><span>Chosen rules + open decisions</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design reference</dd></div><div class="doc-stat"><dt>Model</dt><dd>Statement control flow</dd></div><div class="doc-stat"><dt>Cleanup</dt><dd>Ownership / reverse initialization</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>for / while</strong><span>control flow</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>while and three for forms</span></a></li><li><a href="#while"><span class="toc-number">02</span><span>while checks a bool condition before each iteration</span></a></li><li><a href="#range-values"><span class="toc-number">03</span><span>Use the existing Range type directly</span></a></li><li><a href="#range-literals"><span class="toc-number">04</span><span>0..10 and 0..=10 construct Range values</span></a></li><li><a href="#steps-and-boundaries"><span class="toc-number">05</span><span>Direction and positive steps come from Range APIs</span></a></li><li><a href="#c-style"><span class="toc-number">06</span><span>C-style for has dedicated initialization and update slots</span></a></li><li><a href="#increments"><span class="toc-number">07</span><span>Prefix and postfix ++ and -- have different values</span></a></li><li><a href="#enhanced-text"><span class="toc-number">08</span><span>Enhanced for reads text as Unicode scalars</span></a></li><li><a href="#bindings-and-scope"><span class="toc-number">09</span><span>Bindings, evaluation and source lifetimes</span></a></li><li><a href="#break-and-continue"><span class="toc-number">10</span><span>Structured exits, update steps and cleanup</span></a></li><li><a href="#rejected-forms"><span class="toc-number">11</span><span>Rejected loop examples</span></a></li><li><a href="#open-decisions"><span class="toc-number">12</span><span>Open loop design decisions</span></a></li></ol></details><nav class="family-nav" aria-label="Control flow pages"><h2>Control flow reference</h2><div class="family-links"><a href="index.html">Overview</a><a href="Conditionals.html">Conditionals</a><a href="Loops.html" aria-current="page">Loops</a><a href="Switch.html">Switch</a></div></nav><nav class="family-nav" aria-label="Related reference"><h2>Related reference</h2><div class="family-links"><a href="../index.html">Grammar overview</a><a href="../../declaration/index.html">Declarations</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/index.html">All types</a></div></nav></aside><article class="content" aria-label="Loops reference">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. while and three for forms</h2><p>Aevix supports while and three forms of for: Range traversal with in, C-style initialization/condition/update, and enhanced traversal with a colon. Every loop header has parentheses. A single executable body statement may omit braces; multiple body statements require braces.</p><div class="table-wrap"><div class="table-scroll" role="region" aria-label="The three for headers"><table><thead><tr><th scope="col">Form</th><th scope="col">Header</th><th scope="col">Binding model</th></tr></thead><tbody><tr><td>Range</td><td><code>for (int index in indices)</code></td><td>Fresh immutable binding for each yielded value.</td></tr><tr><td>C-style</td><td><code>for (mut int index = 0; index &lt; 10; index++)</code></td><td>One mutable control binding throughout the loop.</td></tr><tr><td>Enhanced</td><td><code>for (char scalar : text)</code></td><td>Fresh immutable scalar binding during text traversal.</td></tr></tbody></table></div></div></section>
+<section id="while" aria-labelledby="while-heading"><h2 id="while-heading">2. while checks a bool condition before each iteration</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">int count_to(int limit) {
+    mut int count = 0;
+    while (count &lt; limit) count++;
+    return count;
+}</code></pre><p>The condition is evaluated on entry and before each later iteration. A false first condition executes the body zero times. The condition must have type bool. Body effects can change values used by the next condition evaluation.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">int count_even(int limit) {
+    mut int candidate = 0;
+    mut int count = 0;
+    while (candidate &lt; limit) {
+        candidate++;
+        if (candidate % 2 != 0) continue;
+        count++;
+    }
+    return count;
+}</code></pre><p>continue leaves this iteration body and immediately resumes the while condition test. It does not repeat the remaining statements of the interrupted body.</p></section>
+<section id="range-values" aria-labelledby="range-values-heading"><h2 id="range-values-heading">3. Use the existing Range type directly</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int sum_indices() {
+    Range&lt;int&gt; indices = Range.new(0, 10);
+    mut int total = 0;
+    for (int index in indices) total += index;
+    return total;
+}</code></pre><p>The loop receives the Range descriptor itself. It does not require converting the range to an array or Vector. The descriptor supplies bounds, direction, inclusion and step magnitude; traversal creates independent cursor state.</p><p>The descriptor is a small Copy value with no owned allocation. Copying it does not deep-copy a sequence or secretly mutate another descriptor. No full element count is needed merely to advance through a range.</p></section>
+<section id="range-literals" aria-labelledby="range-literals-heading"><h2 id="range-literals-heading">4. 0..10 and 0..=10 construct Range values</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Range literal bounds"><table><thead><tr><th scope="col">Literal</th><th scope="col">API correspondence</th><th scope="col">Values</th></tr></thead><tbody><tr><td><code>0..10</code></td><td><code>Range.new(0, 10)</code></td><td>0 through 9: start inclusive, end exclusive.</td></tr><tr><td><code>0..=10</code></td><td><code>Range.closed(0, 10)</code></td><td>0 through 10: both endpoints eligible.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">int sum_closed() {
+    Range&lt;int&gt; inclusive = 0..=10;
+    mut int total = 0;
+    for (int index in inclusive) total += index;
+    return total;
+}
+
+int sum_literal() {
+    mut int total = 0;
+    for (int index in 0..10) total += index;
+    return total;
+}</code></pre><p>A range literal constructs a descriptor, not a materialized container. The bounds are evaluated once when the descriptor expression is evaluated. Already typed endpoints must agree on the supported integer type; an untyped literal uses its compatible context or the default int type.</p><p>Ascending reversed bounds are empty rather than automatically reversed. The half-open 0..0 has no values; the closed 0..=0 has one value.</p></section>
+<section id="steps-and-boundaries" aria-labelledby="steps-and-boundaries-heading"><h2 id="steps-and-boundaries-heading">5. Direction and positive steps come from Range APIs</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;int, RangeError&gt; sum_every_four() {
+    u32 magnitude = 4;
+    Range&lt;int&gt; strided = Range.with_step(Range.closed(0, 10), magnitude)?;
+    mut int total = 0;
+    for (int index in strided) total += index;
+    return Result.ok(total);
+}
+
+int count_down() {
+    Range&lt;int&gt; descending = Range.descending_closed(3, 0);
+    mut int total = 0;
+    for (int index in descending) total += index;
+    return total;
+}</code></pre><p>The strided range yields 0, 4 and 8; an inclusive bound is included only if it is reachable. The step magnitude is the same-width unsigned type corresponding to the range integer. Zero step is a RangeError; descending direction is represented separately from the positive magnitude.</p><p>At an integer maximum or minimum boundary, the range cursor must decide that traversal is complete without an overflowing final increment. An inclusive range ending at the integer maximum is valid. This safe cursor contract does not make ordinary user-written i++ infallible.</p><p>The Range API catalog supplies these construction contracts. Full iterator protocol syntax, user-defined stepping and new stride literal notation remain open.</p></section>
+<section id="c-style" aria-labelledby="c-style-heading"><h2 id="c-style-heading">6. C-style for has dedicated initialization and update slots</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int c_style_total() {
+    mut int index = 0;
+    mut int total = 0;
+    for (mut int cursor = 0; cursor &lt; 10; cursor++) {
+        total += cursor;
+        index = cursor;
+    }
+    return total + index;
+}</code></pre><p>Initialize the header binding once, evaluate the bool condition, run the body when true, run the update, and repeat the condition test. The loop control binding is visible in its condition, update and body, but unavailable after the for statement ends.</p><p>Updating an ordinary header variable requires mut. int cursor = 0 declares an immutable binding just as it would elsewhere; a later cursor++ or cursor += 1 is invalid without mutation permission.</p><p>The initialization and update slots may contain the approved declaration or assignment/increment forms. This dedicated use does not make = or += value expressions in general. Empty clauses, comma-separated declarations/updates and declaration-free initializer syntax are not finalized here.</p></section>
+<section id="increments" aria-labelledby="increments-heading"><h2 id="increments-heading">7. Prefix and postfix ++ and -- have different values</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Integer increment and decrement"><table><thead><tr><th scope="col">Form</th><th scope="col">Stored change</th><th scope="col">Expression value</th></tr></thead><tbody><tr><td><code>++value</code></td><td>Increase by one.</td><td>The new value.</td></tr><tr><td><code>value++</code></td><td>Increase by one.</td><td>The previous value.</td></tr><tr><td><code>--value</code></td><td>Decrease by one.</td><td>The new value.</td></tr><tr><td><code>value--</code></td><td>Decrease by one.</td><td>The previous value.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">int observe_increment() {
+    mut int value = 4;
+    int previous = value++;
+    int next = ++value;
+    return previous + next;
+}</code></pre><p>These operators require a writable integer place. They are value expressions, including in a for update. Ordinary increments and decrements check overflow and safely stop on arithmetic failure. A failing increment does not store a wrapped value.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i8, IntegerError&gt; checked_increment() {
+    mut i8 value = 127;
+    i8 previous = checked(value++)?;
+    return Result.ok(previous);
+}</code></pre><p>Here the checked increment returns Err, keeps value at 127, and ? returns that error from the function. Effects completed earlier in a larger expression are not rolled back. This is a design example, not a claim of an executed compiler.</p></section>
+<section id="enhanced-text" aria-labelledby="enhanced-text-heading"><h2 id="enhanced-text-heading">8. Enhanced for reads text as Unicode scalars</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int count_scalars(string_view text) {
+    mut int count = 0;
+    for (char scalar : text) {
+        count++;
+    }
+    return count;
+}
+
+char final_scalar(string_view text) {
+    mut char last = &#x27; &#x27;;
+    for (char scalar : text) last = scalar;
+    return last;
+}</code></pre><p>char scalar : text visits Unicode scalar values from a string or string_view. A scalar is not necessarily a user-perceived character or a UTF-8 byte. The final_scalar example deliberately returns a space for an empty input; it is a loop example rather than an absence-handling API.</p><p>Text traversal keeps the source owner with its existing owner and reads through a borrow. An existing string_view is already borrowed and is passed directly; no extra &amp; is inserted by the example. Structural mutation or another conflicting access to the traversed storage is disallowed while the traversal loan is active.</p><p>This confirmed text behavior does not settle all collection traversal modes. Read-borrow, write-borrow and consuming headers for generic collections need explicit contracts before they are treated as chosen syntax.</p></section>
+
+<section id="bindings-and-scope" aria-labelledby="bindings-and-scope-heading"><h2 id="bindings-and-scope-heading">9. Bindings, evaluation and source lifetimes</h2><p>Range and enhanced traversal bind a fresh immutable iteration value on each iteration. A changing iteration value is not reassignment of one immutable binding. The C-style control binding is instead one binding deliberately updated over time.</p><p>A header binding exists only inside its loop. It cannot shadow a visible outer local name. A source borrow remains valid only while the source is alive; escaping references to loop-local values or invalidating an active source loan is rejected. Loop-local owning resources are released when their iteration scope ends unless they have moved to a new owner.</p><p>Whether mut can qualify a Range/enhanced iteration binding, and how mutable references are exposed for other collections, remain open. This page does not infer write permission from the mere presence of a mutable source.</p><p>A Range or enhanced-loop source expression is evaluated once before iteration. Range bounds are not reevaluated each time. The C-style condition and update are different: the condition is evaluated before each body entry and the update after each completed body or continue.</p><p>The current Range cursor and text cursor are iteration state; creating or copying a descriptor is not a hidden allocation of all values. A body still pays for the work it explicitly performs, and text traversal decodes scalars from its underlying representation.</p><p>These loops express sequential execution. GPU submission, parallel scheduling, Tensor broadcasting or automatic task creation are not implied by ordinary for syntax. AOT and JIT must preserve the same observable control-flow and ownership behavior.</p></section>
+<section id="break-and-continue" aria-labelledby="break-and-continue-heading"><h2 id="break-and-continue-heading">10. Structured exits, update steps and cleanup</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Loop exits"><table><thead><tr><th scope="col">Construct</th><th scope="col">break;</th><th scope="col">continue;</th></tr></thead><tbody><tr><td>while</td><td>Exit the nearest enclosing loop, unless an inner switch is the nearer break target.</td><td>Leave the body and test the condition again.</td></tr><tr><td>Range / enhanced for</td><td>Exit the nearest eligible loop or inner switch target.</td><td>Leave the body, advance the cursor and begin the next iteration if present.</td></tr><tr><td>C-style for</td><td>Exit without running its update clause.</td><td>Leave the body, run the update clause, then test the condition.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">int sum_until_five() {
+    mut int total = 0;
+    for (mut int index = 0; index &lt; 10; index++) {
+        if (index == 2) continue;
+        if (index == 5) break;
+        total += index;
+    }
+    return total;
+}</code></pre><p>break targets the innermost enclosing loop or switch. continue targets the innermost enclosing loop, ignoring an intervening switch as a loop target. Neither keyword uses a numeric depth or label in the accepted grammar. continue outside any loop is invalid.</p><p>On continue, resources still owned by the current body scopes are cleaned up in reverse initialization order before the next iteration step. The C-style control binding survives continue. On break, the scopes being exited, including the loop header scope, are left and their current owners cleaned up.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;int, IntegerError&gt; sum_checked() {
+    mut int total = 0;
+    for (int index in 0..10) {
+        int next = checked(total + index)?;
+        total = next;
+    }
+    return Result.ok(total);
+}</code></pre><p>return and Err propagation with ? leave the function scopes, perform normal ownership cleanup, and skip any pending C-style update clause. Only resources actually initialized and still locally owned are cleaned up. An owning returned payload has moved to the caller rather than being destroyed at the exit.</p><p>Automatic cleanup is not rollback and is not a new error-return channel. GPU-borrowed resources must remain alive until use completes. Forced safety-stop cleanup remains open. Normal process-lifetime persist cleanup follows <a href="../persistent_storage/Shutdown.html">reverse successful initialization-completion order</a> after tracked resource uses finish.</p></section>
+
+<section id="rejected-forms" aria-labelledby="rejected-forms-heading"><h2 id="rejected-forms-heading">11. Rejected loop examples</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_immutable_counter() {
+    mut int total = 0;
+    for (int index = 0; index &lt; 3; index++) total += index;
+    return total;
+}</code></pre><p>The C-style index is immutable, so its update has no write permission.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_shadowing(int index) {
+    mut int total = 0;
+    for (int index in 0..3) total += index;
+    return total;
+}</code></pre><p>The loop binding attempts to hide the visible parameter index. A different name is required.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void invalid_continue() {
+    continue;
+}</code></pre><p>There is no enclosing loop to continue. These examples specify intended compile-time rejection rather than observed compiler diagnostics.</p></section>
+<section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">12. Open loop design decisions</h2><ul><li>do/while, a dedicated infinite-loop keyword, labels and multi-level break/continue.</li><li>Empty C-style clauses, comma expressions and multiple initializer/update entries.</li><li>General collection iterator protocol, iterator trait/bounds, consuming iteration, write iteration and user-defined iteration.</li><li>Inference spelling in loop bindings, destructuring headers and optional mutable Range/enhanced bindings.</li><li>Borrowed collection header spellings; a future form such as for (&amp;i32 value : &amp;values) is only a proposal.</li><li>Future slicing syntax remains open. <a href="../operators/Parsing_Rules.html">Parsing Rules</a> now specifies range precedence, numeric token boundaries and mixed conditional parsing.</li></ul><p>A declaration used as a loop body requires braces. A single ordinary executable body statement may omit them. This is a chosen rule; see <a href="../operators/Parsing_Rules.html#statement-bodies">body scopes</a>.</p><p>The descriptor construction, endpoints, positive steps and costs are documented in <a href="../../data_type/Range/Range.html">Range</a>. <a href="Switch.html">Switch</a> explains why an inner case break may exit a switch while its surrounding loop keeps running.</p></section>
+<nav class="page-navigation" aria-label="Related reference pages"><a href="../index.html"><span>Grammar overview</span>Language Grammar</a><a href="../../declaration/index.html"><span>Bindings and signatures</span>Declarations</a></nav>
+</article></div><footer class="page-footer"><span>Aevix Language · Control flow reference</span><span>Design specification · compiler implementation not implied</span></footer></main>
+</body>
+</html>

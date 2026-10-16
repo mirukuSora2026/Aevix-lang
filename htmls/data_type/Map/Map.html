@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Owned hashed keys and values with explicit growth and borrowing.">
+  <title>Map — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Map.html" aria-current="true">Map</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Map.html">Map</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Map</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Map</h1><p class="doc-subtitle">Owned hashed keys and values with explicit growth and borrowing.</p><div class="doc-meta"><span class="meta-chip">Map&lt;K, V&gt;</span><span class="meta-chip">Map namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>34</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>K:V</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Hashed map</span></a></li><li><a href="#Key-Invariants"><span class="toc-number">02</span><span>Key equality and hashing</span></a></li><li><a href="#Ownership-Borrows"><span class="toc-number">03</span><span>Ownership and entry identity</span></a></li><li><a href="#Errors-Guarantees"><span class="toc-number">04</span><span>Failure guarantees</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>Map function reference</span></a></li><li><a href="#Iteration-Cost"><span class="toc-number">06</span><span>Order and complexity</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>Examples</span></a></li><li><a href="#Targets-Related"><span class="toc-number">08</span><span>Targets and related collections</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Map pages"><h2>Map reference</h2><div class="family-links"><a href="Map.html" aria-current="page">Map</a><a href="Ordered_Map.html">OrderedMap</a><a href="Map_Entry.html">MapEntry</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Map reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Hashed map
+</h2>
+<p>Map&lt;K, V&gt; owns at most one value for each equivalence class of keys. Its default representation is hashed, with a per-instance randomized policy and no stable traversal order. It is a host owning collection, not an implicit concurrent table or GPU dictionary. Insertion may grow buckets; moving the handle transfers ownership of every entry without cloning.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> This is an Aevix contract proposal, not an implementation claim. Callback, iterator, trait, and error-carrier names are descriptive. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. Bindings are immutable unless declared mut; unit is a value type.
+</p>
+</blockquote>
+</section>
+<section id="Key-Invariants" aria-labelledby="Key-Invariants-heading">
+<h2 id="Key-Invariants-heading">2. Key equality and hashing
+</h2>
+<p>Equal keys must produce equal hashes under the map’s policy. Both equality and hash meaning must stay stable while a key is stored. Public APIs expose stored keys through shared borrows only. Interior mutation, external global state, and unsafe code can still violate this rule; wrong lookups or diagnostic failure are possible, but the safe implementation must preserve initialization, bounds, and alias safety. Floats require an explicit lawful equality/hash policy rather than silently treating NaN as an ordinary equal key.
+</p>
+</section>
+<section id="Ownership-Borrows" aria-labelledby="Ownership-Borrows-heading">
+<h2 id="Ownership-Borrows-heading">3. Ownership and entry identity
+</h2>
+<p>Lookups borrow; removal returns ownership. Values may be edited through a unique borrow while keys remain fixed. Any live value reference, entry capability, drain, or mutable iterator constrains structural mutation even when spare capacity exists. No raw pointer stability, insertion order, or key address stability is part of the contract. Canonical key identity matters when equal keys carry different descriptive metadata.
+</p>
+</section>
+<section id="Errors-Guarantees" aria-labelledby="Errors-Guarantees-heading">
+<h2 id="Errors-Guarantees-heading">4. Failure guarantees
+</h2>
+<p>CollectionError includes size overflow, allocation, seed initialization, and fallible cloning where applicable. InsertError retains unused incoming key and value on duplicate rejection or growth preflight failure. Such preflight errors leave existing entries unchanged. User hash/equality callbacks must be lawful and must not reenter a borrowed map; if a callback unwinds, memory safety and initialized ownership remain, but callback effects are not rolled back. Bulk construction cleans partial output and leaves its borrowed source intact.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. Map function reference
+</h2>
+<div class="table-scroll" role="region" aria-label="Map function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Map-new"><th scope="row"><code>Map.new(K, V)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>Create an empty hashed map; report seed initialization failure. No bucket allocation is required before insertion; expected O(1).</td>
+</tr>
+<tr id="Map-with_capacity"><th scope="row"><code>Map.with_capacity(K, V, usize minimum)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>Reserve room for at least minimum distinct entries; size overflow and allocation failure are errors; O(capacity) initialization.</td>
+</tr>
+<tr id="Map-with_hasher"><th scope="row"><code>Map.with_hasher(K, V, HashPolicy policy)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, InputError&lt;HashPolicy&gt;&gt;</code></td><td>Choose an explicit hash policy; report initialization failure with the unused policy. Security and determinism depend on that policy.</td>
+</tr>
+<tr id="Map-from_pairs"><th scope="row"><code>Map.from_pairs(Slice&lt;(K, V)&gt; pairs, DuplicatePolicy policy)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>Clone borrowed pairs explicitly; select KeepFirst, KeepLastValue, or Reject. Clone, duplicate rejection, and allocation failures clean partial output; source stays borrowed.</td>
+</tr>
+<tr id="Map-len"><th scope="row"><code>Map.len(&amp;Map&lt;K, V&gt; map)</code></th><td><code>usize</code></td><td>Return stored entry count; O(1), no allocation.</td>
+</tr>
+<tr id="Map-capacity"><th scope="row"><code>Map.capacity(&amp;Map&lt;K, V&gt; map)</code></th><td><code>usize</code></td><td>Lower bound on total entries storable without bucket growth; O(1). It is not a byte count or a borrow permission.</td>
+</tr>
+<tr id="Map-is_empty"><th scope="row"><code>Map.is_empty(&amp;Map&lt;K, V&gt; map)</code></th><td><code>bool</code></td><td>Equivalent to len equal to zero; O(1).</td>
+</tr>
+<tr id="Map-reserve"><th scope="row"><code>Map.reserve(&amp;mut Map&lt;K, V&gt; map, usize additional)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>Ensure capacity for checked len + additional; preflight failure preserves entries and ownership; rehash may cost O(capacity).</td>
+</tr>
+<tr id="Map-shrink_to"><th scope="row"><code>Map.shrink_to(&amp;mut Map&lt;K, V&gt; map, usize minimum)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>Try to reduce excess buckets without removing entries; may retain more capacity. Failure preserves entries; O(capacity) rehash.</td>
+</tr>
+<tr id="Map-clear"><th scope="row"><code>Map.clear(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>unit</code></td><td>Remove and destroy all entries, retaining bucket capacity. O(capacity) plus destructors; no promise of zeroing bytes.</td>
+</tr>
+<tr id="Map-get"><th scope="row"><code>Map.get(&amp;Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;&amp;V&gt;</code></td><td>Borrow value for an equal query key; Q must provide compatible equality and hashing. Expected O(1), worst O(n), plus key cost.</td>
+</tr>
+<tr id="Map-get_mut"><th scope="row"><code>Map.get_mut(&amp;mut Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;&amp;mut V&gt;</code></td><td>Exclusively borrow an existing value, never the stored key. The map remains structurally borrowed until release.</td>
+</tr>
+<tr id="Map-get_key_value"><th scope="row"><code>Map.get_key_value(&amp;Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;(&amp;K, &amp;V)&gt;</code></td><td>Borrow canonical stored key and value; do not substitute the temporary query key.</td>
+</tr>
+<tr id="Map-contains_key"><th scope="row"><code>Map.contains_key(&amp;Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>bool</code></td><td>Test membership without cloning a value; expected O(1), worst O(n), plus hashing and equality.</td>
+</tr>
+<tr id="Map-get_many_mut"><th scope="row"><code>Map.get_many_mut(&amp;mut Map&lt;K, V&gt; map, Array&lt;Q, N&gt; keys)</code></th><td><code>Result&lt;Array&lt;Optional&lt;&amp;mut V&gt;, N&gt;, AliasError&gt;</code></td><td>Resolve queries then reject duplicate actual entry identities before returning references. Missing entries produce None. Safe even with inconsistent key implementations; O(N squared) alias checks are permitted.</td>
+</tr>
+<tr id="Map-insert"><th scope="row"><code>Map.insert(&amp;mut Map&lt;K, V&gt; map, K key, V value)</code></th><td><code>Result&lt;Optional&lt;V&gt;, InsertError&lt;K, V&gt;&gt;</code></td><td>New key inserts; equal key keeps stored key and replaces value, returning the old V. On growth preflight failure recover both incoming inputs; successful replacement destroys the unused incoming key.</td>
+</tr>
+<tr id="Map-try_insert"><th scope="row"><code>Map.try_insert(&amp;mut Map&lt;K, V&gt; map, K key, V value)</code></th><td><code>Result&lt;&amp;mut V, InsertError&lt;K, V&gt;&gt;</code></td><td>Insert only when vacant. Occupied and preflight failures return incoming key/value; no replacement. Returned value borrow prevents structural mutation.</td>
+</tr>
+<tr id="Map-remove"><th scope="row"><code>Map.remove(&amp;mut Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;V&gt;</code></td><td>Remove an equal entry, return its value, and destroy the stored key. Expected O(1), worst O(n), plus destructors.</td>
+</tr>
+<tr id="Map-remove_entry"><th scope="row"><code>Map.remove_entry(&amp;mut Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;(K, V)&gt;</code></td><td>Remove and return both stored owners; no clone or allocation.</td>
+</tr>
+<tr id="Map-entry"><th scope="row"><code>Map.entry(&amp;mut Map&lt;K, V&gt; map, K key)</code></th><td><code>MapEntry&lt;K, V&gt;</code></td><td>Acquire an exclusive entry capability without allocation. It owns a vacant incoming key or retains the equivalent incoming key until the entry capability is consumed or dropped.</td>
+</tr>
+<tr id="Map-iter"><th scope="row"><code>Map.iter(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;(&amp;K, &amp;V)&gt;</code></td><td>Borrow all pairs in unspecified order; full walk O(capacity), not promised O(len). Structural mutation is excluded.</td>
+</tr>
+<tr id="Map-iter_mut"><th scope="row"><code>Map.iter_mut(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;(&amp;K, &amp;mut V)&gt;</code></td><td>Borrow disjoint mutable values with immutable keys; one exclusive collection lease. Full walk O(capacity).</td>
+</tr>
+<tr id="Map-keys"><th scope="row"><code>Map.keys(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;&amp;K&gt;</code></td><td>Borrow stored keys in unspecified order; O(capacity) full walk.</td>
+</tr>
+<tr id="Map-values"><th scope="row"><code>Map.values(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;&amp;V&gt;</code></td><td>Borrow values without keys or clones; O(capacity) full walk.</td>
+</tr>
+<tr id="Map-values_mut"><th scope="row"><code>Map.values_mut(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;&amp;mut V&gt;</code></td><td>Yield disjoint mutable values while retaining exclusive collection access; O(capacity) full walk.</td>
+</tr>
+<tr id="Map-drain"><th scope="row"><code>Map.drain(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>Drain&lt;(K, V)&gt;</code></td><td>Remove all entries through an exclusive owning iterator. Dropping it destroys unyielded entries; bucket capacity remains; O(capacity) total plus destructors.</td>
+</tr>
+<tr id="Map-retain"><th scope="row"><code>Map.retain(&amp;mut Map&lt;K, V&gt; map, Predicate&lt;(&amp;K, &amp;mut V)&gt; keep)</code></th><td><code>unit</code></td><td>Visit entries and remove those rejected. Unwind preserves initialization but keeps prior edits/removals; O(capacity) plus callbacks and destructors.</td>
+</tr>
+<tr id="Map-extract_if"><th scope="row"><code>Map.extract_if(&amp;mut Map&lt;K, V&gt; map, Predicate&lt;(&amp;K, &amp;mut V)&gt; remove)</code></th><td><code>ExtractIterator&lt;(K, V)&gt;</code></td><td>Lazy removal: visited matching entries move out; dropping the iterator leaves unvisited entries. Prior callback edits remain; O(capacity) full walk.</td>
+</tr>
+<tr id="Map-into_iter"><th scope="row"><code>Map.into_iter(Map&lt;K, V&gt; map)</code></th><td><code>OwningIterator&lt;(K, V)&gt;</code></td><td>Move pairs out in unspecified order; iterator owns buckets and destroys unyielded pairs when dropped.</td>
+</tr>
+<tr id="Map-into_keys"><th scope="row"><code>Map.into_keys(Map&lt;K, V&gt; map)</code></th><td><code>OwningIterator&lt;K&gt;</code></td><td>Yield owned keys while destroying associated values; iterator owns remaining storage and entries.</td>
+</tr>
+<tr id="Map-into_values"><th scope="row"><code>Map.into_values(Map&lt;K, V&gt; map)</code></th><td><code>OwningIterator&lt;V&gt;</code></td><td>Yield owned values while destroying associated keys; no value clone.</td>
+</tr>
+<tr id="Map-clone"><th scope="row"><code>Map.clone(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>Explicitly clone keys, values, and hash policy. Clone/allocation failure destroys partial output; original entries remain; O(capacity) plus clones.</td>
+</tr>
+<tr id="Map-equal"><th scope="row"><code>Map.equal(&amp;Map&lt;K, V&gt; a, &amp;Map&lt;K, V&gt; b)</code></th><td><code>bool</code></td><td>Compare key/value membership independent of traversal order; expected O(n), worst O(n squared), plus user key/value work.</td>
+</tr>
+<tr id="Map-hasher"><th scope="row"><code>Map.hasher(&amp;Map&lt;K, V&gt; map)</code></th><td><code>&amp;HashPolicy</code></td><td>Borrow the configured policy without allowing key hash semantics to change; O(1). Seed extraction is not promised.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Iteration-Cost" aria-labelledby="Iteration-Cost-heading">
+<h2 id="Iteration-Cost-heading">6. Order and complexity
+</h2>
+<p>Expected constant-time lookup is a workload and hash-distribution expectation, not a worst-case guarantee or collision-proof security claim. Worst-case lookup and insertion can inspect a linear number of entries. Rehashing and full traversal may inspect capacity, including empty buckets; oversized sparse maps therefore have observable scan cost. Hashing long strings, equality, cloning, and destruction add their own work. Use an ordered map when sorted traversal or key ranges are required.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7. Examples
+</h2>
+<p>These complete expressions retain the construction Result for explicit caller handling. They do not unwrap an allocation error or imply that a Result itself is a map.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Map&lt;i32, i32&gt;, CollectionError&gt; scores = Map.with_capacity(i32, i32, 32);
+Result&lt;Map&lt;string, i32&gt;, CollectionError&gt; names = Map.new(string, i32);</code></pre>
+</section>
+<section id="Targets-Related" aria-labelledby="Targets-Related-heading">
+<h2 id="Targets-Related-heading">8. Targets and related collections
+</h2>
+<p>Sharing a map across threads still requires synchronized access and Send/Sync-compatible key, value, and hash policy bounds. A host lock does not publish a table to a device. Serialize explicit fields or transform to device-supported arrays rather than copying a host handle or relying on bucket layout. See <a href="Ordered_Map.html">OrderedMap</a>, <a href="Map_Entry.html">entry capabilities</a>, <a href="../Set/Set.html">Set</a>, <a href="../Vector/Vector.html">Vector</a>, and <a href="../String/string.html">string</a>.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.HashMap.html" target="_blank" rel="noopener noreferrer">Rust HashMap reference: key invariants, entry APIs, capacity and iteration</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/collections/struct.BTreeMap.html" target="_blank" rel="noopener noreferrer">Rust BTreeMap reference: ordered keys and range traversal</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Ordered_Map.html"><span>Next reference</span>OrderedMap</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

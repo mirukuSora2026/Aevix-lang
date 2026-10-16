@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="Type-first bindings, explicit mutability, static inference, constants, storage, and safe borrowing.">
+    <title>Variable Declaration — Aevix Docs</title>
+    <link rel="stylesheet" href="../css/root.css?v=4">
+    <link rel="preload" href="../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="../js/docs.js?v=3" defer></script>
+</head>
+<body><a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+    <div class="header"><a class="brand" href="../data_type/index.html" aria-label="Aevix documentation"><span
+            class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span
+            class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+        <nav class="header-nav" aria-label="Reference sections"><a href="../errors/index.html">Errors</a><a href="index.html"
+                                                                   aria-current="true">Declarations</a>
+            <details class="type-menu">
+                <summary>All types</summary>
+                <div class="type-menu-links"><a href="../data_type/Boolean/Boolean.html">Boolean</a><a
+                        href="../data_type/Integer/Integer.html">Integer</a><a href="../data_type/Float/Float.html">Float</a><a
+                        href="../data_type/Complex/Complex.html">Complex</a><a
+                        href="../data_type/Char/Char.html">Char</a><a href="../data_type/Byte/Byte.html">Byte</a><a
+                        href="../data_type/String/string.html">string</a><a
+                        href="../data_type/Array/Array.html">Array</a><a
+                        href="../data_type/Vector/Vector.html">Vector</a><a
+                        href="../data_type/Slice/Slice.html">Slice</a><a
+                        href="../data_type/Tuple/Tuple.html">Tuple</a><a href="../data_type/Unit/Unit.html">Unit</a><a
+                        href="../data_type/Never/Never.html">Never</a><a
+                        href="../data_type/Range/Range.html">Range</a><a href="../data_type/Optional/Optional.html">Optional</a><a
+                        href="../data_type/Result/Result.html">Result</a><a href="../data_type/Box/Box.html">Box</a><a
+                        href="../data_type/Shared/Shared.html">Shared</a><a
+                        href="../data_type/Weak/Weak.html">Weak</a><a
+                        href="../data_type/Atomic/Atomic.html">Atomic</a><a
+                        href="../data_type/Mutex/Mutex.html">Mutex</a><a
+                        href="../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../data_type/Map/Map.html">Map</a><a
+                        href="../data_type/Set/Set.html">Set</a><a href="../data_type/Tensor/Tensor.html">Tensor</a><a
+                        href="../data_type/Quantized/Quantized.html">Quantized</a><a href="../data_type/Simd/Simd.html">Simd</a><a
+                        href="../data_type/Task/Task.html">Task</a><a
+                        href="../data_type/Pending/Pending.html">Pending</a></div>
+            </details>
+        <a href="../grammar/index.html">Grammar</a></nav>
+        <span class="draft-badge">DESIGN REFERENCE</span></div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../data_type/index.html">Language reference</a><span
+            class="separator" aria-hidden="true">/</span><a href="index.html">Declarations</a><span class="separator"
+                                                                                                    aria-hidden="true">/</span><span
+            aria-current="page">Variable Declaration</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">DECLARATION REFERENCE</p>
+            <h1>Variable Declaration</h1>
+            <p class="doc-subtitle">Type-first bindings, explicit mutability, static inference, constants, storage, and
+                safe borrowing.</p>
+            <div class="doc-meta"><span class="meta-chip">T name = expression;</span><span class="meta-chip">Chosen rules + open decisions</span><a
+                    href="../data_type/index.html#Language-Rules">Language rules overview</a></div>
+            <dl class="doc-stats">
+                <div class="doc-stat">
+                    <dt>Canonical forms</dt>
+                    <dd>7</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Default binding</dt>
+                    <dd>Immutable</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Inference</dt>
+                    <dd>Static</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>Status</dt>
+                    <dd>Language design reference</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="type-mark" aria-hidden="true"><strong>T x</strong><span>declaration</span></div>
+    </header>
+    <div class="docs-layout">
+        <aside class="table" aria-label="Reference navigation">
+            <details class="toc" open>
+                <summary>On this page</summary>
+                <ol>
+                    <li><a href="#Overview"><span class="toc-number">01</span><span>Variable declarations</span></a>
+                    </li>
+                    <li><a href="#Grammar"><span
+                            class="toc-number">02</span><span>Canonical declaration forms</span></a></li>
+                    <li><a href="#Typed-Bindings"><span class="toc-number">03</span><span>Explicit types and ordinary initialization</span></a>
+                    </li>
+                    <li><a href="#Mutability"><span class="toc-number">04</span><span>Mutable bindings</span></a></li>
+                    <li><a href="#Inference"><span
+                            class="toc-number">05</span><span>Static inference with rsn</span></a></li>
+                    <li><a href="#Numeric-Context"><span class="toc-number">06</span><span>Numeric context and explicit conversion</span></a>
+                    </li>
+                    <li><a href="#Constants"><span class="toc-number">07</span><span>Compile-time constants</span></a>
+                    </li>
+                    <li><a href="#Persistent-Storage"><span
+                            class="toc-number">08</span><span>Persistent process storage</span></a></li>
+                    <li><a href="#Copy-Move"><span
+                            class="toc-number">09</span><span>Copies, moves, and owning values</span></a></li>
+                    <li><a href="#Allocation-Failure"><span
+                            class="toc-number">10</span><span>Fallible initializers</span></a></li>
+                    <li><a href="#Borrowing"><span class="toc-number">11</span><span>Shared and exclusive reference declarations</span></a>
+                    </li>
+                    <li><a href="#Reference-Mutability"><span class="toc-number">12</span><span>Binding mutability versus target mutability</span></a>
+                    </li>
+                    <li><a href="#Lifetimes"><span class="toc-number">13</span><span>Last use, overlap, and synchronized interior state</span></a>
+                    </li>
+                    <li><a href="#Errors"><span class="toc-number">14</span><span>Diagnostic guide</span></a></li>
+                    <li><a href="#Open-Decisions"><span class="toc-number">15</span><span>Open decisions and related references</span></a>
+                    </li>
+                    <li><a href="#Sources"><span class="toc-number">16</span><span>Sources and design references</span></a>
+                    </li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="Declaration pages"><h2>Declaration reference</h2>
+                <div class="family-links"><a href="index.html">Overview</a><a href="Variable_Declaration.html"
+                                                                              aria-current="page">Variables</a><a
+                        href="Function_Declaration.html">Functions</a></div>
+            </nav>
+            <nav class="family-nav" aria-label="Related reference"><h2>Related reference</h2>
+                <div class="family-links"><a href="../data_type/index.html">All 29 types</a><a
+                        href="../data_type/Unit/Unit.html">unit</a><a href="../data_type/Never/Never.html">never</a><a
+                        href="../data_type/Result/Result.html">Result</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="Variable Declaration reference">
+            <section id="Overview" aria-labelledby="Overview-heading"><h2 id="Overview-heading">1. Variable
+                declarations</h2>
+                <p>A declaration binds a name to a statically typed value. Aevix places the type before the name and
+                    makes an ordinary binding immutable by default. A declaration therefore answers separate questions:
+                    what type is stored, whether this binding may change, whether an initializer is a compile-time
+                    expression, and how long its storage exists. Ownership and borrowing add access rules without
+                    merging these questions.</p>
+                <blockquote class="callout note"><p><strong>Language design reference.</strong> This page records
+                    decisions made for Aevix; it is not evidence of an implemented parser or compiler. Positive examples
+                    illustrate those decisions. Blocks marked as expected compile errors are deliberately invalid.
+                    Initializer and function-call details follow their linked type contracts; unresolved policies are
+                    listed explicitly below.</p></blockquote>
+                <p>Examples are declaration fragments inside a suitable enclosing scope. They introduce no entry-point,
+                    visibility, or function-definition keyword. See <a href="Function_Declaration.html">Function
+                        Declaration</a> for parameters and returns.</p></section>
+            <section id="Grammar" aria-labelledby="Grammar-heading"><h2 id="Grammar-heading">2. Canonical declaration
+                forms</h2>
+                <p>The following are canonical spellings for the selected forms. T stands for an explicit type, name for
+                    a binding identifier, and expression for an initializer. This table is not a complete grammar for
+                    every modifier combination. It does not declare every alternative ordering illegal.</p>
+                <div class="table-scroll" role="region" aria-label="Canonical declaration forms data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Canonical form</th>
+                            <th scope="col">Type and mutability</th>
+                            <th scope="col">Evaluation or storage</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <th scope="row"><code>T name = expression;</code></th>
+                            <td>Explicit T; immutable binding.</td>
+                            <td>Initializer may depend on runtime values.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>mut T name = expression;</code></th>
+                            <td>Explicit T; mutable binding.</td>
+                            <td>Runtime initialization is permitted.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>rsn name = expression;</code></th>
+                            <td>Inferred fixed type; immutable binding.</td>
+                            <td>Inference is static, not dynamic typing.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>mut rsn name = expression;</code></th>
+                            <td>Inferred fixed type; mutable binding.</td>
+                            <td>Later assignments keep the inferred type.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>const T name = expression;</code></th>
+                            <td>Explicit T; always immutable.</td>
+                            <td>Initializer must be compile-time evaluable.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>const rsn name = expression;</code></th>
+                            <td>Inferred fixed type; always immutable.</td>
+                            <td>Compile-time evaluation is still required.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>persist T name = expression;</code></th>
+                            <td>Explicit T; ordinary immutable binding.</td>
+                            <td>Per-declaration process-lifetime storage; startup or first-reach initialization follows declaration context.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Every shown declaration ends with a semicolon. The inference keyword is <code>rsn</code>. No
+                    additional declaration introducer or colon-separated name/type form is needed.</p></section>
+            <section id="Typed-Bindings" aria-labelledby="Typed-Bindings-heading"><h2 id="Typed-Bindings-heading">3.
+                Explicit types and ordinary initialization</h2>
+                <p>An explicit type fixes the binding’s representation and operations. The initializer must satisfy that
+                    type’s rules. A literal can use the destination’s permitted literal context, but a value already
+                    assigned a numeric type does not silently become another numeric type. The alias <code>int</code>
+                    denotes <code>i32</code>; it does not follow the machine’s pointer width.</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 size = 128;
+f64 ratio = 0.5;
+char marker = &#x27;A&#x27;;
+unit completed = Unit.value();</code></pre>
+                <p>These bindings cannot be reassigned merely because their initializers are simple. Ordinary immutable
+                    bindings may also receive runtime results. Immutability is an access rule, not a promise of
+                    compile-time evaluation, read-only hardware pages, global lifetime, or recursive freezing of every
+                    reachable resource. <code>unit</code> is a value type; <code>void</code> is a return-position choice
+                    and cannot replace it in a variable declaration.</p></section>
+            <section id="Mutability" aria-labelledby="Mutability-heading"><h2 id="Mutability-heading">4. Mutable
+                bindings</h2>
+                <p>Prefix <code>mut</code> when the binding needs permitted writes. It allows replacing the bound value
+                    and taking an exclusive borrow of an owned variable, provided type, ownership, and active-borrow
+                    rules permit the operation. It never changes the binding’s static type or authorizes conflicting
+                    aliases. An immutable owner can still move into another owner; a move is not an implicit clone.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">mut i32 count = 0;
+count = 1;
+count = 2;</code></pre>
+                <p><strong>Expected rejection:</strong> assigning a new value to an ordinary immutable binding is
+                    invalid, even if the replacement has the same type.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 count = 0;
+count = 1; // Invalid: this binding is immutable.</code></pre>
+                <p>For an owning aggregate, mutability permits operations through an exclusive owner borrow. Any
+                    displaced owning value still follows its destruction contract. Making a binding mutable does not
+                    bypass bounds checks, allocation errors, or synchronization requirements.</p></section>
+            <section id="Inference" aria-labelledby="Inference-heading"><h2 id="Inference-heading">5. Static inference
+                with rsn</h2>
+                <p><code>rsn</code> asks the compiler to determine the type from the initializer and available static
+                    context. Once determined, that type remains fixed for the binding. An unconstrained integer literal
+                    defaults to <code>i32</code> and an unconstrained real literal to <code>f64</code>. Inference does
+                    not create a runtime tagged numeric slot or permit a value to alternate between unrelated types.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">rsn size = 128;
+rsn scale = 2.0;
+mut rsn count = 0;
+count = 1;</code></pre>
+                <p>Here size and count have type i32; scale has type f64. The mutable inferred binding accepts another
+                    i32 value, not a different inferred type on each assignment.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">mut rsn amount = 3;
+amount = 4.5; // Invalid: amount remains i32.</code></pre>
+                <p>An inference declaration with no initializer or other permitted type source cannot determine its
+                    type. Explicit typed locals can instead use the chosen definite-assignment rule. Inference also retains ownership and borrow
+                    lifetimes; it cannot erase them.</p></section>
+            <h3 id="Definite-Assignment">Typed locals may be initialized later</h3>
+<p>An ordinary explicitly typed local may be declared without an initializer. It has no implicit zero/default value. Every reachable read, borrow, address-taking or move must be preceded by a complete successful initialization on that path. An immutable local may be initialized exactly once on each path; a later assignment after initialization requires mut. Const and persist declarations require initializers, and rsn requires an initializer to infer its type.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose(bool first) {
+    i32 value;
+    if (first) value = 10;
+    else value = 20;
+    return value;
+}</code></pre>
+<p>Both branches initialize value exactly once, so the return is valid. A path that reaches the return without initialization is rejected. Ordinary partial-field initialization is not introduced by this rule: use a complete struct, enum or array value. Cleanup only applies on paths where an owned value was successfully initialized and remains owned.</p>
+<pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 invalid_initialization(bool ready) {
+    i32 value;
+    if (ready) value = 10;
+    return value;
+}</code></pre>
+<section id="Numeric-Context" aria-labelledby="Numeric-Context-heading"><h2 id="Numeric-Context-heading">6.
+                Numeric context and explicit conversion</h2>
+                <p>Literal context and conversion of an already typed value are different. A small literal can
+                    initialize a compatible fixed-width type when its value is in range. After a variable has type i32,
+                    assigning it to i64 is a typed conversion even though every i32 value would fit. Such conversion is
+                    explicit, preserving the same semantics across CPU AOT, JIT, and supported device code.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i8 small_literal = 12;
+i32 source = 12;
+Result&lt;i64, IntegerError&gt; wider = Integer.convert(i64, source);</code></pre>
+                <p>The explicit conversion keeps the operation’s Result contract visible. A narrower conversion may
+                    fail; declaring its result does not automatically extract the success value.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 source = 12;
+i64 destination = source; // Invalid: no implicit typed numeric conversion.</code></pre>
+                <p>Use the <a href="../data_type/Integer/Integer.html">Integer</a> and <a
+                        href="../data_type/Float/Float.html">Float</a> references for range, rounding, overflow, and
+                    conversion policies. rsn does not relax them.</p></section>
+            <section id="Constants" aria-labelledby="Constants-heading"><h2 id="Constants-heading">7. Compile-time
+                constants</h2>
+                <p><code>const</code> requires an immutable constant whose initializer is evaluable at compile time.
+                    <code>const rsn</code> infers its type without weakening that requirement. Ordinary immutable
+                    declarations can depend on runtime input; a const declaration cannot use an input available only at
+                    runtime. Optimizer constant propagation does not by itself turn arbitrary runtime work into a valid
+                    constant initializer.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">const i32 LIMIT = 100;
+const rsn SCALE = 2.0;
+const i32 BLOCK_BYTES = 4 * 32;</code></pre>
+                <p>Combining mut and const is invalid. Constants also reject later reassignment. The following block
+                    demonstrates the forbidden combination, rather than defining another accepted modifier order.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">const mut i32 LIMIT = 100; // Invalid: const and mut conflict.</code></pre>
+                <p>In this contextual example, runtime_value is an i32 input supplied by the enclosing runtime
+                    interface. The first declaration is ordinary immutable initialization; the second requires
+                    unavailable compile-time data.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 snapshot = runtime_value;
+const i32 CAPTURED = runtime_value; // Invalid: runtime-only initializer.</code></pre>
+                <p>The complete constant-expression language, user-defined constant functions and generic constant identity remain open. Parameter defaults are restricted to Copy-capable compile-time constants; see <a href="../grammar/functions/Arguments_and_Defaults.html">Arguments and Defaults</a>. A const value does not imply one addressable
+                    process-lifetime object.</p></section>
+            <section id="Persistent-Storage" aria-labelledby="Persistent-Storage-heading"><h2 id="Persistent-Storage-heading">8. Persistent process storage</h2>
+<p><code>persist</code> gives a declaration process-lifetime storage. Visibility, mutability and constant evaluation remain separate. It does not preserve data across process restarts or extend a borrowed source's lifetime.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">persist i32 protocol_revision = 1;</code></pre>
+<p>At module top level, this value is initialized before program entry. Inside a function, initialization begins when execution first reaches the declaration; subsequent reaches reuse the same completed value. A local initializer cannot directly depend on runtime function parameters or ordinary local variables. In a generic function, each concrete type-argument combination has separate storage shared by that combination's AOT and JIT code versions.</p>
+<p>A persist place cannot be moved out and left uninitialized; use borrowing or an explicit operation that safely installs a complete replacement. Its initializer cannot propagate <code>?</code> to return from the enclosing function before initialization completes.</p><p>One thread performs a first initialization while other callers wait. Unfinished values are never exposed. A stored Err is a completed Result value; an initialization execution error is diagnosed and stops the program. Shared modification requires explicit synchronization types, such as Atomic, Mutex or RwLock.</p>
+<p>Normal shutdown waits for language-tracked resource users before releasing successfully initialized persist values in reverse initialization-completion order. Cleanup cannot access another persist. See <a href="../grammar/persistent_storage/index.html">Persistent Storage</a> for dependency order, runtime checks, shutdown boundaries and the remaining open policies.</p></section>
+            <section id="Copy-Move" aria-labelledby="Copy-Move-heading"><h2 id="Copy-Move-heading">9. Copies, moves, and
+                owning values</h2>
+                <p>Copy scalar values duplicate their value when initialized from another scalar. Owning non-Copy values
+                    transfer ownership by default. This includes Array, Vector, and lowercase string under the selected
+                    aggregate rules. An immutable source binding can be moved; afterward it cannot be read, borrowed, or
+                    destroyed as a second live owner. Mut does not turn an owning value into a Copy type.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 first = 7;
+i32 second = first;
+Array&lt;i32, 3&gt; original = [1, 2, 3];
+Array&lt;i32, 3&gt; duplicate = Array.copy(&amp;original);
+Array&lt;i32, 3&gt; moved = original;
+usize count = Array.len(&amp;moved);</code></pre>
+                <p>Even an Array of Copy elements uses explicit Array.copy for aggregate duplication. That operation
+                    differs from the ownership transfer into moved. Declaring a second name does not silently clone the
+                    first owner.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">Vector&lt;i32&gt; original = Vector.new(i32);
+Vector&lt;i32&gt; destination = original;
+usize old_count = Vector.len(&amp;original); // Invalid: original was moved.</code></pre>
+                <p>Explicit Clone may allocate and fail, and need not recursively isolate nested Shared resources. See
+                    <a href="../data_type/Array/Array.html">Array</a>, <a
+                            href="../data_type/Vector/Vector.html">Vector</a>, and <a
+                            href="../data_type/String/string.html">string</a>.</p><p><a href="../grammar/user_defined_types/Structs.html">Structs</a> and <a href="../grammar/enums/Enums.html">enums</a> also move by default. <a href="../grammar/user_defined_types/Copy.html">implements Copy</a> opts a type into compiler-checked copying: all fields, including every enum variant, must qualify. A type parameter constrained by where T implements Copy does not automatically make its containing type Copy.</p></section>
+            <section id="Allocation-Failure" aria-labelledby="Allocation-Failure-heading"><h2
+                    id="Allocation-Failure-heading">10. Fallible initializers</h2>
+                <p>A declaration preserves its initializer’s result type and ownership contract. It does not hide an
+                    allocation, unwrap Result, or convert failure into an empty collection. A Result binding can itself
+                    own either a success value or recovery information. Handling that result is a separate operation;
+                    general propagation and pattern syntax are outside this declaration reference.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;Vector&lt;i32&gt;, CollectionError&gt; reserved = Vector.with_capacity(i32, 64);
+Array&lt;i32, 3&gt; values = [1, 2, 3];
+Result&lt;Array&lt;i32, 3&gt;, CollectionError&gt; cloned = Array.clone(&amp;values);</code></pre>
+                <p>Fallible clone and allocation remain explicit even when the destination binding is immutable. When an
+                    API promises preflight recovery of moved inputs, its error carrier retains those owners. This is the
+                    function’s contract, not a universal rollback property supplied by declaration syntax. A callback’s
+                    earlier external effects are not undone by naming its Result.</p></section>
+            <section id="Borrowing" aria-labelledby="Borrowing-heading"><h2 id="Borrowing-heading">11. Shared and
+                exclusive reference declarations</h2>
+                <p><code>&amp;T</code> declares a shared read reference; <code>&amp;mut T</code> declares an exclusive
+                    writable reference. Creating one borrows an existing value instead of duplicating its ownership. The
+                    referent must remain valid for every permitted use. Reading a scalar through <code>*reference</code>
+                    copies that scalar value; dereferencing an owning value does not authorize an implicit owner copy.
+                </p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 value = 10;
+&amp;i32 reference = &amp;value;
+i32 observed = *reference;
+Array&lt;i32, 3&gt; values = [1, 2, 3];
+Slice&lt;i32&gt; view = Slice.from_array(&amp;values);
+usize count = Slice.len(view);</code></pre>
+                <p>Calls distinguish x, &amp;x, and &amp;mut x when passing owned values. Existing references and
+                    borrowed Slice, MutSlice, and string_view values are passed directly where that borrowed type is
+                    expected; do not add an extra address-of operator by rote. Borrowed views retain the owner’s
+                    lifetime constraints and never become owners of the backing elements. See <a
+                            href="../data_type/Slice/Slice.html">Slice</a>.</p></section>
+            <section id="Reference-Mutability" aria-labelledby="Reference-Mutability-heading"><h2
+                    id="Reference-Mutability-heading">12. Binding mutability versus target mutability</h2>
+                <p>A reference has both a binding and an access capability. An immutable binding of type &amp;mut T
+                    cannot be rebound to another reference, but can write its permitted referent. Conversely, a mutable
+                    binding of type &amp;T can select another shared reference while still lacking write access to
+                    either target. The location of mut therefore matters.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">mut i32 count = 1;
+&amp;mut i32 target = &amp;mut count;
+*target = 2;
+i32 observed = *target;</code></pre>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 left = 1;
+i32 right = 2;
+mut &amp;i32 selected = &amp;left;
+selected = &amp;right;
+i32 observed = *selected;</code></pre>
+                <p>Taking &amp;mut owner requires a mut owner binding. That requirement is about the owned variable;
+                    using an existing writable reference or view does not require adding another mutable-reference
+                    layer.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 fixed = 10;
+&amp;mut i32 forbidden = &amp;mut fixed; // Invalid: immutable owner.</code></pre>
+                <p>In a function parameter, mut T value makes the callee’s by-value local binding mutable. It does not
+                    grant access to the caller’s original value. &amp;mut T value grants an exclusive caller-target
+                    borrow; the <a href="Function_Declaration.html">function reference</a> explains the distinction.</p>
+            </section>
+            <section id="Lifetimes" aria-labelledby="Lifetimes-heading"><h2 id="Lifetimes-heading">13. Last use,
+                overlap, and synchronized interior state</h2>
+                <p>Borrow checking follows active uses and ownership paths, rather than treating every textual reference
+                    name as live until the closing brace. A new exclusive borrow can begin after the last use of a
+                    conflicting shared borrow. Destructors, captured references, and returned views can keep obligations
+                    live; an unused-looking alias must not be assumed dead when cleanup can still access it.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">mut i32 number = 10;
+&amp;i32 reader = &amp;number;
+i32 saved = *reader;
+&amp;mut i32 writer = &amp;mut number;
+*writer = 20;
+i32 after = number;</code></pre>
+                <p>The next fragment instead uses reader after creating writer, so their conflicting borrows
+                    overlap.</p>
+                <p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule
+                    and is not valid Aevix code.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">mut i32 number = 10;
+&amp;i32 reader = &amp;number;
+&amp;mut i32 writer = &amp;mut number; // Invalid: reader remains active.
+i32 saved = *reader;</code></pre>
+                <p>Multiple readers may coexist; conflicting writers or a reader with an exclusive writer may not.
+                    Proven disjoint subranges can have separate writable views. Interior synchronization is a distinct
+                    contract: Atomic and Mutex may perform their defined operations through shared object references
+                    without granting arbitrary &amp;mut aliases. Storage duration alone establishes no synchronization.
+                    See <a href="../data_type/Atomic/Atomic.html">Atomic</a> and <a
+                            href="../data_type/Mutex/Mutex.html">Mutex</a>.</p></section>
+            <section id="Errors" aria-labelledby="Errors-heading"><h2 id="Errors-heading">14. Diagnostic guide</h2>
+                <p>These are required diagnostic conditions and suggested explanations, not implemented compiler error
+                    codes. A diagnostic should identify the declaration, conflicting use, and relevant type or loan; it
+                    should not silently add clones, widen numeric types, or discard failures.</p>
+                <div class="table-scroll" role="region" aria-label="Diagnostic guide data table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">Condition</th>
+                            <th scope="col">Explain</th>
+                            <th scope="col">Typical correction</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <th scope="row">Assignment to an immutable binding</th>
+                            <td>The binding lacks write permission.</td>
+                            <td>Use mut when mutation is intended.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Different type assigned after rsn inference</th>
+                            <td>Inference fixed one static type.</td>
+                            <td>Use a separate appropriately typed binding.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Typed numeric value crosses types implicitly</th>
+                            <td>No implicit numeric cast is defined.</td>
+                            <td>Call the explicit conversion API.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">mut combined with const</th>
+                            <td>A constant cannot be mutable.</td>
+                            <td>Choose one intended evaluation/access contract.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Runtime-only initializer required by const</th>
+                            <td>The value is unavailable to compile-time evaluation.</td>
+                            <td>Use ordinary immutable initialization or a true constant.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Exclusive borrow of an immutable owner</th>
+                            <td>The owner binding cannot supply writable access.</td>
+                            <td>Use mut if that owner should be mutable.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Conflicting active loans</th>
+                            <td>Later uses keep an overlapping loan live.</td>
+                            <td>End the conflicting use or prove disjoint storage.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Use of a moved owner</th>
+                            <td>Ownership transferred to another binding.</td>
+                            <td>Use the destination, borrow earlier, or explicitly clone.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">rsn with no available type source</th>
+                            <td>No static type can be inferred.</td>
+                            <td>Supply a type-bearing initializer or explicit type.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">void used as a variable value type</th>
+                            <td>void is a return-position choice.</td>
+                            <td>Use unit when a no-payload value is required.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The correction must preserve the intended ownership and cost model; automatic recovery is not
+                    implied.</p></section>
+            <section id="Open-Decisions" aria-labelledby="Open-Decisions-heading"><h2 id="Open-Decisions-heading">15.
+                Open decisions and related references</h2>
+                <p>Typed local declarations without initializers are allowed under the definite-assignment rule. Explicit annotations for globally borrowed references remain open. Top-level persist initialization order is now defined by value dependencies, then module-path and declaration-order tie breaking. The fragment <code>T name;</code> is a supported explicitly typed local declaration, but cannot be used until definitely initialized. When rsn has no initializer or other type source, inference cannot succeed. Shadowing of an already visible variable is now forbidden; <code>public</code>/<code>private</code> apply to module and type declarations, while local variables retain lexical block scope. See <a href="../grammar/scope_and_comments/Scope_and_Visibility.html">Scope and Visibility</a>.</p>
+                <p>The complete modifier-order grammar, combinations involving persistent storage, a constant-function facility, generic constant identity and thread-local storage remain open. <a href="../grammar/functions/index.html">Function calls</a> now define default arguments and overload ranking; <a href="../grammar/persistent_storage/index.html">persist</a> defines initialization timing, fatal execution failure and normal shutdown. Visibility and normal-scope resource cleanup are documented in <a href="../grammar/scope_and_comments/index.html">Scope and Comments</a>; no function introducer or implicit final-expression return is added.</p>
+                <p>The external sources below are comparison material for terminology and design tradeoffs. They do not
+                    define Aevix syntax or import another language’s initialization, shadowing, lifetime-annotation, or
+                    storage rules. Continue with <a href="Function_Declaration.html">Function Declaration</a>, the <a
+                            href="../data_type/index.html">data type index</a>, or the <a href="index.html">declaration
+                        index</a>.</p><p>Named-field initialization, private field access, enum variant visibility and type parameter declarations are chosen in the <a href="../grammar/user_defined_types/index.html">user-defined types</a>, <a href="../grammar/enums/index.html">enum</a>, and <a href="../grammar/generics/index.html">generic type</a> references. Field default values and custom cleanup declarations remain open.</p></section>
+            <section id="Sources" aria-labelledby="Sources-heading"><h2 id="Sources-heading">16. Sources and design
+                references</h2>
+                <p>Aevix rules are identified as chosen or open in this document. Primary references provide
+                    comparisons; their language rules are not silently adopted.</p>
+                <ul class="source-list">
+                    <li><a href="https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Programming Language: Variables and Mutability (comparison
+                        reference)</a></li>
+                    <li><a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Programming Language: References and Borrowing (comparison
+                        reference)</a></li>
+                    <li><a href="https://eel.is/c++draft/basic.stc.static" target="_blank" rel="noopener noreferrer">C++
+                        working draft: Static storage duration (terminology comparison)</a></li>
+                </ul>
+            </section>
+            <nav class="page-navigation" aria-label="Adjacent reference pages"><a
+                    href="Function_Declaration.html"><span>Next reference</span>Functions</a></nav>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix Language · Declaration reference</span><span>Design specification · compiler implementation not implied</span>
+    </footer>
+</main>
+</body>
+</html>

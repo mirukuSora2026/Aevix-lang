@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Shared integer rules, explicit arithmetic policies, and the proposed Integer
+                namespace.">
+  <title>Integer — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Integer.html" aria-current="true">Integer</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Integer.html">Integer</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Integer</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Integer</h1><p class="doc-subtitle">Shared integer rules, explicit arithmetic policies, and the proposed Integer
+                namespace.</p><div class="doc-meta"><span class="meta-chip">iN</span><span class="meta-chip">Integer. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>iN</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Overview</span></a></li><li><a href="#Declaration-Initialization"><span class="toc-number">02</span><span>Declaration &amp; Initialization</span></a></li><li><a href="#Integer-Literals"><span class="toc-number">03</span><span>Integer Literals</span></a></li><li><a href="#Arithmetic-Operations"><span class="toc-number">04</span><span>Arithmetic Operations</span></a></li><li><a href="#Comparison-Bitwise"><span class="toc-number">05</span><span>Comparison &amp; Bitwise Operations</span></a></li><li><a href="#Type-Conversion"><span class="toc-number">06</span><span>Type Conversion</span></a></li><li><a href="#Overflow-Underflow"><span class="toc-number">07</span><span>Overflow &amp; Underflow</span></a></li><li><a href="#Performance-Memory"><span class="toc-number">08</span><span>Performance &amp; Memory</span></a></li><li><a href="#Function-Reference"><span class="toc-number">09</span><span>Proposed Function Reference</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>Examples</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">11</span><span>Compilation &amp; Parallel Execution</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Integer pages"><h2>Integer reference</h2><div class="family-links"><a href="Integer.html" aria-current="page">Integer</a><a href="Integer_8.html">Int8</a><a href="Integer_16.html">Integer · 16-bit</a><a href="Integer_32.html">Integer · 32-bit</a><a href="Integer_64.html">Integer · 64-bit</a><a href="Unsigned_Integer_8.html">Unsigned Integer · 8-bit</a><a href="Unsigned_Integer_16.html">Unsigned Integer · 16-bit</a><a href="Unsigned_Integer_32.html">Unsigned Integer · 32-bit</a><a href="Unsigned_Integer_64.html">Unsigned Integer · 64-bit</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Integer reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Overview
+</h2>
+<div class="callout draft-note"><strong>Language design draft.</strong> This reference describes the
+                    proposed Aevix integer model. The API catalog is not an implementation or a compatibility claim.
+                    Declaration syntax and ordinary arithmetic failure boundaries now have chosen rules in <a href="../../grammar/index.html">Language Grammar</a>; the complete literal-suffix grammar remains open.
+                
+</div>
+                
+<p>Integers represent whole numbers with a fixed, finite range. Aevix proposes signed <code>i8</code>,
+                    <code>i16</code>, <code>i32</code>, <code>i64</code>, unsigned <code>u8</code>, <code>u16</code>,
+                    <code>u32</code>, <code>u64</code>, and target-sized <code>isize</code> and <code>usize</code>.
+                    Signed values use two’s complement. The alias <code>int</code> means <code>i32</code>;
+                    <code>float</code> means <code>f64</code>.
+                
+</p>
+                
+<p>For width <code>N</code>, a signed type represents <code>−2^(N−1)</code> through
+                    <code>2^(N−1)−1</code>; an unsigned type represents <code>0</code> through <code>2^N−1</code>.
+                    Target-sized integers follow the target’s address model. Their width must not be assumed in
+                    serialized data or shared CPU/GPU interfaces.
+                
+</p>
+                
+<p>This page defines common behavior. The <a href="Integer_8.html">Int8 reference</a> documents
+                    <code>i8</code> boundaries and specialized results.
+                
+</p>
+</section>
+<section id="Declaration-Initialization" aria-labelledby="Declaration-Initialization-heading">
+<h2 id="Declaration-Initialization-heading">2. Declaration &amp; Initialization
+</h2>
+<p>Type inference accepts a literal when its value fits the required integer type. Without a
+                    constraining context, an integer literal defaults to <code>int</code>, or <code>i32</code>. The
+                    compiler reports an error if the value cannot fit that default; it does not silently choose a wider
+                    type.
+                
+</p>
+                
+<p>Values are immutable by default. Mutation requires the chosen explicit <code>mut</code> declaration, such as <code>mut i32 value = 0;</code>. Common operations use namespace functions such as <code>Integer.checked_add(a,
+                        b)</code>; integer instance methods are excluded from this design.
+                
+</p>
+</section>
+<section id="Integer-Literals" aria-labelledby="Integer-Literals-heading">
+<h2 id="Integer-Literals-heading">3. Integer Literals
+</h2>
+<p>Decimal literals and explicit binary, octal, and hexadecimal notation are proposed. Prefix and suffix
+                    spellings are not yet final. A literal denotes a numeric value, rather than an instruction to
+                    reinterpret a bit pattern.
+                
+</p>
+                
+<p>A negative minimum value must remain expressible: the compiler evaluates the sign and literal
+                    magnitude before checking the destination range. It must not first require the positive magnitude to
+                    fit that signed type.
+                
+</p>
+                
+<p>Compile-time mathematical evaluation may use a wider internal representation. This does not add
+                    arbitrary-precision runtime integers, alter typed expression widths, or permit out-of-range
+                    initialization.
+                
+</p>
+</section>
+<section id="Arithmetic-Operations" aria-labelledby="Arithmetic-Operations-heading">
+<h2 id="Arithmetic-Operations-heading">4. Arithmetic Operations
+</h2>
+<p>Already-typed operands do not undergo implicit numeric promotion. Ordinary arithmetic uses
+                    matching integer types. Widen explicitly before an operation when the destination width is
+                    insufficient; widening the result afterward cannot undo an earlier overflow.
+                
+</p>
+                
+<p>The chosen ordinary integer arithmetic policy checks failures and uses a safe stop when a runtime operation fails. Ordinary operators produce the matching integer type; they do not automatically return Result. The named checked APIs return <code>Result&lt;T, IntegerError&gt;</code>, and the chosen lexical <code>checked(expression)</code> form returns a Result for its directly written integer arithmetic. The failure boundary is explicit and does not change with expected type, AOT/JIT mode or optimization profile. See <a href="../../grammar/operators/Checked_Arithmetic.html">Checked Arithmetic</a>. The exact termination and cleanup policy of a safe stop remains open.</p>
+                
+<p>Truncated division rounds toward zero. Its remainder follows the dividend’s sign. Euclidean division
+                    instead produces a nonnegative remainder smaller than the divisor’s mathematical magnitude. Floor
+                    division and Euclidean division differ when the divisor is negative.
+                
+</p>
+</section>
+<section id="Comparison-Bitwise" aria-labelledby="Comparison-Bitwise-heading">
+<h2 id="Comparison-Bitwise-heading">5. Comparison &amp; Bitwise Operations
+</h2>
+<p>Equality and ordering compare matching typed numeric values and produce <code>bool</code>. Already-typed operands do not acquire implicit numeric conversions; an explicit value-preserving conversion makes cross-type intent clear. Untyped literals may receive their contextual type. Bitwise operations work on the fixed-width representation.</p>
+                
+<p>Shift count validation and information preservation are separate. A valid count lies from zero
+                    through width minus one. A count-checked left shift may still discard high bits; an exact shift also
+                    checks that reversing it preserves the original value. Signed right shift extends the sign bit;
+                    logical right shift inserts zeros. Rotations preserve every bit and reduce their count modulo the
+                    width.
+                
+</p>
+</section>
+<section id="Type-Conversion" aria-labelledby="Type-Conversion-heading">
+<h2 id="Type-Conversion-heading">6. Type Conversion
+</h2>
+<div class="table-scroll" role="region" aria-label="Type Conversion data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Proposed function</th>
+                            <th scope="col">Contract</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <td><code>Integer.convert(T, x)</code></td>
+                            <td>Checked integer conversion; returns <code>Result&lt;T, IntegerError&gt;</code> and
+                                rejects an unrepresentable value.
+                            </td>
+                        
+</tr>
+                        
+<tr>
+                            <td><code>Integer.widen(T, x)</code></td>
+                            <td>Returns <code>T</code> when every source value fits the destination; otherwise the type
+                                combination is rejected.
+                            </td>
+                        
+</tr>
+                        
+<tr>
+                            <td><code>Integer.saturating_convert(T, x)</code></td>
+                            <td>Clamps an integer to the destination range.</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><code>Integer.wrapping_convert(T, x)</code></td>
+                            <td>Produces the destination-width modular representation; may change the value.</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><code>Integer.bitcast(T, x)</code></td>
+                            <td>Same-width signed/unsigned reinterpretation; preserves bits, not necessarily value.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>Type arguments above are descriptive notation. Floating-point conversion needs separate rounding,
+                    exactness, NaN, and infinity contracts; these integer-to-integer functions do not silently choose
+                    them.
+                
+</p>
+</section>
+<section id="Overflow-Underflow" aria-labelledby="Overflow-Underflow-heading">
+<h2 id="Overflow-Underflow-heading">7. Overflow &amp; Underflow
+</h2>
+<div class="table-scroll" role="region" aria-label="Overflow &amp; Underflow data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Policy</th>
+                            <th scope="col">Result</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <td>Ordinary checked operators</td>
+                            <td>Integer result on success; safe stop on runtime arithmetic failure.</td>
+                        </tr>
+                        <tr>
+                            <td><code>checked(expression)</code> / named checked APIs</td>
+                            <td><code>Result</code>: success value or an explicit recoverable error.</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>Wrapping</td>
+                            <td>Modular result at the fixed width.</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>Saturating</td>
+                            <td>Nearest representable boundary.</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>Overflowing</td>
+                            <td>Wrapped result plus an overflow flag.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<p>These are different operations, not optimization settings. Subtracting below an unsigned minimum is
+                    also overflow for checked arithmetic. <code>IntegerError</code> is a proposed shared error type.
+                    Indicative errors include <code>Overflow</code>, <code>DivisionByZero</code>, <code>InvalidShiftCount</code>,
+                    <code>NotDivisible</code>, and <code>DomainError</code>.
+                
+</p>
+                
+<p>Division of a signed minimum by <code>−1</code> overflows. Standalone remainder for that input is
+                    proposed to return zero; a combined quotient/remainder operation still fails. Wrapping or saturation
+                    does not define division by zero.
+                
+</p>
+                
+<p>Constant folding preserves the public contract: a constant checked call can fold to <code>Err</code>.
+                    An invalid typed literal or required constant value is a compile-time diagnostic. Optimization must
+                    not convert a documented error value into undefined behavior.
+                
+</p>
+</section>
+<section id="Performance-Memory" aria-labelledby="Performance-Memory-heading">
+<h2 id="Performance-Memory-heading">8. Performance &amp; Memory
+</h2>
+<p>An integer is a plain copyable value. Scalar storage does not require an independent heap allocation
+                    or reference count. Its representation size does not dictate register use, structure padding,
+                    calling conventions, or stack placement. Copying an entire array is a separate aggregate policy and
+                    can have substantial cost.
+                
+</p>
+                
+<p>Scalar checked results can be represented without heap allocation. Checks and error handling still
+                    have real costs; the compiler may remove a check only when it preserves the specified behavior. Byte
+                    conversion returns a fixed array and does not allocate a heap buffer. Text formatting distinguishes
+                    allocating output from writing into caller-provided storage.
+                
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">9. Proposed Function Reference
+</h2>
+<div class="callout draft-note"><strong>Complete proposed catalog.</strong> These names and contracts
+                    describe the current design, not an implemented compiler or library. Every function uses <code>Integer.</code>;
+                    there are no integer instance methods.
+                
+</div>
+                
+<p><code>T</code> is any integer type, <code>S</code> a signed type, and <code>U</code> its same-width
+                    unsigned counterpart. <code>A</code> and <code>B</code> may differ; <code>D</code> is a destination,
+                    <code>F</code> a supported float, and <code>N</code> the source byte width. Type arguments,
+                    explicit returned-reference lifetime annotations, defaults, tuple labels, and supporting view protocols remain conceptual notation.
+                
+</p>
+                
+<p><code>IntegerError</code> is a proposed shared error-value type for arithmetic, domains, bounds,
+                    conversion, parsing, buffer capacity, and allocation. Its final enum layout is open.
+                    <code>Ordering</code> and <code>FormatOptions</code> are proposed library types. Checked calls
+                    return <code>Result</code> independently of the chosen safe-stop behavior of ordinary operators.
+                
+</p>
+                
+<h3>9.1. Type information <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Type arguments are compile-time inputs; target-sized widths are resolved for the selected target.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-min_value">
+                            <td><code>Integer.min_value(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>Minimum representable value.</td>
+                        
+</tr>
+                        
+<tr id="Integer-max_value">
+                            <td><code>Integer.max_value(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>Maximum representable value.</td>
+                        
+</tr>
+                        
+<tr id="Integer-bit_width">
+                            <td><code>Integer.bit_width(T)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Fixed representation width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-byte_width">
+                            <td><code>Integer.byte_width(T)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Representation bytes, excluding alignment and surrounding padding.</td>
+                        
+</tr>
+                        
+<tr id="Integer-is_signed">
+                            <td><code>Integer.is_signed(T)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True for signed types.</td>
+                        
+</tr>
+                        
+<tr id="Integer-zero">
+                            <td><code>Integer.zero(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>Typed zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-one">
+                            <td><code>Integer.one(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>Typed one.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.2. Value predicates and magnitude <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>S is signed; U is T’s same-width unsigned counterpart. Predicates and magnitude operations do not
+                    allocate.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-is_zero">
+                            <td><code>Integer.is_zero(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True exactly for zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-is_positive">
+                            <td><code>Integer.is_positive(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True when x is greater than zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-is_negative">
+                            <td><code>Integer.is_negative(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True for negative values; always false for unsigned input.</td>
+                        
+</tr>
+                        
+<tr id="Integer-is_even">
+                            <td><code>Integer.is_even(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True for even integers, including negative values.</td>
+                        
+</tr>
+                        
+<tr id="Integer-is_odd">
+                            <td><code>Integer.is_odd(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True for odd integers, including negative values.</td>
+                        
+</tr>
+                        
+<tr id="Integer-signum">
+                            <td><code>Integer.signum(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>Signed: -1, 0, or 1. Unsigned: 0 or 1.</td>
+                        
+</tr>
+                        
+<tr id="Integer-unsigned_abs">
+                            <td><code>Integer.unsigned_abs(S x)</code></td>
+                            <td><code>U</code></td>
+                            <td>Exact magnitude including S.MIN; signed input only.</td>
+                        
+</tr>
+                        
+<tr id="Integer-abs_diff">
+                            <td><code>Integer.abs_diff(T a, T b)</code></td>
+                            <td><code>U</code></td>
+                            <td>Exact nonnegative difference; matching signed or unsigned inputs.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.3. Comparison and bounds <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Ordering is proposed as Less, Equal, or Greater. Heterogeneous comparison does not implicitly convert
+                    operands.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-compare">
+                            <td><code>Integer.compare(T a, T b)</code></td>
+                            <td><code>Ordering</code></td>
+                            <td>Numeric comparison of matching types.</td>
+                        
+</tr>
+                        
+<tr id="Integer-compare_value">
+                            <td><code>Integer.compare_value(A a, B b)</code></td>
+                            <td><code>Ordering</code></td>
+                            <td>Exact comparison across integer widths and signedness.</td>
+                        
+</tr>
+                        
+<tr id="Integer-min">
+                            <td><code>Integer.min(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Smaller numeric value.</td>
+                        
+</tr>
+                        
+<tr id="Integer-max">
+                            <td><code>Integer.max(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Larger numeric value.</td>
+                        
+</tr>
+                        
+<tr id="Integer-midpoint">
+                            <td><code>Integer.midpoint(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Exact mathematical average rounded toward zero, without intermediate overflow.</td>
+                        
+</tr>
+                        
+<tr id="Integer-clamp">
+                            <td><code>Integer.clamp(T x, T lower, T upper)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Inclusive bounds; InvalidBounds when lower exceeds upper.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.4. Explicit conversion <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>D is an integer destination; F is f16, bf16, f32, or f64. Numerical conversion and bit
+                    reinterpretation are different operations.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-convert">
+                            <td><code>Integer.convert(D, T x)</code></td>
+                            <td><code>Result&lt;D, IntegerError&gt;</code></td>
+                            <td>Preserves the value; OutOfRange when it cannot fit D.</td>
+                        
+</tr>
+                        
+<tr id="Integer-widen">
+                            <td><code>Integer.widen(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>Allowed only if every T value fits D; invalid type combinations are compile-time
+                                errors.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-fits">
+                            <td><code>Integer.fits(D, T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>Tests destination numeric representability.</td>
+                        
+</tr>
+                        
+<tr id="Integer-saturating_convert">
+                            <td><code>Integer.saturating_convert(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>Clamps to the destination range.</td>
+                        
+</tr>
+                        
+<tr id="Integer-wrapping_convert">
+                            <td><code>Integer.wrapping_convert(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>Reduces modulo the destination width, then interprets the resulting bits.</td>
+                        
+</tr>
+                        
+<tr id="Integer-bitcast">
+                            <td><code>Integer.bitcast(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>Same-width integer reinterpretation; mismatched widths are rejected.</td>
+                        
+</tr>
+                        
+<tr id="Integer-to_float_exact">
+                            <td><code>Integer.to_float_exact(F, T x)</code></td>
+                            <td><code>Result&lt;F, IntegerError&gt;</code></td>
+                            <td>Requires finite exact representability; otherwise NonExact or OutOfRange.</td>
+                        
+</tr>
+                        
+<tr id="Integer-to_float">
+                            <td><code>Integer.to_float(F, T x)</code></td>
+                            <td><code>Result&lt;F, IntegerError&gt;</code></td>
+                            <td>Proposed nearest-even rounding; rejects finite-output overflow with OutOfRange.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.5. Checked arithmetic <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>All operands have matching types. Ordinary operators return the integer type and use the chosen safe-stop policy on runtime arithmetic failure. Recoverable failures require <code>checked(expression)</code> or a named checked API; <code>?</code> explicitly propagates an error in a compatible return context.</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-checked_add">
+                            <td><code>Integer.checked_add(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Overflow if the mathematical sum does not fit T.</td>
+                        
+</tr>
+                        
+<tr id="Integer-checked_sub">
+                            <td><code>Integer.checked_sub(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Overflow if the mathematical difference does not fit T.</td>
+                        
+</tr>
+                        
+<tr id="Integer-checked_mul">
+                            <td><code>Integer.checked_mul(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Overflow if the mathematical product does not fit T.</td>
+                        
+</tr>
+                        
+<tr id="Integer-checked_div">
+                            <td><code>Integer.checked_div(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Rounds toward zero; DivisionByZero or signed MIN/-1 Overflow.</td>
+                        
+</tr>
+                        
+<tr id="Integer-checked_rem">
+                            <td><code>Integer.checked_rem(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Truncated remainder; DivisionByZero. Signed MIN%-1 is proposed to return zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-checked_neg">
+                            <td><code>Integer.checked_neg(S x)</code></td>
+                            <td><code>Result&lt;S, IntegerError&gt;</code></td>
+                            <td>Signed only; MIN negation returns Overflow.</td>
+                        
+</tr>
+                        
+<tr id="Integer-checked_abs">
+                            <td><code>Integer.checked_abs(S x)</code></td>
+                            <td><code>Result&lt;S, IntegerError&gt;</code></td>
+                            <td>Signed only; MIN magnitude cannot fit S.</td>
+                        
+</tr>
+                        
+<tr id="Integer-checked_pow">
+                            <td><code>Integer.checked_pow(T base, u32 exponent)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Overflow if the exact power cannot fit; zero exponent, including 0^0, returns one.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.6. Wrapping arithmetic <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Wrapping is explicitly modular. It does not supply a fabricated division-by-zero result.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-wrapping_add">
+                            <td><code>Integer.wrapping_add(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Sum modulo 2^width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-wrapping_sub">
+                            <td><code>Integer.wrapping_sub(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Difference modulo 2^width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-wrapping_mul">
+                            <td><code>Integer.wrapping_mul(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Product modulo 2^width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-wrapping_neg">
+                            <td><code>Integer.wrapping_neg(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>Modular negation for signed or unsigned input.</td>
+                        
+</tr>
+                        
+<tr id="Integer-wrapping_abs">
+                            <td><code>Integer.wrapping_abs(S x)</code></td>
+                            <td><code>S</code></td>
+                            <td>Signed only; MIN remains MIN.</td>
+                        
+</tr>
+                        
+<tr id="Integer-wrapping_pow">
+                            <td><code>Integer.wrapping_pow(T base, u32 exponent)</code></td>
+                            <td><code>T</code></td>
+                            <td>Power modulo 2^width; zero exponent returns one.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.7. Saturating arithmetic <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Saturation clamps the exact result; signed-only unary functions retain their source type.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-saturating_add">
+                            <td><code>Integer.saturating_add(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Clamps the exact sum to the representable range.</td>
+                        
+</tr>
+                        
+<tr id="Integer-saturating_sub">
+                            <td><code>Integer.saturating_sub(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Clamps the exact difference to the representable range.</td>
+                        
+</tr>
+                        
+<tr id="Integer-saturating_mul">
+                            <td><code>Integer.saturating_mul(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>Clamps the exact product to the representable range.</td>
+                        
+</tr>
+                        
+<tr id="Integer-saturating_neg">
+                            <td><code>Integer.saturating_neg(S x)</code></td>
+                            <td><code>S</code></td>
+                            <td>Signed only; negating MIN returns MAX.</td>
+                        
+</tr>
+                        
+<tr id="Integer-saturating_abs">
+                            <td><code>Integer.saturating_abs(S x)</code></td>
+                            <td><code>S</code></td>
+                            <td>Signed only; taking the magnitude of MIN returns MAX.</td>
+                        
+</tr>
+                        
+<tr id="Integer-saturating_pow">
+                            <td><code>Integer.saturating_pow(T base, u32 exponent)</code></td>
+                            <td><code>T</code></td>
+                            <td>Clamps the exact power to the representable range; zero exponent returns one.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.8. Overflow-reporting arithmetic <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Each tuple contains a wrapped value and a flag indicating mathematical result representability. The
+                    flag is not a general error tag.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-overflowing_add">
+                            <td><code>Integer.overflowing_add(T a, T b)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>Wrapped sum; true if the exact result does not fit.</td>
+                        
+</tr>
+                        
+<tr id="Integer-overflowing_sub">
+                            <td><code>Integer.overflowing_sub(T a, T b)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>Wrapped difference; true if the exact result does not fit.</td>
+                        
+</tr>
+                        
+<tr id="Integer-overflowing_mul">
+                            <td><code>Integer.overflowing_mul(T a, T b)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>Wrapped product; true if the exact result does not fit.</td>
+                        
+</tr>
+                        
+<tr id="Integer-overflowing_neg">
+                            <td><code>Integer.overflowing_neg(S x)</code></td>
+                            <td><code>(S, bool)</code></td>
+                            <td>Signed only; MIN produces MIN and true.</td>
+                        
+</tr>
+                        
+<tr id="Integer-overflowing_abs">
+                            <td><code>Integer.overflowing_abs(S x)</code></td>
+                            <td><code>(S, bool)</code></td>
+                            <td>Signed only; MIN produces MIN and true.</td>
+                        
+</tr>
+                        
+<tr id="Integer-overflowing_pow">
+                            <td><code>Integer.overflowing_pow(T base, u32 exponent)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>Wrapped power; true if the exact result does not fit; zero exponent returns (one,
+                                false).
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.9. Division and remainder variants <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Divisors must be nonzero. Quotient-producing functions reject signed MIN/-1; standalone remainders
+                    for that pair return zero under the draft proposal.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-div_trunc">
+                            <td><code>Integer.div_trunc(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Explicit checked_div name; quotient rounds toward zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-rem_trunc">
+                            <td><code>Integer.rem_trunc(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Explicit checked_rem name; nonzero remainder follows the dividend sign.</td>
+                        
+</tr>
+                        
+<tr id="Integer-div_floor">
+                            <td><code>Integer.div_floor(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Quotient rounds toward negative infinity.</td>
+                        
+</tr>
+                        
+<tr id="Integer-div_ceil">
+                            <td><code>Integer.div_ceil(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Quotient rounds toward positive infinity; no overflowing add-before-divide shortcut.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-div_euclid">
+                            <td><code>Integer.div_euclid(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Quotient paired with 0 &lt;= remainder &lt; mathematical abs(b).</td>
+                        
+</tr>
+                        
+<tr id="Integer-div_exact">
+                            <td><code>Integer.div_exact(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>NotDivisible for a nonzero remainder; divisor and overflow checks remain.</td>
+                        
+</tr>
+                        
+<tr id="Integer-rem_floor">
+                            <td><code>Integer.rem_floor(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Remainder paired with floor division; nonzero remainder follows the divisor sign.</td>
+                        
+</tr>
+                        
+<tr id="Integer-rem_euclid">
+                            <td><code>Integer.rem_euclid(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Nonnegative remainder, even with negative a or b.</td>
+                        
+</tr>
+                        
+<tr id="Integer-div_rem_trunc">
+                            <td><code>Integer.div_rem_trunc(T a, T b)</code></td>
+                            <td><code>Result&lt;(T, T), IntegerError&gt;</code></td>
+                            <td>Truncated quotient, then matching remainder.</td>
+                        
+</tr>
+                        
+<tr id="Integer-div_rem_floor">
+                            <td><code>Integer.div_rem_floor(T a, T b)</code></td>
+                            <td><code>Result&lt;(T, T), IntegerError&gt;</code></td>
+                            <td>Floor quotient, then matching remainder.</td>
+                        
+</tr>
+                        
+<tr id="Integer-div_rem_euclid">
+                            <td><code>Integer.div_rem_euclid(T a, T b)</code></td>
+                            <td><code>Result&lt;(T, T), IntegerError&gt;</code></td>
+                            <td>Euclidean quotient, then nonnegative remainder.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.10. Bit counts and representation <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Except bit_length, these functions inspect the fixed-width pattern including the sign bit.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-count_ones">
+                            <td><code>Integer.count_ones(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Number of set bits.</td>
+                        
+</tr>
+                        
+<tr id="Integer-count_zeros">
+                            <td><code>Integer.count_zeros(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Width minus count_ones.</td>
+                        
+</tr>
+                        
+<tr id="Integer-leading_zeros">
+                            <td><code>Integer.leading_zeros(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Consecutive leading zeros; zero returns the full width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-leading_ones">
+                            <td><code>Integer.leading_ones(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Consecutive leading ones; an all-ones pattern returns the full width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-trailing_zeros">
+                            <td><code>Integer.trailing_zeros(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Consecutive trailing zeros; zero returns the full width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-trailing_ones">
+                            <td><code>Integer.trailing_ones(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Consecutive trailing ones; an all-ones pattern returns the full width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-bit_length">
+                            <td><code>Integer.bit_length(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>Bits needed for mathematical magnitude, excluding sign; zero returns zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-reverse_bits">
+                            <td><code>Integer.reverse_bits(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>Reverses every bit across the source width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-swap_bytes">
+                            <td><code>Integer.swap_bytes(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>Reverses byte order, preserving bit order within each byte.</td>
+                        
+</tr>
+                        
+<tr id="Integer-highest_one_bit">
+                            <td><code>Integer.highest_one_bit(T x)</code></td>
+                            <td><code>U</code></td>
+                            <td>Unsigned mask containing the highest set bit of the source representation; zero returns
+                                zero.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-lowest_one_bit">
+                            <td><code>Integer.lowest_one_bit(T x)</code></td>
+                            <td><code>U</code></td>
+                            <td>Unsigned mask containing the lowest set bit of the source representation; zero returns
+                                zero.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.11. Shifts and rotations <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Shift counts are u32; valid counts are below the type width. Count validity and information
+                    preservation are separate.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-shift_left">
+                            <td><code>Integer.shift_left(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>InvalidShiftCount for an out-of-range count; otherwise discards high bits and inserts
+                                zeros.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-shift_right">
+                            <td><code>Integer.shift_right(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Count checked; signed inputs extend the sign, unsigned inputs insert zeros.</td>
+                        
+</tr>
+                        
+<tr id="Integer-logical_shift_right">
+                            <td><code>Integer.logical_shift_right(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Count checked; inserts zeros for both signed and unsigned patterns.</td>
+                        
+</tr>
+                        
+<tr id="Integer-shift_left_exact">
+                            <td><code>Integer.shift_left_exact(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Count checked; LossOfInformation unless shifting back recovers x.</td>
+                        
+</tr>
+                        
+<tr id="Integer-shift_right_exact">
+                            <td><code>Integer.shift_right_exact(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Count checked; LossOfInformation if nonzero low bits would be discarded.</td>
+                        
+</tr>
+                        
+<tr id="Integer-rotate_left">
+                            <td><code>Integer.rotate_left(T x, u32 count)</code></td>
+                            <td><code>T</code></td>
+                            <td>Preserves every bit; count reduced modulo the width.</td>
+                        
+</tr>
+                        
+<tr id="Integer-rotate_right">
+                            <td><code>Integer.rotate_right(T x, u32 count)</code></td>
+                            <td><code>T</code></td>
+                            <td>Preserves every bit; count reduced modulo the width.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.12. Bit fields and masks <span class="api-level">Advanced</span>
+                
+</h3>
+                
+<p>Bit zero is least significant. A field requires offset &lt;= width and count &lt;= width-offset;
+                    zero-length fields are valid.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-test_bit">
+                            <td><code>Integer.test_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;bool, IntegerError&gt;</code></td>
+                            <td>Returns the bit; index &gt;= width is InvalidBitRange.</td>
+                        
+</tr>
+                        
+<tr id="Integer-set_bit">
+                            <td><code>Integer.set_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Sets the bit; invalid index is InvalidBitRange.</td>
+                        
+</tr>
+                        
+<tr id="Integer-clear_bit">
+                            <td><code>Integer.clear_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Clears the bit; invalid index is InvalidBitRange.</td>
+                        
+</tr>
+                        
+<tr id="Integer-toggle_bit">
+                            <td><code>Integer.toggle_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Flips the bit; invalid index is InvalidBitRange.</td>
+                        
+</tr>
+                        
+<tr id="Integer-extract_bits">
+                            <td><code>Integer.extract_bits(T x, u32 offset, u32 count)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Unsigned field packed into low bits; invalid bounds are InvalidBitRange.</td>
+                        
+</tr>
+                        
+<tr id="Integer-insert_bits">
+                            <td><code>Integer.insert_bits(T x, U field, u32 offset, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Replaces the field; invalid bounds or field bits above count are rejected.</td>
+                        
+</tr>
+                        
+<tr id="Integer-low_mask">
+                            <td><code>Integer.low_mask(T, u32 count)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Low count bits set; zero produces zero, full width produces all ones; oversized count
+                                rejected.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-compress_bits">
+                            <td><code>Integer.compress_bits(T x, U mask)</code></td>
+                            <td><code>U</code></td>
+                            <td>Packs mask-selected bits into low positions in increasing source-bit order.</td>
+                        
+</tr>
+                        
+<tr id="Integer-expand_bits">
+                            <td><code>Integer.expand_bits(U bits, U mask)</code></td>
+                            <td><code>T</code></td>
+                            <td>Deposits low input bits at mask-selected positions; unused high input bits are
+                                deliberately ignored.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.13. Endian bytes and bounded buffers <span class="api-level">Core</span>
+                
+</h3>
+<p>Raw serialization uses <code>byte</code>, the opaque octet type documented in <a href="../Byte/Byte.html">Byte</a>, rather than the numeric integer <code>u8</code>. There is no implicit conversion between them: use <code>Byte.from_u8</code> or <code>Byte.to_u8</code> explicitly for each octet when a numeric value is needed. Numeric bit-word APIs retain their documented unsigned integer types.</p>
+                
+<p>N is T’s byte width. Fixed arrays preserve every bit; signed decoding uses two’s complement. Buffer
+                    operations do not allocate.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-to_le_bytes">
+                            <td><code>Integer.to_le_bytes(T x)</code></td>
+                            <td><code>Array&lt;byte, N&gt;</code></td>
+                            <td>Fixed little-endian representation.</td>
+                        
+</tr>
+                        
+<tr id="Integer-to_be_bytes">
+                            <td><code>Integer.to_be_bytes(T x)</code></td>
+                            <td><code>Array&lt;byte, N&gt;</code></td>
+                            <td>Fixed big-endian representation.</td>
+                        
+</tr>
+                        
+<tr id="Integer-from_le_bytes">
+                            <td><code>Integer.from_le_bytes(T, Array&lt;byte, N&gt; bytes)</code></td>
+                            <td><code>T</code></td>
+                            <td>Little-endian decoding; incorrect fixed length is a type error.</td>
+                        
+</tr>
+                        
+<tr id="Integer-from_be_bytes">
+                            <td><code>Integer.from_be_bytes(T, Array&lt;byte, N&gt; bytes)</code></td>
+                            <td><code>T</code></td>
+                            <td>Big-endian decoding; incorrect fixed length is a type error.</td>
+                        
+</tr>
+                        
+<tr id="Integer-read_le">
+                            <td><code>Integer.read_le(T, Slice&lt;byte&gt; bytes, usize offset= 0)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Requires N bytes at offset; InvalidOffset or BufferTooSmall otherwise.</td>
+                        
+</tr>
+                        
+<tr id="Integer-read_be">
+                            <td><code>Integer.read_be(T, Slice&lt;byte&gt; bytes, usize offset= 0)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Same bounds contract, big-endian decoding.</td>
+                        
+</tr>
+                        
+<tr id="Integer-write_le">
+                            <td><code>Integer.write_le(T x, MutSlice&lt;byte&gt; buffer, usize offset= 0)</code></td>
+                            <td><code>Result&lt;usize, IntegerError&gt;</code></td>
+                            <td>Prechecks full capacity; failure leaves the buffer unchanged. Success writes and returns
+                                N bytes.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-write_be">
+                            <td><code>Integer.write_be(T x, MutSlice&lt;byte&gt; buffer, usize offset= 0)</code></td>
+                            <td><code>Result&lt;usize, IntegerError&gt;</code></td>
+                            <td>Same capacity contract, big-endian encoding.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.14. Parsing and formatting <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Initially host-side library APIs. FormatOptions describes radix, case, prefix, padding, and
+                    value/bit-pattern representation; final option syntax is open.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-parse">
+                            <td><code>Integer.parse(T, string_view text)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Strict whole-input decimal. No whitespace, prefixes, or separators; optional plus, minus
+                                only for signed T.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-parse_radix">
+                            <td><code>Integer.parse_radix(T, string_view text, u32 radix)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Radix 2-36 and ASCII case-insensitive digits; invalid radix/digit, empty input, or range
+                                violation returns an error.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-parse_prefix">
+                            <td><code>Integer.parse_prefix(T, string_view text)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Proposed 0b/0o/0x detection after a permitted sign; otherwise decimal, with no legacy
+                                leading-zero octal.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-format">
+                            <td><code>Integer.format(T x, FormatOptions options= default)</code></td>
+                            <td><code>Result&lt;string, IntegerError&gt;</code></td>
+                            <td>Allocating output; InvalidRadix or OutOfMemory. Default is signed-value decimal.</td>
+                        
+</tr>
+                        
+<tr id="Integer-format_into">
+                            <td><code>Integer.format_into(T x, MutSlice&lt;byte&gt; buffer, FormatOptions options=
+                                default)</code></td>
+                            <td><code>Result&lt;usize, IntegerError&gt;</code></td>
+                            <td>Allocation-free; validates options/capacity before writing, returns byte count;
+                                BufferTooSmall on insufficient space.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-digit_count">
+                            <td><code>Integer.digit_count(T x, u32 radix= 10)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>Magnitude digits only; excludes sign/prefix/padding. Zero has one digit; invalid radix
+                                rejected.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.15. Integer roots and logarithms <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>These functions compute integer results without silently converting to float.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-isqrt">
+                            <td><code>Integer.isqrt(T x)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Floor square root; DomainError for negative signed input.</td>
+                        
+</tr>
+                        
+<tr id="Integer-ilog">
+                            <td><code>Integer.ilog(T x, T base)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>Floor logarithm; requires x &gt; 0 and base &gt;= 2.</td>
+                        
+</tr>
+                        
+<tr id="Integer-ilog2">
+                            <td><code>Integer.ilog2(T x)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>Floor base-two logarithm; zero or negative input is DomainError.</td>
+                        
+</tr>
+                        
+<tr id="Integer-ilog10">
+                            <td><code>Integer.ilog10(T x)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>Floor base-ten logarithm; zero or negative input is DomainError.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.16. Powers, multiples, and alignment <span class="api-level">Core</span>
+                
+</h3>
+                
+<p>Matching types for values and multiples. Alignment initially accepts unsigned integers only.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-is_power_of_two">
+                            <td><code>Integer.is_power_of_two(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>Positive power of two; zero and negatives return false.</td>
+                        
+</tr>
+                        
+<tr id="Integer-next_power_of_two">
+                            <td><code>Integer.next_power_of_two(T x)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Least power &gt;= x; zero maps to one. Negative input is DomainError; oversized result
+                                is Overflow.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-floor_power_of_two">
+                            <td><code>Integer.floor_power_of_two(T x)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Greatest power &lt;= x; zero maps to zero. Negative input is DomainError.</td>
+                        
+</tr>
+                        
+<tr id="Integer-is_multiple_of">
+                            <td><code>Integer.is_multiple_of(T x, T multiple)</code></td>
+                            <td><code>bool</code></td>
+                            <td>Exact divisibility; proposed zero convention: only zero is a multiple of zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-next_multiple_of">
+                            <td><code>Integer.next_multiple_of(T x, T multiple)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Least multiple &gt;= x; requires a positive multiple; invalid input or oversized result
+                                returns error.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-previous_multiple_of">
+                            <td><code>Integer.previous_multiple_of(T x, T multiple)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Greatest multiple &lt;= x; positive multiple required; may overflow below signed MIN.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-align_up">
+                            <td><code>Integer.align_up(U x, U alignment)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Positive power-of-two alignment required; InvalidAlignment or Overflow.</td>
+                        
+</tr>
+                        
+<tr id="Integer-align_down">
+                            <td><code>Integer.align_down(U x, U alignment)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Rounds downward; InvalidAlignment unless alignment is a positive power of two.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.17. Number theory and modular arithmetic <span class="api-level">Advanced</span>
+                
+</h3>
+                
+<p>U represents full signed magnitudes. Intermediate overflow must not corrupt a mathematically
+                    representable result.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-gcd">
+                            <td><code>Integer.gcd(T a, T b)</code></td>
+                            <td><code>U</code></td>
+                            <td>Exact nonnegative greatest common divisor of magnitudes; gcd(0,0) is zero.</td>
+                        
+</tr>
+                        
+<tr id="Integer-lcm">
+                            <td><code>Integer.lcm(T a, T b)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Nonnegative least common multiple; zero if either input is zero; Overflow if the result
+                                cannot fit U.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-pow_mod">
+                            <td><code>Integer.pow_mod(T base, u64 exponent, U modulus)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Canonical nonnegative residue; zero modulus is InvalidModulus, modulus one returns
+                                zero.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Integer-mod_inverse">
+                            <td><code>Integer.mod_inverse(T x, U modulus)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Requires modulus &gt;= 2 and coprime inputs; InvalidModulus or NoInverse. Result is
+                                below modulus.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>9.18. Unsigned wide-word arithmetic <span class="api-level">Advanced</span>
+                
+</h3>
+                
+<p>All words are matching unsigned types. Tuple field labels are conceptual; a 64-bit pair does not
+                    require a public 128-bit type.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Proposed Function Reference data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Return type</th>
+                            <th scope="col">Contract and errors</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Integer-add_carry">
+                            <td><code>Integer.add_carry(U a, U b, bool carry)</code></td>
+                            <td><code>(U word, bool carry)</code></td>
+                            <td>Exact a+b+carry; low word and outgoing carry.</td>
+                        
+</tr>
+                        
+<tr id="Integer-sub_borrow">
+                            <td><code>Integer.sub_borrow(U a, U b, bool borrow)</code></td>
+                            <td><code>(U word, bool borrow)</code></td>
+                            <td>Exact a-b-borrow; modular low word and outgoing borrow.</td>
+                        
+</tr>
+                        
+<tr id="Integer-mul_wide">
+                            <td><code>Integer.mul_wide(U a, U b)</code></td>
+                            <td><code>(U low, U high)</code></td>
+                            <td>Exact double-width product, low word first.</td>
+                        
+</tr>
+                        
+<tr id="Integer-div_wide">
+                            <td><code>Integer.div_wide(U low, U high, U divisor)</code></td>
+                            <td><code>Result&lt;(U quotient, U remainder), IntegerError&gt;</code></td>
+                            <td>Divides high*2^width+low; DivisionByZero or Overflow if the quotient cannot fit one
+                                word.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Applicability and implementation boundaries
+                
+</h3>
+                
+<p>Arguments use matching types except explicitly heterogeneous conversion and comparison. Signed-only
+                    functions reject unsigned type arguments; <code>Integer.wrapping_neg</code> deliberately accepts
+                    unsigned modular negation. <code>Integer.unsigned_abs</code> and <code>Integer.abs_diff</code>
+                    return unsigned values; wide carry functions use boolean carry or borrow bits.
+                
+</p>
+                
+<p>Bit-range and buffer-offset validation must not overflow the validation calculation itself. Invalid
+                    typed literals are compile-time diagnostics; valid constant checked calls may fold to
+                    <code>Err</code>. A zero divisor never receives a fabricated wrapping or saturating value. Failure
+                    propagation does not roll back earlier side effects.
+                
+</p>
+                
+<p>Parsing errors should distinguish empty input, invalid radix or digit, and out-of-range values.
+                    Mathematical-value formatting differs from optional fixed-width bit-pattern formatting: negative
+                    hexadecimal output is not automatically a raw bit dump. Atomic operations belong in <code>Atomic&lt;T&gt;</code>
+                    documentation. Backend, GPU, FFI, and allocator coverage require implementation and validation
+                    before release.
+                
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10. Examples
+</h2>
+<p>The following calls illustrate proposed notation. Assume <code>a</code> and <code>b</code> are <code>i32</code>
+                    values 40 and 2; <code>Err</code> names an error value rather than an exception.
+                
+</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Integer.checked_add(a, b);    // Ok(42)
+Integer.convert(i64, a);      // Ok(40)
+Integer.bit_width(i32);       // 32
+Integer.div_rem_trunc(a, b);  // Ok((20, 0))</code></pre>
+                
+<p>A size computation should validate multiplication before allocation. The expression below denotes a
+                    checked computation, not a finalized declaration or error propagation syntax.
+                
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Integer.checked_mul(element_count, element_size);
+// Handle Overflow before allocating the resulting byte count.</code></pre>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">11. Compilation &amp; Parallel Execution
+</h2>
+<p>AOT and JIT must preserve arithmetic policy, error results, and evaluation order. Specialization may
+                    remove checks under validated guards. Backend lowering must guard division, shifts, and other
+                    operations that could otherwise produce undefined behavior or poison.
+                
+</p>
+                
+<p>Checked arithmetic cannot be freely reassociated: an intermediate overflow can distinguish
+                    mathematically equivalent expressions. Parallel reductions need an explicit accumulation width,
+                    ordering policy, and failure contract. Integer storage support, arithmetic support, and atomic
+                    support are separate GPU capabilities. FFI adapters must match the external ABI; Aevix aliases do
+                    not redefine a foreign language’s <code>int</code>.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design; Aevix API names and contracts are proposed independently.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.i32.html" target="_blank"
+                           rel="noopener noreferrer">Rust: signed integer APIs</a>
+                    
+</li>
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.u32.html" target="_blank"
+                           rel="noopener noreferrer">Rust: unsigned integer APIs</a>
+                    
+</li>
+                    
+<li><a href="https://developer.apple.com/documentation/swift/binaryinteger?changes=_8"
+                           target="_blank" rel="noopener noreferrer">Swift: binary integer conversion contracts</a>
+                    
+</li>
+                    
+<li>
+                        <a href="https://developer.apple.com/documentation/swift/int/dividedreportingoverflow%28by%3A%29"
+                           target="_blank" rel="noopener noreferrer">Swift: overflow-reporting division</a>
+                    
+</li>
+                    
+<li><a href="https://ziglang.org/documentation/0.16.0/" target="_blank" rel="noopener noreferrer">Zig:
+                        integer operations and builtins</a>
+                    
+</li>
+                    
+<li><a href="https://llvm.org/docs/LangRef.html#arithmetic-with-overflow-intrinsics" target="_blank"
+                           rel="noopener noreferrer">LLVM: arithmetic with overflow intrinsics</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Integer_8.html"><span>Next reference</span>Int8</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

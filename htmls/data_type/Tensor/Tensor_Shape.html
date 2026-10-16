@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Compile-time evidence and checked runtime dimensions.">
+  <title>Tensor Shape — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Tensor.html" aria-current="true">Tensor</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Tensor.html">Tensor</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tensor Shape</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Tensor Shape</h1><p class="doc-subtitle">Compile-time evidence and checked runtime dimensions.</p><div class="doc-meta"><span class="meta-chip">Shape&lt;...&gt; / DynamicShape&lt;R&gt;</span><span class="meta-chip">Tensor. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>12</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[S]</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>Shape is a constraint, not storage</span></a></li><li><a href="#validation"><span class="toc-number">02</span><span>Products and representability</span></a></li><li><a href="#broadcast"><span class="toc-number">03</span><span>Broadcast evidence</span></a></li><li><a href="#axes"><span class="toc-number">04</span><span>Axes and permutations</span></a></li><li><a href="#refinement"><span class="toc-number">05</span><span>Shape refinement and ownership</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>Explicit dynamic checks</span></a></li><li><a href="#specialized-functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Design boundary and related pages</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Tensor pages"><h2>Tensor reference</h2><div class="family-links"><a href="Tensor.html">Tensor</a><a href="Tensor_Shape.html" aria-current="page">Tensor Shape</a><a href="Tensor_View.html">Tensor Views</a><a href="Tensor_Device.html">Tensor Device</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tensor Shape reference">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1. Shape is a constraint, not storage
+</h2>
+<p>A shape describes the number and extent of logical axes. Shape&lt;2, 3&gt; proves a rank-two, six-element layout-independent fact. It does not choose row-major order, alignment, ownership or device placement. A dynamic shape value stores validated runtime extents. DynamicShape&lt;R&gt; is a proposed library descriptor for known rank R with runtime sizes; it does not create a new numeric primitive or allow runtime values as arbitrary compile-time parameters.
+</p>
+<p>A symbolic static dimension such as N is a compile-time generic parameter. A caller cannot satisfy Shape&lt;N, 3&gt; by passing an unrelated runtime integer with the same spelling. When input constraints cannot be proved, checked constructors return ShapeError. A successful refinement produces a descriptor tied to the actual validated value, not a globally trusted assertion.
+</p>
+</section>
+<section id="validation" aria-labelledby="validation-heading">
+<h2 id="validation-heading">2. Products and representability
+</h2>
+<p>Each extent is a nonnegative usize value. Axis count, element count, output extent sums, reshape inference and byte-size calculations must use checked arithmetic. Rank-zero has one element. Zero extents produce no logical accesses, but do not exempt metadata from validation. Constructors may impose explicit rank and allocation limits; exceeding them is a normal resource or shape error rather than integer wraparound.
+</p>
+<p>An inferred reshape extent is permitted only through the explicitly named inference function. The product of known extents must divide the element count. A zero known product makes inference ambiguous when total count is also zero, so that case returns an inference error instead of guessing a dimension. A nonzero count cannot be reshaped to a zero-product shape.
+</p>
+</section>
+<section id="broadcast" aria-labelledby="broadcast-heading">
+<h2 id="broadcast-heading">3. Broadcast evidence
+</h2>
+<p>Trailing dimensions align. Equal extents match, and an extent of one expands to the other extent. Missing leading axes are singleton axes. The result of 0 with 1 is 0; the result of 0 with 0 is 0; 0 with 2 is invalid. This rule is stated directly because a numeric maximum implementation mishandles empty dimensions.
+</p>
+<p>A static broadcast produces compile-time output dimensions where known. Runtime compatibility is checked before an operation allocates or writes. A broadcast proof certifies dimensions only: a repeated-address read view cannot use that proof to become mutable. Device operations consume the same validated shape constraints as CPU operations.
+</p>
+</section>
+<section id="axes" aria-labelledby="axes-heading">
+<h2 id="axes-heading">4. Axes and permutations
+</h2>
+<p>Core axis arguments are unsigned, zero-based indices. Insertion permits axis equal to rank; access and reduction do not. Optional adapters may accept negative axes, but must normalize explicitly and reject arithmetic overflow. A permutation contains every axis exactly once. Repeated reduction axes are rejected instead of silently deduplicated, so the requested operation has a single meaning.
+</p>
+<p>Squeeze accepts only axes with extent one; an empty axis is not a singleton. Expanding inserts one without copying elements. Concatenation checks every non-concatenated extent and the checked sum of concatenated extents. Batched matrix multiplication keeps these rules separate from its inner contraction constraint.
+</p>
+</section>
+<section id="refinement" aria-labelledby="refinement-heading">
+<h2 id="refinement-heading">5. Shape refinement and ownership
+</h2>
+<p>A successful shape check does not borrow elements unless its returned descriptor references owner metadata. A metadata view cannot outlive its owner or a mutation that would replace that metadata. Owned DynamicShape values copy only their own small descriptor storage, and any allocation required for unbounded rank is fallible. A fixed-rank descriptor may live inline without a heap allocation.
+</p>
+<p>Refining a tensor from dynamic dimensions to a static target consumes the tensor or returns a borrowed refined view, as named by the API. Failure of an ownership-consuming refinement returns the original owner inside a proposed ShapeConversionError&lt;T&gt;. This keeps a recoverable error from accidentally losing expensive storage.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. Explicit dynamic checks
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;DynamicShape&lt;2&gt;, ShapeError&gt; dimensions = Tensor.make_shape&lt;2&gt;([2, 3]);
+// Given Slice&lt;usize&gt; dimensions_view and borrowed ShapeLike descriptors left_shape/right_shape.
+Result&lt;usize, ShapeError&gt; count = Tensor.checked_element_count(dimensions_view);
+Result&lt;DynamicShape&lt;2&gt;, ShapeError&gt; compatible = Tensor.broadcast_shape(left_shape, right_shape);</code></pre>
+<p>The owning fixed array passed to make_shape is a value input; dimensions_view and ShapeLike descriptors are existing borrowed views passed directly. No implicit Array-to-Slice coercion is assumed. Every Result remains explicit; a failing shape check cannot be ignored and then used as evidence for unchecked access.
+</p>
+</section>
+<section id="specialized-functions" aria-labelledby="specialized-functions-heading">
+<h2 id="specialized-functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-make_shape"><td><code>Tensor.make_shape&lt;R&gt;(Array&lt;usize, R&gt; dimensions)</code></td><td><code>Result&lt;DynamicShape&lt;R&gt;, ShapeError&gt;</code></td><td>Validates rank, extents and checked element count.</td><td>O(R); inline descriptor when possible.</td>
+</tr>
+<tr id="Tensor-checked_element_count"><td><code>Tensor.checked_element_count(Slice&lt;usize&gt; dimensions)</code></td><td><code>Result&lt;usize, ShapeError&gt;</code></td><td>Rank-zero product is 1; any zero extent gives 0; invalid limits error.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-checked_byte_size"><td><code>Tensor.checked_byte_size(Slice&lt;usize&gt; dimensions, usize element_size)</code></td><td><code>Result&lt;usize, ShapeError&gt;</code></td><td>Checked logical count multiplied by element size; zero-size element policy validated.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-broadcast_shape"><td><code>Tensor.broadcast_shape(ShapeLike a, ShapeLike b)</code></td><td><code>Result&lt;DynamicShape&lt;R&gt;, ShapeError&gt;</code></td><td>Trailing equal-or-one rules; 0 with 1 yields 0.</td><td>O(max ranks); descriptor may allocate.</td>
+</tr>
+<tr id="Tensor-can_broadcast"><td><code>Tensor.can_broadcast(ShapeLike a, ShapeLike b)</code></td><td><code>bool</code></td><td>Tests dimension compatibility only; does not prove device or layout compatibility.</td><td>O(max ranks).</td>
+</tr>
+<tr id="Tensor-check_shape"><td><code>Tensor.check_shape(X value, ShapeLike expected)</code></td><td><code>Result&lt;unit, ShapeError&gt;</code></td><td>Exact rank/extents match; no implicit reshape.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-refine_shape"><td><code>Tensor.refine_shape&lt;S2&gt;(X value)</code></td><td><code>Result&lt;TensorView&lt;T, S2, P&gt;, ShapeError&gt;</code></td><td>Borrowed view after exact runtime shape proof.</td><td>O(rank); no element copy.</td>
+</tr>
+<tr id="Tensor-into_shape"><td><code>Tensor.into_shape&lt;S2&gt;(Tensor&lt;T, S, P&gt; value)</code></td><td><code>Result&lt;Tensor&lt;T, S2, P&gt;, ShapeConversionError&lt;Tensor&lt;T, S, P&gt;&gt;&gt;</code></td><td>Consumes owner only on success; failure carries original owner.</td><td>O(rank); no data movement.</td>
+</tr>
+<tr id="Tensor-infer_reshape"><td><code>Tensor.infer_reshape(usize count, ShapePattern pattern)</code></td><td><code>Result&lt;DynamicShape&lt;R&gt;, ShapeError&gt;</code></td><td>At most one inferred extent; exact division; ambiguous zero-product inference rejected.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-normalize_axis"><td><code>Tensor.normalize_axis(isize axis, usize rank)</code></td><td><code>Result&lt;usize, ShapeError&gt;</code></td><td>Explicit optional negative-axis adapter; checked arithmetic.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-validate_axes"><td><code>Tensor.validate_axes(AxisList axes, usize rank)</code></td><td><code>Result&lt;unit, ShapeError&gt;</code></td><td>Every axis in range and unique; ordering retained.</td><td>O(rank) scratch may allocate.</td>
+</tr>
+<tr id="Tensor-matmul_shape"><td><code>Tensor.matmul_shape(ShapeLike a, ShapeLike b)</code></td><td><code>Result&lt;DynamicShape&lt;R&gt;, ShapeError&gt;</code></td><td>Rank at least two; contraction equal; leading batches broadcast.</td><td>O(rank).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Design boundary and related pages
+</h2>
+<p>All signatures are proposed library contracts. AOT and JIT preserve the same validation, lifetime and numeric semantics. An optimization may remove a proven redundant operation, but must preserve observable errors and synchronization boundaries. Supporting descriptor types and generic shape spellings remain design candidates; parameter passing uses the approved value, &amp;T and &amp;mut T forms. Returned-reference lifetime notation remains conceptual.
+</p>
+<p><a href="Tensor.html">Tensor common reference</a> · <a href="Tensor_Shape.html">Shape</a> · <a href="Tensor_View.html">Views</a> · <a href="Tensor_Device.html">Device execution</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/TensorOps/" target="_blank" rel="noopener noreferrer">MLIR Tensor dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/MemRef/" target="_blank" rel="noopener noreferrer">MLIR MemRef dialect</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/ShapeDialect/" target="_blank" rel="noopener noreferrer">MLIR Shape dialect</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy broadcasting</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.copies.html" target="_blank" rel="noopener noreferrer">NumPy copies and views</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Tensor.html"><span>Previous reference</span>Tensor</a><a href="Tensor_View.html"><span>Next reference</span>Tensor Views</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Structs, named initialization, typed receivers, ordinary factories, and compiler-checked Copy capabilities.">
+<title>User-defined Types — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><span>User-defined types</span><span class="separator" aria-hidden="true">/</span><span aria-current="page">User-defined Types</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">LANGUAGE DESIGN REFERENCE</p><h1>User-defined Types</h1><p class="doc-subtitle">Structs, named initialization, typed receivers, ordinary factories, and compiler-checked Copy capabilities.</p><div class="doc-meta"><span class="meta-chip">Confirmed rules + open decisions</span><span class="meta-chip">English reference</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Pages</dt><dd>3 focused references</dd></div><div class="doc-stat"><dt>Default</dt><dd>Move + immutable</dd></div><div class="doc-stat"><dt>Status</dt><dd>Design specification</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>{ }</strong><span>owned values</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="Reference navigation">
+<details class="toc" open><summary>On this page</summary><ol>
+<li><a href="#overview"><span class="toc-number">01</span><span>Build types from the established value rules</span></a></li>
+<li><a href="#pages"><span class="toc-number">02</span><span>Three connected references</span></a></li>
+<li><a href="#example"><span class="toc-number">03</span><span>A complete small value type</span></a></li>
+<li><a href="#chosen-rules"><span class="toc-number">04</span><span>Confirmed rules at a glance</span></a></li>
+<li><a href="#connected-models"><span class="toc-number">05</span><span>Enums, interfaces, and generic types</span></a></li>
+<li><a href="#open-decisions"><span class="toc-number">06</span><span>Decisions still open</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="User-defined types pages"><h2>User-defined types</h2><div class="family-links">
+<a href="index.html" aria-current="page">Overview</a>
+<a href="Structs.html">Structs</a>
+<a href="Methods_and_Factories.html">Methods and factories</a>
+<a href="Copy.html">Copy and movement</a>
+</div></nav>
+<nav class="family-nav" aria-label="Related language sections"><h2>Language reference</h2><div class="family-links"><a href="../index.html">Grammar overview</a><a href="../foundations/index.html">Foundations</a><a href="../user_defined_types/index.html">User-defined types</a><a href="../enums/Enums.html">Enums</a><a href="../generics/Generic_Types.html">Generic types</a><a href="../../declaration/index.html">Declarations</a><a href="../../data_type/index.html">Data types</a></div></nav>
+</aside>
+<article class="content" aria-label="User-defined Types reference">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1. Build types from the established value rules</h2>
+<p>Aevix user-defined types use the same type-first declarations, static types, ownership, borrowing, visibility, and explicit returns as built-in values. A struct is a concrete value type; its name does not request a heap allocation or give it shared identity.</p><blockquote class="callout note"><p><strong>Confirmed design.</strong> The rules on these pages have been selected during language design. Examples are source-level specifications; no parser, runtime, benchmark, or backend execution is claimed.</p></blockquote>
+</section>
+
+<section id="pages" aria-labelledby="pages-heading">
+<h2 id="pages-heading">2. Three connected references</h2>
+<nav class="page-navigation" aria-label="User-defined type references">
+<a href="Structs.html"><span>Fields and values</span><strong>Structs</strong><p>Named-field construction, private fields, mutable owners, and access checks.</p></a>
+<a href="Methods_and_Factories.html"><span>Functions on a type</span><strong>Methods and Factories</strong><p>Ordinary type functions, typed self receivers, and automatic or explicit borrowing.</p></a>
+<a href="Copy.html"><span>Value transfer</span><strong>Copy and Movement</strong><p>Move by default, explicit Copy opt-in, complete field checks, and preserved reference lifetimes.</p></a>
+</nav>
+</section>
+
+<section id="example" aria-labelledby="example-heading">
+<h2 id="example-heading">3. A complete small value type</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct Point {
+    public f64 x;
+    public f64 y;
+
+    public Point new(f64 initial_x, f64 initial_y) {
+        return Point { x = initial_x, y = initial_y };
+    }
+
+    public f64 get_x(&amp;Point self) {
+        return (*self).x;
+    }
+};
+
+Point point = Point.new(1.0, 2.0);
+f64 coordinate = point.get_x();</code></pre><p>The ordinary type function returns an initialized Point. The read method borrows the receiver and returns a Copy scalar. Point remains a move type because it does not declare implements Copy. Public fields are directly accessible, subject to mutability and borrowing.</p>
+</section>
+
+<section id="chosen-rules" aria-labelledby="chosen-rules-heading">
+<h2 id="chosen-rules-heading">4. Confirmed rules at a glance</h2>
+<div class="table-scroll" role="region" aria-label="Confirmed user-defined type rules">
+<table>
+<thead><tr>
+<th scope="col">Topic</th>
+<th scope="col">Selected rule</th>
+<th scope="col">Implication</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">Initialization</th>
+<td><code>Type { field = expression }</code></td>
+<td>Names select fields; required fields are initialized exactly once.</td>
+</tr>
+<tr>
+<th scope="row">Field access</th>
+<td>private by default; public opt-in.</td>
+<td>Initializer access and later field access are both checked.</td>
+</tr>
+<tr>
+<th scope="row">Mutability</th>
+<td>Immutable owner by default; explicit mut for ordinary writes.</td>
+<td>Visibility does not supply write permission.</td>
+</tr>
+<tr>
+<th scope="row">Factories</th>
+<td><code>Type.new(...)</code> is an ordinary receiverless type function.</td>
+<td>Its declared return type can be the type itself or Result.</td>
+</tr>
+<tr>
+<th scope="row">Receivers</th>
+<td><code>&amp;Type self</code>, <code>&amp;mut Type self</code>, <code>Type self</code></td>
+<td>Read loan, exclusive write loan, or ordinary value transfer.</td>
+</tr>
+<tr>
+<th scope="row">Copy</th>
+<td><code>implements Copy</code> is an explicit built-in capability.</td>
+<td>All fields must be Copy; no implicit deep duplication.</td>
+</tr>
+<tr>
+<th scope="row">Generic types</th>
+<td><code>struct Pair&lt;T&gt;</code> and <code>where T implements Copy</code></td>
+<td>The bound on T does not make Pair itself Copy.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="connected-models" aria-labelledby="connected-models-heading">
+<h2 id="connected-models-heading">5. Enums, interfaces, and generic types</h2>
+<p>Enums reuse the type-function and receiver model while adding explicitly selected variants and payload patterns. Generic struct, enum, and interface declarations use angle-bracket type parameters. Read the dedicated pages for their confirmed syntax; this section does not choose new interface, pattern, or constraint rules.</p><p><a href="../enums/Enums.html">Enums</a> · <a href="../generics/Generic_Types.html">Generic Types</a> · <a href="../scope_and_comments/Resource_Cleanup.html">Resource Cleanup</a></p>
+</section>
+
+<section id="open-decisions" aria-labelledby="open-decisions-heading">
+<h2 id="open-decisions-heading">6. Decisions still open</h2>
+<ul>
+<li>Field default values and omitted-field initialization beyond the required-field rule.</li>
+<li>Custom cleanup declarations, partial moves from types with user-defined cleanup, and the full field-projection move rules.</li>
+<li>Physical layout, alignment controls, stable foreign representation, and automatic equality or other operator derivations.</li>
+<li>Field automatic dereference, overload resolution, complete member-name collision rules, and declaration ordering or forward lookup.</li>
+<li>The complete combination/order of declaration modifiers and generic clauses.</li>
+</ul>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix Language · User-defined types</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

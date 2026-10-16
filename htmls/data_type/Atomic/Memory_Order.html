@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Publication, read-modify-write halves, and valid ordering domains.">
+  <title>Memory Order — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Atomic.html" aria-current="true">Atomic</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Atomic.html">Atomic</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Memory Order</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Memory Order</h1><p class="doc-subtitle">Publication, read-modify-write halves, and valid ordering domains.</p><div class="doc-meta"><span class="meta-chip">MemoryOrder</span><span class="meta-chip">Atomic namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>4</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>atom</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Scope"><span class="toc-number">01</span><span>Atomicity and Happens-Before Are Different</span></a></li><li><a href="#Relaxed"><span class="toc-number">02</span><span>Relaxed Atomic Operations</span></a></li><li><a href="#Acquire-Release"><span class="toc-number">03</span><span>Release, Acquire, and Their RMW Halves</span></a></li><li><a href="#SeqCst"><span class="toc-number">04</span><span>Sequential Consistency Is Not a Global Lock</span></a></li><li><a href="#Domains"><span class="toc-number">05</span><span>Invalid Orders and Validation</span></a></li><li><a href="#Fences"><span class="toc-number">06</span><span>Fences and Memory Scopes</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>Retry Loops, ABA, and Reclamation</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Atomic pages"><h2>Atomic reference</h2><div class="family-links"><a href="Atomic.html">Atomic</a><a href="Memory_Order.html" aria-current="page">Memory Order</a><a href="Atomic_Capabilities.html">Atomic Capabilities</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Memory Order reference">
+<section id="Scope" aria-labelledby="Scope-heading">
+<h2 id="Scope-heading">1. Atomicity and Happens-Before Are Different
+</h2>
+<p>An atomic cell has a per-location modification order. Observing one of its values does not automatically establish visibility of every other memory location. A release/acquire protocol needs the appropriate reads-from or release-sequence synchronization relation. Ordinary shared non-atomic mutation remains prohibited without a valid happens-before edge and ownership capability. A processor’s apparently strong behavior is not a portable substitute for the language contract.
+</p>
+</section>
+<section id="Relaxed" aria-labelledby="Relaxed-heading">
+<h2 id="Relaxed-heading">2. Relaxed Atomic Operations
+</h2>
+<p>Relaxed accesses retain atomicity and cell modification-order rules. They are useful when the only required result concerns that independent cell, such as an approximate diagnostic count. They do not publish a newly initialized object or make an unrelated flag-and-data protocol correct by themselves. A loop observing a changed relaxed flag cannot infer that all earlier non-atomic writes are visible.
+</p>
+</section>
+<section id="Acquire-Release" aria-labelledby="Acquire-Release-heading">
+<h2 id="Acquire-Release-heading">3. Release, Acquire, and Their RMW Halves
+</h2>
+<p>A release write can publish preceding operations to a corresponding acquire observation in a correctly constructed protocol. An Acquire RMW has acquire semantics on its load half and relaxed behavior on its store half; Release has the opposite split. AcqRel supplies both roles. These relationships do not prevent every application race or make arbitrary multi-object invariants transactional.
+</p>
+</section>
+<section id="SeqCst" aria-labelledby="SeqCst-heading">
+<h2 id="SeqCst-heading">4. Sequential Consistency Is Not a Global Lock
+</h2>
+<p>SeqCst adds the specified total-order constraints for sequentially consistent operations while retaining the ordinary acquire/release relationships appropriate to each operation. It is not a mechanism to make unsynchronized non-atomic fields safe, reserve object lifetime, or acquire an OS mutex. Replacing an algorithm’s every operation with SeqCst cannot repair invalid references, missed reclamation, or a broken compare-and-exchange loop.
+</p>
+</section>
+<section id="Domains" aria-labelledby="Domains-heading">
+<h2 id="Domains-heading">5. Invalid Orders and Validation
+</h2>
+<p>Loads cannot perform a release store, and stores cannot acquire a value they do not read. Failed CAS is a load and cannot use Release or AcqRel. The common operation signatures define errors for dynamic invalid choices and diagnostics for known invalid constants before touching storage. Helpers below expose validation for configuration builders; they do not execute an atomic access or prove that a larger protocol is correct.
+</p>
+<div class="table-scroll" role="region" aria-label="Invalid Orders and Validation data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, errors, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Atomic-valid_load_order"><th scope="row"><code>Atomic.valid_load_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Accept Relaxed, Acquire, SeqCst; pure validation, no memory operation.</td>
+</tr>
+<tr id="Atomic-valid_store_order"><th scope="row"><code>Atomic.valid_store_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Accept Relaxed, Release, SeqCst; pure validation.</td>
+</tr>
+<tr id="Atomic-valid_failure_order"><th scope="row"><code>Atomic.valid_failure_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Accept Relaxed, Acquire, SeqCst; Release and AcqRel are invalid.</td>
+</tr>
+<tr id="Atomic-valid_fence_order"><th scope="row"><code>Atomic.valid_fence_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Accept all named orders except Relaxed; no fence is executed.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Fences" aria-labelledby="Fences-heading">
+<h2 id="Fences-heading">6. Fences and Memory Scopes
+</h2>
+<p>A fence only participates in synchronization through the specified surrounding atomic accesses; it is not a blanket flush-all command. A compiler fence addresses the selected compiler/same-thread interruption profile and does not replace a hardware interthread fence. Host, device, workgroup, and system scopes are different capabilities. An order name alone does not establish visibility across a GPU transfer or foreign memory mapping.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7. Retry Loops, ABA, and Reclamation
+</h2>
+<p>CAS can observe the same bit pattern after a value changed away and back, an ABA problem for protocols using identity. Memory ordering does not keep a reclaimed node alive. Use an explicitly designed reclamation mechanism and valid ownership rather than an untyped atomic address. <a href="Atomic.html">Atomic</a> defines callable operations; <a href="Atomic_Capabilities.html">Capabilities</a> separates target support. No lock-free pointer container is silently included in this draft.
+</p>
+<p>Validation does not perform an atomic access or establish a reads-from relation.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">bool load_ok = Atomic.valid_load_order(MemoryOrder.Acquire);
+bool store_ok = Atomic.valid_store_order(MemoryOrder.Release);
+bool failure_ok = Atomic.valid_failure_order(MemoryOrder.Relaxed);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/index.html" target="_blank" rel="noopener noreferrer">Rust atomic memory model and portability</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html" target="_blank" rel="noopener noreferrer">Rust memory orderings</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/struct.Atomic.html" target="_blank" rel="noopener noreferrer">Rust generic Atomic — individual operation domains</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Atomic.html"><span>Previous reference</span>Atomic</a><a href="Atomic_Capabilities.html"><span>Next reference</span>Atomic Capabilities</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

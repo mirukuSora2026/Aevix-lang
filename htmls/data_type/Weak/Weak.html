@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Non-owning observation with atomic, fallible promotion.">
+  <title>Weak — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Weak.html" aria-current="true">Weak</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html" aria-current="true">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Weak.html">Weak</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Weak</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Weak</h1><p class="doc-subtitle">Non-owning observation with atomic, fallible promotion.</p><div class="doc-meta"><span class="meta-chip">Weak&lt;T&gt;</span><span class="meta-chip">Weak namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>13</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>weak</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Observe Without Retaining the Value</span></a></li><li><a href="#Promotion"><span class="toc-number">02</span><span>Promotion and Races</span></a></li><li><a href="#Control-Lifetime"><span class="toc-number">03</span><span>Control State Versus Payload Lifetime</span></a></li><li><a href="#Cycles"><span class="toc-number">04</span><span>Cycles and Resource Leaks</span></a></li><li><a href="#Threads"><span class="toc-number">05</span><span>Threads, Tasks, and Borrowed Data</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Complete Proposed Weak API</span></a></li><li><a href="#Mutation"><span class="toc-number">07</span><span>Identity and Copy-on-Write</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Examples and Related Owners</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Weak pages"><h2>Weak reference</h2><div class="family-links"><a href="Weak.html" aria-current="page">Weak</a><a href="Weak_Graphs.html">Weak Graphs and Observers</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html" aria-current="true">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Weak reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Observe Without Retaining the Value
+</h2>
+<p>Weak&lt;T&gt; identifies shared control state without holding a strong owner of T. An empty handle identifies no allocation; an expired handle can still retain control bookkeeping after T has been destroyed. Weak does not expose &T directly. To read the payload, acquire a live Shared owner through upgrade and keep that returned owner for the whole borrow.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> Functions, traits, error carriers, and callback notation specify intended contracts, not implemented APIs. Variables and parameters are type first; bindings are immutable by default. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. unit is a value type, distinct from return-position void.
+</p>
+</blockquote>
+</section>
+<section id="Promotion" aria-labelledby="Promotion-heading">
+<h2 id="Promotion-heading">2. Promotion and Races
+</h2>
+<p>Promotion atomically succeeds only while a positive strong count can be incremented. A count of zero cannot be resurrected. Refcount overflow is a returned error in this draft; an expired object is instead an Ok(None) outcome. Checking is_expired or strong_count and later accessing the value is not safe promotion. Another thread may drop the final owner between those observations.
+</p>
+</section>
+<section id="Control-Lifetime" aria-labelledby="Control-Lifetime-heading">
+<h2 id="Control-Lifetime-heading">3. Control State Versus Payload Lifetime
+</h2>
+<p>After last-strong destruction, weak control storage may remain until the last weak handle is released. It must contain enough identity and count state to reject future promotion safely. Keeping a weak reference does not promise the old T’s fields remain initialized or its external resources remain open. An implementation may retain allocation backing storage, but the value is still dead and cannot be dereferenced.
+</p>
+</section>
+<section id="Cycles" aria-labelledby="Cycles-heading">
+<h2 id="Cycles-heading">4. Cycles and Resource Leaks
+</h2>
+<p>A weak back-edge can break a known cycle in a graph whose forward ownership is strong. It is a design tool, not automatic cycle detection or an absolute leak-freedom proof. Strong cycles elsewhere, forgotten ownership, and external callback registrations can still retain resources. A Weak cached observer may expire at any time; application logic must handle absent data without manufacturing a replacement reference.
+</p>
+</section>
+<section id="Threads" aria-labelledby="Threads-heading">
+<h2 id="Threads-heading">5. Threads, Tasks, and Borrowed Data
+</h2>
+<p>Weak inherits relevant thread/resource bounds. Promoting it retains the Shared allocation, not a separately borrowed referent stored inside T. For example, a Weak of an owner containing Slice does not make the slice’s source live longer. Scoped tasks and device submissions still require their own completion and placement contracts. Weak promotion is not an asynchronous join, a memory transfer, or proof that arbitrary mutable fields are synchronized.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Complete Proposed Weak API
+</h2>
+<div class="table-scroll" role="region" aria-label="Complete Proposed Weak API data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Weak-new"><th scope="row"><code>Weak.new(T)</code></th><td><code>Weak&lt;T&gt;</code></td><td>Create an empty weak handle with no payload and no allocation.</td>
+</tr>
+<tr id="Weak-clone"><th scope="row"><code>Weak.clone(&amp;Weak&lt;T&gt; weak)</code></th><td><code>Result&lt;Weak&lt;T&gt;, RefCountError&gt;</code></td><td>Increment weak count explicitly; overflow is an error, not wrapping.</td>
+</tr>
+<tr id="Weak-upgrade"><th scope="row"><code>Weak.upgrade(&amp;Weak&lt;T&gt; weak)</code></th><td><code>Result&lt;Optional&lt;Shared&lt;T&gt;&gt;, RefCountError&gt;</code></td><td>Atomically retain a live initialized payload. None means empty, not-yet-initialized, or terminally expired; after destruction a zero count can never resurrect.</td>
+</tr>
+<tr id="Weak-strong_count"><th scope="row"><code>Weak.strong_count(&amp;Weak&lt;T&gt; weak)</code></th><td><code>usize</code></td><td>Diagnostic snapshot, zero for an empty or expired payload; no lifetime guarantee.</td>
+</tr>
+<tr id="Weak-weak_count"><th scope="row"><code>Weak.weak_count(&amp;Weak&lt;T&gt; weak)</code></th><td><code>usize</code></td><td>Diagnostic count of user weak handles while control metadata is live.</td>
+</tr>
+<tr id="Weak-is_empty"><th scope="row"><code>Weak.is_empty(&amp;Weak&lt;T&gt; weak)</code></th><td><code>bool</code></td><td>Test the allocation-less weak state; distinct from an expired allocated control block.</td>
+</tr>
+<tr id="Weak-ptr_equal"><th scope="row"><code>Weak.ptr_equal(&amp;Weak&lt;T&gt; left, &amp;Weak&lt;T&gt; right)</code></th><td><code>bool</code></td><td>Compare weak allocation identities, including documented empty-handle equality.</td>
+</tr>
+<tr id="Weak-is_expired"><th scope="row"><code>Weak.is_expired(&amp;Weak&lt;T&gt; weak)</code></th><td><code>bool</code></td><td>Test empty or terminally destroyed state; an in-progress cyclic construction is unavailable but not yet terminally expired. This observation does not acquire lifetime.</td>
+</tr>
+<tr id="Weak-clear"><th scope="row"><code>Weak.clear(&amp;mut Weak&lt;T&gt; weak)</code></th><td><code>unit</code></td><td>Drop this weak count and replace with the empty state; no payload destruction by itself.</td>
+</tr>
+<tr id="Weak-replace"><th scope="row"><code>Weak.replace(&amp;mut Weak&lt;T&gt; target, Weak&lt;T&gt; replacement)</code></th><td><code>Weak&lt;T&gt;</code></td><td>Install a moved weak handle and return the old one; no extra count.</td>
+</tr>
+<tr id="Weak-swap"><th scope="row"><code>Weak.swap(&amp;mut Weak&lt;T&gt; left, &amp;mut Weak&lt;T&gt; right)</code></th><td><code>unit</code></td><td>Swap two weak ownership handles under exclusive access.</td>
+</tr>
+<tr id="Weak-control_bytes"><th scope="row"><code>Weak.control_bytes(&amp;Weak&lt;T&gt; weak)</code></th><td><code>usize</code></td><td>Documented retained control request size, not live payload usage.</td>
+</tr>
+<tr id="Weak-is_sendable"><th scope="row"><code>Weak.is_sendable(T)</code></th><td><code>bool</code></td><td>Query compatible transfer bounds; weak metadata does not erase resource constraints.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Mutation" aria-labelledby="Mutation-heading">
+<h2 id="Mutation-heading">7. Identity and Copy-on-Write
+</h2>
+<p>Weak handles attach to allocation identity. Explicit Shared.make_mut may redirect its requesting owner to a new cloned allocation; an old Weak is not silently retargeted. It can remain valid for old strong owners or become expired when the old last strong handle leaves. Application graphs depending on stable identity must account for this explicit mutation behavior rather than treating equal cloned values as the same object.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Examples and Related Owners
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Weak&lt;i32&gt; missing = Weak.new(i32);
+Result&lt;Optional&lt;Shared&lt;i32&gt;&gt;, RefCountError&gt; observed = Weak.upgrade(&amp;missing);
+Weak.is_empty(&amp;missing);</code></pre>
+<p>See <a href="Weak_Graphs.html">Weak Graphs</a> for ownership design and <a href="../Shared/Shared.html">Shared</a> for strong construction. Namespace calls are individually defined above. Borrowing, counter safety, and application validity are different guarantees; no weak handle provides unchecked access to an expired or partly constructed object.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Weak.html" target="_blank" rel="noopener noreferrer">Rust Weak — conditional promotion and control-block lifetime</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" target="_blank" rel="noopener noreferrer">Rust Arc — reference cycles and thread bounds</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Weak_Graphs.html"><span>Next reference</span>Weak Graphs and Observers</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

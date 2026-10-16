@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sorted ownership, logarithmic lookup, and half-open key ranges.">
+  <title>OrderedMap — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Map.html" aria-current="true">Map</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Map.html">Map</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">OrderedMap</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>OrderedMap</h1><p class="doc-subtitle">Sorted ownership, logarithmic lookup, and half-open key ranges.</p><div class="doc-meta"><span class="meta-chip">OrderedMap&lt;K, V&gt;</span><span class="meta-chip">OrderedMap namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>28</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>K:V</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Ordered map</span></a></li><li><a href="#Ordering"><span class="toc-number">02</span><span>Total ordering</span></a></li><li><a href="#Storage"><span class="toc-number">03</span><span>Nodes and invalidation</span></a></li><li><a href="#Errors"><span class="toc-number">04</span><span>Allocation and callback errors</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>OrderedMap function reference</span></a></li><li><a href="#Ranges-Examples"><span class="toc-number">06</span><span>Ranges and examples</span></a></li><li><a href="#Cost-Related"><span class="toc-number">07</span><span>Cost and related types</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Map pages"><h2>Map reference</h2><div class="family-links"><a href="Map.html">Map</a><a href="Ordered_Map.html" aria-current="page">OrderedMap</a><a href="Map_Entry.html">MapEntry</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="OrderedMap reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Ordered map
+</h2>
+<p>OrderedMap&lt;K, V&gt; is the explicit sorted alternative to the default hashed Map. It owns keys and values and traverses entries in increasing key order. A balanced search-tree representation supports key ranges without scanning an entire hash capacity. This is a distinct collection choice, not a flag that silently changes Map iteration.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> This is an Aevix contract proposal, not an implementation claim. Callback, iterator, trait, and error-carrier names are descriptive. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. Bindings are immutable unless declared mut; unit is a value type.
+</p>
+</blockquote>
+</section>
+<section id="Ordering" aria-labelledby="Ordering-heading">
+<h2 id="Ordering-heading">2. Total ordering
+</h2>
+<p>The key relation must be total, transitive, and stable while stored. Comparator equivalence determines uniqueness, and must agree with the chosen key equality contract. No API returns a mutable key. Ordinary floating NaN comparison is not a suitable total order without an explicit wrapper or policy. Query keys must preserve the stored ordering; changing a comparator’s external state is a logic error whose containment cannot permit unsafe aliasing.
+</p>
+</section>
+<section id="Storage" aria-labelledby="Storage-heading">
+<h2 id="Storage-heading">3. Nodes and invalidation
+</h2>
+<p>Tree nodes may split, merge, or rebalance. An ordered map does not promise stable addresses for keys or values. A borrow or iterator constrains structural mutation even if the next operation could reuse an existing node. There is no hashed capacity, reserve, seed, or bucket-layout API on this type. Empty construction performs no node allocation; insertion is fallible whenever new nodes may be needed.
+</p>
+</section>
+<section id="Errors" aria-labelledby="Errors-heading">
+<h2 id="Errors-heading">4. Allocation and callback errors
+</h2>
+<p>InsertError returns both unused incoming owners if checked node preallocation fails before modification. Replacement keeps the stored equal key and returns the previous value. CollectionError includes clone failure as well as allocation and checked size failure. Destruction and user comparison costs remain observable. Callback unwind preserves initialized values but does not undo earlier callbacks, edits, or removals.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. OrderedMap function reference
+</h2>
+<div class="table-scroll" role="region" aria-label="OrderedMap function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="OrderedMap-new"><th scope="row"><code>OrderedMap.new(K, V)</code></th><td><code>OrderedMap&lt;K, V&gt;</code></td><td>Construct an empty ordered map without allocating nodes; O(1). K requires stable total ordering.</td>
+</tr>
+<tr id="OrderedMap-from_pairs"><th scope="row"><code>OrderedMap.from_pairs(Slice&lt;(K, V)&gt; pairs, DuplicatePolicy policy)</code></th><td><code>Result&lt;OrderedMap&lt;K, V&gt;, CollectionError&gt;</code></td><td>Explicitly clone source pairs with KeepFirst, KeepLastValue, or Reject policy. Clean partial output on clone/allocation/duplicate error; O(n log n) plus key work.</td>
+</tr>
+<tr id="OrderedMap-len"><th scope="row"><code>OrderedMap.len(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>usize</code></td><td>Return entry count; O(1).</td>
+</tr>
+<tr id="OrderedMap-is_empty"><th scope="row"><code>OrderedMap.is_empty(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>bool</code></td><td>Test count zero; O(1).</td>
+</tr>
+<tr id="OrderedMap-get"><th scope="row"><code>OrderedMap.get(&amp;OrderedMap&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;&amp;V&gt;</code></td><td>Borrow a value using order-compatible Q; O(log n) comparisons.</td>
+</tr>
+<tr id="OrderedMap-get_mut"><th scope="row"><code>OrderedMap.get_mut(&amp;mut OrderedMap&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;&amp;mut V&gt;</code></td><td>Exclusive value borrow, keeping stored key immutable; O(log n).</td>
+</tr>
+<tr id="OrderedMap-get_key_value"><th scope="row"><code>OrderedMap.get_key_value(&amp;OrderedMap&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;(&amp;K, &amp;V)&gt;</code></td><td>Return canonical key/value borrows; O(log n).</td>
+</tr>
+<tr id="OrderedMap-contains_key"><th scope="row"><code>OrderedMap.contains_key(&amp;OrderedMap&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>bool</code></td><td>Membership under comparator equivalence; O(log n).</td>
+</tr>
+<tr id="OrderedMap-insert"><th scope="row"><code>OrderedMap.insert(&amp;mut OrderedMap&lt;K, V&gt; map, K key, V value)</code></th><td><code>Result&lt;Optional&lt;V&gt;, InsertError&lt;K, V&gt;&gt;</code></td><td>Keep equal stored key, replace its value; return old value. Preflight node allocation failure returns inputs and preserves entries; O(log n) plus movement.</td>
+</tr>
+<tr id="OrderedMap-try_insert"><th scope="row"><code>OrderedMap.try_insert(&amp;mut OrderedMap&lt;K, V&gt; map, K key, V value)</code></th><td><code>Result&lt;&amp;mut V, InsertError&lt;K, V&gt;&gt;</code></td><td>Reject occupied key with both incoming owners; reserve node work before commit; O(log n).</td>
+</tr>
+<tr id="OrderedMap-remove"><th scope="row"><code>OrderedMap.remove(&amp;mut OrderedMap&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;V&gt;</code></td><td>Remove entry, destroy its key and return its value; O(log n) plus balancing and destructor work.</td>
+</tr>
+<tr id="OrderedMap-remove_entry"><th scope="row"><code>OrderedMap.remove_entry(&amp;mut OrderedMap&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;(K, V)&gt;</code></td><td>Remove and return both owners; O(log n), no clone.</td>
+</tr>
+<tr id="OrderedMap-first_key_value"><th scope="row"><code>OrderedMap.first_key_value(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>Optional&lt;(&amp;K, &amp;V)&gt;</code></td><td>Borrow the least key and value, or None; O(log n) worst case.</td>
+</tr>
+<tr id="OrderedMap-last_key_value"><th scope="row"><code>OrderedMap.last_key_value(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>Optional&lt;(&amp;K, &amp;V)&gt;</code></td><td>Borrow the greatest key and value, or None; O(log n) worst case.</td>
+</tr>
+<tr id="OrderedMap-pop_first"><th scope="row"><code>OrderedMap.pop_first(&amp;mut OrderedMap&lt;K, V&gt; map)</code></th><td><code>Optional&lt;(K, V)&gt;</code></td><td>Remove least entry and transfer both owners; O(log n) plus balancing.</td>
+</tr>
+<tr id="OrderedMap-pop_last"><th scope="row"><code>OrderedMap.pop_last(&amp;mut OrderedMap&lt;K, V&gt; map)</code></th><td><code>Optional&lt;(K, V)&gt;</code></td><td>Remove greatest entry and transfer both owners; O(log n) plus balancing.</td>
+</tr>
+<tr id="OrderedMap-iter"><th scope="row"><code>OrderedMap.iter(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>DoubleEndedIterator&lt;(&amp;K, &amp;V)&gt;</code></td><td>Yield sorted key/value borrows; O(log n) setup, O(n) total traversal plus key/value access.</td>
+</tr>
+<tr id="OrderedMap-iter_mut"><th scope="row"><code>OrderedMap.iter_mut(&amp;mut OrderedMap&lt;K, V&gt; map)</code></th><td><code>DoubleEndedIterator&lt;(&amp;K, &amp;mut V)&gt;</code></td><td>Sorted immutable keys and disjoint exclusive values; no structural mutation during the lease.</td>
+</tr>
+<tr id="OrderedMap-keys"><th scope="row"><code>OrderedMap.keys(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>DoubleEndedIterator&lt;&amp;K&gt;</code></td><td>Borrow keys in increasing order; O(n) full traversal.</td>
+</tr>
+<tr id="OrderedMap-values"><th scope="row"><code>OrderedMap.values(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>DoubleEndedIterator&lt;&amp;V&gt;</code></td><td>Borrow values in their key order; O(n) full traversal.</td>
+</tr>
+<tr id="OrderedMap-values_mut"><th scope="row"><code>OrderedMap.values_mut(&amp;mut OrderedMap&lt;K, V&gt; map)</code></th><td><code>DoubleEndedIterator&lt;&amp;mut V&gt;</code></td><td>Yield disjoint mutable values in key order; O(n) total.</td>
+</tr>
+<tr id="OrderedMap-range"><th scope="row"><code>OrderedMap.range(&amp;OrderedMap&lt;K, V&gt; map, &amp;K lower, &amp;K upper)</code></th><td><code>Result&lt;DoubleEndedIterator&lt;(&amp;K, &amp;V)&gt;, RangeError&gt;</code></td><td>Borrow entries with lower &lt;= key &lt; upper; reversed bounds error, equal bounds empty. O(log n) setup plus O(k) traversal.</td>
+</tr>
+<tr id="OrderedMap-range_mut"><th scope="row"><code>OrderedMap.range_mut(&amp;mut OrderedMap&lt;K, V&gt; map, &amp;K lower, &amp;K upper)</code></th><td><code>Result&lt;DoubleEndedIterator&lt;(&amp;K, &amp;mut V)&gt;, RangeError&gt;</code></td><td>Same half-open interval, with disjoint mutable values and immutable keys; reversed bounds error.</td>
+</tr>
+<tr id="OrderedMap-clear"><th scope="row"><code>OrderedMap.clear(&amp;mut OrderedMap&lt;K, V&gt; map)</code></th><td><code>unit</code></td><td>Destroy every entry and release nodes; O(n) plus destructors.</td>
+</tr>
+<tr id="OrderedMap-retain"><th scope="row"><code>OrderedMap.retain(&amp;mut OrderedMap&lt;K, V&gt; map, Predicate&lt;(&amp;K, &amp;mut V)&gt; keep)</code></th><td><code>unit</code></td><td>Visit keys in increasing order; keep accepted entries. Callback unwind retains prior changes; O(n log n) upper bound plus callbacks.</td>
+</tr>
+<tr id="OrderedMap-into_iter"><th scope="row"><code>OrderedMap.into_iter(OrderedMap&lt;K, V&gt; map)</code></th><td><code>OwningDoubleEndedIterator&lt;(K, V)&gt;</code></td><td>Yield sorted owned pairs; drop destroys unyielded entries and nodes; O(n) total plus destruction.</td>
+</tr>
+<tr id="OrderedMap-clone"><th scope="row"><code>OrderedMap.clone(&amp;OrderedMap&lt;K, V&gt; map)</code></th><td><code>Result&lt;OrderedMap&lt;K, V&gt;, CollectionError&gt;</code></td><td>Explicit fallible key/value clone with partial-output cleanup; O(n) node work plus cloning.</td>
+</tr>
+<tr id="OrderedMap-equal"><th scope="row"><code>OrderedMap.equal(&amp;OrderedMap&lt;K, V&gt; a, &amp;OrderedMap&lt;K, V&gt; b)</code></th><td><code>bool</code></td><td>Compare sorted corresponding entries under the same ordering/equality contract; O(n) plus user comparisons.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Ranges-Examples" aria-labelledby="Ranges-Examples-heading">
+<h2 id="Ranges-Examples-heading">6. Ranges and examples
+</h2>
+<p>range and range_mut use a half-open interval: the lower bound is included and the upper bound excluded. Reversed bounds return RangeError; equal bounds produce an empty iterator. Bounds are borrowed only while constructing the search, while yielded references borrow the map itself. This page deliberately does not depend on an unapproved generic Range representation.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">OrderedMap&lt;i32, i32&gt; timeline = OrderedMap.new(i32, i32);
+usize count = OrderedMap.len(&amp;timeline);
+Optional&lt;(&amp;i32, &amp;i32)&gt; earliest = OrderedMap.first_key_value(&amp;timeline);</code></pre>
+</section>
+<section id="Cost-Related" aria-labelledby="Cost-Related-heading">
+<h2 id="Cost-Related-heading">7. Cost and related types
+</h2>
+<p>Lookup and single-key mutation use logarithmic comparisons in the balanced-tree contract. A range initializes in logarithmic time and then visits its k entries in linear traversal work; comparisons, moves, and finalizers add their own costs. Ordered traversal is deterministic for fixed keys and a stable ordering, but pointer identity and node layout are not portable. See <a href="Map.html">Map</a>, <a href="../Set/Ordered_Set.html">OrderedSet</a>, and <a href="../Array/Array.html">Array</a>.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.BTreeMap.html" target="_blank" rel="noopener noreferrer">Rust BTreeMap reference: ordered keys and range traversal</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Map.html"><span>Previous reference</span>Map</a><a href="Map_Entry.html"><span>Next reference</span>MapEntry</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

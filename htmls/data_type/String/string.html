@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Owned UTF-8 text, explicit borrowing, safe boundaries, and the complete proposed lowercase string namespace.">
+  <title>string — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="string.html" aria-current="true">string</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="string.html">string</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">string</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>string</h1><p class="doc-subtitle">Owned UTF-8 text, explicit borrowing, safe boundaries, and the complete proposed lowercase string namespace.</p><div class="doc-meta"><span class="meta-chip">string</span><span class="meta-chip">string. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Storage</dt><dd>Owned UTF-8</dd></div><div class="doc-stat"><dt>Core functions</dt><dd>100</dd></div><div class="doc-stat"><dt>Default</dt><dd>Immutable</dd></div><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>str</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Owned UTF-8 Text</span></a></li><li><a href="#Ownership-Errors"><span class="toc-number">02</span><span>Ownership, Failure &amp; Explicit Cost</span></a></li><li><a href="#Indices-Semantics"><span class="toc-number">03</span><span>Indices, Matching &amp; Execution Targets</span></a></li><li><a href="#Construction"><span class="toc-number">04</span><span>Construction &amp; Ownership Transfer</span></a></li><li><a href="#Storage"><span class="toc-number">05</span><span>Storage &amp; Capacity</span></a></li><li><a href="#Traversal"><span class="toc-number">06</span><span>Scalar Traversal &amp; Boundary Queries</span></a></li><li><a href="#Slicing"><span class="toc-number">07</span><span>Borrowed Slices, Trimming &amp; Prefixes</span></a></li><li><a href="#Search"><span class="toc-number">08</span><span>Literal Search &amp; Counting</span></a></li><li><a href="#Split"><span class="toc-number">09</span><span>Splitting, Lines &amp; Match Iteration</span></a></li><li><a href="#Transforms"><span class="toc-number">10</span><span>Owned Transformations</span></a></li><li><a href="#Mutation"><span class="toc-number">11</span><span>Explicit Owner Mutation</span></a></li><li><a href="#Comparison-Formatting"><span class="toc-number">12</span><span>Comparison &amp; Formatting</span></a></li><li><a href="#Examples"><span class="toc-number">13</span><span>Examples &amp; Design Boundaries</span></a></li><li><a href="#Sources"><span class="toc-number">14</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="string pages"><h2>string reference</h2><div class="family-links"><a href="string.html" aria-current="page">string</a><a href="string_view.html">string_view</a><a href="unicode.html">Unicode Text Services</a><a href="encoding.html">Text Encoding</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="string reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. Owned UTF-8 Text
+</h2>
+<blockquote class="callout note">
+<p><strong>Language design draft.</strong> Contracts, helper types, and function spellings below are proposals. They do not claim an implemented compiler, finalized grammar, or validated runtime. Examples use type-first declarations, default immutability, and semicolon-terminated statements.
+</p>
+</blockquote>
+<p><code>string</code> owns a contiguous, well-formed UTF-8 buffer. Moving it transfers ownership; duplicating its contents uses an explicit fallible copy. Values are immutable by default. Mutable operations require an exclusive write borrow. Empty text is a valid value; absence uses <code>Optional&lt;string&gt;</code>. Embedded U+0000 is valid text and does not terminate the buffer.
+</p>
+<p>A <code>char</code> is one Unicode scalar, not one display character. A <code>byte</code> is an opaque eight-bit storage unit, distinct from the numeric <code>u8</code> type. UTF-8 text exposes read-only bytes without turning arbitrary byte offsets into text indices. Basic ownership follows the memory model; no automatic reference counting or copy-on-write is implied.
+</p>
+<p>Related references: <a href="../Char/Char.html">char</a>, <a href="../Byte/Byte.html">byte</a>, and <a href="../Array/Array.html">arrays</a>.
+</p>
+<div class="table-scroll" role="region" aria-label="Owned UTF-8 Text data table">
+<table>
+<thead>
+<tr><th scope="col">Concept</th><th scope="col">unit</th><th scope="col">Default behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr><th scope="row">Storage length</th><td>UTF-8 bytes</td><td>byte_len is constant time</td>
+</tr>
+<tr><th scope="row">Scalar count</th><td>Unicode scalar values</td><td>Requires a scan</td>
+</tr>
+<tr><th scope="row">User-perceived grouping</th><td>Extended grapheme clusters</td><td>Optional Unicode module with a pinned profile</td>
+</tr>
+<tr><th scope="row">Capacity</th><td>Allocated byte capacity</td><td>Separate from current byte length</td>
+</tr>
+</tbody>
+</table>
+</div><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+string.byte_len(text); // 5 bytes;
+string.scalar_count(text); // 4 scalar values;
+Result&lt;string, TextError&gt; owned = string.from_view(text);</code></pre>
+</section>
+<section id="Ownership-Errors" aria-labelledby="Ownership-Errors-heading">
+<h2 id="Ownership-Errors-heading">2. Ownership, Failure &amp; Explicit Cost
+</h2>
+<p><code>s</code>, <code>needle</code>, and other text inputs in the catalog accept a read borrow of an owner or <code>string_view</code>. A view retains the source lifetime; it cannot outlive an owner or survive a conflicting mutation. Returned search offsets refer to the unchanged source. Reallocation, removal, replacement, or mutation can invalidate saved positions even when their integer values remain in bounds.
+</p>
+<p><code>dst</code> denotes an exclusive mutable owner. Existing read views block writes to overlapping storage. Self-append and overlapping replacement require an explicit temporary copy unless a separately specified alias-safe operation is used. All mutators validate ranges and reserve required capacity before committing; a reported error leaves the original contents unchanged. This does not promise that capacities never change after a successful operation.
+</p>
+<p><code>TextError</code>, <code>BoundaryError</code>, <code>PatternError</code>, <code>OwnedUtf8Error</code>, <code>FormatArgs</code>, and <code>Iterator&lt;T&gt;</code> are proposed library support types, not new primitives. Errors cover invalid encoding, boundary or range errors, empty patterns where forbidden, capacity overflow, allocation failure, and formatting failure. Failed ownership-taking UTF-8 validation returns the rejected byte buffer inside <code>OwnedUtf8Error</code>. Every operation that may allocate returns a <code>Result</code>.
+</p>
+<p>Costs are proposed upper-level behavior: <code>n</code> is source bytes, <code>k</code> output bytes, and <code>p</code> pattern size. “Scan” makes no universal linear-time search guarantee; callback and pattern-preparation costs are additional. Iterators borrow their source and any stored pattern. Clearing or shrinking text is not a secure memory erase.
+</p>
+</section>
+<section id="Indices-Semantics" aria-labelledby="Indices-Semantics-heading">
+<h2 id="Indices-Semantics-heading">3. Indices, Matching &amp; Execution Targets
+</h2>
+<p>Ranges are half-open byte ranges. Safe byte slicing checks both bounds and UTF-8 scalar boundaries. Scalar ordinals require traversal; grapheme ordinals additionally require segmentation. There is no default <code>s[i]</code> operation returning a character. Byte inspection uses <code>as_bytes</code>; producing another text view requires validation. Adjusting a scalar boundary can still split a grapheme cluster.
+</p>
+<p>Default equality and ordering compare UTF-8 bytes, with no normalization, locale tailoring, or case folding. A successful literal-text match returns scalar-aligned byte offsets. Empty needles are allowed for <code>contains</code>, <code>find</code>, and <code>rfind</code>: the first two match at zero and reverse search matches at byte length. Count, match iteration, replacement, and delimiter splitting reject empty patterns to keep progress explicit. Missing separators and empty fields have the per-function meanings below.
+</p>
+<p>ASCII case and whitespace helpers are deliberately restricted. Unicode normalization, grapheme segmentation, locale casing, and collation belong to the optional <a href="unicode.html">Unicode module</a>. Encoding import and export belong to <a href="encoding.html">Encoding</a>. CPU library support does not imply native GPU support. AOT and JIT preserve validation and lifetime rules; device text operations require declared capabilities and explicit data transfers.
+</p>
+<p>Comparison references include <a href="https://doc.rust-lang.org/std/primitive.str.html">Rust UTF-8 views</a>, <a href="https://pkg.go.dev/strings">Go text operations</a>, and <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html">Java’s contrasting text API</a>. Their indexing and allocation policies are not adopted automatically.
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">4. Construction &amp; Ownership Transfer
+</h2>
+<p>Constructors distinguish borrowing, copying, validation, and moving. There is no hidden deep copy when taking a read view.
+</p>
+<div class="table-scroll" role="region" aria-label="Construction &amp; Ownership Transfer data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-new"><th scope="row"><code>string.new()</code></th><td><code>string</code></td><td>Empty owner with no required allocation.</td><td>O(1); no heap allocation</td>
+</tr>
+<tr id="string-with_capacity"><th scope="row"><code>string.with_capacity(usize bytes)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Reserve at least the requested byte capacity.</td><td>May allocate; size checked</td>
+</tr>
+<tr id="string-from_view"><th scope="row"><code>string.from_view(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy valid UTF-8 into a new owner.</td><td>O(n); may allocate</td>
+</tr>
+<tr id="string-from_char"><th scope="row"><code>string.from_char(char value)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Encode one scalar as owned UTF-8.</td><td>At most four bytes; may allocate</td>
+</tr>
+<tr id="string-from_chars"><th scope="row"><code>string.from_chars(Slice&lt;char&gt; values)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Encode a sequence of valid scalar values.</td><td>Scan; may allocate</td>
+</tr>
+<tr id="string-from_utf8"><th scope="row"><code>string.from_utf8(Vector&lt;byte&gt; owned)</code></th><td><code>Result&lt;string, OwnedUtf8Error&gt;</code></td><td>Validate and adopt compatible storage; recover bytes on error.</td><td>O(n) validation; no payload copy</td>
+</tr>
+<tr id="string-from_utf8_lossy"><th scope="row"><code>string.from_utf8_lossy(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Explicit replacement of malformed maximal subparts by U+FFFD.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="string-from_utf16"><th scope="row"><code>string.from_utf16(Slice&lt;u16&gt; units)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Decode code units; reject unpaired surrogates.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="string-from_utf32"><th scope="row"><code>string.from_utf32(Slice&lt;u32&gt; units)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Reject surrogate and out-of-range scalar values.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="string-clone"><th scope="row"><code>string.clone(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Make an independent owned copy.</td><td>O(n); may allocate</td>
+</tr>
+<tr id="string-into_bytes"><th scope="row"><code>string.into_bytes(string owned)</code></th><td><code>Vector&lt;byte&gt;</code></td><td>Consume the owner and transfer its UTF-8 buffer.</td><td>O(1); no payload copy</td>
+</tr>
+<tr id="string-view"><th scope="row"><code>string.view(s)</code></th><td><code>string_view</code></td><td>Borrow the entire unchanged UTF-8 range.</td><td>O(1); no allocation</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Storage" aria-labelledby="Storage-heading">
+<h2 id="Storage-heading">5. Storage &amp; Capacity
+</h2>
+<p>Capacity is measured in bytes. Reservation checks both arithmetic and allocator limits before modifying the owner.
+</p>
+<div class="table-scroll" role="region" aria-label="Storage &amp; Capacity data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-byte_len"><th scope="row"><code>string.byte_len(s)</code></th><td><code>usize</code></td><td>Current initialized UTF-8 byte count.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="string-capacity"><th scope="row"><code>string.capacity(&amp;string s)</code></th><td><code>usize</code></td><td>Owner byte capacity; unavailable for a bare view.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="string-is_empty"><th scope="row"><code>string.is_empty(s)</code></th><td><code>bool</code></td><td>Whether byte length is zero.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="string-scalar_count"><th scope="row"><code>string.scalar_count(s)</code></th><td><code>usize</code></td><td>Count Unicode scalar values.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="string-is_ascii"><th scope="row"><code>string.is_ascii(s)</code></th><td><code>bool</code></td><td>Whether every encoded byte is ASCII.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="string-as_bytes"><th scope="row"><code>string.as_bytes(s)</code></th><td><code>Slice&lt;byte&gt;</code></td><td>Borrow all encoded bytes read-only.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="string-reserve"><th scope="row"><code>string.reserve(&amp;mut string dst, usize additional)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Ensure length plus additional capacity; contents unchanged.</td><td>May reallocate and copy n bytes</td>
+</tr>
+<tr id="string-reserve_exact"><th scope="row"><code>string.reserve_exact(&amp;mut string dst, usize additional)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Request minimal growth; allocator may provide extra capacity.</td><td>May reallocate and copy n bytes</td>
+</tr>
+<tr id="string-shrink_to_fit"><th scope="row"><code>string.shrink_to_fit(&amp;mut string dst)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Request reduced spare capacity; no exact allocator-size guarantee.</td><td>May reallocate and copy n bytes</td>
+</tr>
+<tr id="string-shrink_to"><th scope="row"><code>string.shrink_to(&amp;mut string dst, usize minimum)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Request capacity at least max(length, minimum).</td><td>May reallocate; contents unchanged</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Traversal" aria-labelledby="Traversal-heading">
+<h2 id="Traversal-heading">6. Scalar Traversal &amp; Boundary Queries
+</h2>
+<p>Scalar access never interprets a UTF-8 continuation byte as an independent scalar. Iterator construction is constant time; consuming all elements scans the source.
+</p>
+<div class="table-scroll" role="region" aria-label="Scalar Traversal &amp; Boundary Queries data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-bytes"><th scope="row"><code>string.bytes(s)</code></th><td><code>Iterator&lt;byte&gt;</code></td><td>Read encoded bytes; iteration does not create text slices.</td><td>O(1) setup; O(n) traversal</td>
+</tr>
+<tr id="string-chars"><th scope="row"><code>string.chars(s)</code></th><td><code>Iterator&lt;char&gt;</code></td><td>Decode scalar values in order.</td><td>O(1) setup; O(n) traversal</td>
+</tr>
+<tr id="string-char_indices"><th scope="row"><code>string.char_indices(s)</code></th><td><code>Iterator&lt;(usize, char)&gt;</code></td><td>Yield each scalar’s starting byte offset.</td><td>O(1) setup; O(n) traversal</td>
+</tr>
+<tr id="string-first_char"><th scope="row"><code>string.first_char(s)</code></th><td><code>Optional&lt;char&gt;</code></td><td>First scalar, or absence for empty text.</td><td>O(1); decode at most four bytes</td>
+</tr>
+<tr id="string-last_char"><th scope="row"><code>string.last_char(s)</code></th><td><code>Optional&lt;char&gt;</code></td><td>Last scalar, or absence for empty text.</td><td>O(1); inspect at most four bytes</td>
+</tr>
+<tr id="string-char_at"><th scope="row"><code>string.char_at(s, usize ordinal)</code></th><td><code>Optional&lt;char&gt;</code></td><td>Scalar at a zero-based scalar ordinal.</td><td>O(n) worst case; no allocation</td>
+</tr>
+<tr id="string-byte_offset_of_char"><th scope="row"><code>string.byte_offset_of_char(s, usize ordinal)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>Map scalar ordinal to byte offset; end ordinal is allowed.</td><td>O(n) worst case</td>
+</tr>
+<tr id="string-char_index_of_byte"><th scope="row"><code>string.char_index_of_byte(s, usize offset)</code></th><td><code>Result&lt;usize, BoundaryError&gt;</code></td><td>Require an in-bounds scalar boundary; end is allowed.</td><td>O(n) worst case</td>
+</tr>
+<tr id="string-is_char_boundary"><th scope="row"><code>string.is_char_boundary(s, usize offset)</code></th><td><code>bool</code></td><td>True for scalar starts and the end; false out of bounds.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="string-floor_char_boundary"><th scope="row"><code>string.floor_char_boundary(s, usize offset)</code></th><td><code>Result&lt;usize, BoundaryError&gt;</code></td><td>Nearest boundary at or before offset; reject offset beyond end.</td><td>O(1); bounded UTF-8 inspection</td>
+</tr>
+<tr id="string-ceil_char_boundary"><th scope="row"><code>string.ceil_char_boundary(s, usize offset)</code></th><td><code>Result&lt;usize, BoundaryError&gt;</code></td><td>Nearest boundary at or after offset; reject offset beyond end.</td><td>O(1); bounded UTF-8 inspection</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Slicing" aria-labelledby="Slicing-heading">
+<h2 id="Slicing-heading">7. Borrowed Slices, Trimming &amp; Prefixes
+</h2>
+<p>All results here borrow the source. Predicate-based trimming tests scalar values, not encoded bytes; predicates must satisfy the proposed nonthrowing callback contract.
+</p>
+<div class="table-scroll" role="region" aria-label="Borrowed Slices, Trimming &amp; Prefixes data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Require start ≤ end ≤ byte length and scalar-aligned endpoints.</td><td>O(1); no copy</td>
+</tr>
+<tr id="string-slice_chars"><th scope="row"><code>string.slice_chars(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Slice a checked half-open scalar-ordinal range.</td><td>O(n); no copy</td>
+</tr>
+<tr id="string-split_at"><th scope="row"><code>string.split_at(s, usize offset)</code></th><td><code>Result&lt;(string_view, string_view), BoundaryError&gt;</code></td><td>Split at a checked scalar-aligned byte position.</td><td>O(1); no copy</td>
+</tr>
+<tr id="string-strip_prefix"><th scope="row"><code>string.strip_prefix(s, prefix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>Remove exactly one matching literal prefix.</td><td>O(p); no copy</td>
+</tr>
+<tr id="string-strip_suffix"><th scope="row"><code>string.strip_suffix(s, suffix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>Remove exactly one matching literal suffix.</td><td>O(p); no copy</td>
+</tr>
+<tr id="string-trim_ascii"><th scope="row"><code>string.trim_ascii(s)</code></th><td><code>string_view</code></td><td>Trim ASCII HT, LF, FF, CR, and space (VT is excluded) at both ends.</td><td>Scan ends; no allocation</td>
+</tr>
+<tr id="string-trim_ascii_start"><th scope="row"><code>string.trim_ascii_start(s)</code></th><td><code>string_view</code></td><td>Trim only the leading ASCII whitespace set.</td><td>Scan prefix; no allocation</td>
+</tr>
+<tr id="string-trim_ascii_end"><th scope="row"><code>string.trim_ascii_end(s)</code></th><td><code>string_view</code></td><td>Trim only the trailing ASCII whitespace set.</td><td>Scan suffix; no allocation</td>
+</tr>
+<tr id="string-trim_matches"><th scope="row"><code>string.trim_matches(s, predicate)</code></th><td><code>string_view</code></td><td>Trim matching scalar values at both ends.</td><td>Scan ends plus callback cost</td>
+</tr>
+<tr id="string-trim_start_matches"><th scope="row"><code>string.trim_start_matches(s, predicate)</code></th><td><code>string_view</code></td><td>Trim matching leading scalars.</td><td>Scan prefix plus callback cost</td>
+</tr>
+<tr id="string-trim_end_matches"><th scope="row"><code>string.trim_end_matches(s, predicate)</code></th><td><code>string_view</code></td><td>Trim matching trailing scalars.</td><td>Scan suffix plus callback cost</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Search" aria-labelledby="Search-heading">
+<h2 id="Search-heading">8. Literal Search &amp; Counting
+</h2>
+<p>All positions are byte offsets into this unchanged source. Search is literal and case-sensitive unless explicitly named otherwise; regular expressions are a separate module.
+</p>
+<div class="table-scroll" role="region" aria-label="Literal Search &amp; Counting data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-contains"><th scope="row"><code>string.contains(s, needle)</code></th><td><code>bool</code></td><td>Whether literal text occurs; empty needle matches.</td><td>Scan; no output allocation</td>
+</tr>
+<tr id="string-contains_char"><th scope="row"><code>string.contains_char(s, char value)</code></th><td><code>bool</code></td><td>Whether the scalar occurs.</td><td>Scan; no allocation</td>
+</tr>
+<tr id="string-contains_any"><th scope="row"><code>string.contains_any(s, scalar_set)</code></th><td><code>bool</code></td><td>Whether any scalar from the supplied text occurs.</td><td>Scan plus set lookup cost</td>
+</tr>
+<tr id="string-starts_with"><th scope="row"><code>string.starts_with(s, prefix)</code></th><td><code>bool</code></td><td>Exact UTF-8 prefix comparison.</td><td>O(p); no allocation</td>
+</tr>
+<tr id="string-ends_with"><th scope="row"><code>string.ends_with(s, suffix)</code></th><td><code>bool</code></td><td>Exact UTF-8 suffix comparison.</td><td>O(p); no allocation</td>
+</tr>
+<tr id="string-find"><th scope="row"><code>string.find(s, needle)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>First match’s byte offset; empty needle returns zero.</td><td>Scan; no output allocation</td>
+</tr>
+<tr id="string-rfind"><th scope="row"><code>string.rfind(s, needle)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>Last match’s byte offset; empty needle returns byte length.</td><td>Reverse search; no output allocation</td>
+</tr>
+<tr id="string-find_char"><th scope="row"><code>string.find_char(s, char value)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>First matching scalar’s starting byte offset.</td><td>Scan; no allocation</td>
+</tr>
+<tr id="string-rfind_char"><th scope="row"><code>string.rfind_char(s, char value)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>Last matching scalar’s starting byte offset.</td><td>Reverse scan; no allocation</td>
+</tr>
+<tr id="string-find_any"><th scope="row"><code>string.find_any(s, scalar_set)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>First scalar belonging to the supplied set.</td><td>Scan plus set lookup cost</td>
+</tr>
+<tr id="string-rfind_any"><th scope="row"><code>string.rfind_any(s, scalar_set)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>Last scalar belonging to the supplied set.</td><td>Reverse scan plus set lookup cost</td>
+</tr>
+<tr id="string-count_matches"><th scope="row"><code>string.count_matches(s, needle)</code></th><td><code>Result&lt;usize, PatternError&gt;</code></td><td>Count nonoverlapping literal matches; reject empty needle.</td><td>Scan; checked count; no output allocation</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Split" aria-labelledby="Split-heading">
+<h2 id="Split-heading">9. Splitting, Lines &amp; Match Iteration
+</h2>
+<p>Delimiter iterators reject empty delimiters. Ordinary split preserves empty fields, including leading and trailing fields. Splitting empty text by a nonempty delimiter yields one empty field. Count-limited forms use <code>max_parts</code>; zero produces no fields. Iterators borrow both source and stored delimiter.
+</p>
+<div class="table-scroll" role="region" aria-label="Splitting, Lines &amp; Match Iteration data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-split"><th scope="row"><code>string.split(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>Forward fields excluding delimiters; preserve empties.</td><td>Lazy scan; no payload copies</td>
+</tr>
+<tr id="string-rsplit"><th scope="row"><code>string.rsplit(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>Reverse fields excluding delimiters; preserve empties.</td><td>Lazy reverse scan; no copies</td>
+</tr>
+<tr id="string-split_n"><th scope="row"><code>string.split_n(s, delimiter, usize max_parts)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>At most max_parts; final field contains the remainder.</td><td>Lazy scan; no payload copies</td>
+</tr>
+<tr id="string-rsplit_n"><th scope="row"><code>string.rsplit_n(s, delimiter, usize max_parts)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>Reverse count-limited split; preserve unsplit prefix.</td><td>Lazy reverse scan; no copies</td>
+</tr>
+<tr id="string-split_once"><th scope="row"><code>string.split_once(s, delimiter)</code></th><td><code>Result&lt;Optional&lt;(string_view, string_view)&gt;, PatternError&gt;</code></td><td>First separator divides prefix and suffix; absence is None.</td><td>Search; no payload copies</td>
+</tr>
+<tr id="string-rsplit_once"><th scope="row"><code>string.rsplit_once(s, delimiter)</code></th><td><code>Result&lt;Optional&lt;(string_view, string_view)&gt;, PatternError&gt;</code></td><td>Last separator divides prefix and suffix.</td><td>Reverse search; no copies</td>
+</tr>
+<tr id="string-split_inclusive"><th scope="row"><code>string.split_inclusive(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>Include each found delimiter in the preceding field.</td><td>Lazy scan; no payload copies</td>
+</tr>
+<tr id="string-split_terminator"><th scope="row"><code>string.split_terminator(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>Split normally, omitting one final empty field caused by a trailing delimiter.</td><td>Lazy scan; no payload copies</td>
+</tr>
+<tr id="string-split_ascii_whitespace"><th scope="row"><code>string.split_ascii_whitespace(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>Skip runs of the explicit ASCII whitespace set.</td><td>Lazy scan; no empty fields</td>
+</tr>
+<tr id="string-lines"><th scope="row"><code>string.lines(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>Split LF and CRLF; strip terminators; bare CR remains text.</td><td>Lazy scan; no final terminator-created empty line</td>
+</tr>
+<tr id="string-lines_inclusive"><th scope="row"><code>string.lines_inclusive(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>Keep LF or CRLF terminators in yielded lines.</td><td>Lazy scan; no payload copies</td>
+</tr>
+<tr id="string-matches"><th scope="row"><code>string.matches(s, needle)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>Nonoverlapping literal matches; reject empty needle.</td><td>Lazy scan; no payload copies</td>
+</tr>
+<tr id="string-match_indices"><th scope="row"><code>string.match_indices(s, needle)</code></th><td><code>Result&lt;Iterator&lt;(usize, string_view)&gt;, PatternError&gt;</code></td><td>Match byte offsets and borrowed ranges.</td><td>Lazy scan; no payload copies</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Transforms" aria-labelledby="Transforms-heading">
+<h2 id="Transforms-heading">10. Owned Transformations
+</h2>
+<p>Every result owns its output and may allocate. Replacement evaluates nonoverlapping matches from the original input, so replacement text is never searched recursively.
+</p>
+<div class="table-scroll" role="region" aria-label="Owned Transformations data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-concat"><th scope="row"><code>string.concat(left, right)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy both inputs into one owned result.</td><td>O(k); checked allocation</td>
+</tr>
+<tr id="string-join"><th scope="row"><code>string.join(Slice&lt;string_view&gt; parts, separator)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Insert separator between parts, never at either end.</td><td>O(k); checked total size; may allocate</td>
+</tr>
+<tr id="string-repeat"><th scope="row"><code>string.repeat(s, usize count)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Repeat exact bytes; zero count produces empty text.</td><td>O(k); checked multiplication; may allocate</td>
+</tr>
+<tr id="string-replace"><th scope="row"><code>string.replace(s, needle, replacement)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Replace every nonoverlapping match; reject empty needle.</td><td>Search plus O(k); may allocate</td>
+</tr>
+<tr id="string-replace_n"><th scope="row"><code>string.replace_n(s, needle, replacement, usize maximum)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Replace at most maximum forward matches.</td><td>Search plus O(k); may allocate</td>
+</tr>
+<tr id="string-to_ascii_lowercase"><th scope="row"><code>string.to_ascii_lowercase(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy while mapping ASCII A–Z only.</td><td>O(n); may allocate</td>
+</tr>
+<tr id="string-to_ascii_uppercase"><th scope="row"><code>string.to_ascii_uppercase(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy while mapping ASCII a–z only.</td><td>O(n); may allocate</td>
+</tr>
+<tr id="string-escape_debug"><th scope="row"><code>string.escape_debug(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Escape controls and delimiters for documented diagnostic display.</td><td>Scan plus O(k); may allocate</td>
+</tr>
+<tr id="string-escape_unicode"><th scope="row"><code>string.escape_unicode(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Render every scalar as a documented Unicode escape.</td><td>O(k); may allocate</td>
+</tr>
+<tr id="string-escape_default"><th scope="row"><code>string.escape_default(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>ASCII-safe diagnostic escapes; not a generic sanitizer.</td><td>O(k); may allocate</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Mutation" aria-labelledby="Mutation-heading">
+<h2 id="Mutation-heading">11. Explicit Owner Mutation
+</h2>
+<p>Mutators require a write borrow. Positions are checked UTF-8 byte offsets. No safe operation exposes unrestricted writable encoded bytes. Capacity-changing calls can invalidate addresses; all textual edits invalidate previously derived offsets unless a separate contract proves otherwise.
+</p>
+<div class="table-scroll" role="region" aria-label="Explicit Owner Mutation data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-push_char"><th scope="row"><code>string.push_char(&amp;mut string dst, char value)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Append one valid scalar.</td><td>Amortized small append; may reallocate</td>
+</tr>
+<tr id="string-push_view"><th scope="row"><code>string.push_view(&amp;mut string dst, s)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Append a nonoverlapping read view.</td><td>O(input bytes); may reallocate</td>
+</tr>
+<tr id="string-insert_char"><th scope="row"><code>string.insert_char(&amp;mut string dst, usize offset, char value)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Insert at a valid byte boundary.</td><td>Shift suffix; may reallocate</td>
+</tr>
+<tr id="string-insert_view"><th scope="row"><code>string.insert_view(&amp;mut string dst, usize offset, s)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Insert nonoverlapping UTF-8 at a valid boundary.</td><td>Copy input and shift suffix; may allocate</td>
+</tr>
+<tr id="string-pop_char"><th scope="row"><code>string.pop_char(&amp;mut string dst)</code></th><td><code>Optional&lt;char&gt;</code></td><td>Remove the final scalar; empty text returns None.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="string-remove_char"><th scope="row"><code>string.remove_char(&amp;mut string dst, usize offset)</code></th><td><code>Result&lt;char, BoundaryError&gt;</code></td><td>Remove the scalar beginning at offset; end is invalid.</td><td>Shift remaining suffix; no allocation</td>
+</tr>
+<tr id="string-truncate_bytes"><th scope="row"><code>string.truncate_bytes(&amp;mut string dst, usize length)</code></th><td><code>Result&lt;unit, BoundaryError&gt;</code></td><td>Require length ≤ current length and a scalar boundary.</td><td>O(1); retain capacity</td>
+</tr>
+<tr id="string-clear"><th scope="row"><code>string.clear(&amp;mut string dst)</code></th><td><code>unit</code></td><td>Set length to zero and retain capacity.</td><td>O(1); does not erase storage</td>
+</tr>
+<tr id="string-replace_range"><th scope="row"><code>string.replace_range(&amp;mut string dst, usize start, usize end, replacement)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Replace a checked half-open byte range transactionally.</td><td>Shift and copy; may allocate</td>
+</tr>
+<tr id="string-split_off"><th scope="row"><code>string.split_off(&amp;mut string dst, usize offset)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Keep prefix in owner; return independently owned suffix.</td><td>Copy suffix; may allocate</td>
+</tr>
+<tr id="string-retain"><th scope="row"><code>string.retain(&amp;mut string dst, predicate)</code></th><td><code>unit</code></td><td>Keep selected scalars in order; nonthrowing predicate.</td><td>O(n) plus callback; no allocation</td>
+</tr>
+<tr id="string-make_ascii_lowercase"><th scope="row"><code>string.make_ascii_lowercase(&amp;mut string dst)</code></th><td><code>unit</code></td><td>Change only ASCII uppercase bytes in place.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="string-make_ascii_uppercase"><th scope="row"><code>string.make_ascii_uppercase(&amp;mut string dst)</code></th><td><code>unit</code></td><td>Change only ASCII lowercase bytes in place.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="string-swap"><th scope="row"><code>string.swap(&amp;mut string dst, other)</code></th><td><code>unit</code></td><td>Exchange two independently write-borrowed owners.</td><td>O(1); no payload copy</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Comparison-Formatting" aria-labelledby="Comparison-Formatting-heading">
+<h2 id="Comparison-Formatting-heading">12. Comparison &amp; Formatting
+</h2>
+<p>Default comparison is deterministic byte ordering, not dictionary order. Hash-based containers must use the same equality contract. Formatting is a library proposal; format specifications and temporary storage costs remain explicit.
+</p>
+<div class="table-scroll" role="region" aria-label="Comparison &amp; Formatting data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-equal"><th scope="row"><code>string.equal(left, right)</code></th><td><code>bool</code></td><td>Exact UTF-8 byte equality; no normalization.</td><td>O(n) worst case; no allocation</td>
+</tr>
+<tr id="string-compare"><th scope="row"><code>string.compare(left, right)</code></th><td><code>Ordering</code></td><td>Lexicographic unsigned-byte order.</td><td>Compare until first difference; no allocation</td>
+</tr>
+<tr id="string-equal_ignore_ascii_case"><th scope="row"><code>string.equal_ignore_ascii_case(left, right)</code></th><td><code>bool</code></td><td>Fold only ASCII letters during comparison.</td><td>O(n) worst case; no allocation</td>
+</tr>
+<tr id="string-common_prefix"><th scope="row"><code>string.common_prefix(left, right)</code></th><td><code>string_view</code></td><td>Longest equal scalar-aligned prefix, borrowed from left.</td><td>Scan shared prefix; no allocation</td>
+</tr>
+<tr id="string-common_suffix"><th scope="row"><code>string.common_suffix(left, right)</code></th><td><code>string_view</code></td><td>Longest equal scalar-aligned suffix, borrowed from left.</td><td>Reverse scan; no allocation</td>
+</tr>
+<tr id="string-format"><th scope="row"><code>string.format(template, FormatArgs values)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Validate template and produce owned formatted text.</td><td>Formatting work; may allocate</td>
+</tr>
+<tr id="string-format_into"><th scope="row"><code>string.format_into(out, template, FormatArgs values)</code></th><td><code>Result&lt;usize, TextError&gt;</code></td><td>Write valid UTF-8 into a caller byte buffer; report capacity failure.</td><td>No output allocation; validate before committing</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">13. Examples &amp; Design Boundaries
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+Result&lt;string_view, BoundaryError&gt; word = string.slice_bytes(text, 0, 5);
+Result&lt;string_view, BoundaryError&gt; invalid = string.slice_bytes(text, 4, 5); // Continuation-byte boundary error;
+Optional&lt;usize&gt; hit = string.find(text, &quot;fé&quot;); // Byte offset 2;
+Result&lt;string, TextError&gt; repeated = string.repeat(text, 2);
+Result&lt;Iterator&lt;string_view&gt;, PatternError&gt; fields = string.split(&quot;a,,b&quot;, &quot;,&quot;);</code></pre>
+<p>Under this draft, text literals borrow immutable static UTF-8 storage as <code>string_view</code> without allocation. Creating an owned <code>string</code> from literal text requires an explicit fallible owning constructor. This gives the draft one consistent allocation rule while the complete grammar remains under design. The language spelling and namespace are always lowercase <code>string</code>.
+</p>
+<p>Normalization does not happen during construction, comparison, or concatenation. C-compatible NUL termination is an explicit encoding operation. Regex engines, parsers, file paths, locale resource loading, and secure erasure are separate APIs; a general text escape cannot substitute for context-specific HTML, SQL, shell, or JSON handling.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">14. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/string/struct.String.html" target="_blank" rel="noopener noreferrer">Rust owned UTF-8 text — capacity, validation, ownership transfer</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.str.html" target="_blank" rel="noopener noreferrer">Rust UTF-8 slices — boundaries, scalar traversal, borrowed operations</a>
+</li>
+<li><a href="https://pkg.go.dev/strings" target="_blank" rel="noopener noreferrer">Go strings package — search, splitting, joining, and explicit copies</a>
+</li>
+<li><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" target="_blank" rel="noopener noreferrer">Java text API — comparison point for code units and transformation functions</a>
+</li>
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank" rel="noopener noreferrer">Unicode core specification — scalar values and well-formed encodings</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="string_view.html"><span>Next reference</span>string_view</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Fixed logical lanes with checked memory access and explicit numeric policies.">
+  <title>Simd — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Simd.html" aria-current="true">Simd</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Simd.html">Simd</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Simd</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Simd</h1><p class="doc-subtitle">Fixed logical lanes with checked memory access and explicit numeric policies.</p><div class="doc-meta"><span class="meta-chip">Simd&lt;T, N&gt;</span><span class="meta-chip">Simd. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>58</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>N×T</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>Fixed lanes with a scalar meaning</span></a></li><li><a href="#notation"><span class="toc-number">02</span><span>Values, masks and lane errors</span></a></li><li><a href="#numeric"><span class="toc-number">03</span><span>Lane arithmetic and overflow</span></a></li><li><a href="#memory"><span class="toc-number">04</span><span>Checked memory operations</span></a></li><li><a href="#masking"><span class="toc-number">05</span><span>Selection does not make evaluation lazy</span></a></li><li><a href="#reduction"><span class="toc-number">06</span><span>Reduction order and conversion</span></a></li><li><a href="#construct-functions"><span class="toc-number">07</span><span>Construction, access and memory</span></a></li><li><a href="#arithmetic-functions"><span class="toc-number">08</span><span>Explicit arithmetic contracts</span></a></li><li><a href="#comparison-functions"><span class="toc-number">09</span><span>Comparison, layout and reduction</span></a></li><li><a href="#examples"><span class="toc-number">10</span><span>Values with no hidden dynamic allocation</span></a></li><li><a href="#related"><span class="toc-number">11</span><span>Mask, portability and scalar references</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Simd pages"><h2>Simd reference</h2><div class="family-links"><a href="Simd.html" aria-current="page">Simd</a><a href="Simd_Mask.html">SIMD Mask</a><a href="Simd_Portable.html">Portable SIMD</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Simd reference">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1. Fixed lanes with a scalar meaning
+</h2>
+<p>Simd&lt;T, N&gt; is a proposed fixed-lane value type. N is a positive compile-time lane count and T is a supported scalar numeric type. It is distinct from a dynamically allocated Vector&lt;T&gt;, a matrix tensor, or an automatically parallel host task. A value contains exactly N logical lanes; no heap allocation is implied by constructing or copying that value.
+</p>
+<p>An initial portable profile targets fixed-width integer lanes and f32/f64, with smaller floating formats gated by capabilities. A supported value may lower to one native vector, several vectors or scalar code. Neither the source type nor a capability report proves one-instruction execution, a register ABI or a particular speedup. These are original Aevix contracts informed by public vector interfaces, not an adopted foreign API.
+</p>
+</section>
+<section id="notation" aria-labelledby="notation-heading">
+<h2 id="notation-heading">2. Values, masks and lane errors
+</h2>
+<p>V denotes Simd&lt;T, N&gt;, W a result Simd&lt;U, N&gt;, and Mask&lt;N&gt; a logical lane mask. Mask is a proposed library value whose lane semantics are bool; its native memory representation is not Array&lt;bool, N&gt;. SimdError&lt;N&gt; is a proposed error record with a cause and failing-lane mask for checked numeric operations, or an index/bounds/alias error for memory operations. No function uses an invalid lane as LLVM poison visible to safe code.
+</p>
+<p>Borrowed Slice and exclusive MutSlice values retain ordinary ownership rules. Array&lt;T, N&gt; is the fixed-size array type; from_array and to_array describe logical values rather than bitcasting an array to a vector ABI. Generic parameter support and target lane sets are compile-time capabilities. Unsupported operations are diagnosed without silently weakening the scalar contract.
+</p>
+</section>
+<section id="numeric" aria-labelledby="numeric-heading">
+<h2 id="numeric-heading">3. Lane arithmetic and overflow
+</h2>
+<p>Each numeric lane follows the corresponding scalar semantics. Checked integer operations report all failing lanes without exposing a partial result. Wrapping and saturating operations are separately named. A shift count is checked against the lane width; it is not silently masked by hardware. Signed minimum divided by minus one and integer division by zero remain errors. Floating divide follows IEEE behavior for zero, NaN and infinity in the strict profile.
+</p>
+<p>Fused multiply-add is explicit. Float min/max variants state whether they propagate NaNs and how signed-zero ties are resolved. Numeric equality treats NaNs as unequal and signed zeros as equal; representation equality is a different operation. AOT and JIT cannot infer permission to reassociate, flush subnormals or change rounding merely because values are vectorized.
+</p>
+</section>
+<section id="memory" aria-labelledby="memory-heading">
+<h2 id="memory-heading">4. Checked memory operations
+</h2>
+<p>A contiguous load reads exactly N elements from the selected start; a store writes exactly N. Safe APIs validate lengths and address arithmetic before access and do not impose hidden native alignment assumptions on an ordinary Slice. Gather validates active indices; scatter validates active indices and rejects duplicate active destinations before any write. This avoids an unspecified race or hidden last-lane policy.
+</p>
+<p>Masked-off memory lanes are not accessed, not bounds-checked as active lanes, and never require forming an invalid address. A masked load supplies explicit fallback values. A mask does not relax alias rules: an immutable source borrow and overlapping exclusive destination borrow still cannot coexist. Scatter duplicate validation is a semantic cost and may use bounded scratch space or a checked allocation for large N.
+</p>
+</section>
+<section id="masking" aria-labelledby="masking-heading">
+<h2 id="masking-heading">5. Selection does not make evaluation lazy
+</h2>
+<p>Simd.select chooses between two values that have already been computed. It cannot protect a preceding division by zero or an out-of-bounds gather. The masked_divide function instead promises to evaluate arithmetic only for active lanes and to preserve explicit fallback lanes. A compiler must not speculatively introduce an observable error in an inactive lane.
+</p>
+<p>Mask logical operations are lane-wise. all, any and count inspect logical lanes; they do not expose register bit encodings. Explicit bitset conversion specifies lane i as bit i and rejects set bits beyond N. Host-side mask serialization has its own format; a vendor native mask register is not a portable byte representation.
+</p>
+</section>
+<section id="reduction" aria-labelledby="reduction-heading">
+<h2 id="reduction-heading">6. Reduction order and conversion
+</h2>
+<p>Integer reduction uses the named checked/wrapping accumulator contract. Floating reduction selects an explicit accumulator type and order. The strict left-to-right order processes lane 0 through N-1 after conversion to the accumulator; a tree order requires an explicit option and may change bits. A dot product also states whether multiplication is fused, separately rounded or widened.
+</p>
+<p>Numeric casts and representation bitcasts are separately named. cast_checked validates representability and any selected rounding policy; bitcast requires equal total bit width and defined scalar lane representations. It does not allow a raw reference reinterpretation that violates alignment, ownership or validity. SIMD values can be stored using logical arrays for FFI; an explicit target ABI adapter is required for native vector calling conventions.
+</p>
+</section>
+<section id="construct-functions" aria-labelledby="construct-functions-heading">
+<h2 id="construct-functions-heading">7. Construction, access and memory
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Construction, access and memory data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-splat"><td><code>Simd.splat&lt;T, N&gt;(T value)</code></td><td><code>V</code></td><td>Copies value into every logical lane.</td><td>O(N) logical work; no heap.</td>
+</tr>
+<tr id="Simd-from_array"><td><code>Simd.from_array&lt;T, N&gt;(Array&lt;T, N&gt; values)</code></td><td><code>V</code></td><td>Preserves lane order and scalar values; no ABI equivalence asserted.</td><td>O(N); no heap.</td>
+</tr>
+<tr id="Simd-to_array"><td><code>Simd.to_array(V value)</code></td><td><code>Array&lt;T, N&gt;</code></td><td>Lane i becomes array element i.</td><td>O(N); no heap.</td>
+</tr>
+<tr id="Simd-lanes"><td><code>Simd.lanes&lt;T, N&gt;()</code></td><td><code>usize</code></td><td>Compile-time positive lane count N.</td><td>Constant.</td>
+</tr>
+<tr id="Simd-extract"><td><code>Simd.extract(V value, usize lane)</code></td><td><code>Result&lt;T, SimdError&lt;N&gt;&gt;</code></td><td>Rejects lane &gt;= N; returns copied scalar.</td><td>O(1) abstract access; lowering varies.</td>
+</tr>
+<tr id="Simd-replace"><td><code>Simd.replace(V value, usize lane, T element)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Returns new vector with exactly one lane replaced; bounds checked.</td><td>No heap; lowering varies.</td>
+</tr>
+<tr id="Simd-load"><td><code>Simd.load&lt;T, N&gt;(Slice&lt;T&gt; source, usize start)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Checks start+N without overflow and reads exactly N elements.</td><td>O(N); unaligned ordinary slices accepted.</td>
+</tr>
+<tr id="Simd-store"><td><code>Simd.store(MutSlice&lt;T&gt; destination, usize start, V value)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>Full range checked before writes; no hidden overlap permission.</td><td>O(N); no heap.</td>
+</tr>
+<tr id="Simd-load_masked"><td><code>Simd.load_masked(Slice&lt;T&gt; source, Simd&lt;usize, N&gt; indices, Mask&lt;N&gt; active, V fallback)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Active indices checked/read; inactive lanes use fallback with no address formation.</td><td>O(N); no inactive access.</td>
+</tr>
+<tr id="Simd-gather"><td><code>Simd.gather(Slice&lt;T&gt; source, Simd&lt;usize, N&gt; indices)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Every index checked; duplicate reads permitted.</td><td>O(N); may scalarize.</td>
+</tr>
+<tr id="Simd-gather_masked"><td><code>Simd.gather_masked(Slice&lt;T&gt; source, Simd&lt;usize, N&gt; indices, Mask&lt;N&gt; active, V fallback)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Only active indices require bounds; inactive output from fallback.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-scatter"><td><code>Simd.scatter(MutSlice&lt;T&gt; destination, Simd&lt;usize, N&gt; indices, V values)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>All bounds and duplicate destinations checked before any write; duplicates error.</td><td>O(N) access plus duplicate analysis.</td>
+</tr>
+<tr id="Simd-scatter_masked"><td><code>Simd.scatter_masked(MutSlice&lt;T&gt; destination, Simd&lt;usize, N&gt; indices, Mask&lt;N&gt; active, V values)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>Only active indices validated; duplicate active destinations error before writes.</td><td>Duplicate analysis may require scratch.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="arithmetic-functions" aria-labelledby="arithmetic-functions-heading">
+<h2 id="arithmetic-functions-heading">8. Explicit arithmetic contracts
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Explicit arithmetic contracts data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-checked_add"><td><code>Simd.checked_add(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer addition; failing-lane mask returned on overflow.</td><td>O(N); no partial output.</td>
+</tr>
+<tr id="Simd-checked_subtract"><td><code>Simd.checked_subtract(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer subtraction with per-lane checked range.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-checked_multiply"><td><code>Simd.checked_multiply(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer product checked in exact mathematical domain.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-checked_divide"><td><code>Simd.checked_divide(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer zero divisor and signed minimum/-1 error.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-checked_remainder"><td><code>Simd.checked_remainder(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer scalar remainder; zero divisor and scalar-defined overflow checked.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-wrapping_add"><td><code>Simd.wrapping_add(V a, V b)</code></td><td><code>V</code></td><td>Integer addition modulo 2^width for each lane.</td><td>O(N); no heap.</td>
+</tr>
+<tr id="Simd-wrapping_subtract"><td><code>Simd.wrapping_subtract(V a, V b)</code></td><td><code>V</code></td><td>Integer subtraction modulo 2^width.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-wrapping_multiply"><td><code>Simd.wrapping_multiply(V a, V b)</code></td><td><code>V</code></td><td>Integer product modulo 2^width.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-saturating_add"><td><code>Simd.saturating_add(V a, V b)</code></td><td><code>V</code></td><td>Integer sum clamped to T endpoints.</td><td>O(N); native support not assumed.</td>
+</tr>
+<tr id="Simd-saturating_subtract"><td><code>Simd.saturating_subtract(V a, V b)</code></td><td><code>V</code></td><td>Integer difference clamped to T endpoints.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-saturating_multiply"><td><code>Simd.saturating_multiply(V a, V b)</code></td><td><code>V</code></td><td>Integer product clamped to T endpoints.</td><td>O(N); may require widening/scalarization.</td>
+</tr>
+<tr id="Simd-float_add"><td><code>Simd.float_add(V a, V b)</code></td><td><code>V</code></td><td>Floating strict scalar addition per lane.</td><td>O(N); floating T only.</td>
+</tr>
+<tr id="Simd-float_subtract"><td><code>Simd.float_subtract(V a, V b)</code></td><td><code>V</code></td><td>Floating strict scalar subtraction per lane.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-float_multiply"><td><code>Simd.float_multiply(V a, V b)</code></td><td><code>V</code></td><td>Floating product rounded once per lane.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-float_divide"><td><code>Simd.float_divide(V a, V b)</code></td><td><code>V</code></td><td>IEEE floating division; NaN/infinity are numeric results.</td><td>O(N); capability checked.</td>
+</tr>
+<tr id="Simd-masked_divide"><td><code>Simd.masked_divide(V a, V b, Mask&lt;N&gt; active, V fallback)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Only active arithmetic evaluated; inactive fallback preserved; integer checks only active lanes.</td><td>O(active lanes) logical work.</td>
+</tr>
+<tr id="Simd-fma"><td><code>Simd.fma(V a, V b, V c)</code></td><td><code>V</code></td><td>Floating fused multiply-add with one final rounding per lane.</td><td>O(N); strict support required.</td>
+</tr>
+<tr id="Simd-sqrt"><td><code>Simd.sqrt(V value)</code></td><td><code>V</code></td><td>Floating IEEE sqrt; negative finite lanes produce NaN.</td><td>O(N); capability checked.</td>
+</tr>
+<tr id="Simd-abs"><td><code>Simd.abs(V value)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer signed minimum errors; floating absolute clears sign per scalar contract.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-negate"><td><code>Simd.negate(V value)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Checked signed integer negate; float negates signs including zero/NaN sign policy.</td><td>O(N); unsigned unsupported.</td>
+</tr>
+<tr id="Simd-shift_left"><td><code>Simd.shift_left(V value, Simd&lt;u32, N&gt; counts)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Every count below T width; shifted-out bits discarded per scalar bit-shift contract.</td><td>O(N); integer only.</td>
+</tr>
+<tr id="Simd-shift_right"><td><code>Simd.shift_right(V value, Simd&lt;u32, N&gt; counts)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Count range checked; signed arithmetic and unsigned logical right shift.</td><td>O(N); integer only.</td>
+</tr>
+<tr id="Simd-bit_and"><td><code>Simd.bit_and(V a, V b)</code></td><td><code>V</code></td><td>Lane-wise integer bit conjunction.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bit_or"><td><code>Simd.bit_or(V a, V b)</code></td><td><code>V</code></td><td>Lane-wise integer bit disjunction.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bit_xor"><td><code>Simd.bit_xor(V a, V b)</code></td><td><code>V</code></td><td>Lane-wise integer bit exclusive-or.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bit_not"><td><code>Simd.bit_not(V value)</code></td><td><code>V</code></td><td>Complements the fixed-width representation of each integer lane.</td><td>O(N).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="comparison-functions" aria-labelledby="comparison-functions-heading">
+<h2 id="comparison-functions-heading">9. Comparison, layout and reduction
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Comparison, layout and reduction data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-equal"><td><code>Simd.equal(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Numeric lane equality; NaN unequal, signed zeros equal.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-less"><td><code>Simd.less(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Ordered less-than; unordered float lanes false.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-less_equal"><td><code>Simd.less_equal(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Ordered less-or-equal; unordered float lanes false.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-is_nan"><td><code>Simd.is_nan(V value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Classifies floating NaNs lane-wise.</td><td>O(N); float only.</td>
+</tr>
+<tr id="Simd-is_finite"><td><code>Simd.is_finite(V value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>True for finite float lanes, including signed zero/subnormal.</td><td>O(N); float only.</td>
+</tr>
+<tr id="Simd-select"><td><code>Simd.select(Mask&lt;N&gt; active, V when_true, V when_false)</code></td><td><code>V</code></td><td>Chooses already-evaluated lane values; no short-circuit evaluation.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-minimum_propagating"><td><code>Simd.minimum_propagating(V a, V b)</code></td><td><code>V</code></td><td>Floating NaN propagates; -0 wins zero ties; NaN payload not stabilized.</td><td>O(N); float only.</td>
+</tr>
+<tr id="Simd-maximum_propagating"><td><code>Simd.maximum_propagating(V a, V b)</code></td><td><code>V</code></td><td>Floating NaN propagates; +0 wins zero ties.</td><td>O(N); float only.</td>
+</tr>
+<tr id="Simd-minimum_number"><td><code>Simd.minimum_number(V a, V b)</code></td><td><code>V</code></td><td>One NaN yields the numeric operand; two NaNs yield NaN; -0 tie.</td><td>O(N); float only.</td>
+</tr>
+<tr id="Simd-maximum_number"><td><code>Simd.maximum_number(V a, V b)</code></td><td><code>V</code></td><td>One NaN yields numeric operand; two NaNs yield NaN; +0 tie.</td><td>O(N); float only.</td>
+</tr>
+<tr id="Simd-reverse"><td><code>Simd.reverse(V value)</code></td><td><code>V</code></td><td>Logical lane i receives lane N-1-i.</td><td>O(N); no heap.</td>
+</tr>
+<tr id="Simd-rotate_lanes_left"><td><code>Simd.rotate_lanes_left(V value, usize count)</code></td><td><code>V</code></td><td>Lane rotation by count modulo positive N; distinct from rotating integer bits.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-swizzle"><td><code>Simd.swizzle(V value, Array&lt;usize, M&gt; indices)</code></td><td><code>Result&lt;Simd&lt;T, M&gt;, SimdError&lt;M&gt;&gt;</code></td><td>Every source index &lt; N; repeated reads valid; result lane count compile-time.</td><td>O(M).</td>
+</tr>
+<tr id="Simd-reduce_sum"><td><code>Simd.reduce_sum&lt;A&gt;(V value, ReductionOrder order)</code></td><td><code>Result&lt;A, SimdError&lt;N&gt;&gt;</code></td><td>Explicit accumulator type/order; checked integer accumulation and strict float conversion.</td><td>O(N); no implicit reassociation.</td>
+</tr>
+<tr id="Simd-reduce_product"><td><code>Simd.reduce_product&lt;A&gt;(V value, ReductionOrder order)</code></td><td><code>Result&lt;A, SimdError&lt;N&gt;&gt;</code></td><td>Named accumulator/order; checked integer accumulation.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-dot"><td><code>Simd.dot&lt;A&gt;(V a, V b, DotSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;A, SimdError&lt;N&gt;&gt;</code></td><td>Explicit product width, fusion, accumulator and reduction order.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-cast_checked"><td><code>Simd.cast_checked&lt;U&gt;(V value, ConversionPolicy policy)</code></td><td><code>Result&lt;W, SimdError&lt;N&gt;&gt;</code></td><td>Numeric lane conversion with named rounding and range policy.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bitcast"><td><code>Simd.bitcast&lt;U, M&gt;(V value)</code></td><td><code>Simd&lt;U, M&gt;</code></td><td>Equal total bit width and valid scalar representations required; lane/bit order specified by explicit target-independent bit sequence.</td><td>No reference aliasing; bool/Mask excluded.</td>
+</tr>
+<tr id="Simd-same_representation"><td><code>Simd.same_representation(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Compares scalar representation bits, distinguishing zero signs and NaN payload bits.</td><td>O(N); initialized supported scalar lanes.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">10. Values with no hidden dynamic allocation
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Simd&lt;f32, 4&gt; bias = Simd.splat&lt;f32, 4&gt;(0.5);
+Simd&lt;f32, 4&gt; input = Simd.from_array&lt;f32, 4&gt;([1.0, 2.0, 3.0, 4.0]);
+Simd&lt;f32, 4&gt; shifted = Simd.float_add(input, bias);
+Mask&lt;4&gt; active = Simd.less(input, shifted);</code></pre>
+<p>These statements use immutable values by default. A destination buffer would need an explicit mut declaration before exclusive store access. No result states that four lanes execute in one instruction on the current CPU or that the same host ABI is used on a GPU.
+</p>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">11. Mask, portability and scalar references
+</h2>
+<p>Simd is a semantic vector value, not an automatic threading model. A host Task may process Simd values and a GPU kernel may use supported lane operations, but scheduling, storage placement and vectorization are separate decisions. Autovectorization may use Simd-like lowering for ordinary code only when it preserves the same scalar behavior.
+</p>
+<p><a href="Simd_Mask.html">Logical masks</a> · <a href="Simd_Portable.html">Portable lowering and ABI</a> · <a href="../Integer/Integer.html">Integer</a> · <a href="../Float/Float.html">Float</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Simd.html" target="_blank" rel="noopener noreferrer">Rust experimental portable SIMD</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Mask.html" target="_blank" rel="noopener noreferrer">Rust experimental SIMD mask</a>
+</li>
+<li><a href="https://llvm.org/docs/LangRef.html#vector-type" target="_blank" rel="noopener noreferrer">LLVM vector types and operations</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Simd_Mask.html"><span>Next reference</span>SIMD Mask</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

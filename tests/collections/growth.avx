@@ -1,0 +1,18 @@
+Result<i32,CollectionError> run() {
+    mut i32 values[] = []?;
+    Vector.reserve(&mut values, 1)?;
+    Result<unit,InputError<i32>> added = Vector.push(&mut values, 20);
+    if (Result.is_err(&added)) return Result.err(CollectionError.AllocationFailure);
+    Result<unit,InputError<i32>> second = Vector.push(&mut values, 22);
+    if (Result.is_err(&second)) return Result.err(CollectionError.AllocationFailure);
+    if (Vector.len(&values) != 2) return Result.ok(90);
+    if (Vector.capacity(&values) < 2) return Result.ok(91);
+    return Result.ok(values[0] + values[1]);
+}
+i32 main() {
+    Result<i32,CollectionError> result = run();
+    switch (move result) {
+        case Result<i32,CollectionError>.Ok { i32 n = value }: return n; break;
+        case Result<i32,CollectionError>.Err: return 99; break;
+    }
+}

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Explicit UTF-8, UTF-16, UTF-32, byte order, FFI, and streaming conversion boundaries.">
+  <title>Text Encoding — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="string.html" aria-current="true">string</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="string.html">string</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Text Encoding</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Text Encoding</h1><p class="doc-subtitle">Explicit UTF-8, UTF-16, UTF-32, byte order, FFI, and streaming conversion boundaries.</p><div class="doc-meta"><span class="meta-chip">encoding</span><span class="meta-chip">encoding. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Functions</dt><dd>30 proposals</dd></div><div class="doc-stat"><dt>Default decoding</dt><dd>Strict</dd></div><div class="doc-stat"><dt>Byte order</dt><dd>Explicit</dd></div><div class="doc-stat"><dt>Streaming</dt><dd>Caller-buffer progress</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>str</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Encoding Is an Explicit Boundary</span></a></li><li><a href="#Validity"><span class="toc-number">02</span><span>Scalar Validity &amp; Error Policy</span></a></li><li><a href="#Endian-BOM"><span class="toc-number">03</span><span>Code Units, Byte Order &amp; BOMs</span></a></li><li><a href="#Import-Export"><span class="toc-number">04</span><span>Validated Import &amp; Export Functions</span></a></li><li><a href="#Sizing-Interop"><span class="toc-number">05</span><span>Sizing, BOM Detection &amp; FFI</span></a></li><li><a href="#Streaming"><span class="toc-number">06</span><span>Streaming Boundaries &amp; Progress</span></a></li><li><a href="#Streaming-API"><span class="toc-number">07</span><span>Streaming Converter Functions</span></a></li><li><a href="#Examples-Targets"><span class="toc-number">08</span><span>Examples &amp; Execution Targets</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="string pages"><h2>string reference</h2><div class="family-links"><a href="string.html">string</a><a href="string_view.html">string_view</a><a href="unicode.html">Unicode Text Services</a><a href="encoding.html" aria-current="page">Text Encoding</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Text Encoding reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Encoding Is an Explicit Boundary
+</h2>
+<blockquote class="callout note">
+<p><strong>Language design draft.</strong> Contracts, helper types, and function spellings below are proposals. They do not claim an implemented compiler, finalized grammar, or validated runtime. Examples use type-first declarations, default immutability, and semicolon-terminated statements.
+</p>
+</blockquote>
+<p><code>encoding.</code> is a proposed library namespace for validated import and export. Internal <code>string</code> storage remains UTF-8. UTF-16 and UTF-32 code-unit arrays are external representations rather than additional text primitives. Borrowing existing UTF-8 uses <code>string.view_utf8</code>; encoding to a new array makes a visible copy.
+</p>
+<p><code>Encoding</code>, <code>DecodeError</code>, <code>EncodeError</code>, <code>EncodingError</code>, <code>Decoder</code>, <code>Encoder</code>, and <code>ConversionProgress</code>, <code>DecodeReport&lt;T&gt;</code>, and <code>TranscodeReport&lt;T&gt;</code> are supporting library proposals. Each error family includes allocation or capacity failure wherever its operation may allocate or write. Conversion never silently falls back to a system code page.
+</p>
+<p>Related references: <a href="../Char/Char.html">char</a>, <a href="../Byte/Byte.html">byte</a>, and <a href="../Array/Array.html">arrays</a>.
+</p>
+<p>Report records carry output and replacement counts. A transcode report also records source progress; selecting a lossy policy never hides whether substitution occurred.
+</p>
+</section>
+<section id="Validity" aria-labelledby="Validity-heading">
+<h2 id="Validity-heading">2. Scalar Validity &amp; Error Policy
+</h2>
+<p>UTF-8 validation rejects overlong sequences, surrogate encodings, isolated continuation bytes, truncated sequences, and values above U+10FFFF. UTF-16 rejects unpaired surrogates. UTF-32 requires every code unit to encode a scalar. Noncharacters and unassigned scalars are not automatically malformed encodings; protocol-level restrictions are separate checks.
+</p>
+<p>Strict decoding reports the first malformed sequence with its byte or code-unit position. Lossy decoding is explicitly named and replaces maximal ill-formed subparts with U+FFFD while reporting replacement counts. It is unsuitable when original bytes must be preserved for signatures, audit records, or binary protocols. These rules follow the distinctions in the <a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/">Unicode core encoding definitions</a>.
+</p>
+</section>
+<section id="Endian-BOM" aria-labelledby="Endian-BOM-heading">
+<h2 id="Endian-BOM-heading">3. Code Units, Byte Order &amp; BOMs
+</h2>
+<p>A <code>Slice&lt;u16&gt;</code> contains numeric code units, independent of byte serialization order. UTF-16LE and UTF-16BE byte streams explicitly choose little or big endian; UTF-32 has the analogous distinction. UTF-8 has no endian variant. Raw byte reinterpretation cannot replace decoding or endian conversion.
+</p>
+<p>BOM handling is a separate option: preserve, require-and-consume, or detect under an explicitly allowed set. A fixed-endian API preserves an initial U+FEFF as text by default; it does not silently remove it. Detecting a BOM identifies only a possible prefix, not the encoding of arbitrary BOM-free bytes. Compare the <a href="https://www.unicode.org/faq/utf_bom.html">Unicode BOM FAQ</a>.
+</p>
+</section>
+<section id="Import-Export" aria-labelledby="Import-Export-heading">
+<h2 id="Import-Export-heading">4. Validated Import &amp; Export Functions
+</h2>
+<p>Output sizes and multiplication are checked. All owned text and vector results are fallible. UTF-8 export copies; <code>string.as_bytes</code> is the separate borrowed alternative.
+</p>
+<div class="table-scroll" role="region" aria-label="Validated Import &amp; Export Functions data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="encoding-validate_utf8"><th scope="row"><code>encoding.validate_utf8(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;unit, DecodeError&gt;</code></td><td>Validate the complete byte slice.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="encoding-decode_utf8"><th scope="row"><code>encoding.decode_utf8(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Strict validated copy into owned text.</td><td>Scan and copy; may allocate</td>
+</tr>
+<tr id="encoding-decode_utf8_lossy"><th scope="row"><code>encoding.decode_utf8_lossy(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;DecodeReport&lt;string&gt;, DecodeError&gt;</code></td><td>Replace maximal malformed subparts; include replacement count.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-encode_utf8"><th scope="row"><code>encoding.encode_utf8(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Copy exact internal UTF-8 bytes.</td><td>O(n); may allocate</td>
+</tr>
+<tr id="encoding-decode_utf16"><th scope="row"><code>encoding.decode_utf16(Slice&lt;u16&gt; units)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Decode code units; require paired surrogates.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-encode_utf16"><th scope="row"><code>encoding.encode_utf16(s)</code></th><td><code>Result&lt;Vector&lt;u16&gt;, EncodeError&gt;</code></td><td>Encode one or two code units per scalar.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-decode_utf32"><th scope="row"><code>encoding.decode_utf32(Slice&lt;u32&gt; units)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Validate and encode Unicode scalars.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-encode_utf32"><th scope="row"><code>encoding.encode_utf32(s)</code></th><td><code>Result&lt;Vector&lt;u32&gt;, EncodeError&gt;</code></td><td>One numeric code unit per scalar.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-decode_utf16_le"><th scope="row"><code>encoding.decode_utf16_le(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Even byte count; little-endian code units; strict validation.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-decode_utf16_be"><th scope="row"><code>encoding.decode_utf16_be(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Even byte count; big-endian code units; strict validation.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-encode_utf16_le"><th scope="row"><code>encoding.encode_utf16_le(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Serialize UTF-16 little endian without an implicit BOM.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-encode_utf16_be"><th scope="row"><code>encoding.encode_utf16_be(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Serialize UTF-16 big endian without an implicit BOM.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-decode_utf32_le"><th scope="row"><code>encoding.decode_utf32_le(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Byte count divisible by four; validate decoded scalars.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-decode_utf32_be"><th scope="row"><code>encoding.decode_utf32_be(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Big-endian scalar code units with strict validation.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-encode_utf32_le"><th scope="row"><code>encoding.encode_utf32_le(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Serialize scalar code units little endian.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-encode_utf32_be"><th scope="row"><code>encoding.encode_utf32_be(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Serialize scalar code units big endian.</td><td>Scan plus output; may allocate</td>
+</tr>
+<tr id="encoding-decode_ascii"><th scope="row"><code>encoding.decode_ascii(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Reject byte values above 0x7F.</td><td>Validate and copy; may allocate</td>
+</tr>
+<tr id="encoding-encode_ascii"><th scope="row"><code>encoding.encode_ascii(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Reject non-ASCII scalars instead of substituting.</td><td>Scan and copy; may allocate</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Sizing-Interop" aria-labelledby="Sizing-Interop-heading">
+<h2 id="Sizing-Interop-heading">5. Sizing, BOM Detection &amp; FFI
+</h2>
+<p>These helpers make serialization decisions visible. C text requires a lifetime contract in addition to a terminator; an owned vector is not automatically a stable raw pointer.
+</p>
+<div class="table-scroll" role="region" aria-label="Sizing, BOM Detection &amp; FFI data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="encoding-utf8_len"><th scope="row"><code>encoding.utf8_len(s)</code></th><td><code>usize</code></td><td>Current encoded byte count.</td><td>O(1); no allocation</td>
+</tr>
+<tr id="encoding-utf16_len"><th scope="row"><code>encoding.utf16_len(s)</code></th><td><code>usize</code></td><td>Count required u16 code units, excluding a terminator.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="encoding-utf32_len"><th scope="row"><code>encoding.utf32_len(s)</code></th><td><code>usize</code></td><td>Count required scalar code units.</td><td>O(n); no allocation</td>
+</tr>
+<tr id="encoding-detect_bom"><th scope="row"><code>encoding.detect_bom(Slice&lt;byte&gt; bytes)</code></th><td><code>Optional&lt;(Encoding, usize)&gt;</code></td><td>Recognize a supported BOM and its byte length only.</td><td>Inspect at most four bytes</td>
+</tr>
+<tr id="encoding-transcode"><th scope="row"><code>encoding.transcode(Slice&lt;byte&gt; bytes, source, target, policy)</code></th><td><code>Result&lt;TranscodeReport&lt;Vector&lt;byte&gt;&gt;, EncodingError&gt;</code></td><td>Explicit encodings and strict or lossy policy; report loss.</td><td>Decode and encode; may allocate</td>
+</tr>
+<tr id="encoding-to_c_utf8"><th scope="row"><code>encoding.to_c_utf8(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Reject embedded NUL; append one NUL terminator.</td><td>O(n); may allocate</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Streaming" aria-labelledby="Streaming-heading">
+<h2 id="Streaming-heading">6. Streaming Boundaries &amp; Progress
+</h2>
+<p>A transport chunk may end inside a UTF-8 sequence, UTF-16 surrogate pair, or serialized code unit. A decoder keeps encoding-specific bounded carry state between calls; it does not retain a borrowed pointer to a temporary chunk. Empty input is not end-of-stream. Only an explicit finish operation decides whether pending bytes form a truncated sequence.
+</p>
+<p>Caller-buffer operations report consumed input bytes and written output bytes. <code>OutputFull</code> means the caller must provide more output space; it is not malformed input. Decoding emits complete UTF-8 scalars only, and the caller must preserve any reported partial progress. Strict errors report the original stream position. Stateful objects require exclusive mutation and cannot be shared concurrently without synchronization.
+</p>
+<p>A strict streaming error includes consumed/written progress and places the converter in a failed state; recreate it before retrying. After finish begins, only further finish calls may drain output until <code>Finished</code>. These are explicit state-machine proposals, avoiding silent reuse after partial failure.
+</p>
+</section>
+<section id="Streaming-API" aria-labelledby="Streaming-API-heading">
+<h2 id="Streaming-API-heading">7. Streaming Converter Functions
+</h2>
+<p>Proposed progress statuses are <code>InputExhausted</code>, <code>NeedMoreInput</code>, <code>OutputFull</code>, and <code>Finished</code>. Setup can allocate; chunk operations use preconfigured state and caller buffers. Additional legacy encodings require explicit optional backend support.
+</p>
+<div class="table-scroll" role="region" aria-label="Streaming Converter Functions data table">
+<table>
+<thead>
+<tr><th scope="col">Function signature</th><th scope="col">Returns</th><th scope="col">Contract</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="encoding-decoder"><th scope="row"><code>encoding.decoder(source, policy)</code></th><td><code>Result&lt;Decoder, EncodingError&gt;</code></td><td>Create configured decoding state with explicit BOM policy.</td><td>Setup may allocate tables or state</td>
+</tr>
+<tr id="encoding-decode_chunk"><th scope="row"><code>encoding.decode_chunk(decoder, Slice&lt;byte&gt; input, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>Decode into caller UTF-8 bytes; retain incomplete input state.</td><td>No output allocation; report consumed/written bytes</td>
+</tr>
+<tr id="encoding-finish_decode"><th scope="row"><code>encoding.finish_decode(decoder, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>Declare EOF; reject or replace pending malformed input explicitly.</td><td>Caller buffer; may report OutputFull</td>
+</tr>
+<tr id="encoding-encoder"><th scope="row"><code>encoding.encoder(target, policy)</code></th><td><code>Result&lt;Encoder, EncodingError&gt;</code></td><td>Create configured serialization state.</td><td>Setup may allocate tables or state</td>
+</tr>
+<tr id="encoding-encode_chunk"><th scope="row"><code>encoding.encode_chunk(encoder, string_view input, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>Consume whole UTF-8 scalar boundaries and serialize target bytes.</td><td>No output allocation; report exact progress</td>
+</tr>
+<tr id="encoding-finish_encode"><th scope="row"><code>encoding.finish_encode(encoder, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>Flush explicit final encoding state and mark Finished.</td><td>Caller buffer; may report OutputFull</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Examples-Targets" aria-labelledby="Examples-Targets-heading">
+<h2 id="Examples-Targets-heading">8. Examples &amp; Execution Targets
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+Result&lt;Vector&lt;u16&gt;, EncodeError&gt; wide = encoding.encode_utf16(text);
+Result&lt;Vector&lt;byte&gt;, EncodeError&gt; network = encoding.encode_utf16_be(text);
+Result&lt;Vector&lt;byte&gt;, EncodeError&gt; c_text = encoding.to_c_utf8(text);
+Result&lt;string_view, TextError&gt; checked = string.view_utf8(input_bytes);</code></pre>
+<p>The input byte slice is an already borrowed external buffer. UTF-16 output is encoded data, not a different owner type. Strict import does not normalize, fold case, or discard valid control characters. AOT and JIT preserve these boundary rules. GPU conversion is available only for explicitly supported formats and memory spaces; CPU locale or codec support does not establish device support.
+</p>
+<p><a href="https://unicode-org.github.io/icu/userguide/conversion/converters.html">ICU streaming conversion</a> provides a comparison for split input and output buffers. Implementation checks should cover every chunk boundary, malformed tails, buffer exhaustion, BOM policy, allocation failure, and round-trip scalar preservation. These are required validation targets, not recorded test results.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank" rel="noopener noreferrer">Unicode core specification — encoding forms and invalid sequences</a>
+</li>
+<li><a href="https://www.unicode.org/faq/utf_bom.html" target="_blank" rel="noopener noreferrer">Unicode FAQ — UTF and BOM distinctions</a>
+</li>
+<li><a href="https://unicode-org.github.io/icu/userguide/conversion/converters.html" target="_blank" rel="noopener noreferrer">ICU — streaming converter semantics</a>
+</li>
+<li><a href="https://unicode-org.github.io/icu/userguide/strings/utf-8.html" target="_blank" rel="noopener noreferrer">ICU — UTF-8 and conversion boundaries</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/string/struct.String.html" target="_blank" rel="noopener noreferrer">Rust owned UTF-8 text — strict and lossy validation paths</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="unicode.html"><span>Previous reference</span>Unicode Text Services</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

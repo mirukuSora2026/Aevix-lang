@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Case-based statement dispatch with explicit terminal breaks and no implicit fallthrough.">
+  <title>Switch — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html" aria-current="true">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">Control Flow</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Switch</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">GRAMMAR REFERENCE</p><h1>Switch</h1><p class="doc-subtitle">Case-based statement dispatch with explicit terminal breaks and no implicit fallthrough.</p><div class="doc-meta"><span class="meta-chip">case / default</span><span class="meta-chip">Explicit break required</span><span class="meta-chip">Enum ownership patterns</span><span>Chosen rules + open decisions</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design reference</dd></div><div class="doc-stat"><dt>Model</dt><dd>Statement control flow</dd></div><div class="doc-stat"><dt>Cleanup</dt><dd>Ownership / reverse initialization</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>switch</strong><span>control flow</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>switch selects a statement branch</span></a></li><li><a href="#basic-form"><span class="toc-number">02</span><span>A parenthesized selector and case labels</span></a></li><li><a href="#selection"><span class="toc-number">03</span><span>Evaluate the selector once and run the selected branch</span></a></li><li><a href="#terminal-break"><span class="toc-number">04</span><span>Every branch explicitly ends with break</span></a></li><li><a href="#default"><span class="toc-number">05</span><span>default handles the fallback when it is written</span></a></li><li><a href="#nested-breaks"><span class="toc-number">06</span><span>break targets the nearest loop or switch</span></a></li><li><a href="#continue-target"><span class="toc-number">07</span><span>continue still targets an enclosing loop</span></a></li><li><a href="#scope-and-ownership"><span class="toc-number">08</span><span>Each case has an independent lexical scope</span></a></li><li><a href="#cleanup-and-results"><span class="toc-number">09</span><span>Leaving switch scopes performs ordinary ownership cleanup</span></a></li><li><a href="#rejected-forms"><span class="toc-number">10</span><span>Missing terminal breaks are rejected</span></a></li><li><a href="#open-decisions"><span class="toc-number">11</span><span>Open switch design decisions</span></a></li></ol></details><nav class="family-nav" aria-label="Control flow pages"><h2>Control flow reference</h2><div class="family-links"><a href="index.html">Overview</a><a href="Conditionals.html">Conditionals</a><a href="Loops.html">Loops</a><a href="Switch.html" aria-current="page">Switch</a></div></nav><nav class="family-nav" aria-label="Related reference"><h2>Related reference</h2><div class="family-links"><a href="../index.html">Grammar overview</a><a href="../../declaration/index.html">Declarations</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/index.html">All types</a><a href="../enums/Enums.html">Enums</a><a href="../enums/Enum_Switch.html">Enum switch</a></div></nav></aside><article class="content" aria-label="Switch reference">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. switch selects a statement branch</h2><p>Aevix uses switch and case for multi-way statement control flow. Every written case branch and every written default branch must end with an explicit <code>break;</code>. Omitting that terminal break is a compile-time error; automatic fallthrough is excluded.</p><p>The switch itself is a statement, not a value-producing expression. Use the ternary operator for conditional value selection and explicit return to deliver a function result. The examples here assign a result inside the selected case, then return it after the switch. Enum payload patterns, ownership modes and exhaustive coverage are specified in <a href="../enums/Enum_Switch.html">Enum Switch</a>.</p></section>
+<section id="basic-form" aria-labelledby="basic-form-heading"><h2 id="basic-form-heading">2. A parenthesized selector and case labels</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">int score_for_mode(int mode) {
+    mut int score = 0;
+    switch (mode) {
+        case 1:
+            score = 10;
+            break;
+
+        case 2:
+            score = 20;
+            break;
+
+        default:
+            score = 0;
+            break;
+    }
+    return score;
+}</code></pre><p>The shown selector is an integer value and the case labels are integer constants. A colon introduces each case body. The switch container uses braces; its branch contents are delimited by labels and the required terminal break. These labels are syntax boundaries, not expression statements requiring a semicolon.</p><p>This form establishes numeric case dispatch. Enum selectors additionally support typed named payload patterns and explicit read, modification or consuming modes; see <a href="../enums/Enum_Switch.html">Enum Switch</a>. The empty and payload variant declarations belong to one parent type, documented in <a href="../enums/Enums.html">Enums</a>.</p></section>
+<section id="selection" aria-labelledby="selection-heading"><h2 id="selection-heading">3. Evaluate the selector once and run the selected branch</h2><p>The switch selector is evaluated once when execution enters the switch. Its value selects a matching case. If no case matches and a default branch is written, default executes. Only the selected branch body executes; source order does not create a chain of ordinary if conditions.</p><p>For scalar dispatch without a matching case or default, the exact accepted behavior remains under the open scalar default policy. These scalar examples include default. For enum dispatch, every variant must instead be covered by a case or by default; missing coverage is a compile-time error.</p><p>Automatic numeric promotion, duplicate-label acceptance, range labels, user-defined equality and overlapping patterns are not introduced here. Case constant typing and duplicate diagnostics need a complete selector/type contract.</p></section>
+<section id="terminal-break" aria-labelledby="terminal-break-heading"><h2 id="terminal-break-heading">4. Every branch explicitly ends with break</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Branch termination"><table><thead><tr><th scope="col">Branch form</th><th scope="col">Chosen requirement</th></tr></thead><tbody><tr><td><code>case constant:</code></td><td>The branch ends with an explicit <code>break;</code>.</td></tr><tr><td><code>default:</code></td><td>If written, the branch also ends with an explicit <code>break;</code>.</td></tr><tr><td>Omitted break</td><td>Compile-time error; no implicit fallthrough.</td></tr><tr><td>Break inside a nested construct</td><td>Exits that inner eligible construct and does not replace the outer branch terminal break.</td></tr><tr><td>Branch ending with return or postfix ?</td><td>Permitted before the required written break; the break remains mandatory, even when unreachable.</td></tr></tbody></table></div></div><p>The terminal break belongs to the switch branch. A preceding return, a continue targeting an enclosing loop, divergence or Result <code>?</code> keeps its own control-flow contract. The written terminal break is always required. If it is unreachable, that fact alone produces neither an error nor a warning; no general unreachable-code policy follows. The successful path of <code>?</code> continues normally to the branch break. There is no chosen fallthrough marker, continue-as-fallthrough behavior or labeled case jump. See <a href="../operators/Parsing_Rules.html#case-exits">case-exit parsing</a>.</p></section>
+<section id="default" aria-labelledby="default-heading"><h2 id="default-heading">5. default handles the fallback when it is written</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int small_category(int value) {
+    mut int category = 0;
+    switch (value) {
+        case 0:
+            category = 1;
+            break;
+        default:
+            category = 2;
+            break;
+    }
+    return category;
+}</code></pre><p>default has no case value. Its body follows the same explicit-break requirement as an ordinary case and has its own implicit lexical scope. Scalar default requirements remain open. Enum switches may omit default only when all variants are explicitly covered; external code requires default when hidden private variants cannot be named. Default covers future added variants as well, so those additions do not produce missing-variant diagnostics.</p><p>Multiple adjacent empty case labels used to share one body are also open. A label without its own terminal break is not treated as an already approved grouped-case shorthand.</p></section>
+<section id="nested-breaks" aria-labelledby="nested-breaks-heading"><h2 id="nested-breaks-heading">6. break targets the nearest loop or switch</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int count_modes() {
+    mut int count = 0;
+    for (mut int mode = 0; mode &lt; 3; mode++) {
+        switch (mode) {
+            case 1:
+                count += 10;
+                break;
+            default:
+                count += 1;
+                break;
+        }
+        count += 100;
+    }
+    return count;
+}</code></pre><p>Each case break exits the inner switch, so count += 100 still runs and the outer loop proceeds. The same keyword outside the inner switch would instead target the nearest loop. The lexical nesting of eligible constructs decides the target.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">int inner_loop_then_case_break(int mode) {
+    mut int total = 0;
+    switch (mode) {
+        case 1:
+            for (int index in 0..3) {
+                if (index == 1) break;
+                total += index;
+            }
+            total += 10;
+            break;
+        default:
+            total = 0;
+            break;
+    }
+    return total;
+}</code></pre><p>The inner break exits for, then the selected case continues to total += 10 and its own terminal break. An inner-loop break cannot be used as evidence that the surrounding case meets its terminal-break requirement.</p></section>
+<section id="continue-target" aria-labelledby="continue-target-heading"><h2 id="continue-target-heading">7. continue still targets an enclosing loop</h2><p>continue is a loop operation. If a switch is nested inside a loop, a continue targets the nearest enclosing loop rather than the switch. For C-style for, it performs the loop update before the next condition test; for while it resumes the condition test.</p><p>A valid continue inside a case is allowed before its required written terminal break. Its loop resume action and cleanup occur as usual; the now-unreachable terminal break is retained without a diagnostic solely for that unreachability. A return or diverging path follows the same written-break requirement. A successful <code>?</code> continues through its branch; an Err leaves the function. Neither path removes the source-level terminal-break requirement.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void invalid_switch_continue(int value) {
+    switch (value) {
+        case 1:
+            continue;
+            break;
+        default:
+            break;
+    }
+}</code></pre><p>Even though a terminal break is shown, continue has no enclosing loop to target. A switch alone is not a loop.</p></section>
+<section id="scope-and-ownership" aria-labelledby="scope-and-ownership-heading"><h2 id="scope-and-ownership-heading">8. Each case has an independent lexical scope</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int branch_local_value(int mode) {
+    mut int selected = 0;
+    switch (mode) {
+        case 1:
+            int local = 12;
+            selected = local;
+            break;
+        default:
+            int local = 3;
+            selected = local;
+            break;
+    }
+    return selected;
+}</code></pre><p>Every case and every default branch has an independent implicit lexical scope. The two local names are allowed because their sibling branch scopes do not overlap. A binding is available in its own branch and nested blocks, but not in another case or after the switch. No binding may shadow an already visible outer local.</p><p>An explicit nested block still introduces a deeper ordinary scope. Enum pattern bindings belong to the corresponding case scope along with its body locals. Leaving the branch cleans up resources still owned there in reverse initialization order.</p><p>Name scope and loan lifetime remain separate. A reference that escapes a case must still satisfy the source provenance and lifetime rules; a loan of a longer-lived source is not automatically invalid merely because its pattern binding name leaves scope. Case-local owned storage cannot be borrowed past its own lifetime.</p><p>Ownership must remain valid on all paths reaching a later use. Moving an owner in one branch does not permit an unconditional use after switch that assumes it remained owned. See <a href="../enums/Enum_Switch.html#Case-Scopes">enum case scopes</a> for payload binding examples.</p></section>
+<section id="cleanup-and-results" aria-labelledby="cleanup-and-results-heading"><h2 id="cleanup-and-results-heading">9. Leaving switch scopes performs ordinary ownership cleanup</h2><p>break cleans up resources still owned by the scopes it leaves, in reverse initialization order, exactly once. An explicit nested block that ends before break has already cleaned up its own remaining owners; the switch break must not clean them a second time.</p><p>A switch nested inside a loop does not destroy the enclosing loop control binding when the case break exits only the switch. A borrowed view ending does not release the original owner. Moved payloads follow their destination owner.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;int, IntegerError&gt; selected_checked_sum(int mode, int value) {
+    mut int increment = 0;
+    switch (mode) {
+        case 1:
+            increment = 1;
+            break;
+        default:
+            increment = 2;
+            break;
+    }
+    int result = checked(value + increment)?;
+    return Result.ok(result);
+}</code></pre><p>The checked calculation and error propagation occur after the switch, so every branch clearly keeps its terminal break. The normal return explicitly constructs Ok. Error propagation with ? cleans up function scopes without undoing earlier assignments.</p><p>Forced safety-stop cleanup and persist shutdown ordering remain separate. Ordinary switch dispatch does not imply allocation, GPU synchronization or hidden copying.</p></section>
+<section id="rejected-forms" aria-labelledby="rejected-forms-heading"><h2 id="rejected-forms-heading">10. Missing terminal breaks are rejected</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_case_break(int mode) {
+    mut int value = 0;
+    switch (mode) {
+        case 1:
+            value = 1;
+        default:
+            value = 2;
+            break;
+    }
+    return value;
+}</code></pre><p>case 1 has no terminal break. The next label is not an implicit exit or an invitation to fall through.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_default_break(int mode) {
+    mut int value = 0;
+    switch (mode) {
+        case 1:
+            value = 1;
+            break;
+        default:
+            value = 2;
+    }
+    return value;
+}</code></pre><p>default is present but has no terminal break. The closing switch brace does not satisfy the explicit requirement.</p><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule and is not valid Aevix code.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_inner_break_only(int mode) {
+    mut int total = 0;
+    switch (mode) {
+        case 1:
+            for (int index in 0..3) {
+                total += index;
+                break;
+            }
+        default:
+            total = 0;
+            break;
+    }
+    return total;
+}</code></pre><p>The shown break belongs to the inner for. case 1 still lacks its own terminal break. These are deliberately invalid design examples, not observed compiler output.</p></section>
+<section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">11. Open switch design decisions</h2><ul><li>Scalar default requirements and behavior when no scalar label matches without default; enum exhaustiveness is already required.</li><li>Additional scalar selector families, scalar constant typing, duplicate constant labels and numeric range labels.</li><li>Specific built-in Result/Optional pattern spelling beyond the documented enum pattern forms.</li><li>Guarded patterns, grouped labels, wildcard spelling and richer nested patterns.</li><li>General unreachable-code policy remains open. The required terminal case/default break is permitted without an error or warning solely because a preceding exit makes it unreachable.</li><li>A future explicit fallthrough feature, if any; none is currently chosen.</li><li>Detailed temporary enum selector lifetimes, borrowed-source mode inference, Copy consumption details, and custom cleanup with partial moves.</li></ul><p>The accepted enum modes, named field patterns, omitted field patterns, tag-only cases, privacy checks and coverage are collected in <a href="../enums/Enum_Switch.html">Enum Switch</a>. Each case/default scope is already independent. Those chosen rules must not be presented as open.</p><p>The chosen C++-style exit behavior is the nearest loop/switch target of break and nearest loop target of continue. See <a href="Loops.html">Loops</a> for their loop-specific resume steps. These contracts specify the language design without claiming an implemented compiler or dispatch lowering.</p></section>
+<nav class="page-navigation" aria-label="Related reference pages"><a href="../index.html"><span>Grammar overview</span>Language Grammar</a><a href="../../declaration/index.html"><span>Bindings and signatures</span>Declarations</a></nav>
+</article></div><footer class="page-footer"><span>Aevix Language · Control flow reference</span><span>Design specification · compiler implementation not implied</span></footer></main>
+</body>
+</html>

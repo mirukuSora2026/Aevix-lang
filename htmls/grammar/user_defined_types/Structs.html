@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Concrete named-field values with complete initialization, private access boundaries, immutable owners, and checked borrowing.">
+<title>Structs — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">User-defined types</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Structs</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">LANGUAGE DESIGN REFERENCE</p><h1>Structs</h1><p class="doc-subtitle">Concrete named-field values with complete initialization, private access boundaries, immutable owners, and checked borrowing.</p><div class="doc-meta"><span class="meta-chip">Confirmed rules + open decisions</span><span class="meta-chip">English reference</span></div><dl class="doc-stats"><div class="doc-stat"><dt>Fields</dt><dd>Private by default</dd></div><div class="doc-stat"><dt>Construction</dt><dd>Named fields</dd></div><div class="doc-stat"><dt>Ownership</dt><dd>Move by default</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>{ }</strong><span>struct values</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="Reference navigation">
+<details class="toc" open><summary>On this page</summary><ol>
+<li><a href="#declaration"><span class="toc-number">01</span><span>Declare a struct and its fields</span></a></li>
+<li><a href="#visibility"><span class="toc-number">02</span><span>Field visibility is private by default</span></a></li>
+<li><a href="#named-initialization"><span class="toc-number">03</span><span>Initialize by field name</span></a></li>
+<li><a href="#private-initialization"><span class="toc-number">04</span><span>Initializer access is checked</span></a></li>
+<li><a href="#evaluation-order"><span class="toc-number">05</span><span>Evaluate initializer expressions once, left to right</span></a></li>
+<li><a href="#mutability"><span class="toc-number">06</span><span>An ordinary field write follows owner mutability</span></a></li>
+<li><a href="#borrowing"><span class="toc-number">07</span><span>Borrow a value without moving it</span></a></li>
+<li><a href="#ownership"><span class="toc-number">08</span><span>Whole-value transfer moves by default</span></a></li>
+<li><a href="#scope"><span class="toc-number">09</span><span>Keep bindings local and names unambiguous</span></a></li>
+<li><a href="#cost-and-cleanup"><span class="toc-number">10</span><span>Make allocation and cleanup contracts separate</span></a></li>
+<li><a href="#open-decisions"><span class="toc-number">11</span><span>Open struct policies</span></a></li>
+<li><a href="#related"><span class="toc-number">12</span><span>Continue with calls, Copy, and generics</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="User-defined types pages"><h2>User-defined types</h2><div class="family-links">
+<a href="index.html">Overview</a>
+<a href="Structs.html" aria-current="page">Structs</a>
+<a href="Methods_and_Factories.html">Methods and factories</a>
+<a href="Copy.html">Copy and movement</a>
+</div></nav>
+<nav class="family-nav" aria-label="Related language sections"><h2>Language reference</h2><div class="family-links"><a href="../index.html">Grammar overview</a><a href="../foundations/index.html">Foundations</a><a href="../user_defined_types/index.html">User-defined types</a><a href="../enums/Enums.html">Enums</a><a href="../generics/Generic_Types.html">Generic types</a><a href="../../declaration/index.html">Declarations</a><a href="../../data_type/index.html">Data types</a></div></nav>
+</aside>
+<article class="content" aria-label="Structs reference">
+<section id="declaration" aria-labelledby="declaration-heading">
+<h2 id="declaration-heading">1. Declare a struct and its fields</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct Point {
+    public f64 x;
+    public f64 y;
+};
+
+Point origin = Point { x = 0.0, y = 0.0 };
+f64 horizontal = origin.x;</code></pre><p>The type name precedes the variable name. Every field declaration and variable initialization ends in a semicolon; the complete struct declaration ends with };. A field is declared by its type and name. These examples use explicit types rather than name: Type syntax.</p><p>Point is a move type even though its f64 fields are Copy. Reading a Copy field can copy that field without transferring the whole owner. Automatic aggregate equality, ordering, or a physical representation is not implied.</p>
+</section>
+
+<section id="visibility" aria-labelledby="visibility-heading">
+<h2 id="visibility-heading">2. Field visibility is private by default</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct User {
+    string name;
+    public i32 level;
+};</code></pre><div class="table-scroll" role="region" aria-label="Struct field visibility">
+<table>
+<thead><tr>
+<th scope="col">Field form</th>
+<th scope="col">Access boundary</th>
+<th scope="col">Mutation permission</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row"><code>string name;</code></th>
+<td>Private to the declaring type.</td>
+<td>Visibility does not create a mutable owner or loan.</td>
+</tr>
+<tr>
+<th scope="row"><code>private string name;</code></th>
+<td>Explicit private has the same field access boundary.</td>
+<td>Normal ownership and borrowing still apply.</td>
+</tr>
+<tr>
+<th scope="row"><code>public i32 level;</code></th>
+<td>Available outside the type where the type itself is accessible.</td>
+<td>An ordinary write requires a writable place and a compatible exclusive loan.</td>
+</tr>
+</tbody>
+</table>
+</div><p>Visibility modifiers belong to module/type declarations, not local bindings. A public field cannot expose its containing type through an inaccessible type boundary. The default visibility of every other declaration category is not specified by the field rule.</p>
+</section>
+
+<section id="named-initialization" aria-labelledby="named-initialization-heading">
+<h2 id="named-initialization-heading">3. Initialize by field name</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point point = Point { x = 1.0, y = 2.0 };
+Point reordered = Point { y = 4.0, x = 3.0 };</code></pre><p>Each initializer key selects a declared field. Field spelling determines the destination; the written order determines expression evaluation. An initializer checks required-field completeness, duplicate keys, unknown names, type compatibility, and access permission.</p><div class="table-scroll" role="region" aria-label="Named initializer checks">
+<table>
+<thead><tr>
+<th scope="col">Condition</th>
+<th scope="col">Selected outcome</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">A required field is missing.</th>
+<td>Compile-time rejection; a partially initialized safe struct is not exposed.</td>
+</tr>
+<tr>
+<th scope="row">A field is specified more than once.</th>
+<td>Compile-time rejection.</td>
+</tr>
+<tr>
+<th scope="row">An unknown field name is specified.</th>
+<td>Compile-time rejection.</td>
+</tr>
+<tr>
+<th scope="row">A value has an incompatible field type.</th>
+<td>Compile-time rejection; already typed numerics do not receive implicit promotion.</td>
+</tr>
+<tr>
+<th scope="row">The caller cannot access a specified private field.</th>
+<td>Compile-time rejection.</td>
+</tr>
+</tbody>
+</table>
+</div><blockquote class="callout warning"><p><strong>Rejected examples.</strong> These fragments intentionally violate separate initializer rules.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Point missing = Point { x = 1.0 }; // Invalid: y is missing.
+Point duplicate = Point { x = 1.0, x = 2.0, y = 3.0 }; // Invalid: duplicate x.
+Point unknown = Point { x = 1.0, y = 2.0, z = 3.0 }; // Invalid: no z field.
+i32 typed_integer = 1;
+Point wrong_type = Point { x = typed_integer, y = 2.0 }; // Invalid: typed i32 is not f64.</code></pre>
+</section>
+
+<section id="private-initialization" aria-labelledby="private-initialization-heading">
+<h2 id="private-initialization-heading">4. Initializer access is checked</h2>
+<p>A named initializer is not an escape hatch through a private field boundary. External code cannot set a private field simply by spelling its name. When required private fields must be initialized, an accessible type-internal factory can perform the initialization and return a complete owner.</p><blockquote class="callout warning"><p><strong>Rejected external fragment.</strong> User.name is private. This function is outside the User declaration and receives an already owned string.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">User invalid_external_initialization(string owned_name) {
+    return User { name = owned_name, level = 1 }; // Invalid: private name.
+}</code></pre><p>The <a href="Methods_and_Factories.html">factory reference</a> provides the selected type-internal function syntax. Field defaults and other omitted-field mechanisms remain open; no implicit zero, empty string, or placeholder is supplied here.</p>
+</section>
+
+<section id="evaluation-order" aria-labelledby="evaluation-order-heading">
+<h2 id="evaluation-order-heading">5. Evaluate initializer expressions once, left to right</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct OrderSample {
+    public i32 first;
+    public i32 second;
+};
+
+i32 next(&amp;mut i32 running_count) {
+    return ++(*running_count);
+}
+
+mut i32 counter = 0;
+OrderSample ordered = OrderSample {
+    second = next(&amp;mut counter),
+    first = next(&amp;mut counter)
+};</code></pre><p>The written second expression runs first and produces 1; the written first expression then produces 2. Declaration order does not reorder observable initializer effects. Each completed call here returns a scalar and retains no loan, so the next call can create its own exclusive loan.</p><p>A later failure does not roll back successful earlier effects or moved inputs. Existing ownership cleanup rules govern values still owned by the evaluation. Exact diagnostics and implementation mechanics for partially constructed aggregates remain part of compiler design.</p>
+</section>
+
+<section id="mutability" aria-labelledby="mutability-heading">
+<h2 id="mutability-heading">6. An ordinary field write follows owner mutability</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point fixed = Point { x = 1.0, y = 2.0 };
+mut Point editable = Point { x = 1.0, y = 2.0 };
+editable.x = 3.0;</code></pre><p>An ordinary immutable owner permits reads but not direct field writes. mut provides the owner-level write permission; visibility and borrowing must still permit the access. A public field does not make an immutable instance mutable.</p><blockquote class="callout warning"><p><strong>Rejected write.</strong> fixed is an ordinary immutable owner.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">fixed.x = 3.0; // Invalid: immutable owner.</code></pre><p>Interior synchronization types retain their own contracts. Their existence does not grant arbitrary writes to unrelated immutable fields. Per-field immutability modifiers and field defaults are not introduced here.</p>
+</section>
+
+<section id="borrowing" aria-labelledby="borrowing-heading">
+<h2 id="borrowing-heading">7. Borrow a value without moving it</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point point = Point { x = 5.0, y = 6.0 };
+&amp;Point read_view = &amp;point;
+f64 observed = (*read_view).x;
+
+mut Point editable = Point { x = 7.0, y = 8.0 };
+&amp;mut Point write_view = &amp;mut editable;
+(*write_view).x = 9.0;</code></pre><p>Shared loans preserve read access and exclude conflicting writes. Exclusive loans permit access through one compatible capability and exclude overlapping conflicts. An immutable binding that stores &mut Point can modify the referent; its own binding mutability concerns rebinding that reference.</p><p>The explicit dereference is intentional. Field automatic dereference is not selected by the method-call convenience rule. Loans remain bounded by their source lifetime, and proven disjoint field loans can be accepted without allowing arbitrary overlap.</p>
+</section>
+
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">8. Whole-value transfer moves by default</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point initial = Point { x = 1.0, y = 2.0 };
+Point destination = initial;
+f64 observed = destination.x;</code></pre><p>destination receives the Point owner. initial is no longer available as a live value because Point has not opted into Copy. Assignment, value parameters, and returns follow the selected ownership model rather than silently deep-cloning fields.</p><blockquote class="callout warning"><p><strong>Rejected use.</strong> The complete owner has already moved.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">f64 stale = initial.x; // Invalid: initial was moved.</code></pre><p>Adding implements Copy is a separate explicit decision for a type and is compiler-checked. Whole-value transfer does not physically promise memcpy, pointer-only movement, or a particular stack layout. Field-level partial moves and their interaction with custom cleanup remain open.</p>
+</section>
+
+<section id="scope" aria-labelledby="scope-heading">
+<h2 id="scope-heading">9. Keep bindings local and names unambiguous</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point point = Point { x = 1.0, y = 2.0 };
+{
+    f64 local_coordinate = point.x;
+    f64 adjusted_coordinate = local_coordinate + 1.0;
+}
+f64 outside_coordinate = point.y;</code></pre><p>A local name is available in its lexical region and descendant regions. A new variable must not hide an already visible variable, including a visible parameter. Public/private cannot decorate a local variable to widen its scope or extend its lifetime.</p><blockquote class="callout warning"><p><strong>Rejected shadowing.</strong> The inner point would hide a visible owner.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Point point = Point { x = 1.0, y = 2.0 };
+{
+    Point point = Point { x = 3.0, y = 4.0 }; // Invalid: visible-variable shadowing.
+}</code></pre><p>Independent enum switch branches have their separately selected scopes; see <a href="../enums/Enums.html">Enums</a>. These field and owner rules do not independently decide sibling reuse in every other declaration context.</p>
+</section>
+
+<section id="cost-and-cleanup" aria-labelledby="cost-and-cleanup-heading">
+<h2 id="cost-and-cleanup-heading">10. Make allocation and cleanup contracts separate</h2>
+<p>A named initializer creates a concrete value. Type.new is an ordinary function whose body determines its work. Neither spelling implicitly requests Box allocation, shared ownership, a deep clone, or CPU/GPU transfer. A field initializer or called API may have its own explicit allocation and resource costs.</p><p>On a normal scope exit, currently owned initialized values are cleaned once under the established ownership rules. A transferred owner is cleaned at its destination, not again at its origin. A retained reference still needs its original backing owner to remain valid.</p><div class="table-scroll" role="region" aria-label="Value creation and resource boundaries">
+<table>
+<thead><tr>
+<th scope="col">Operation</th>
+<th scope="col">Chosen meaning</th>
+<th scope="col">Not inferred from the spelling</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row"><code>Point { x = 1.0, y = 2.0 }</code></th>
+<td>Create a fully initialized concrete value.</td>
+<td>Heap placement, stable foreign layout, or automatic deep copy.</td>
+</tr>
+<tr>
+<th scope="row"><code>Point.new(1.0, 2.0)</code></th>
+<td>Call a declared receiverless type function.</td>
+<td>A special constructor allocation rule.</td>
+</tr>
+<tr>
+<th scope="row"><code>Point destination = initial;</code></th>
+<td>Transfer ownership for a non-Copy Point.</td>
+<td>CPU/GPU transfer or duplication.</td>
+</tr>
+<tr>
+<th scope="row"><code>&amp;point</code></th>
+<td>Create a checked read loan.</td>
+<td>Ownership extension beyond the source lifetime.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="open-decisions" aria-labelledby="open-decisions-heading">
+<h2 id="open-decisions-heading">11. Open struct policies</h2>
+<ul>
+<li>Field default expressions, alternative omitted-field mechanisms, and initialization update/spread syntax.</li>
+<li>Custom destructor spelling, field cleanup ordering within aggregates, and partial-move restrictions.</li>
+<li>Field automatic dereference, method/field name collisions, overload rules, and forward lookup.</li>
+<li>Memory layout, alignment directives, ABI guarantees, and foreign representation annotations.</li>
+<li>Automatic comparison, operator derivation, inheritance, or shared heap identity are not selected here.</li>
+<li>Reference-return lifetime annotation syntax and the complete modifier grammar remain open.</li>
+</ul>
+</section>
+
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">12. Continue with calls, Copy, and generics</h2>
+<nav class="page-navigation" aria-label="Related struct references">
+<a href="Methods_and_Factories.html"><span>Call semantics</span><strong>Methods and Factories</strong><p>Typed receivers, ordinary factory returns, and explicit or automatic borrowing.</p></a>
+<a href="Copy.html"><span>Transfer semantics</span><strong>Copy and Movement</strong><p>Explicit Copy declarations and complete field checks.</p></a>
+<a href="../generics/Generic_Types.html"><span>Type parameters</span><strong>Generic Types</strong><p>Angle-bracket declarations and explicit where constraints.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix Language · User-defined types</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dynamic contiguous ownership with explicit growth and recoverable allocation.">
+  <title>Vector — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Vector.html" aria-current="true">Vector</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html" aria-current="true">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Vector.html">Vector</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Vector</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Vector</h1><p class="doc-subtitle">Dynamic contiguous ownership with explicit growth and recoverable allocation.</p><div class="doc-meta"><span class="meta-chip">Vector&lt;T&gt;</span><span class="meta-chip">Vector namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>92</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>vec</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Dynamic Length &amp; Separate Ownership</span></a></li><li><a href="#Length-Capacity"><span class="toc-number">02</span><span>Length, Capacity &amp; Checked Growth</span></a></li><li><a href="#Ownership-Move"><span class="toc-number">03</span><span>Move, Clone &amp; Consuming Errors</span></a></li><li><a href="#Borrow-Invalidation"><span class="toc-number">04</span><span>Borrowing &amp; Reallocation</span></a></li><li><a href="#Failure-Initialization"><span class="toc-number">05</span><span>Failure Guarantees &amp; Partial Work</span></a></li><li><a href="#Zero-Sized"><span class="toc-number">06</span><span>Empty, Zero-Sized &amp; Resource Elements</span></a></li><li><a href="#Function-Reference"><span class="toc-number">07</span><span>Complete Proposed Vector API</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Type-First Examples</span></a></li><li><a href="#Complexity"><span class="toc-number">09</span><span>Algorithmic Cost &amp; Observation</span></a></li><li><a href="#Targets-Text-Interop"><span class="toc-number">10</span><span>Parallelism, Text &amp; Interoperability</span></a></li><li><a href="#Related"><span class="toc-number">11</span><span>Related Array Types &amp; Research Scope</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Vector pages"><h2>Vector reference</h2><div class="family-links"><a href="Vector.html" aria-current="page">Vector</a><a href="Vector_Growth.html">Vector Growth</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html" aria-current="true">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Vector reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Dynamic Length &amp; Separate Ownership
+</h2>
+<div class="callout draft-note"><strong>Language design draft.</strong> Vector is the runtime-length
+                    growable owner. It is distinct from fixed <code>Array&lt;T, N&gt;</code>; this catalog describes
+                    proposed contracts, not implemented APIs.
+                
+</div>
+                
+<p><code>Vector&lt;T&gt;</code> owns an initialized prefix in a separate contiguous buffer. Length can
+                    change at runtime. Capacity counts available element slots; it is not a second length and does not
+                    mean spare slots contain valid T values.
+                
+</p>
+                
+<p>Assignments and function transfers move the owner by default, even for Copy elements. A separate
+                    buffer is duplicated only by explicit copy/clone APIs. No implicit copy-on-write sharing or hidden
+                    per-element reference counting is part of this proposal.
+                
+</p>
+</section>
+<section id="Length-Capacity" aria-labelledby="Length-Capacity-heading">
+<h2 id="Length-Capacity-heading">2. Length, Capacity &amp; Checked Growth
+</h2>
+<p>The invariant is 0 &lt;= length &lt;= capacity &lt;= the target’s supported element bound. Push adds one
+                    initialized element. Reserve changes capacity without creating any elements; resize changes length
+                    and must initialize additions or drop removals.
+                
+</p>
+                
+<p>Every length sum, byte-size product, and allocation layout is checked before use. The proposed
+                    logical bound is isize.MAX; nonzero element bytes must also fit the target object bound. Allocator
+                    failure is separate from mathematical size overflow.
+                
+</p>
+                
+<p>Growth may reserve more than requested. reserve_exact avoids deliberate excess but does not control
+                    allocator rounding. Automatic shrinking is excluded; clear and truncate retain capacity. Explicit
+                    shrink requests can fail or leave more capacity than the requested minimum.
+                
+</p>
+</section>
+<section id="Ownership-Move" aria-labelledby="Ownership-Move-heading">
+<h2 id="Ownership-Move-heading">3. Move, Clone &amp; Consuming Errors
+</h2>
+<p>Moving a Vector transfers its separate-buffer ownership handle; it does not traverse or clone
+                    elements. This is O(1) metadata under the proposed model, not a public promise about field order or
+                    foreign ABI layout. Live borrows still restrict owner movement.
+                
+</p>
+                
+<p>Clone requires T: Clone and creates a separate Vector buffer. Element Clone may copy a shared handle
+                    rather than recursively isolate a resource. Copy requires T: Copy but still allocates a new dynamic
+                    buffer; it is explicit and linear.
+                
+</p>
+                
+<p>When a fallible operation consumes an input, its error contract explains ownership. <code>InputError&lt;T&gt;</code>
+                    carries an unused element. <code>OwnerError&lt;C&gt;</code> carries an intact failed conversion
+                    source. A consuming try_map may return a callback error after earlier elements were consumed; it
+                    cleans them rather than reconstructing the original input.
+                
+</p>
+</section>
+<section id="Borrow-Invalidation" aria-labelledby="Borrow-Invalidation-heading">
+<h2 id="Borrow-Invalidation-heading">4. Borrowing &amp; Reallocation
+</h2>
+<p>Read element references, slices, and iterators depend on the vector owner and current buffer.
+                    Reallocation can invalidate physical addresses; insertion and removal can also change which element
+                    an index denotes even without reallocation.
+                
+</p>
+                
+<p>Safe structural or capacity-changing mutation requires exclusive access to the owner and is forbidden
+                    while conflicting borrows are live. Reserving enough capacity does not grant permission to mutate
+                    through a live shared borrow. iter_mut and split views grant disjoint access instead of unrestricted
+                    aliases.
+                
+</p>
+                
+<p>Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. <code>MutSlice&lt;T&gt;</code> is an exclusive writable contiguous view and is passed directly without an extra address-of operator.
+</p>
+</section>
+<section id="Failure-Initialization" aria-labelledby="Failure-Initialization-heading">
+<h2 id="Failure-Initialization-heading">5. Failure Guarantees &amp; Partial Work
+</h2>
+<p>Reserve and elementary insertion preflight sizes and allocation before moving existing elements.
+                    Their returned failures preserve the vector; rejected moved inputs are returned in their errors. New
+                    output constructors drop only their initialized prefix if construction fails.
+                
+</p>
+                
+<p>Bulk cloning and fallible in-place callbacks have the basic guarantee where documented: completed
+                    appended values or processed removals may remain. Every owned element stays initialized and is
+                    dropped exactly once; no blanket rollback promise applies.
+                
+</p>
+                
+<p>Sorting requires a consistent total comparator; floating values need an explicit NaN ordering. Stable
+                    sorting may allocate scratch; unstable sorting avoids heap scratch. Interrupted comparisons can
+                    leave a permutation of initialized elements, not the original order. Unwind syntax is undecided, and
+                    process termination cannot promise finalization.
+                
+</p>
+</section>
+<section id="Zero-Sized" aria-labelledby="Zero-Sized-heading">
+<h2 id="Zero-Sized-heading">6. Empty, Zero-Sized &amp; Resource Elements
+</h2>
+<p>An empty vector may retain allocated capacity. A zero-sized T can have a positive logical length
+                    without payload allocation; capacity is logical and is not required to use Rust’s usize.MAX
+                    convention. Target count limits still apply.
+                
+</p>
+                
+<p>Zero payload size does not erase construction, iteration, callbacks, identity, or Drop effects.
+                    Clearing a vector of resource-like zero-sized values may still require O(length) element
+                    finalization. Complexity rows count element operations, with Clone, Drop, large inline moves, and
+                    comparator costs added.
+                
+</p>
+                
+<p>Safe APIs never expose uninitialized capacity as T values or allow arbitrary set_len/raw-pointer
+                    adoption. Those would require separately specified unsafe or FFI facilities with allocator,
+                    alignment, initialized-length, and destruction contracts.
+                
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">7. Complete Proposed Vector API
+</h2>
+<div class="callout draft-note"><strong>Canonical Vector catalog.</strong> Maintain signatures, ownership guarantees, returned errors, and costs here. The <a href="../Array/Vector.html">Array-family Vector guide</a> links to these rows instead of maintaining duplicate contracts.</div>
+<p><code>Transform&lt;T, U&gt;</code>, <code>TryTransform&lt;T, U, E&gt;</code>, and <code>RefTransform&lt;T, U&gt;</code> are descriptive callback contracts, not the <code>Map&lt;K, V&gt;</code> collection type. Their final callable-type spelling remains a library design detail.</p>
+<p>All callable names are individually listed. By-value owning parameters move their inputs; shared and exclusive reference parameters use &amp;T and &amp;mut T. CollectionError, BoundsError, <code>BuildError&lt;E&gt;</code>,
+                    <code>InputError&lt;T&gt;</code>, and transformation-error carriers are proposed error-value types
+                    rather than implementation claims.
+                
+</p>
+                
+<p>Lengths, offsets, and counts are usize unless a fixed-array const parameter is shown. SearchResult
+                    and iterator callback names describe library protocols whose exact grammar remains open.
+                
+</p>
+                
+<h3>Construction
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-new">
+                            <td><code>Vector.new(T)</code></td>
+                            <td><code>Vector&lt;T&gt;</code></td>
+                            <td>Empty separate-buffer owner; does not allocate until storage is needed.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-with_capacity">
+                            <td><code>Vector.with_capacity(T, usize minimum)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>Length zero, capacity at least minimum; SizeOverflow or AllocationError on failure.</td>
+                            <td>Allocation; no element initialization</td>
+                        
+</tr>
+                        
+<tr id="Vector-from_array">
+                            <td><code>Vector.from_array(Array&lt;T, N&gt; values)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, OwnerError&lt;Array&lt;T, N&gt;&gt;&gt;</code></td>
+                            <td>Allocation failure returns original array owner; success moves each element.</td>
+                            <td>O(N) moves plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-from_slice_copy">
+                            <td><code>Vector.from_slice_copy(Slice&lt;T&gt; source)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Copy; copies into independent storage; validates length/byte size first.</td>
+                            <td>O(n) copies plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-from_slice_clone">
+                            <td><code>Vector.from_slice_clone(Slice&lt;T&gt; source)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; cleans partially cloned output; source remains borrowed.</td>
+                            <td>O(n) clones plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-from_fn">
+                            <td><code>Vector.from_fn(T, usize length, Make&lt;T&gt; make)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>Reserves before infallible index callback; initializes exactly length elements.</td>
+                            <td>O(n) callbacks plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-try_from_fn">
+                            <td><code>Vector.try_from_fn(T, usize length, TryMake&lt;T, E&gt; make)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, BuildError&lt;E&gt;&gt;</code></td>
+                            <td>Size/allocation or callback error; destroys initialized output prefix.</td>
+                            <td>O(n) callbacks and cleanup</td>
+                        
+</tr>
+                        
+<tr id="Vector-repeat_copy">
+                            <td><code>Vector.repeat_copy(T, usize length, &amp;T value)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Copy; repeats values explicitly; zero length copies nothing.</td>
+                            <td>O(n) copies plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-repeat_clone">
+                            <td><code>Vector.repeat_clone(T, usize length, &amp;T value)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; source preserved; partial output cleaned on clone error.</td>
+                            <td>O(n) clones plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-collect">
+                            <td><code>Vector.collect(OwnedIterator&lt;T&gt; source)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>Moves yielded items; incremental allocation failure drops collected output and remaining
+                                iterator.
+                            </td>
+                            <td>O(n) traversal; may grow repeatedly</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Length and capacity
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-len">
+                            <td><code>Vector.len(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Number of initialized owned elements.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-capacity">
+                            <td><code>Vector.capacity(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Element slots available without buffer growth; not allocator bytes.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-is_empty">
+                            <td><code>Vector.is_empty(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>bool</code></td>
+                            <td>True when length is zero, regardless of capacity.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-byte_len">
+                            <td><code>Vector.byte_len(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Initialized payload bytes; excludes separately owned resources.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-allocation_bytes">
+                            <td><code>Vector.allocation_bytes(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Capacity times native T size; excludes allocator/header overhead.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-spare_capacity">
+                            <td><code>Vector.spare_capacity(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Capacity minus length as a count; does not expose uninitialized T values.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-max_len">
+                            <td><code>Vector.max_len(T)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Conservative target/index/layout upper bound; not a successful-allocation promise.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Explicit capacity management
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-reserve">
+                            <td><code>Vector.reserve(&amp;mut Vector&lt;T&gt; values, usize additional)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Capacity &gt;= old length+additional on success; returned error preserves original
+                                contents and metadata.
+                            </td>
+                            <td>O(n) relocation worst case; may allocate</td>
+                        
+</tr>
+                        
+<tr id="Vector-reserve_exact">
+                            <td><code>Vector.reserve_exact(&amp;mut Vector&lt;T&gt; values, usize additional)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Avoids deliberate geometric excess; allocator rounding can still yield larger
+                                capacity.
+                            </td>
+                            <td>O(n) relocation worst case; may allocate</td>
+                        
+</tr>
+                        
+<tr id="Vector-shrink_to">
+                            <td><code>Vector.shrink_to(&amp;mut Vector&lt;T&gt; values, usize minimum)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Requests reduced capacity &gt;= max(length,minimum); never grows for an oversized
+                                minimum; error leaves owner unchanged.
+                            </td>
+                            <td>O(n) relocation worst case; may allocate</td>
+                        
+</tr>
+                        
+<tr id="Vector-shrink_to_fit">
+                            <td><code>Vector.shrink_to_fit(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Requests capacity reduction toward length; exact equality is not guaranteed.</td>
+                            <td>O(n) relocation worst case; may allocate</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Borrowing and access
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-as_slice">
+                            <td><code>Vector.as_slice(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>Slice&lt;T&gt;</code></td>
+                            <td>Read borrow of initialized elements only; owner must outlive it.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-as_mut_slice">
+                            <td><code>Vector.as_mut_slice(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>MutSlice&lt;T&gt;</code></td>
+                            <td>Exclusive view; growth and overlapping owner access remain forbidden while live.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-slice">
+                            <td><code>Vector.slice(&amp;Vector&lt;T&gt; values, usize start, usize end)</code></td>
+                            <td><code>Result&lt;Slice&lt;T&gt;, BoundsError&gt;</code></td>
+                            <td>Checks start &lt;= end &lt;= length; half-open read range.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-slice_mut">
+                            <td><code>Vector.slice_mut(&amp;mut Vector&lt;T&gt; values, usize start, usize end)</code></td>
+                            <td><code>Result&lt;MutSlice&lt;T&gt;, BoundsError&gt;</code></td>
+                            <td>Same bounds; exclusive reborrow.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-get">
+                            <td><code>Vector.get(&amp;Vector&lt;T&gt; values, usize index)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>None out of bounds; does not copy or move an element.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-get_mut">
+                            <td><code>Vector.get_mut(&amp;mut Vector&lt;T&gt; values, usize index)</code></td>
+                            <td><code>Optional&lt;&amp;mut T&gt;</code></td>
+                            <td>Exclusive element borrow or None.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-at">
+                            <td><code>Vector.at(&amp;Vector&lt;T&gt; values, usize index)</code></td>
+                            <td><code>Result&lt;&amp;T, BoundsError&gt;</code></td>
+                            <td>Checked element borrow with a diagnostic error.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-at_mut">
+                            <td><code>Vector.at_mut(&amp;mut Vector&lt;T&gt; values, usize index)</code></td>
+                            <td><code>Result&lt;&amp;mut T, BoundsError&gt;</code></td>
+                            <td>Checked exclusive element borrow.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-first">
+                            <td><code>Vector.first(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>None when empty.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-last">
+                            <td><code>Vector.last(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>None when empty.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-first_mut">
+                            <td><code>Vector.first_mut(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;mut T&gt;</code></td>
+                            <td>Exclusive first-element borrow or None.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+<tr id="Vector-last_mut">
+                            <td><code>Vector.last_mut(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>Optional&lt;&amp;mut T&gt;</code></td>
+                            <td>Exclusive last-element borrow or None.</td>
+                            <td>O(1)</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Insertion, removal, and replacement
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-push">
+                            <td><code>Vector.push(&amp;mut Vector&lt;T&gt; values, T value)</code></td>
+                            <td><code>Result&lt;unit, InputError&lt;T&gt;&gt;</code></td>
+                            <td>Prechecks size/growth; failure leaves vector unchanged and returns unused input.</td>
+                            <td>Amortized O(1); O(n) growth worst case</td>
+                        
+</tr>
+                        
+<tr id="Vector-push_within_capacity">
+                            <td><code>Vector.push_within_capacity(&amp;mut Vector&lt;T&gt; values, T value)</code>
+                            </td>
+                            <td><code>Result&lt;unit, InputError&lt;T&gt;&gt;</code></td>
+                            <td>Never allocates; full capacity returns the input with a CapacityError.</td>
+                            <td>O(1) element moves</td>
+                        
+</tr>
+                        
+<tr id="Vector-pop">
+                            <td><code>Vector.pop(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>Optional&lt;T&gt;</code></td>
+                            <td>Moves out the final element; None when empty; capacity retained.</td>
+                            <td>O(1) element moves</td>
+                        
+</tr>
+                        
+<tr id="Vector-insert">
+                            <td><code>Vector.insert(&amp;mut Vector&lt;T&gt; values, usize index, T value)</code>
+                            </td>
+                            <td><code>Result&lt;unit, InputError&lt;T&gt;&gt;</code></td>
+                            <td>Allows index&lt;=length; prechecks before shifting; error returns unused input.</td>
+                            <td>O(n-index) moves; growth may allocate</td>
+                        
+</tr>
+                        
+<tr id="Vector-remove">
+                            <td><code>Vector.remove(&amp;mut Vector&lt;T&gt; values, usize index)</code></td>
+                            <td><code>Result&lt;T, BoundsError&gt;</code></td>
+                            <td>Moves out selected element and preserves remaining order; invalid index leaves vector
+                                unchanged.
+                            </td>
+                            <td>O(n-index) moves</td>
+                        
+</tr>
+                        
+<tr id="Vector-swap_remove">
+                            <td><code>Vector.swap_remove(&amp;mut Vector&lt;T&gt; values, usize index)</code></td>
+                            <td><code>Result&lt;T, BoundsError&gt;</code></td>
+                            <td>Replaces selected slot with last element; order not preserved; invalid index
+                                unchanged.
+                            </td>
+                            <td>O(1) element moves</td>
+                        
+</tr>
+                        
+<tr id="Vector-replace">
+                            <td><code>Vector.replace(&amp;mut Vector&lt;T&gt; values, usize index, T value)</code>
+                            </td>
+                            <td><code>Result&lt;T, InputError&lt;T&gt;&gt;</code></td>
+                            <td>Returns old element; bounds failure returns unused input.</td>
+                            <td>O(1) element moves</td>
+                        
+</tr>
+                        
+<tr id="Vector-set">
+                            <td><code>Vector.set(&amp;mut Vector&lt;T&gt; values, usize index, T value)</code></td>
+                            <td><code>Result&lt;unit, InputError&lt;T&gt;&gt;</code></td>
+                            <td>Drops old element after successful replacement; invalid index returns input.</td>
+                            <td>O(1) element work plus Drop</td>
+                        
+</tr>
+                        
+<tr id="Vector-append">
+                            <td><code>Vector.append(&amp;mut Vector&lt;T&gt; destination, &amp;mut Vector&lt;T&gt;
+                                source)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Disjoint owners; preallocates before moving source elements. Failure preserves both;
+                                success empties source but retains its capacity.
+                            </td>
+                            <td>O(source length + destination growth)</td>
+                        
+</tr>
+                        
+<tr id="Vector-extend_copy">
+                            <td><code>Vector.extend_copy(&amp;mut Vector&lt;T&gt; values, Slice&lt;T&gt; source)</code>
+                            </td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>T: Copy; source must not borrow destination; preflight failure unchanged.</td>
+                            <td>O(source length + growth); may allocate</td>
+                        
+</tr>
+                        
+<tr id="Vector-extend_clone">
+                            <td><code>Vector.extend_clone(&amp;mut Vector&lt;T&gt; values, Slice&lt;T&gt; source)</code>
+                            </td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>T: Clone; disjoint source. Clone error may leave a successfully appended prefix.</td>
+                            <td>O(source length) clones plus growth</td>
+                        
+</tr>
+                        
+<tr id="Vector-extend_from_within">
+                            <td><code>Vector.extend_from_within(&amp;mut Vector&lt;T&gt; values, usize start, usize
+                                end)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>T: Clone; validates old range first, then explicitly clones those original elements;
+                                clone error may append a prefix.
+                            </td>
+                            <td>O(range length) clones plus growth</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Length changes and filtering
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-truncate">
+                            <td><code>Vector.truncate(&amp;mut Vector&lt;T&gt; values, usize length)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Drops suffix when shorter; length&gt;=current is a no-op; capacity retained.</td>
+                            <td>O(removed elements) Drop</td>
+                        
+</tr>
+                        
+<tr id="Vector-clear">
+                            <td><code>Vector.clear(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Drops all elements; retains capacity.</td>
+                            <td>O(n) Drop</td>
+                        
+</tr>
+                        
+<tr id="Vector-resize_copy">
+                            <td><code>Vector.resize_copy(&amp;mut Vector&lt;T&gt; values, usize length, &amp;T
+                                value)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>T: Copy; growth prechecks/reserves before appending; shrink drops suffix.</td>
+                            <td>O(changed elements + growth)</td>
+                        
+</tr>
+                        
+<tr id="Vector-resize_clone">
+                            <td><code>Vector.resize_clone(&amp;mut Vector&lt;T&gt; values, usize length, &amp;T
+                                value)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>T: Clone; clone error during growth may leave an initialized appended prefix.</td>
+                            <td>O(changed elements) clone/drop plus growth</td>
+                        
+</tr>
+                        
+<tr id="Vector-resize_with">
+                            <td><code>Vector.resize_with(&amp;mut Vector&lt;T&gt; values, usize length, Make&lt;T&gt;
+                                make)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Reserves first; infallible generator receives each new absolute index; allocation error
+                                leaves values unchanged.
+                            </td>
+                            <td>O(changed elements) callback/drop plus growth</td>
+                        
+</tr>
+                        
+<tr id="Vector-try_resize_with">
+                            <td><code>Vector.try_resize_with(&amp;mut Vector&lt;T&gt; values, usize length, TryMake&lt;T, E&gt;
+                                make)</code></td>
+                            <td><code>Result&lt;unit, BuildError&lt;E&gt;&gt;</code></td>
+                            <td>Callback Err may leave the successfully appended prefix; all slots remain initialized.
+                            </td>
+                            <td>O(changed elements) plus growth</td>
+                        
+</tr>
+                        
+<tr id="Vector-retain">
+                            <td><code>Vector.retain(&amp;mut Vector&lt;T&gt; values, Predicate&lt;T&gt; keep)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Stable removal of rejected elements; infallible predicate; returns removed count.</td>
+                            <td>O(n) calls/moves/drops</td>
+                        
+</tr>
+                        
+<tr id="Vector-try_retain">
+                            <td><code>Vector.try_retain(&amp;mut Vector&lt;T&gt; values, TryPredicate&lt;T, E&gt;
+                                keep)</code></td>
+                            <td><code>Result&lt;usize, E&gt;</code></td>
+                            <td>Stops on Err; previously processed removals may remain; unprocessed elements stay
+                                owned.
+                            </td>
+                            <td>O(n) calls/moves/drops</td>
+                        
+</tr>
+                        
+<tr id="Vector-dedup">
+                            <td><code>Vector.dedup(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>usize</code></td>
+                            <td>T: Eq; removes adjacent duplicates only, retaining the first of each run; returns
+                                removed count.
+                            </td>
+                            <td>O(n) comparisons/moves/drops</td>
+                        
+</tr>
+                        
+<tr id="Vector-dedup_by">
+                            <td><code>Vector.dedup_by(&amp;mut Vector&lt;T&gt; values, Equivalent&lt;T&gt; same)</code>
+                            </td>
+                            <td><code>usize</code></td>
+                            <td>Custom equivalence for adjacent runs; callback must satisfy equivalence requirements.
+                            </td>
+                            <td>O(n) calls/moves/drops</td>
+                        
+</tr>
+                        
+<tr id="Vector-drain">
+                            <td><code>Vector.drain(&amp;mut Vector&lt;T&gt; values, usize start, usize end)</code></td>
+                            <td><code>Result&lt;Drain&lt;T&gt;, BoundsError&gt;</code></td>
+                            <td>Exclusive iterator removes range; dropping it cleans unread removed elements and
+                                restores a valid tail.
+                            </td>
+                            <td>O(removed + shifted tail) overall</td>
+                        
+</tr>
+                        
+<tr id="Vector-extract_if">
+                            <td><code>Vector.extract_if(&amp;mut Vector&lt;T&gt; values, Predicate&lt;T&gt; remove)</code>
+                            </td>
+                            <td><code>ExtractIterator&lt;T&gt;</code></td>
+                            <td>Exclusive lazy removal; dropping iterator retains unvisited elements; prior removals
+                                remain.
+                            </td>
+                            <td>O(n) overall; no clone</td>
+                        
+</tr>
+                        
+<tr id="Vector-split_off">
+                            <td><code>Vector.split_off(&amp;mut Vector&lt;T&gt; values, usize index)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>Checks index and allocates before moving suffix; error preserves source; source capacity
+                                retained.
+                            </td>
+                            <td>O(suffix length) moves plus allocation</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Duplication and maps
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-clone">
+                            <td><code>Vector.clone(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; independent vector buffer, element Clone may still share nested resources.
+                            </td>
+                            <td>O(n) clones plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-copy">
+                            <td><code>Vector.copy(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Copy; explicit allocated duplicate.</td>
+                            <td>O(n) copies plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-clone_from">
+                            <td><code>Vector.clone_from(&amp;mut Vector&lt;T&gt; destination, &amp;Vector&lt;T&gt;
+                                source)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>T: Clone; disjoint source; basic guarantee on clone error, not unchanged destination.
+                            </td>
+                            <td>O(n) clone/drop; may reuse capacity</td>
+                        
+</tr>
+                        
+<tr id="Vector-map">
+                            <td><code>Vector.map(Vector&lt;T&gt; values, Transform&lt;T, U&gt; transform)</code></td>
+                            <td><code>Result&lt;Vector&lt;U&gt;, OwnerError&lt;Vector&lt;T&gt;&gt;&gt;</code></td>
+                            <td>Preallocates output before infallible mapping; preflight error returns intact input
+                                owner.
+                            </td>
+                            <td>O(n) calls/moves plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-try_map">
+                            <td><code>Vector.try_map(Vector&lt;T&gt; values, TryTransform&lt;T, U, E&gt;
+                                transform)</code></td>
+                            <td><code>Result&lt;Vector&lt;U&gt;, TransformError&lt;Vector&lt;T&gt;, E&gt;&gt;</code>
+                            </td>
+                            <td>Preflight errors retain owner; callback Err cleans output and remaining input without
+                                reconstructing consumed elements.
+                            </td>
+                            <td>O(n) calls and cleanup plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-map_ref">
+                            <td><code>Vector.map_ref(&amp;Vector&lt;T&gt; values, RefTransform&lt;T, U&gt; transform)</code>
+                            </td>
+                            <td><code>Result&lt;Vector&lt;U&gt;, CollectionError&gt;</code></td>
+                            <td>Source preserved; infallible callback, separate allocated output.</td>
+                            <td>O(n) calls plus allocation</td>
+                        
+</tr>
+                        
+<tr id="Vector-filter_clone">
+                            <td><code>Vector.filter_clone(&amp;Vector&lt;T&gt; values, Predicate&lt;T&gt; keep)</code>
+                            </td>
+                            <td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; clones kept elements; output cleaned on failure.</td>
+                            <td>O(n) predicate/clone work plus allocation</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Ordering and searches
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-swap_vectors">
+                            <td><code>Vector.swap_vectors(&amp;mut Vector&lt;T&gt; left, &amp;mut Vector&lt;T&gt;
+                                right)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Exchanges complete owner/allocator handles between disjoint vectors; not element
+                                cloning.
+                            </td>
+                            <td>O(1) metadata in the proposed separate-buffer model</td>
+                        
+</tr>
+                        
+<tr id="Vector-reverse">
+                            <td><code>Vector.reverse(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>unit</code></td>
+                            <td>Reverses initialized elements in place.</td>
+                            <td>O(n) swaps</td>
+                        
+</tr>
+                        
+<tr id="Vector-rotate_left">
+                            <td><code>Vector.rotate_left(&amp;mut Vector&lt;T&gt; values, usize count)</code></td>
+                            <td><code>Result&lt;unit, BoundsError&gt;</code></td>
+                            <td>Requires count&lt;=length; empty accepts zero only.</td>
+                            <td>O(n) moves</td>
+                        
+</tr>
+                        
+<tr id="Vector-rotate_right">
+                            <td><code>Vector.rotate_right(&amp;mut Vector&lt;T&gt; values, usize count)</code></td>
+                            <td><code>Result&lt;unit, BoundsError&gt;</code></td>
+                            <td>Same valid-count contract as rotate_left.</td>
+                            <td>O(n) moves</td>
+                        
+</tr>
+                        
+<tr id="Vector-sort">
+                            <td><code>Vector.sort(&amp;mut Vector&lt;T&gt; values, Compare&lt;T&gt; compare)</code></td>
+                            <td><code>Result&lt;unit, CollectionError&gt;</code></td>
+                            <td>Stable; reserves scratch before reordering; consistent infallible total comparator
+                                required.
+                            </td>
+                            <td>O(n log n) comparisons; may allocate</td>
+                        
+</tr>
+                        
+<tr id="Vector-sort_unstable">
+                            <td><code>Vector.sort_unstable(&amp;mut Vector&lt;T&gt; values, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>unit</code></td>
+                            <td>In-place unstable sort; requires infallible consistent total comparator.</td>
+                            <td>O(n log n) comparisons; no heap scratch</td>
+                        
+</tr>
+                        
+<tr id="Vector-is_sorted">
+                            <td><code>Vector.is_sorted(&amp;Vector&lt;T&gt; values, Compare&lt;T&gt; compare)</code>
+                            </td>
+                            <td><code>bool</code></td>
+                            <td>Checks adjacent ordering; empty is sorted.</td>
+                            <td>O(n) comparisons</td>
+                        
+</tr>
+                        
+<tr id="Vector-contains">
+                            <td><code>Vector.contains(&amp;Vector&lt;T&gt; values, &amp;T needle)</code></td>
+                            <td><code>bool</code></td>
+                            <td>T: Eq; elementwise equality, not storage bytes.</td>
+                            <td>O(n) equality calls</td>
+                        
+</tr>
+                        
+<tr id="Vector-position">
+                            <td><code>Vector.position(&amp;Vector&lt;T&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>First matching index.</td>
+                            <td>O(n) calls</td>
+                        
+</tr>
+                        
+<tr id="Vector-rposition">
+                            <td><code>Vector.rposition(&amp;Vector&lt;T&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>Last matching index, searched from the back.</td>
+                            <td>O(n) calls</td>
+                        
+</tr>
+                        
+<tr id="Vector-find">
+                            <td><code>Vector.find(&amp;Vector&lt;T&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>Optional&lt;&amp;T&gt;</code></td>
+                            <td>Borrow of first matching element, or None.</td>
+                            <td>O(n) calls</td>
+                        
+</tr>
+                        
+<tr id="Vector-count">
+                            <td><code>Vector.count(&amp;Vector&lt;T&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>usize</code></td>
+                            <td>Count of matches bounded by length.</td>
+                            <td>O(n) calls</td>
+                        
+</tr>
+                        
+<tr id="Vector-binary_search">
+                            <td><code>Vector.binary_search(&amp;Vector&lt;T&gt; values, &amp;T needle, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>SearchResult</code></td>
+                            <td>Requires sorted input with the same total comparator; found or insertion index.</td>
+                            <td>O(log n) comparisons</td>
+                        
+</tr>
+                        
+<tr id="Vector-lower_bound">
+                            <td><code>Vector.lower_bound(&amp;Vector&lt;T&gt; values, &amp;T needle, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>usize</code></td>
+                            <td>First not-less position; requires matching sorted order.</td>
+                            <td>O(log n) comparisons</td>
+                        
+</tr>
+                        
+<tr id="Vector-upper_bound">
+                            <td><code>Vector.upper_bound(&amp;Vector&lt;T&gt; values, &amp;T needle, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>usize</code></td>
+                            <td>First greater position; requires matching sorted order.</td>
+                            <td>O(log n) comparisons</td>
+                        
+</tr>
+                        
+<tr id="Vector-equal">
+                            <td><code>Vector.equal(&amp;Vector&lt;T&gt; left, &amp;Vector&lt;T&gt; right)</code></td>
+                            <td><code>bool</code></td>
+                            <td>T: Eq; unequal lengths return false before element comparisons.</td>
+                            <td>O(min lengths) comparisons</td>
+                        
+</tr>
+                        
+<tr id="Vector-compare">
+                            <td><code>Vector.compare(&amp;Vector&lt;T&gt; left, &amp;Vector&lt;T&gt; right, Compare&lt;T&gt;
+                                compare)</code></td>
+                            <td><code>Ordering</code></td>
+                            <td>Lexicographic comparison, then length; requires total ordering.</td>
+                            <td>O(min lengths) comparisons</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                
+<h3>Iteration and fixed conversion
+                
+</h3>
+                
+<div class="table-scroll" role="region" aria-label="Complete Proposed Vector API data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th>Conceptual signature</th>
+                            <th>Returns</th>
+                            <th>Ownership and error contract</th>
+                            <th>Cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Vector-iter">
+                            <td><code>Vector.iter(&amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>ReadIterator&lt;T&gt;</code></td>
+                            <td>Holds a read borrow; yields read element borrows.</td>
+                            <td>O(1) creation, O(n) traversal</td>
+                        
+</tr>
+                        
+<tr id="Vector-iter_mut">
+                            <td><code>Vector.iter_mut(&amp;mut Vector&lt;T&gt; values)</code></td>
+                            <td><code>WriteIterator&lt;T&gt;</code></td>
+                            <td>Yields disjoint exclusive element borrows; structural mutation forbidden.</td>
+                            <td>O(1) creation, O(n) traversal</td>
+                        
+</tr>
+                        
+<tr id="Vector-into_iter">
+                            <td><code>Vector.into_iter(Vector&lt;T&gt; values)</code></td>
+                            <td><code>OwnedIterator&lt;T&gt;</code></td>
+                            <td>Moves elements out; dropping iterator releases remaining elements and storage.</td>
+                            <td>O(1) handle transfer, O(n) traversal/drop</td>
+                        
+</tr>
+                        
+<tr id="Vector-fold">
+                            <td><code>Vector.fold(&amp;Vector&lt;T&gt; values, A initial, Fold&lt;A, T&gt;
+                                step)</code></td>
+                            <td><code>A</code></td>
+                            <td>Sequential left fold; callback defines checked numeric behavior.</td>
+                            <td>O(n) calls</td>
+                        
+</tr>
+                        
+<tr id="Vector-try_fold">
+                            <td><code>Vector.try_fold(&amp;Vector&lt;T&gt; values, A initial, TryFold&lt;A, T, E&gt;
+                                step)</code></td>
+                            <td><code>Result&lt;A, E&gt;</code></td>
+                            <td>Stops on Err; vector remains borrowed, callback side effects remain.</td>
+                            <td>O(n) calls</td>
+                        
+</tr>
+                        
+<tr id="Vector-all">
+                            <td><code>Vector.all(&amp;Vector&lt;T&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>bool</code></td>
+                            <td>Short-circuits; empty true.</td>
+                            <td>O(n) worst case</td>
+                        
+</tr>
+                        
+<tr id="Vector-any">
+                            <td><code>Vector.any(&amp;Vector&lt;T&gt; values, Predicate&lt;T&gt; test)</code></td>
+                            <td><code>bool</code></td>
+                            <td>Short-circuits; empty false.</td>
+                            <td>O(n) worst case</td>
+                        
+</tr>
+                        
+<tr id="Vector-into_array">
+                            <td><code>Vector.into_array(const usize N, Vector&lt;T&gt; values)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, OwnerError&lt;Vector&lt;T&gt;&gt;&gt;</code></td>
+                            <td>Requires runtime length exactly N; mismatch returns original vector owner.</td>
+                            <td>O(N) moves plus buffer release</td>
+                        
+</tr>
+                        
+<tr id="Vector-to_array_copy">
+                            <td><code>Vector.to_array_copy(const usize N, &amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td>
+                            <td>T: Copy; checks exact length; vector preserved.</td>
+                            <td>O(N) copies</td>
+                        
+</tr>
+                        
+<tr id="Vector-to_array_clone">
+                            <td><code>Vector.to_array_clone(const usize N, &amp;Vector&lt;T&gt; values)</code></td>
+                            <td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td>
+                            <td>T: Clone; exact length, partial output cleaned on clone failure.</td>
+                            <td>O(N) clones</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Type-First Examples
+</h2>
+<p>Each owner is immutable by default. Metadata and explicit copy operations borrow owners at their call sites; fallible allocation remains visible in Result.
+</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Vector&lt;i32&gt; items = Vector.new(i32);
+Vector&lt;i32&gt; empty = Vector.new(i32);
+usize empty_count = Vector.len(&amp;empty);
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; duplicate = Vector.copy(&amp;items);
+Result&lt;Array&lt;i32, 4&gt;, CollectionError&gt; fixed_copy = Vector.to_array_copy(4, &amp;items);</code></pre>
+                
+<p>Use a mut binding before taking &amp;mut owner for reserve, push, or removal. Such a borrow excludes overlapping access until its last use; extra capacity does not waive this rule. The chosen <code>?</code> operator propagates a compatible error from a Result-returning function; see the <a href="../../grammar/operators/Error_Propagation.html">error-handling rules</a>.
+</p>
+</section>
+<section id="Complexity" aria-labelledby="Complexity-heading">
+<h2 id="Complexity-heading">9. Algorithmic Cost &amp; Observation
+</h2>
+<p>End insertion is amortized O(1) element work across ordinary geometric growth, with O(length)
+                    relocation on a particular growth operation. It is not guaranteed constant latency. Front or middle
+                    insertion/removal shifts a suffix; swap_remove changes order to avoid that shift.
+                
+</p>
+                
+<p>Reserve strategies, sorting implementation, iterator fusion, and JIT specialization must preserve
+                    callback order, returned errors, and ownership. A benchmark is needed before any CPU/GPU throughput
+                    claim. Fixed-array conversion may move every inline element; it is not a free metadata cast.
+                
+</p>
+</section>
+<section id="Targets-Text-Interop" aria-labelledby="Targets-Text-Interop-heading">
+<h2 id="Targets-Text-Interop-heading">10. Parallelism, Text &amp; Interoperability
+</h2>
+<p>Disjoint write views can support parallel work only with compatible element traits and safe captured
+                    state. Shared owners, interior mutability, and foreign aliases require their own synchronization; a
+                    Vector type alone does not make T race-free.
+                
+</p>
+                
+<p>CPU/GPU transfer is explicit and separate from Vector move or clone. Kernels and asynchronous work
+                    must keep buffers alive, validate layout and shape, and respect device capabilities. No GPU
+                    allocation or kernel support is promised here.
+                
+</p>
+                
+<p><code>Vector&lt;char&gt;</code> contains Unicode scalar values; it is not UTF-8 storage. Use <a
+                        href="../String/string.html">string</a> for text. <a href="../Byte/Byte.html">byte</a> is
+                    distinct from u8. FFI needs explicit allocator ownership, length/capacity, element representation,
+                    and borrow duration; native metadata is not a stable C++ or Swift ABI.
+                
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">11. Related Array Types &amp; Research Scope
+</h2>
+<p>Use <a href="../Array/Static_Array.html">Static Array</a> when the extent belongs in the type, <a
+                        href="../Slice/Slice.html">Slice</a> to borrow without ownership, and <a href="../Array/Array.html">Array</a> for
+                    shared family rules.
+                
+</p>
+                
+<p>The primary references were checked for capacity, reallocation, borrow invalidation, fallible
+                    reservation, algorithm preconditions, and explicit cost. Aevix’s default move and error-value
+                    choices are its own proposals; existing-language behavior is not automatically inherited.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank" rel="noopener noreferrer">Rust fixed-size array reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank" rel="noopener noreferrer">Rust Vec ownership and capacity reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank" rel="noopener noreferrer">Rust slice operations and disjoint borrowing</a>
+</li>
+<li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: array</a>
+</li>
+<li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ working
+                        draft: vector</a>
+</li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md" target="_blank" rel="noopener noreferrer">Swift Evolution: inline array design discussion</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Vector_Growth.html"><span>Next reference</span>Vector Growth</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

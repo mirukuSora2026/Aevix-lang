@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="One lookup, exclusive access, and recoverable vacant inputs.">
+  <title>MapEntry — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Map.html" aria-current="true">Map</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Map.html">Map</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">MapEntry</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>MapEntry</h1><p class="doc-subtitle">One lookup, exclusive access, and recoverable vacant inputs.</p><div class="doc-meta"><span class="meta-chip">MapEntry&lt;K, V&gt;</span><span class="meta-chip">MapEntry namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>12</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>K:V</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Entry capability</span></a></li><li><a href="#Key-Ownership"><span class="toc-number">02</span><span>Stored and incoming keys</span></a></li><li><a href="#Borrow-Scope"><span class="toc-number">03</span><span>Exclusive scope</span></a></li><li><a href="#Failure-Carriers"><span class="toc-number">04</span><span>Recovery carriers</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>MapEntry function reference</span></a></li><li><a href="#Lazy-Building"><span class="toc-number">06</span><span>Lazy value construction</span></a></li><li><a href="#Examples-Related"><span class="toc-number">07</span><span>Examples and related contracts</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Map pages"><h2>Map reference</h2><div class="family-links"><a href="Map.html">Map</a><a href="Ordered_Map.html">OrderedMap</a><a href="Map_Entry.html" aria-current="page">MapEntry</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="MapEntry reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Entry capability
+</h2>
+<p>Map.entry performs lookup once and returns a linear capability for a particular key. The capability exclusively borrows the whole map, tracks occupied or vacant state, and owns the incoming key until a terminal operation chooses what happens to it. It is not a separately allocated key/value container and cannot outlive its map.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> This is an Aevix contract proposal, not an implementation claim. Callback, iterator, trait, and error-carrier names are descriptive. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. Bindings are immutable unless declared mut; unit is a value type.
+</p>
+</blockquote>
+</section>
+<section id="Key-Ownership" aria-labelledby="Key-Ownership-heading">
+<h2 id="Key-Ownership-heading">2. Stored and incoming keys
+</h2>
+<p>For occupied entries, the original stored key remains canonical while an equal incoming key may still be owned by the capability. key exposes the stored key in this state; into_incoming_key recovers the original incoming key in either state. Dropping an unused entry capability destroys its incoming key and releases the borrow. No stored key becomes mutable.
+</p>
+</section>
+<section id="Borrow-Scope" aria-labelledby="Borrow-Scope-heading">
+<h2 id="Borrow-Scope-heading">3. Exclusive scope
+</h2>
+<p>Every entry operation requires the same live map lease. A returned mutable value reference extends that lease and prevents unrelated map mutation until it ends. Callbacks may edit their value but cannot structurally access the map, capture an escaping value borrow, or reenter it through another alias. Occupied/vacant status cannot race with another safe writer during this scope.
+</p>
+</section>
+<section id="Failure-Carriers" aria-labelledby="Failure-Carriers-heading">
+<h2 id="Failure-Carriers-heading">4. Recovery carriers
+</h2>
+<p>EntryInputError contains a still-live entry capability and the unused replacement value; EntryBuildError contains the entry plus either preflight failure or callback error. These carriers retain the map borrow until handled or dropped. On allocation preflight failure no input is silently destroyed. Ordinary callback error leaves the key vacant; callback unwind releases initialized captures and the entry lease, while external side effects remain. The notation describes an error contract rather than fixing record syntax.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. MapEntry function reference
+</h2>
+<div class="table-scroll" role="region" aria-label="MapEntry function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="MapEntry-is_occupied"><th scope="row"><code>MapEntry.is_occupied(&amp;MapEntry&lt;K, V&gt; entry)</code></th><td><code>bool</code></td><td>Test lookup outcome without another hash search; O(1).</td>
+</tr>
+<tr id="MapEntry-key"><th scope="row"><code>MapEntry.key(&amp;MapEntry&lt;K, V&gt; entry)</code></th><td><code>&amp;K</code></td><td>Borrow canonical stored key when occupied, or the owned incoming key when vacant; lifetime is bounded by the entry lease.</td>
+</tr>
+<tr id="MapEntry-get"><th scope="row"><code>MapEntry.get(&amp;MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;&amp;V&gt;</code></td><td>Borrow occupied value or return None; no allocation.</td>
+</tr>
+<tr id="MapEntry-get_mut"><th scope="row"><code>MapEntry.get_mut(&amp;mut MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;&amp;mut V&gt;</code></td><td>Borrow occupied value exclusively; no mutable key is exposed.</td>
+</tr>
+<tr id="MapEntry-or_insert"><th scope="row"><code>MapEntry.or_insert(MapEntry&lt;K, V&gt; entry, V value)</code></th><td><code>Result&lt;&amp;mut V, EntryInputError&lt;K, V&gt;&gt;</code></td><td>Occupied: destroy unused incoming key and value, then return stored mutable value. Vacant: preflight and insert. Failure returns the entry capability and unused value.</td>
+</tr>
+<tr id="MapEntry-or_insert_with"><th scope="row"><code>MapEntry.or_insert_with(MapEntry&lt;K, V&gt; entry, Make&lt;V&gt; make)</code></th><td><code>Result&lt;&amp;mut V, EntryBuildError&lt;K, V, unit&gt;&gt;</code></td><td>Run the one-shot builder only if vacant, after capacity preflight. Preflight failure returns the entry capability without running make; callback unwind releases entry safely.</td>
+</tr>
+<tr id="MapEntry-try_or_insert_with"><th scope="row"><code>MapEntry.try_or_insert_with(MapEntry&lt;K, V&gt; entry, TryMake&lt;V, E&gt; make)</code></th><td><code>Result&lt;&amp;mut V, EntryBuildError&lt;K, V, E&gt;&gt;</code></td><td>Vacant builder failure returns its E and vacant entry capability; no value is inserted. External callback side effects are not reversed.</td>
+</tr>
+<tr id="MapEntry-insert"><th scope="row"><code>MapEntry.insert(MapEntry&lt;K, V&gt; entry, V value)</code></th><td><code>Result&lt;Optional&lt;V&gt;, EntryInputError&lt;K, V&gt;&gt;</code></td><td>Replace occupied value or insert vacant value; return previous value when present. Failure recovers entry and unused replacement.</td>
+</tr>
+<tr id="MapEntry-and_modify"><th scope="row"><code>MapEntry.and_modify(MapEntry&lt;K, V&gt; entry, Mutate&lt;V&gt; update)</code></th><td><code>MapEntry&lt;K, V&gt;</code></td><td>Run a synchronous callback once only when occupied; return the entry for subsequent choice. Callback cannot retain the protected mutable reference.</td>
+</tr>
+<tr id="MapEntry-remove"><th scope="row"><code>MapEntry.remove(MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;V&gt;</code></td><td>Occupied: remove value, destroy stored and unused incoming keys, and return V. Vacant: destroy incoming key and return None.</td>
+</tr>
+<tr id="MapEntry-remove_entry"><th scope="row"><code>MapEntry.remove_entry(MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;(K, V)&gt;</code></td><td>Occupied: return stored key/value owners and destroy unused incoming key. Vacant: destroy incoming key and return None.</td>
+</tr>
+<tr id="MapEntry-into_incoming_key"><th scope="row"><code>MapEntry.into_incoming_key(MapEntry&lt;K, V&gt; entry)</code></th><td><code>K</code></td><td>Release the map lease and recover the original incoming key in either state, leaving stored entries unchanged; O(1).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Lazy-Building" aria-labelledby="Lazy-Building-heading">
+<h2 id="Lazy-Building-heading">6. Lazy value construction
+</h2>
+<p>A lazy builder runs only for a vacant entry, so occupied access does not allocate an unused replacement value. Capacity preflight occurs first. A builder can still allocate or fail according to its own return type; a successful builder produces one owner for insertion. These entry APIs are synchronous and never suspend while holding the map’s mutable capability.
+</p>
+</section>
+<section id="Examples-Related" aria-labelledby="Examples-Related-heading">
+<h2 id="Examples-Related-heading">7. Examples and related contracts
+</h2>
+<p>Entry capabilities begin with the common Map.entry operation. The example below constructs a fallible owning map; actual entry access follows explicit success handling, so an allocation error cannot be confused with an empty map.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Map&lt;i32, i32&gt;, CollectionError&gt; counts = Map.with_capacity(i32, i32, 8);
+Result&lt;Map&lt;i32, i32&gt;, CollectionError&gt; sparse = Map.new(i32, i32);</code></pre>
+<p>See <a href="Map.html#Map-entry">Map.entry</a> for lookup and <a href="../Slice/Slice_Mutation.html">exclusive view rules</a> for non-overlapping borrows. An entry operation preserves memory safety under user logic errors; it does not promise transactional application rollback.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.HashMap.html" target="_blank" rel="noopener noreferrer">Rust HashMap reference: key invariants, entry APIs, capacity and iteration</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Ordered_Map.html"><span>Previous reference</span>OrderedMap</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

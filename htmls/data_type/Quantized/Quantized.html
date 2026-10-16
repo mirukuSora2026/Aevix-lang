@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Validated integer codes, explicit scales and deliberate precision loss.">
+  <title>Quantized — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Quantized.html" aria-current="true">Quantized</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Quantized.html">Quantized</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Quantized</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Quantized</h1><p class="doc-subtitle">Validated integer codes, explicit scales and deliberate precision loss.</p><div class="doc-meta"><span class="meta-chip">Quantized&lt;Storage, Scheme&gt;</span><span class="meta-chip">Quantized. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>42</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>Q</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>Integer payload with validated numeric meaning</span></a></li><li><a href="#notation"><span class="toc-number">02</span><span>Schemes, records and errors</span></a></li><li><a href="#formula"><span class="toc-number">03</span><span>A precise order for affine rounding</span></a></li><li><a href="#dequantization"><span class="toc-number">04</span><span>Reconstruction and finite-value policy</span></a></li><li><a href="#metadata-contract"><span class="toc-number">05</span><span>Scale, zero point and per-axis ownership</span></a></li><li><a href="#arithmetic-contract"><span class="toc-number">06</span><span>Quantized arithmetic is not raw byte arithmetic</span></a></li><li><a href="#construct-functions"><span class="toc-number">07</span><span>Construction, validation and metadata</span></a></li><li><a href="#conversion-functions"><span class="toc-number">08</span><span>Quantization and numeric conversion</span></a></li><li><a href="#numeric-functions"><span class="toc-number">09</span><span>Comparison, calibrated schemes and arithmetic</span></a></li><li><a href="#examples"><span class="toc-number">10</span><span>Scale and rounding remain visible</span></a></li><li><a href="#interop"><span class="toc-number">11</span><span>Interchange and cost boundary</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Quantized pages"><h2>Quantized reference</h2><div class="family-links"><a href="Quantized.html" aria-current="page">Quantized</a><a href="Quantized_Affine.html">Affine Quantization</a><a href="Quantized_PerAxis.html">Per-axis Quantization</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Quantized reference">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1. Integer payload with validated numeric meaning
+</h2>
+<p>Quantized&lt;Storage, Scheme&gt; is a proposed library value pairing an integer payload with immutable quantization metadata. Storage can be one integer or an owning Tensor of integers. Scheme describes how integer codes correspond to real values. Metadata is attached once to the payload owner, not duplicated beside every tensor element. Copy and move behavior follows both payload and metadata ownership; a tensor payload is not implicitly deep-copied.
+</p>
+<p>The initial affine profile proposes i8, u8, i16 and u16 integer storage with f32 or f64 scales. Wider accumulators, packed low-bit formats and backend extensions require explicit capabilities. FP8 formats remain floating-point formats with their own exponent and NaN rules; they are not aliases for scaled integers. The generic parameter spelling and support records are draft library design, not implemented ABI.
+</p>
+</section>
+<section id="notation" aria-labelledby="notation-heading">
+<h2 id="notation-heading">2. Schemes, records and errors
+</h2>
+<p>Affine&lt;I, F&gt; stores one validated positive scale of F and a zero point representable in I. PerAxis&lt;I, F&gt; stores an axis plus owned scale and zero-point arrays. I is an integer storage type and F is a floating computation type. In signatures Q is a catalog variable for an already shared-borrowed quantized input: &amp;Quantized&lt;Storage, Scheme&gt; or QuantizedView. R denotes the corresponding real scalar or real tensor view/input, S is the raw payload type, and I/F retain these meanings. An owning quantized input uses &amp;owner at the call; an existing QuantizedView is passed directly. Tensor outputs preserve logical shape and use explicit placement rules from Tensor.
+</p>
+<p>QuantizationError is a proposed tagged error record with InvalidScale, InvalidZeroPoint, NonFiniteInput, Range, Axis, MetadataLength, Shape, Overflow, Allocation, Unsupported and InvalidEncoding cases. ConversionError&lt;Owner&gt; preserves a consumed owner on failed representation conversion. RoundingMode, QuantizationPolicy, PackedFormat and QuantizationReport are proposed library records. Methods named _into reuse caller storage and validate all metadata and prohibited aliasing before writes; late arithmetic/device failure is not rollback.
+</p>
+<p>QuantizationInputError&lt;Input&gt; is a proposed validation error carrying consumed input owners. It is used when the contract promises that rejected metadata arrays remain recoverable. QuantizationError alone carries no implicit type-erased owner.
+</p>
+<p>QuantizedView, SchemeView, ShapeLike, real tensor input views and MutRawView/MutRealView are already borrowed descriptors; no extra &amp; is added when passing those values. A real scalar input is Copy. Concrete owning parameters passed by value move their owners, including metadata vectors. Parameter forms are settled; the exact syntax for naming returned-reference lifetimes is still conceptual.
+</p>
+</section>
+<section id="formula" aria-labelledby="formula-heading">
+<h2 id="formula-heading">3. A precise order for affine rounding
+</h2>
+<p>For a finite real input x, scale s and integer zero point z, the proposed integer formula is q = clamp_I(round_mode(x / s) + z). The division is evaluated in explicitly selected computation type F; rounding applies to that ratio before exact integer-domain zero-point addition. The default named mode is TiesEven. The checked variant errors when the rounded code plus z is outside I; the saturating variant clamps to the integer endpoints. Integer-domain intermediates must not overflow an implementation integer.
+</p>
+<p>Rounding the ratio and then adding an odd zero point is not interchangeable with rounding the shifted ratio. With x/s = 0.5 and z = 1, this contract gives 1 under TiesEven, whereas rounding 1.5 gives 2. Import/export adapters must verify the selected external operator version and its reference behavior rather than assume every quantization convention is equivalent.
+</p>
+</section>
+<section id="dequantization" aria-labelledby="dequantization-heading">
+<h2 id="dequantization-heading">4. Reconstruction and finite-value policy
+</h2>
+<p>Real reconstruction is (q - z) * s. The code subtraction is performed exactly before conversion to the declared floating computation type; subtracting in i8 or u8 and wrapping is forbidden. Dequantization returns the floating result under the strict scalar profile, which may overflow to infinity if the selected output type cannot represent the reconstructed value. checked_dequantize instead requires a finite result and reports Range.
+</p>
+<p>Default quantization rejects NaN and both infinities. For a finite x whose computed ratio overflows F, saturating conversion maps the sign to the appropriate integer endpoint; checked conversion reports Range. A ratio rounded to a finite integer is translated in an exact integer domain and then range-checked. No success path relies on undefined float-to-integer conversion. Changing F or rounding mode can change codes and must be explicit.
+</p>
+</section>
+<section id="metadata-contract" aria-labelledby="metadata-contract-heading">
+<h2 id="metadata-contract-heading">5. Scale, zero point and per-axis ownership
+</h2>
+<p>Each scale must be finite and strictly greater than zero; negative zero, positive zero, NaN and infinity are invalid. Every zero point lies in the storage type range. Per-axis arrays have identical length equal to the selected tensor extent. Axis validation is rank-aware and does not silently normalize a negative axis. Empty selected axes allow empty metadata arrays; no element accesses them. Calibration of an empty sample set still errors.
+</p>
+<p>Validated metadata is immutable while associated payload views or queued operations use it. A metadata update constructs a new validated scheme and explicitly requantizes values, or reinterprets numeric meaning through a separately named operation. Exported ABI descriptors retain metadata ownership or a scoped borrow. Device submission retains both payload and metadata leases until quiescence, without an implicit CPU copy of the payload.
+</p>
+</section>
+<section id="arithmetic-contract" aria-labelledby="arithmetic-contract-heading">
+<h2 id="arithmetic-contract-heading">6. Quantized arithmetic is not raw byte arithmetic
+</h2>
+<p>Adding or multiplying integer codes does not in general add or multiply their reconstructed real values. The library therefore names input schemes, accumulator type, output scheme and rounding policy in every arithmetic operation. Dot products subtract zero points before multiplication and use an explicitly selected accumulator. Accumulator overflow is checked unless a separately named saturating policy is requested. Requantization is an intentional lossy conversion.
+</p>
+<p>A backend may implement an integer kernel only when its scale layout, rounding, accumulator and saturation semantics match the operation contract. AOT and JIT cannot silently select a different quantization meaning. An explicit approximate kernel belongs to an optional numeric profile and must report its error/rounding assumptions. No native matrix or SIMD throughput is promised by this reference.
+</p>
+<p>Every ready function that reads, transforms, copies or compares payload elements is Cpu-only in this profile, including quantize, dequantize, requantize, clone and same_encoding. Metadata-only operations and views can retain device placement without reading device elements on the host. GPU equivalents use an explicit Quantized.submit operation descriptor and return Pending; no ready conversion inserts a hidden wait or transfer.
+</p>
+</section>
+<section id="construct-functions" aria-labelledby="construct-functions-heading">
+<h2 id="construct-functions-heading">7. Construction, validation and metadata
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Construction, validation and metadata data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-affine"><td><code>Quantized.affine&lt;I, F&gt;(F scale, I zero_point)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>Finite positive scale; zero point already typed and representable.</td><td>O(1); no heap allocation.</td>
+</tr>
+<tr id="Quantized-per_axis"><td><code>Quantized.per_axis&lt;I, F&gt;(usize axis, Vector&lt;F&gt; scales, Vector&lt;I&gt; zero_points, ShapeLike shape)</code></td><td><code>Result&lt;PerAxis&lt;I, F&gt;, QuantizationInputError&lt;(Vector&lt;F&gt;, Vector&lt;I&gt;)&gt;&gt;</code></td><td>Valid axis and equal metadata length matching its extent; arrays consumed only on success or returned in error payload.</td><td>O(channels); validation.</td>
+</tr>
+<tr id="Quantized-from_raw"><td><code>Quantized.from_raw&lt;S, Scheme&gt;(S payload, Scheme scheme)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Validates scheme/payload compatibility; every raw code of an integer storage type is representable.</td><td>O(metadata); moves ownership.</td>
+</tr>
+<tr id="Quantized-from_raw_copy"><td><code>Quantized.from_raw_copy(Slice&lt;I&gt; payload, Scheme scheme)</code></td><td><code>Result&lt;Quantized&lt;Vector&lt;I&gt;, Scheme&gt;, QuantizationError&gt;</code></td><td>Explicit payload copy and metadata validation.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Quantized-validate"><td><code>Quantized.validate(Q value)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>Validates internal/foreign metadata and layout without converting real values.</td><td>O(metadata + layout rank).</td>
+</tr>
+<tr id="Quantized-scheme"><td><code>Quantized.scheme(Q value)</code></td><td><code>SchemeView</code></td><td>Read-only metadata borrow tied to owner lifetime.</td><td>O(1); no payload copy.</td>
+</tr>
+<tr id="Quantized-scale"><td><code>Quantized.scale(Q value)</code></td><td><code>Result&lt;F, QuantizationError&gt;</code></td><td>Returns per-tensor scale; rejects per-axis scheme instead of choosing one channel.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-zero_point"><td><code>Quantized.zero_point(Q value)</code></td><td><code>Result&lt;I, QuantizationError&gt;</code></td><td>Returns scalar zero point for per-tensor scheme only.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-storage_type"><td><code>Quantized.storage_type(Q value)</code></td><td><code>TypeDescriptor</code></td><td>Integer code type and width, not floating computation precision.</td><td>O(1) metadata.</td>
+</tr>
+<tr id="Quantized-shape"><td><code>Quantized.shape(Q value)</code></td><td><code>ShapeView</code></td><td>Tensor payload logical shape; scalar payload has rank zero.</td><td>O(1); borrowed metadata.</td>
+</tr>
+<tr id="Quantized-raw_view"><td><code>Quantized.raw_view(Q value)</code></td><td><code>RawView</code></td><td>Read-only integer payload view; changing codes requires an explicit exclusive operation.</td><td>O(1); no copy.</td>
+</tr>
+<tr id="Quantized-into_raw"><td><code>Quantized.into_raw(Quantized&lt;S, Scheme&gt; value)</code></td><td><code>S</code></td><td>Consumes wrapper and returns payload; drops metadata only after no views or leases remain.</td><td>O(1) move.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="conversion-functions" aria-labelledby="conversion-functions-heading">
+<h2 id="conversion-functions-heading">8. Quantization and numeric conversion
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Quantization and numeric conversion data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-quantize_checked"><td><code>Quantized.quantize_checked&lt;I, F&gt;(R input, Scheme scheme, RoundingMode rounding)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Finite inputs; ratio rounding then integer translation; any out-of-range code errors.</td><td>O(N); allocates for tensor input.</td>
+</tr>
+<tr id="Quantized-quantize_saturating"><td><code>Quantized.quantize_saturating&lt;I, F&gt;(R input, Scheme scheme, RoundingMode rounding)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Finite inputs; rounded code clamped to I; nonfinite inputs still error.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Quantized-quantize_into"><td><code>Quantized.quantize_into(MutRawView&lt;I&gt; output, R input, Scheme scheme, QuantizationPolicy policy)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>Exact output shape and distinct input/output storage; explicit rounding/range policy.</td><td>O(N); no result allocation.</td>
+</tr>
+<tr id="Quantized-dequantize"><td><code>Quantized.dequantize&lt;F&gt;(Q value)</code></td><td><code>Result&lt;R, QuantizationError&gt;</code></td><td>Exact integer subtraction then declared F conversion and strict multiplication; infinity may result.</td><td>O(N); tensor output allocates.</td>
+</tr>
+<tr id="Quantized-checked_dequantize"><td><code>Quantized.checked_dequantize&lt;F&gt;(Q value)</code></td><td><code>Result&lt;R, QuantizationError&gt;</code></td><td>Same evaluation, but requires all reconstructed results finite.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Quantized-dequantize_into"><td><code>Quantized.dequantize_into(MutRealView&lt;F&gt; output, Q value)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>Shape/type checked; uses declared F computation; IEEE overflow permitted.</td><td>O(N); caller destination.</td>
+</tr>
+<tr id="Quantized-requantize"><td><code>Quantized.requantize(Q value, Scheme target, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S2, Scheme&gt;, QuantizationError&gt;</code></td><td>Explicit decode/re-encode meaning with named compute type, rounding and range policy.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Quantized-requantize_into"><td><code>Quantized.requantize_into(MutRawView&lt;I2&gt; output, Q value, Scheme target, QuantizationPolicy policy)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>Explicit lossy recoding into equal-shape exclusive output.</td><td>O(N); no hidden staging.</td>
+</tr>
+<tr id="Quantized-reinterpret_scheme"><td><code>Quantized.reinterpret_scheme(Quantized&lt;S, OldScheme&gt; value, NewScheme scheme)</code></td><td><code>Result&lt;Quantized&lt;S, NewScheme&gt;, ConversionError&lt;Quantized&lt;S, OldScheme&gt;&gt;&gt;</code></td><td>Changes numerical interpretation without changing integer codes; validates compatibility and preserves owner on error.</td><td>O(metadata); no element conversion.</td>
+</tr>
+<tr id="Quantized-convert_storage"><td><code>Quantized.convert_storage&lt;I2&gt;(Q value)</code></td><td><code>Result&lt;Quantized&lt;S2, Scheme2&gt;, QuantizationError&gt;</code></td><td>Exact code and zero-point conversion, preserving real scheme; range failures checked.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Quantized-min_real"><td><code>Quantized.min_real&lt;F&gt;(&amp;Scheme scheme)</code></td><td><code>Result&lt;F, QuantizationError&gt;</code></td><td>Reconstructs the minimum code in F; errors if requested finite result overflows.</td><td>O(1) per-tensor only.</td>
+</tr>
+<tr id="Quantized-max_real"><td><code>Quantized.max_real&lt;F&gt;(&amp;Scheme scheme)</code></td><td><code>Result&lt;F, QuantizationError&gt;</code></td><td>Reconstructs the maximum code in F; errors if requested finite result overflows.</td><td>O(1) per-tensor only.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="numeric-functions" aria-labelledby="numeric-functions-heading">
+<h2 id="numeric-functions-heading">9. Comparison, calibrated schemes and arithmetic
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Comparison, calibrated schemes and arithmetic data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-same_encoding"><td><code>Quantized.same_encoding(Q a, Q b)</code></td><td><code>bool</code></td><td>Equal storage types, code values and scale/zero-point representations; not numeric equality across schemes.</td><td>O(N + metadata).</td>
+</tr>
+<tr id="Quantized-equal_real"><td><code>Quantized.equal_real&lt;F&gt;(Q a, Q b)</code></td><td><code>Result&lt;bool, QuantizationError&gt;</code></td><td>Explicit F reconstruction and numeric equality; rounding may make different exact rationals compare equal.</td><td>O(N); no approximate tolerance implied.</td>
+</tr>
+<tr id="Quantized-compare_real"><td><code>Quantized.compare_real&lt;F&gt;(Q a, Q b)</code></td><td><code>Result&lt;Ordering, QuantizationError&gt;</code></td><td>Scalar payload only; compares declared F reconstructed values; nonfinite reconstruction errors.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-add"><td><code>Quantized.add&lt;A, F&gt;(Q a, Q b, Scheme output, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Shapes broadcast; arithmetic evaluation/accumulator A and output recoding explicit.</td><td>O(N); allocates; Cpu ready form.</td>
+</tr>
+<tr id="Quantized-subtract"><td><code>Quantized.subtract&lt;A, F&gt;(Q a, Q b, Scheme output, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Subtracts reconstructed meanings, not raw codes; named accumulator and recoding.</td><td>O(N); allocates; Cpu.</td>
+</tr>
+<tr id="Quantized-multiply"><td><code>Quantized.multiply&lt;A, F&gt;(Q a, Q b, Scheme output, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Accounts for both scale factors and zero points; no raw-code multiplication shortcut.</td><td>O(N); allocates; Cpu.</td>
+</tr>
+<tr id="Quantized-dot"><td><code>Quantized.dot&lt;A&gt;(Q a, Q b, AccumulatorSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;A, QuantizationError&gt;</code></td><td>Rank-one equal lengths; code offsets, scale interpretation and checked accumulator specified.</td><td>O(N); Cpu; no hidden requantize.</td>
+</tr>
+<tr id="Quantized-matmul"><td><code>Quantized.matmul&lt;A&gt;(Q a, Q b, Scheme output, QuantizedMatmulSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Validated contraction/batch shapes, scale-axis mapping, accumulator and output rounding.</td><td>O(batch*M*N*K); capability checked.</td>
+</tr>
+<tr id="Quantized-sum"><td><code>Quantized.sum&lt;A&gt;(Q value, QuantizedReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;R, QuantizationError&gt;</code></td><td>Named axes and order; returns explicitly declared real/accumulator output, not raw code sum.</td><td>O(N); Cpu.</td>
+</tr>
+<tr id="Quantized-clamp"><td><code>Quantized.clamp(Q value, RealBounds bounds, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Validates ordered finite bounds, quantizes thresholds explicitly and reports recoding policy.</td><td>O(N); allocates.</td>
+</tr>
+<tr id="Quantized-calibrate_minmax"><td><code>Quantized.calibrate_minmax&lt;I, F&gt;(R samples, CalibrationPolicy policy)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>Nonempty finite samples; degenerate ranges require named positive minimum-scale policy or error.</td><td>O(N); no silent epsilon.</td>
+</tr>
+<tr id="Quantized-calibrate_symmetric"><td><code>Quantized.calibrate_symmetric&lt;I, F&gt;(R samples, CalibrationPolicy policy)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>Signed storage, zero point 0; range and minimum-scale strategy explicit.</td><td>O(N); finite samples only.</td>
+</tr>
+<tr id="Quantized-error_report"><td><code>Quantized.error_report&lt;F&gt;(R original, Q quantized)</code></td><td><code>Result&lt;QuantizationReport&lt;F&gt;, QuantizationError&gt;</code></td><td>Equal shapes; declared F reconstruction; reports max/mean error and saturation count when available.</td><td>O(N); no hidden original retention.</td>
+</tr>
+<tr id="Quantized-clone"><td><code>Quantized.clone(Q value)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Explicit deep copy of owning payload and owned metadata; views copied only through named owner creation.</td><td>O(N + metadata); allocates.</td>
+</tr>
+<tr id="Quantized-export_descriptor"><td><code>Quantized.export_descriptor(Q value)</code></td><td><code>QuantizedDescriptorView</code></td><td>Borrowed ABI-neutral description with lifetime and scheme version; not a stable C struct layout.</td><td>O(1) descriptor.</td>
+</tr>
+<tr id="Quantized-import_descriptor"><td><code>Quantized.import_descriptor(ForeignQuantizedDescriptor descriptor, ImportPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>Validates lifetime/ownership, shape, storage encoding and exact external rounding semantics.</td><td>Validation/copy costs explicit.</td>
+</tr>
+<tr id="Quantized-submit"><td><code>Quantized.submit(&amp;Queue queue, QuantizedOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;Out&gt;, SubmitError&gt;</code></td><td>Device work retains payload and scheme leases; unsupported semantics error rather than hidden Cpu fallback.</td><td>Explicit queued operation.</td>
+</tr>
+<tr id="Quantized-supports"><td><code>Quantized.supports(DeviceId device, QuantizedOp&lt;Inputs, Out&gt; operation)</code></td><td><code>CapabilityReport</code></td><td>Checks storage, scale layout, accumulator and rounding kernel support separately.</td><td>Query; no throughput guarantee.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">10. Scale and rounding remain visible
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Affine&lt;i8, f32&gt;, QuantizationError&gt; scheme = Quantized.affine&lt;i8, f32&gt;(0.5, 0);
+// Given a validated scheme named parameters.
+Result&lt;Quantized&lt;i8, Affine&lt;i8, f32&gt;&gt;, QuantizationError&gt; code_value = Quantized.quantize_checked&lt;i8, f32&gt;(1.25, parameters, RoundingMode.TiesEven);</code></pre>
+<p>A literal real defaults to f64 when unconstrained; the explicit generic and parameter context above constrain the computation to f32. rsn can infer a fixed static type, but it does not turn a validated affine scheme into a dynamic numeric type or erase a Result. Mutable buffers require explicit mut declarations and exclusive borrows.
+</p>
+</section>
+<section id="interop" aria-labelledby="interop-heading">
+<h2 id="interop-heading">11. Interchange and cost boundary
+</h2>
+<p>A payload byte dump is not a complete quantized value: storage width, integer signedness, axis meaning, scale precision, zero points, rounding order and packing convention are required. Device layouts and compiled kernels may depend on these facts. Interchange adapters must preserve or explicitly convert them. Serialization uses a versioned explicit format, not native object memory.
+</p>
+<p><a href="Quantized_Affine.html">Affine details</a> · <a href="Quantized_PerAxis.html">Per-axis metadata</a> · <a href="../Tensor/Tensor.html">Tensor ownership</a> · <a href="../Float/Float_8.html">FP8 formats</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://onnx.ai/onnx/operators/onnx__QuantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX QuantizeLinear operator</a>
+</li>
+<li><a href="https://onnx.ai/onnx/operators/onnx__DequantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX DequantizeLinear operator</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/QuantDialect/" target="_blank" rel="noopener noreferrer">MLIR quantization dialect</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Quantized_Affine.html"><span>Next reference</span>Affine Quantization</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

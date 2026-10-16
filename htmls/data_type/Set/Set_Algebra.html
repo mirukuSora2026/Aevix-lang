@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Borrowed relations and merge views with explicitly fallible owned results.">
+  <title>Set algebra — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Set.html" aria-current="true">Set</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Set.html">Set</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Set algebra</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Set algebra</h1><p class="doc-subtitle">Borrowed relations and merge views with explicitly fallible owned results.</p><div class="doc-meta"><span class="meta-chip">Set&lt;T&gt; / OrderedSet&lt;T&gt;</span><span class="meta-chip">Set / OrderedSet namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>22</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>{T}</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Set algebra</span></a></li><li><a href="#Equivalence"><span class="toc-number">02</span><span>Compatible equality and order</span></a></li><li><a href="#Borrowed-Views"><span class="toc-number">03</span><span>Borrowed iterators and representatives</span></a></li><li><a href="#Hashed-Functions"><span class="toc-number">04</span><span>Hashed set algebra functions</span></a></li><li><a href="#Ordered-Functions"><span class="toc-number">05</span><span>Ordered set algebra functions</span></a></li><li><a href="#Materialization-Errors"><span class="toc-number">06</span><span>Materialization and cost</span></a></li><li><a href="#Examples-Related"><span class="toc-number">07</span><span>Examples and related ownership</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Set pages"><h2>Set reference</h2><div class="family-links"><a href="Set.html">Set</a><a href="Ordered_Set.html">OrderedSet</a><a href="Set_Algebra.html" aria-current="page">Set algebra</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Set algebra reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Set algebra
+</h2>
+<p>Relations answer membership questions; lazy algebra iterators describe selections without owning new members. Owned materialization is separately named copy or clone and returns Result. The same mathematical operation therefore does not hide allocation, cloning, or ownership transfer. Set.equal remains on the common Set page rather than being redefined here.
+</p>
+<blockquote class="callout note">
+<p><strong>Design draft.</strong> Function names, callbacks, iterators, traits, and error carriers define proposed Aevix contracts. Parameters use <code>T value</code> by value, <code>&amp;T value</code> for a shared borrow, and <code>&amp;mut T value</code> for an exclusive borrow. Calls pass owners as <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code>; taking <code>&amp;mut owner</code> requires a <code>mut</code> binding. Existing references and borrowed views are passed directly. Callback aliases, error records, and returned-reference lifetime notation remain design descriptions. Bindings are immutable unless declared mut; unit is a value type. No implementation or device-support claim follows from this catalog.
+</p>
+</blockquote>
+</section>
+<section id="Equivalence" aria-labelledby="Equivalence-heading">
+<h2 id="Equivalence-heading">2. Compatible equality and order
+</h2>
+<p>Both hashed sets must implement the same member equivalence relation, even if their seeds differ. Each lookup uses the queried set’s own hash policy. Ordered sets must agree on a stable total ordering. Combining inconsistent policies is a logic error, not a license for memory unsafety. A set is not a multiset; duplicate counts and original insertion positions do not affect these relations.
+</p>
+</section>
+<section id="Borrowed-Views" aria-labelledby="Borrowed-Views-heading">
+<h2 id="Borrowed-Views-heading">3. Borrowed iterators and representatives
+</h2>
+<p>Lazy algebra borrows both inputs until the iterator and all yielded references are released. Neither input may be structurally modified through another alias. The union and intersection contracts deliberately prefer the left stored representative for equal classes; metadata excluded from equality can therefore be selected predictably. Hash iteration order remains unspecified despite that representative choice. No iterator extends the lifetime of its source owners.
+</p>
+</section>
+<section id="Hashed-Functions" aria-labelledby="Hashed-Functions-heading">
+<h2 id="Hashed-Functions-heading">4. Hashed set algebra functions
+</h2>
+<div class="table-scroll" role="region" aria-label="Hashed set algebra functions data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Set-is_disjoint"><th scope="row"><code>Set.is_disjoint(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>bool</code></td><td>True when no equivalence class occurs in both; expected O(capacity of smaller set + its length), worst O(n times m) membership work.</td>
+</tr>
+<tr id="Set-is_subset"><th scope="row"><code>Set.is_subset(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>bool</code></td><td>True when each member of a is present in b; cardinality may reject early. Expected O(capacity(a) + len(a)), worst quadratic; both policies must implement the same equality.</td>
+</tr>
+<tr id="Set-is_superset"><th scope="row"><code>Set.is_superset(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>bool</code></td><td>Equivalent membership relation to is_subset(b, a); does not inspect order or copy members.</td>
+</tr>
+<tr id="Set-union"><th scope="row"><code>Set.union(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Iterator&lt;&amp;T&gt;</code></td><td>Yield all a representatives then only b classes absent from a; equal classes use a. Borrow both inputs; O(capacity(a) + capacity(b)) expected plus membership hashing.</td>
+</tr>
+<tr id="Set-intersection"><th scope="row"><code>Set.intersection(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Iterator&lt;&amp;T&gt;</code></td><td>Yield a representatives also present in b; left representative preference is guaranteed. Borrow both; expected O(capacity(a) + len(a)).</td>
+</tr>
+<tr id="Set-difference"><th scope="row"><code>Set.difference(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Iterator&lt;&amp;T&gt;</code></td><td>Yield a members absent from b; left-only result, no allocation; expected O(capacity(a) + len(a)).</td>
+</tr>
+<tr id="Set-symmetric_difference"><th scope="row"><code>Set.symmetric_difference(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Iterator&lt;&amp;T&gt;</code></td><td>Yield classes occurring in exactly one input; borrow both and skip equivalent pairs; expected O(capacity(a) + capacity(b)) plus hashing.</td>
+</tr>
+<tr id="Set-union_copy"><th scope="row"><code>Set.union_copy(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must be Copy; copy selected values explicitly. Use the lazy union representative rules; checked size, seed, allocation errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+<tr id="Set-union_clone"><th scope="row"><code>Set.union_clone(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must support fallible Clone; clone selected values explicitly. Use the lazy union representative rules; checked size, seed, allocation, clone errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+<tr id="Set-intersection_copy"><th scope="row"><code>Set.intersection_copy(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must be Copy; copy selected values explicitly. Use the lazy intersection representative rules; checked size, seed, allocation errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+<tr id="Set-intersection_clone"><th scope="row"><code>Set.intersection_clone(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must support fallible Clone; clone selected values explicitly. Use the lazy intersection representative rules; checked size, seed, allocation, clone errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+<tr id="Set-difference_copy"><th scope="row"><code>Set.difference_copy(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must be Copy; copy selected values explicitly. Use the lazy difference representative rules; checked size, seed, allocation errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+<tr id="Set-difference_clone"><th scope="row"><code>Set.difference_clone(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must support fallible Clone; clone selected values explicitly. Use the lazy difference representative rules; checked size, seed, allocation, clone errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+<tr id="Set-symmetric_difference_copy"><th scope="row"><code>Set.symmetric_difference_copy(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must be Copy; copy selected values explicitly. Use the lazy symmetric_difference representative rules; checked size, seed, allocation errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+<tr id="Set-symmetric_difference_clone"><th scope="row"><code>Set.symmetric_difference_clone(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>T must support fallible Clone; clone selected values explicitly. Use the lazy symmetric_difference representative rules; checked size, seed, allocation, clone errors clean partial output. Inputs remain borrowed and unchanged; output has its own hash policy.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Ordered-Functions" aria-labelledby="Ordered-Functions-heading">
+<h2 id="Ordered-Functions-heading">5. Ordered set algebra functions
+</h2>
+<div class="table-scroll" role="region" aria-label="Ordered set algebra functions data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, ownership, error, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="OrderedSet-is_disjoint"><th scope="row"><code>OrderedSet.is_disjoint(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>bool</code></td><td>Merge compatible sorted orders and stop at an equal pair; O(n + m) comparison upper bound.</td>
+</tr>
+<tr id="OrderedSet-is_subset"><th scope="row"><code>OrderedSet.is_subset(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>bool</code></td><td>Sorted merge membership, cardinality can reject early; O(n + m) comparison upper bound.</td>
+</tr>
+<tr id="OrderedSet-is_superset"><th scope="row"><code>OrderedSet.is_superset(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>bool</code></td><td>Reverse subset relation; O(n + m) comparison upper bound.</td>
+</tr>
+<tr id="OrderedSet-union"><th scope="row"><code>OrderedSet.union(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>DoubleEndedIterator&lt;&amp;T&gt;</code></td><td>Merge sorted members, preferring a representative when equivalent. Borrow both; O(n + m) total traversal plus comparisons.</td>
+</tr>
+<tr id="OrderedSet-intersection"><th scope="row"><code>OrderedSet.intersection(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>DoubleEndedIterator&lt;&amp;T&gt;</code></td><td>Sorted common classes using a representatives; borrow both; O(n + m) total comparison upper bound.</td>
+</tr>
+<tr id="OrderedSet-difference"><th scope="row"><code>OrderedSet.difference(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>DoubleEndedIterator&lt;&amp;T&gt;</code></td><td>Sorted a-only classes; borrow both, O(n + m) total comparison upper bound.</td>
+</tr>
+<tr id="OrderedSet-symmetric_difference"><th scope="row"><code>OrderedSet.symmetric_difference(&amp;OrderedSet&lt;T&gt; a, &amp;OrderedSet&lt;T&gt; b)</code></th><td><code>DoubleEndedIterator&lt;&amp;T&gt;</code></td><td>Sorted classes found in exactly one input; O(n + m) total comparison upper bound.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>These seven ordered operations are merge views and relations. Owned ordered output is built explicitly through OrderedSet.from_values or application-controlled insertion; no hidden clone or generic collection conversion is implied. Double-ended traversal must honor left-representative preference consistently from either end.
+</p>
+</section>
+<section id="Materialization-Errors" aria-labelledby="Materialization-Errors-heading">
+<h2 id="Materialization-Errors-heading">6. Materialization and cost
+</h2>
+<p>The *_copy family is available only for Copy members; *_clone calls the member’s fallible Clone contract. CollectionError includes clone failure for those variants. Result construction initializes each selected owner once, cleans partial output on failure, and leaves both inputs unchanged. Lazy iterators allocate no result buckets, but user hashing, equality, comparison, and captured state may have their own costs. Worst-case hashed membership can make a full algebra operation quadratic. Ordered merge work is linear in the two lengths plus comparator cost.
+</p>
+</section>
+<section id="Examples-Related" aria-labelledby="Examples-Related-heading">
+<h2 id="Examples-Related-heading">7. Examples and related ownership
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">OrderedSet&lt;i32&gt; left = OrderedSet.new(i32);
+OrderedSet&lt;i32&gt; right = OrderedSet.new(i32);
+bool separate = OrderedSet.is_disjoint(&amp;left, &amp;right);
+DoubleEndedIterator&lt;&amp;i32&gt; merged = OrderedSet.union(&amp;left, &amp;right);</code></pre>
+<p>The empty sets make the relation true and the iterator empty; both source owners remain alive for the merged view. For populated sets, the same lifetime rule applies. See <a href="Set.html">hashed Set</a>, <a href="Ordered_Set.html">OrderedSet</a>, and <a href="../Slice/Slice_Mutation.html">exclusive mutation</a>.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.HashSet.html" target="_blank" rel="noopener noreferrer">Rust HashSet reference: membership, representatives, iteration, and set operations</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/collections/struct.BTreeSet.html" target="_blank" rel="noopener noreferrer">Rust BTreeSet reference: ordered membership and ranges</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Ordered_Set.html"><span>Previous reference</span>OrderedSet</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Unicode scalar values, versioned properties, and explicit encoding.">
+  <title>Char — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Char.html" aria-current="true">Char</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html" aria-current="true">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Char.html">Char</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Char</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Char</h1><p class="doc-subtitle">Unicode scalar values, versioned properties, and explicit encoding.</p><div class="doc-meta"><span class="meta-chip">char</span><span class="meta-chip">Char. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>char</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Scalar Identity</span></a></li><li><a href="#Unicode-Data"><span class="toc-number">02</span><span>Versioned Data, Not Ambient Locale</span></a></li><li><a href="#Construction"><span class="toc-number">03</span><span>Construction and Metadata</span></a></li><li><a href="#Classification"><span class="toc-number">04</span><span>Classification Predicates</span></a></li><li><a href="#Properties"><span class="toc-number">05</span><span>Property and Name Queries</span></a></li><li><a href="#Case-Mapping"><span class="toc-number">06</span><span>Simple Mapping and Full Expansion</span></a></li><li><a href="#Encoding"><span class="toc-number">07</span><span>Encoding and Escapes</span></a></li><li><a href="#Scalar-Versus-Text"><span class="toc-number">08</span><span>Scalars, Graphemes, and Ownership</span></a></li><li><a href="#Examples"><span class="toc-number">09</span><span>Examples and Related References</span></a></li><li><a href="#Sources"><span class="toc-number">10</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Char pages"><h2>Char reference</h2><div class="family-links"><a href="Char.html" aria-current="page">Char</a><a href="Unicode_Scalar.html">Unicode Scalar</a><a href="ASCII.html">ASCII</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html" aria-current="true">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Char reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. Scalar Identity
+</h2>
+<p>The <code>char</code> type denotes one Unicode scalar value. A scalar is a code point excluding the
+                    surrogate range; it is not a UTF-8 byte, a UTF-16 unit, a glyph, or necessarily a user-perceived
+                    character. This page introduces no <code>char8</code>, <code>char16</code>, or <code>char32</code>
+                    primitive. Scalars copy without per-value heap allocation. Their physical ABI remains a separate
+                    target contract.
+                
+</p>
+                
+<blockquote class="callout note">
+                    
+<p><strong>Design draft.</strong> Names, support records, and conceptual syntax describe proposed
+                        Aevix contracts. They do not claim implementation or measured performance. Declarations put the
+                        type first and bindings are immutable by default. MutSlice&lt;T&gt; denotes an exclusive writable view; <code>mut</code>, <code>&amp;T</code>, and <code>&amp;mut T</code> follow the chosen declaration and borrow rules. Catalog-specific support records and signatures remain proposals.
+                    
+</p>
+                
+</blockquote>
+<p>Destination-buffer encoders with a known <code>MutSlice&lt;byte&gt;</code> or <code>MutSlice&lt;u16&gt;</code> parameter reborrow an existing writable view for their access. They do not consume that descriptor or copy its exclusive capability; it can be reused after the derived loan ends. The descriptor need not be a mut binding merely to lend its existing permission. Ordinary value moves and a generic T value parameter still transfer non-Copy capabilities. Returned borrowed data, where offered, keeps its source loan through its last possible use or cleanup. See the <a href="../Slice/Slice.html#Parameter-Reborrowing">Slice parameter contract</a>.</p>
+</section>
+<section id="Unicode-Data" aria-labelledby="Unicode-Data-heading">
+<h2 id="Unicode-Data-heading">2. Versioned Data, Not Ambient Locale
+</h2>
+<p>Property answers depend on a compiler-supplied Unicode data artifact. A build records an exact
+                    version, contributing data files, and fingerprint; AOT and JIT use that same artifact. This draft
+                    selects no release number merely because a reference website has one. Updating tables is a visible
+                    toolchain change. Neither the operating-system locale nor a downloaded runtime table may silently
+                    change classification. ASCII-only helpers use fixed numeric rules on their dedicated page.
+                
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">3. Construction and Metadata
+</h2>
+<p>Validate numeric input before constructing <code>char</code>. Surrogates and out-of-range integers
+                    fail without creating an invalid scalar. Assignment status, private use, NUL, and noncharacter
+                    status do not alter scalar validity. Applications may impose stricter interchange policies
+                    separately; constructors do not silently replace or drop data. <code>CharError</code> is a proposed
+                    tagged error record, and allocating calls expose allocation failure.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Construction and Metadata data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-min_value">
+                            <th scope="row"><code>Char.min_value()</code></th>
+                            <td><code>char</code></td>
+                            <td>Return U+0000; constant, no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-max_value">
+                            <th scope="row"><code>Char.max_value()</code></th>
+                            <td><code>char</code></td>
+                            <td>Return U+10FFFF; constant, no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-replacement">
+                            <th scope="row"><code>Char.replacement()</code></th>
+                            <td><code>char</code></td>
+                            <td>Return U+FFFD without invoking implicit error recovery.</td>
+                        
+</tr>
+                        
+<tr id="Char-from_u32">
+                            <th scope="row"><code>Char.from_u32(u32 value)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>Reject surrogates and values above U+10FFFF; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-to_u32">
+                            <th scope="row"><code>Char.to_u32(char c)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Return the scalar value, not an encoded code unit.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_valid_scalar">
+                            <th scope="row"><code>Char.is_valid_scalar(u32 value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Accept precisely the scalar ranges, including unassigned values and noncharacters.</td>
+                        
+</tr>
+                        
+<tr id="Char-unicode_version">
+                            <th scope="row"><code>Char.unicode_version()</code></th>
+                            <td><code>string_view</code></td>
+                            <td>Borrow the exact Unicode version embedded in the compiler data artifact.</td>
+                        
+</tr>
+                        
+<tr id="Char-ucd_fingerprint">
+                            <th scope="row"><code>Char.ucd_fingerprint()</code></th>
+                            <td><code>string_view</code></td>
+                            <td>Borrow the documented fingerprint identifying the selected property artifact.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Classification" aria-labelledby="Classification-heading">
+<h2 id="Classification-heading">4. Classification Predicates
+</h2>
+<p>Predicates inspect one scalar through bounded property-table lookup. No allocation does not promise
+                    one machine instruction or identical latency on every target. Alphabetic, numeric, and whitespace
+                    properties differ from ASCII classification. Identifier properties are useful lexer inputs, but
+                    keywords, normalization, script restrictions, and security profiles belong to the language
+                    identifier specification. A successful property test is never proof of safe display or a valid
+                    complete token.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Classification Predicates data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-is_ascii">
+                            <th scope="row"><code>Char.is_ascii(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Code point below U+0080; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_alphabetic">
+                            <th scope="row"><code>Char.is_alphabetic(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode Alphabetic property, not ASCII letters alone.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_lowercase">
+                            <th scope="row"><code>Char.is_lowercase(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode Lowercase property; property lookup, no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_uppercase">
+                            <th scope="row"><code>Char.is_uppercase(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode Uppercase property; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_cased">
+                            <th scope="row"><code>Char.is_cased(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode Cased property; no contextual casing is performed.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_case_ignorable">
+                            <th scope="row"><code>Char.is_case_ignorable(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode Case_Ignorable property; not a case-mapping algorithm.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_whitespace">
+                            <th scope="row"><code>Char.is_whitespace(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode White_Space property, independent of the ambient locale.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_numeric">
+                            <th scope="row"><code>Char.is_numeric(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Numeric_Type is not None; this includes non-decimal numbers.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_decimal_digit">
+                            <th scope="row"><code>Char.is_decimal_digit(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>General category Nd; decimal_value supplies the corresponding digit.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_control">
+                            <th scope="row"><code>Char.is_control(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>General category Cc; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_format">
+                            <th scope="row"><code>Char.is_format(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>General category Cf; not permission to discard the scalar.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_mark">
+                            <th scope="row"><code>Char.is_mark(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Any combining-mark general category.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_letter">
+                            <th scope="row"><code>Char.is_letter(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Any letter general category.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_letter_or_number">
+                            <th scope="row"><code>Char.is_letter_or_number(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Any letter or number general category.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_private_use">
+                            <th scope="row"><code>Char.is_private_use(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>General category Co.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_unassigned">
+                            <th scope="row"><code>Char.is_unassigned(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>General category Cn in the pinned database.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_assigned">
+                            <th scope="row"><code>Char.is_assigned(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>General category other than Cn for a valid scalar.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_default_ignorable">
+                            <th scope="row"><code>Char.is_default_ignorable(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Default_Ignorable_Code_Point property; no automatic deletion.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_join_control">
+                            <th scope="row"><code>Char.is_join_control(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Join_Control property.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_variation_selector">
+                            <th scope="row"><code>Char.is_variation_selector(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Variation_Selector property.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_noncharacter">
+                            <th scope="row"><code>Char.is_noncharacter(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Noncharacter_Code_Point property; the scalar remains valid.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_xid_start">
+                            <th scope="row"><code>Char.is_xid_start(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode XID_Start property; language identifier policy stays separate.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_xid_continue">
+                            <th scope="row"><code>Char.is_xid_continue(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Unicode XID_Continue property; not whole-identifier validation.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_bmp">
+                            <th scope="row"><code>Char.is_bmp(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Scalar lies in the Basic Multilingual Plane.</td>
+                        
+</tr>
+                        
+<tr id="Char-is_supplementary">
+                            <th scope="row"><code>Char.is_supplementary(char c)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Scalar is above U+FFFF.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Properties" aria-labelledby="Properties-heading">
+<h2 id="Properties-heading">5. Property and Name Queries
+</h2>
+<p>Property result records are draft support descriptors, not additional scalar primitives. A property
+                    can have a default even when a scalar has no displayable name. Script, block, directionality, width,
+                    and segmentation answer different questions; none independently provides rendering. Allocating
+                    vectors and strings have explicit Result contracts. Quick-check values are hints for a complete
+                    normalization algorithm, not substitutes for inspecting a sequence. Exact rational numeric
+                    properties avoid silently treating a fraction as a decimal digit.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Property and Name Queries data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-general_category">
+                            <th scope="row"><code>Char.general_category(char c)</code></th>
+                            <td><code>GeneralCategory</code></td>
+                            <td>Return the pinned UCD category without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-script">
+                            <th scope="row"><code>Char.script(char c)</code></th>
+                            <td><code>Script</code></td>
+                            <td>Return Script; Common and Inherited are meaningful values.</td>
+                        
+</tr>
+                        
+<tr id="Char-script_extensions">
+                            <th scope="row"><code>Char.script_extensions(char c)</code></th>
+                            <td><code>Result&lt;Vector&lt;Script&gt;, CharError&gt;</code></td>
+                            <td>Allocate the Script_Extensions set using documented UCD defaults.</td>
+                        
+</tr>
+                        
+<tr id="Char-block">
+                            <th scope="row"><code>Char.block(char c)</code></th>
+                            <td><code>Optional&lt;UnicodeBlock&gt;</code></td>
+                            <td>Return the named block when present; a block is not a script.</td>
+                        
+</tr>
+                        
+<tr id="Char-bidi_class">
+                            <th scope="row"><code>Char.bidi_class(char c)</code></th>
+                            <td><code>BidiClass</code></td>
+                            <td>Return the directional property; does not reorder text.</td>
+                        
+</tr>
+                        
+<tr id="Char-combining_class">
+                            <th scope="row"><code>Char.combining_class(char c)</code></th>
+                            <td><code>u8</code></td>
+                            <td>Return Canonical_Combining_Class without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-east_asian_width">
+                            <th scope="row"><code>Char.east_asian_width(char c)</code></th>
+                            <td><code>EastAsianWidth</code></td>
+                            <td>Return the property, not terminal cells or rendered glyph width.</td>
+                        
+</tr>
+                        
+<tr id="Char-grapheme_break">
+                            <th scope="row"><code>Char.grapheme_break(char c)</code></th>
+                            <td><code>GraphemeBreak</code></td>
+                            <td>Return a property used by segmentation, not a complete boundary decision.</td>
+                        
+</tr>
+                        
+<tr id="Char-word_break">
+                            <th scope="row"><code>Char.word_break(char c)</code></th>
+                            <td><code>WordBreak</code></td>
+                            <td>Return the word-break property; surrounding context remains necessary.</td>
+                        
+</tr>
+                        
+<tr id="Char-sentence_break">
+                            <th scope="row"><code>Char.sentence_break(char c)</code></th>
+                            <td><code>SentenceBreak</code></td>
+                            <td>Return the sentence-break property without segmenting text.</td>
+                        
+</tr>
+                        
+<tr id="Char-line_break">
+                            <th scope="row"><code>Char.line_break(char c)</code></th>
+                            <td><code>LineBreak</code></td>
+                            <td>Return line-break class; actual wrapping needs text and layout context.</td>
+                        
+</tr>
+                        
+<tr id="Char-age">
+                            <th scope="row"><code>Char.age(char c)</code></th>
+                            <td><code>Optional&lt;UnicodeVersion&gt;</code></td>
+                            <td>Return UCD age when available; unassigned values have no invented age.</td>
+                        
+</tr>
+                        
+<tr id="Char-name">
+                            <th scope="row"><code>Char.name(char c)</code></th>
+                            <td><code>Result&lt;Optional&lt;string&gt;, CharError&gt;</code></td>
+                            <td>Allocate a Unicode name, including algorithmic names; absent names remain None.</td>
+                        
+</tr>
+                        
+<tr id="Char-name_aliases">
+                            <th scope="row"><code>Char.name_aliases(char c)</code></th>
+                            <td><code>Result&lt;Vector&lt;string&gt;, CharError&gt;</code></td>
+                            <td>Allocate documented Name_Alias entries; the result may be empty.</td>
+                        
+</tr>
+                        
+<tr id="Char-lookup_name">
+                            <th scope="row"><code>Char.lookup_name(string_view name)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>Resolve a canonical or explicitly supported alias name; reject unknown input.</td>
+                        
+</tr>
+                        
+<tr id="Char-nfc_quick_check">
+                            <th scope="row"><code>Char.nfc_quick_check(char c)</code></th>
+                            <td><code>QuickCheck</code></td>
+                            <td>Return the scalar NFC quick-check property; not whole-string normalization.</td>
+                        
+</tr>
+                        
+<tr id="Char-nfd_quick_check">
+                            <th scope="row"><code>Char.nfd_quick_check(char c)</code></th>
+                            <td><code>QuickCheck</code></td>
+                            <td>Return the scalar NFD quick-check property.</td>
+                        
+</tr>
+                        
+<tr id="Char-nfkc_quick_check">
+                            <th scope="row"><code>Char.nfkc_quick_check(char c)</code></th>
+                            <td><code>QuickCheck</code></td>
+                            <td>Return the scalar compatibility-composition quick-check property.</td>
+                        
+</tr>
+                        
+<tr id="Char-nfkd_quick_check">
+                            <th scope="row"><code>Char.nfkd_quick_check(char c)</code></th>
+                            <td><code>QuickCheck</code></td>
+                            <td>Return the scalar compatibility-decomposition quick-check property.</td>
+                        
+</tr>
+                        
+<tr id="Char-decimal_value">
+                            <th scope="row"><code>Char.decimal_value(char c)</code></th>
+                            <td><code>Optional&lt;u8&gt;</code></td>
+                            <td>Return zero through nine for Nd scalars; otherwise None.</td>
+                        
+</tr>
+                        
+<tr id="Char-numeric_value">
+                            <th scope="row"><code>Char.numeric_value(char c)</code></th>
+                            <td><code>Optional&lt;UnicodeNumeric&gt;</code></td>
+                            <td>Return an exact rational property record rather than a rounded float.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Case-Mapping" aria-labelledby="Case-Mapping-heading">
+<h2 id="Case-Mapping-heading">6. Simple Mapping and Full Expansion
+</h2>
+<p>Simple mappings return one scalar, applying identity when no simple mapping exists. Full mappings may
+                    expand, so they return <code>string</code> through an allocating operation. A scalar has no
+                    neighboring context: these functions cannot implement final-sigma selection, arbitrary word
+                    title-casing, or locale-sensitive whole-text transforms. Default non-Turkic case folding is
+                    locale-independent and does not normalize canonically equivalent sequences. Context-sensitive and
+                    locale-aware whole-text operations belong to <a href="../String/unicode.html"><code>unicode.</code></a>,
+                    including <code>unicode.lower</code> and <code>unicode.lower_locale</code>.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Simple Mapping and Full Expansion data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-simple_lowercase">
+                            <th scope="row"><code>Char.simple_lowercase(char c)</code></th>
+                            <td><code>char</code></td>
+                            <td>Apply the simple mapping or identity; no allocation or neighboring context.</td>
+                        
+</tr>
+                        
+<tr id="Char-simple_uppercase">
+                            <th scope="row"><code>Char.simple_uppercase(char c)</code></th>
+                            <td><code>char</code></td>
+                            <td>Apply the simple mapping or identity; never truncate an expansion.</td>
+                        
+</tr>
+                        
+<tr id="Char-simple_titlecase">
+                            <th scope="row"><code>Char.simple_titlecase(char c)</code></th>
+                            <td><code>char</code></td>
+                            <td>Apply the simple title mapping or identity; no word-boundary inference.</td>
+                        
+</tr>
+                        
+<tr id="Char-simple_case_fold">
+                            <th scope="row"><code>Char.simple_case_fold(char c)</code></th>
+                            <td><code>char</code></td>
+                            <td>Apply the default non-Turkic simple fold or identity; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-to_lowercase">
+                            <th scope="row"><code>Char.to_lowercase(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate the default isolated-scalar lowercase mapping; it may expand.</td>
+                        
+</tr>
+                        
+<tr id="Char-to_uppercase">
+                            <th scope="row"><code>Char.to_uppercase(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate the full uppercase mapping; multiple scalars are possible.</td>
+                        
+</tr>
+                        
+<tr id="Char-to_titlecase">
+                            <th scope="row"><code>Char.to_titlecase(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate the isolated-scalar full title mapping; not word title-casing.</td>
+                        
+</tr>
+                        
+<tr id="Char-case_fold">
+                            <th scope="row"><code>Char.case_fold(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate full default non-Turkic folding; normalization is separate.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Encoding" aria-labelledby="Encoding-heading">
+<h2 id="Encoding-heading">7. Encoding and Escapes
+</h2>
+<p>UTF encoders consume a valid scalar and produce code units, never another character primitive. Fixed
+                    arrays contain initialized temporary storage; the used length matters because trailing padding is
+                    not extra text. Source escapes and diagnostic output differ from binary transport, and debug
+                    spelling is not a stable external protocol. Explicit decoders and destination-buffer encoders live
+                    on the Unicode Scalar page. No encoder infers a BOM policy, surrounding string normalization, or a
+                    locale.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Encoding and Escapes data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Char-utf8_length">
+                            <th scope="row"><code>Char.utf8_length(char c)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Return one through four encoded bytes; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-utf16_length">
+                            <th scope="row"><code>Char.utf16_length(char c)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Return one or two UTF-16 code units; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-to_utf8">
+                            <th scope="row"><code>Char.to_utf8(char c)</code></th>
+                            <td><code>(Array&lt;byte, 4&gt;, u32)</code></td>
+                            <td>Return zero-padded storage and used length; only its prefix is encoded text.</td>
+                        
+</tr>
+                        
+<tr id="Char-to_utf16">
+                            <th scope="row"><code>Char.to_utf16(char c)</code></th>
+                            <td><code>(Array&lt;u16, 2&gt;, u32)</code></td>
+                            <td>Return zero-padded code-unit storage and used length; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Char-to_string">
+                            <th scope="row"><code>Char.to_string(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate valid UTF-8 text containing exactly this scalar.</td>
+                        
+</tr>
+                        
+<tr id="Char-escape_unicode">
+                            <th scope="row"><code>Char.escape_unicode(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate a scalar escape containing an explicit hexadecimal value.</td>
+                        
+</tr>
+                        
+<tr id="Char-escape_default">
+                            <th scope="row"><code>Char.escape_default(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate the versioned draft source-literal escape.</td>
+                        
+</tr>
+                        
+<tr id="Char-escape_debug">
+                            <th scope="row"><code>Char.escape_debug(char c)</code></th>
+                            <td><code>Result&lt;string, CharError&gt;</code></td>
+                            <td>Allocate a diagnostic spelling, not a portable serialization format.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Scalar-Versus-Text" aria-labelledby="Scalar-Versus-Text-heading">
+<h2 id="Scalar-Versus-Text-heading">8. Scalars, Graphemes, and Ownership
+</h2>
+<p>An e followed by a combining acute accent contains two scalars and can form one grapheme cluster.
+                    Emoji sequences may contain several scalars. Counting, indexing, or deleting one scalar is therefore
+                    not necessarily editing one displayed character. Borrowed <code>string_view</code> and <code>Slice&lt;char&gt;</code>
+                    retain their owners’ lifetimes. <code>Array&lt;T, N&gt;</code> and <code>Vector&lt;T&gt;</code>
+                    follow their normal copy or move contracts; scalar copying does not duplicate surrounding owning
+                    storage.
+                
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">9. Examples and Related References
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">char letter = &#x27;A&#x27;;
+u32 value = Char.to_u32(letter);
+Char.is_valid_scalar(0xd800); // false
+Char.to_uppercase(&#x27;ß&#x27;); // Result containing SS
+Char.utf8_length(&#x27;한&#x27;); // 3
+Char.to_string(letter); // explicitly allocating Result</code></pre>
+                
+<p>See <a href="Unicode_Scalar.html">Unicode Scalar</a> for strict decoding, <a
+                        href="ASCII.html">ASCII</a> for fixed-range helpers, and <a
+                        href="../String/string.html">string</a> for sequence operations. <a href="../Array/Array.html">Array</a>
+                    and <a href="../Integer/Integer.html">Integer</a> describe storage and numeric conversion. External
+                    sources inform independent design choices; they do not establish an implemented Aevix runtime.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">10. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design
+                    proposals.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank"
+                           rel="noopener noreferrer">Unicode Core Specification — scalar values, encoding, and
+                        casing</a>
+                    
+</li>
+                    
+<li><a href="https://www.unicode.org/reports/tr44/" target="_blank" rel="noopener noreferrer">Unicode
+                        Character Database — versioned properties</a>
+                    
+</li>
+                    
+<li><a href="https://www.unicode.org/reports/tr29/" target="_blank" rel="noopener noreferrer">Unicode
+                        Text Segmentation — grapheme boundaries</a>
+                    
+</li>
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.char.html" target="_blank"
+                           rel="noopener noreferrer">Rust char — comparison for scalar and mapping APIs</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Unicode_Scalar.html"><span>Next reference</span>Unicode Scalar</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

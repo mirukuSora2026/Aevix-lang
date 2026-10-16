@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Explicit advisory state and recoverable access after an interrupted invariant.">
+  <title>Mutex Poisoning — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Mutex.html" aria-current="true">Mutex</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Mutex.html">Mutex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Mutex Poisoning</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Mutex Poisoning</h1><p class="doc-subtitle">Explicit advisory state and recoverable access after an interrupted invariant.</p><div class="doc-meta"><span class="meta-chip">Mutex&lt;T&gt;</span><span class="meta-chip">Mutex namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API functions</dt><dd>4</dd></div><div class="doc-stat"><dt>Contract</dt><dd>Design draft; explicit errors</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>lock</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Policy"><span class="toc-number">01</span><span>The Selected Default Is Advisory</span></a></li><li><a href="#Error-Guard"><span class="toc-number">02</span><span>A Poison Error Can Own Access</span></a></li><li><a href="#Repair"><span class="toc-number">03</span><span>Repair Is Application Work</span></a></li><li><a href="#Function-Reference"><span class="toc-number">04</span><span>Recovery and Diagnostic Functions</span></a></li><li><a href="#Boundaries"><span class="toc-number">05</span><span>Returned Errors and External Effects</span></a></li><li><a href="#Limitations"><span class="toc-number">06</span><span>No Soundness or Deadlock Shortcut</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>Common Guards and Reference Scope</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Mutex pages"><h2>Mutex reference</h2><div class="family-links"><a href="Mutex.html">Mutex</a><a href="Mutex_Guard.html">Mutex Guards</a><a href="Mutex_Poisoning.html" aria-current="page">Mutex Poisoning</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Mutex Poisoning reference">
+<section id="Policy" aria-labelledby="Policy-heading">
+<h2 id="Policy-heading">1. The Selected Default Is Advisory
+</h2>
+<p>PoisonOnUnwind is the default Aevix lock policy proposed here. It records an unwind crossing a protected exclusive operation, rather than treating every returned Result error as an exception. Unwinding while an exclusive guard is held marks the default poison state. Returning an ordinary Result error without unwinding does not automatically poison the lock. An explicitly selected non-poisoning profile must be visible in metadata. Poison state is not a type validity check or a mechanism that proves application-level consistency.
+</p>
+</section>
+<section id="Error-Guard" aria-labelledby="Error-Guard-heading">
+<h2 id="Error-Guard-heading">2. A Poison Error Can Own Access
+</h2>
+<p>When acquisition succeeds on poisoned storage, the error carries the acquired guard. Ignoring or dropping that error releases the guard normally. Explicit recovery retains its access while preserving the poison flag. Other system failures need not contain a guard; tagged error inspection distinguishes them. Unique into_inner extraction returns a Poisoned&lt;T&gt; payload on poison so the consumed data remains recoverable rather than being silently discarded.
+</p>
+</section>
+<section id="Repair" aria-labelledby="Repair-heading">
+<h2 id="Repair-heading">3. Repair Is Application Work
+</h2>
+<p>The caller can inspect protected fields, restore invariants, replace contents, or choose to abandon the owner. Clearing poison is only an acknowledgement after that work; the library cannot know that a financial balance, graph relation, file protocol, or external state has been repaired. Clearing requires an exclusive guard in this draft. Read access cannot claim to repair unrelated protected state.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">4. Recovery and Diagnostic Functions
+</h2>
+<div class="table-scroll" role="region" aria-label="Recovery and Diagnostic Functions data table">
+<table>
+<thead>
+<tr><th scope="col">Conceptual signature</th><th scope="col">Returns</th><th scope="col">Domain, errors, and cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Mutex-recover_guard"><th scope="row"><code>Mutex.recover_guard(Poisoned&lt;MutexGuard&lt;T&gt;&gt; error)</code></th><td><code>MutexGuard&lt;T&gt;</code></td><td>Explicitly recover the acquired guard without clearing advisory poison.</td>
+</tr>
+<tr id="Mutex-clear_poison"><th scope="row"><code>Mutex.clear_poison(&amp;mut MutexGuard&lt;T&gt; guard)</code></th><td><code>unit</code></td><td>Clear poison only through held exclusive access after caller repair; not an automatic invariant proof.</td>
+</tr>
+<tr id="Mutex-mark_poisoned"><th scope="row"><code>Mutex.mark_poisoned(&amp;mut MutexGuard&lt;T&gt; guard)</code></th><td><code>unit</code></td><td>Explicitly mark known damaged application state; does not unlock or repair data.</td>
+</tr>
+<tr id="Mutex-poison_reason"><th scope="row"><code>Mutex.poison_reason(&amp;Mutex&lt;T&gt; lock)</code></th><td><code>Optional&lt;PoisonInfo&gt;</code></td><td>Diagnostic advisory metadata; may change concurrently and must not expose unprotected T.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Boundaries" aria-labelledby="Boundaries-heading">
+<h2 id="Boundaries-heading">5. Returned Errors and External Effects
+</h2>
+<p>An ordinary callback Result error can leave completed mutations visible without automatically marking poison. User code may explicitly mark the state if its invariant is known to be damaged. External effects, such as emitted messages or foreign API calls, are not rolled back by lock release or a poison flag. A recovery path must not treat a failed side effect as if it were undone.
+</p>
+</section>
+<section id="Limitations" aria-labelledby="Limitations-heading">
+<h2 id="Limitations-heading">6. No Soundness or Deadlock Shortcut
+</h2>
+<p>Poisoning must never be the sole mechanism that prevents memory unsafety. Safe references remain valid even when the application ignores advisory poison. Fairness, reentrancy, priority inversion, and deadlocks are separate properties and are not fixed by clearing a flag. Unwinding or finalization can be unavailable in some termination profiles; the target must declare those limitations instead of promising every failed operation poisons and releases correctly.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7. Common Guards and Reference Scope
+</h2>
+<p>See <a href="Mutex.html">Mutex</a> for acquisition and <a href="Mutex_Guard.html">Guards</a> for lifetimes. The source lock documentation informs a deliberately specified Aevix policy rather than silently importing another runtime’s exact panic behavior. No operating-system lock ABI, destructor delivery on process exit, or automatic invariant restoration is claimed.
+</p>
+<p>A poison snapshot is advisory. It does not repair an invariant or replace acquisition of the guard required by clear_poison.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Mutex&lt;i32&gt; gate = Mutex.with_policy(0, PoisonPolicy.PoisonOnUnwind);
+bool observed_poison = Mutex.is_poisoned(&amp;gate);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html" target="_blank" rel="noopener noreferrer">Rust Mutex — exclusion, poisoning, and recovery comparison</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Mutex_Guard.html"><span>Previous reference</span>Mutex Guards</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

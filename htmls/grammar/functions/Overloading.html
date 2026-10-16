@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Select by parameters within one original module, with explicit literal and generic tie rules.">
+<title>Function Overloading — Aevix Docs</title>
+<link rel="stylesheet" href="../../css/root.css?v=4">
+<link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="Reference sections"><a href="../../errors/index.html">Errors</a><a href="../index.html">Grammar</a><a href="../../declaration/index.html">Declarations</a><details class="type-menu"><summary>Data types</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">All 29 type families</a></div></details></nav><span class="draft-badge">DESIGN REFERENCE</span></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../data_type/index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">Grammar</a><span class="separator" aria-hidden="true">/</span><a href="index.html">Functions and calls</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Function Overloading</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">FUNCTION REFERENCE</p><h1>Function Overloading</h1><p class="doc-subtitle">Select by parameters within one original module, with explicit literal and generic tie rules.</p><div class="doc-meta"><span class="meta-chip">Chosen rules + open decisions</span><span class="meta-chip">Explicit types and cost</span><a href="../../declaration/Function_Declaration.html">Basic declarations</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Signature</dt><dd>Parameter types / count</dd></div><div class="doc-stat"><dt>Return-only overload</dt><dd>Rejected</dd></div><div class="doc-stat"><dt>Numeric defaults</dt><dd>i32 / f64 first</dd></div><div class="doc-stat"><dt>Module origins</dt><dd>Never pooled</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>f(a)</strong><span>functions</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>Share a function name only through valid overloads</span></a></li><li><a href="#namespace"><span class="toc-number">02</span><span>Types, functions and constants share one module namespace</span></a></li><li><a href="#return-type"><span class="toc-number">03</span><span>Return type alone cannot distinguish declarations</span></a></li><li><a href="#selection-order"><span class="toc-number">04</span><span>Apply the chosen preferences in order</span></a></li><li><a href="#typed-first"><span class="toc-number">05</span><span>Typed evidence precedes a literal’s default</span></a></li><li><a href="#literal-defaults"><span class="toc-number">06</span><span>Prefer default numeric types before genericity</span></a></li><li><a href="#generic-ties"><span class="toc-number">07</span><span>Prefer a concrete function only for equal suitability</span></a></li><li><a href="#numeric-ambiguity"><span class="toc-number">08</span><span>Do not guess when no default candidate wins</span></a></li><li><a href="#defaults"><span class="toc-number">09</span><span>Omitting fewer defaults is not a preference</span></a></li><li><a href="#module-origins"><span class="toc-number">10</span><span>Resolve a module family before overload matching</span></a></li><li><a href="#named-arguments"><span class="toc-number">11</span><span>Names participate in candidate matching, not signature identity</span></a></li><li><a href="#open-decisions"><span class="toc-number">12</span><span>Apply fixed-versus-variadic preference only as the final tie-break</span></a></li></ol></details><nav class="family-nav" aria-label="Function pages"><h2>Functions and calls</h2><div class="family-links"><a href="index.html">Overview</a><a href="Generic_Functions.html">Generic functions</a><a href="Overloading.html" aria-current="page">Overloading</a><a href="Arguments_and_Defaults.html">Arguments and defaults</a><a href="Variadic_Parameters.html">Variadic parameters</a></div></nav><nav class="family-nav" aria-label="Related language reference"><h2>Related reference</h2><div class="family-links"><a href="../../declaration/Function_Declaration.html">Basic function declarations</a><a href="../generics/index.html">Generic types</a><a href="../interfaces/index.html">Interfaces</a><a href="../modules/index.html">Modules and imports</a><a href="../persistent_storage/index.html">Persistent storage</a><a href="../../data_type/index.html">All data types</a></div></nav></aside><article class="content" aria-label="Function Overloading reference">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. Share a function name only through valid overloads</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 select(i32 value) {
+    return value;
+}
+
+i64 select(i64 value) {
+    return value;
+}
+
+i32 select(i32 first, i32 second) {
+    return first + second;
+}
+
+void use_selection() {
+    i32 small = select(10);
+    i64 wide = 20;
+    i64 retained = select(wide);
+    i32 sum = select(1, 2);
+    return;
+}</code></pre><p>Within one original module, parameter types or counts distinguish overloads. The i32 literal default selects the first one-argument form, an already typed i64 selects the second, and two arguments select the third. Ordinary parameter permissions remain part of matching; overload resolution cannot manufacture a write capability.</p></section><section id="namespace" aria-labelledby="namespace-heading"><h2 id="namespace-heading">2. Types, functions and constants share one module namespace</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a constant and a function cannot share this module name;
+const i32 scale = 2;
+
+i32 scale(i32 value) {
+    return value;
+}</code></pre><p>Function overloading is a specific exception for differing parameter signatures. It does not permit a type or constant to occupy that same declaration name. Public/private affects access, not the existence of a distinct namespace for these three declaration categories.</p><p>Parameter names help named calls but do not create a different parameter type/count signature. An otherwise identical function cannot be redeclared merely by renaming its arguments.</p></section><section id="return-type" aria-labelledby="return-type-heading"><h2 id="return-type-heading">3. Return type alone cannot distinguish declarations</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: these parameter signatures are identical;
+i32 convert(i32 value) {
+    return value;
+}
+
+f64 convert(i32 value) {
+    return 1.0;
+}</code></pre><p>Writing a receiving variable with type i32 or f64 does not make this overload set legal. Return-context generic inference fills unresolved type parameters of an otherwise matching candidate; it does not authorize return-only overloading or replace an argument-inferred type.</p></section><section id="selection-order" aria-labelledby="selection-order-heading"><h2 id="selection-order-heading">4. Apply the chosen preferences in order</h2><div class="table-wrap"><div class="table-scroll" role="region" tabindex="0" aria-label="Overload selection stages"><table><thead><tr><th scope="col">Stage</th><th scope="col">Chosen behavior</th></tr></thead><tbody><tr><th scope="row">Resolve declaration origin</th><td>Different original modules remain separate overload families. Ambiguous imported short names must be qualified first.</td></tr><tr><th scope="row">Map arguments</th><td>Check argument names/positions, ordinary counts, available defaults, passing modes, generic substitutions and declared requirements.</td></tr><tr><th scope="row">Use typed inputs</th><td>Narrow candidates using already typed argument information without implicit numeric conversion.</td></tr><tr><th scope="row">Compare untyped numeric literals</th><td>Prefer a compatible candidate matching i32 integer or f64 real defaults before the generic/non-generic tie rule.</td></tr><tr><th scope="row">Break an otherwise equal generic tie</th><td>Prefer a non-generic candidate when suitability is otherwise equal.</td></tr><tr><th scope="row">Break an otherwise equal pack tie</th><td>After the preceding type, literal and generic/non-generic preferences, prefer a fixed-parameter candidate over a variadic one.</td></tr><tr><th scope="row">Reject a remaining tie</th><td>No source-order, import-order, guessed-width or default-count fallback selects a winner.</td></tr></tbody></table></div></div><p>Explicit type arguments request generic candidates. This is compile-time selection; expressions are not run speculatively to discover which overload would succeed. No additional numeric conversion ranking or arbitrary weighted matching score is introduced.</p></section><section id="typed-first" aria-labelledby="typed-first-heading"><h2 id="typed-first-heading">5. Typed evidence precedes a literal’s default</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose_pair(i32 first, i32 second) {
+    return first;
+}
+
+i64 choose_pair(i64 first, i64 second) {
+    return first;
+}
+
+void use_later_typed_argument() {
+    i64 wide = 40;
+    i64 result = choose_pair(10, wide);
+    return;
+}</code></pre><p>wide rules out the i32 candidate because typed i64 does not implicitly convert. The remaining i64 parameter context accepts the untyped integer literal. The earlier source position of 10 cannot force a wrong i32 decision.</p><p>This selection order changes no evaluation order: the first argument is evaluated before the second. Static type information is available to the compiler independently of those runtime side effects.</p></section><section id="literal-defaults" aria-labelledby="literal-defaults-heading"><h2 id="literal-defaults-heading">6. Prefer default numeric types before genericity</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 numeric(i32 value) {
+    return value;
+}
+
+i64 numeric(i64 value) {
+    return value;
+}
+
+f32 real_numeric(f32 value) {
+    return value;
+}
+
+f64 real_numeric(f64 value) {
+    return value;
+}
+
+void use_literal_defaults() {
+    i32 whole = numeric(10);
+    f64 real = real_numeric(0.5);
+    return;
+}</code></pre><pre class="code-block"><code class="language-aevix" data-language="aevix">i64 prefer_literal_default(i64 value) {
+    return value;
+}
+
+T prefer_literal_default&lt;T&gt;(T value) {
+    return value;
+}
+
+void default_before_generic_tie() {
+    i32 selected = prefer_literal_default(10);
+    return;
+}</code></pre><p>The last call chooses the generic T = i32 candidate because it matches the integer default. The non-generic i64 candidate does not win merely for being non-generic; that preference applies only after literal suitability is otherwise tied.</p></section><section id="generic-ties" aria-labelledby="generic-ties-heading"><h2 id="generic-ties-heading">7. Prefer a concrete function only for equal suitability</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 identity(i32 value) {
+    return value;
+}
+
+T identity&lt;T&gt;(T value) {
+    return value;
+}
+
+void use_generic_ties() {
+    i32 concrete = identity(10);
+    i32 generic = identity&lt;i32&gt;(20);
+    return;
+}</code></pre><p>The ordinary call has an equally suitable concrete i32 function and a generic i32 specialization, so the non-generic form wins. The explicit angle-bracket call chooses the generic family directly. An explicit type list still needs every declared function type parameter.</p></section><section id="numeric-ambiguity" aria-labelledby="numeric-ambiguity-heading"><h2 id="numeric-ambiguity-heading">8. Do not guess when no default candidate wins</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i8 small_number(i8 value) {
+    return value;
+}
+
+i16 small_number(i16 value) {
+    return value;
+}
+
+// Rejected: both accept 10, neither matches the i32 default;
+void ambiguous_numeric_literal() {
+    rsn result = small_number(10);
+    return;
+}</code></pre><p>There is no smallest-width preference. Supply an already typed argument or otherwise remove the ambiguity. If only one compatible non-default candidate remains, contextual literal typing can use that candidate; the rule does not forbid every non-i32 numeric parameter.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">void resolve_with_a_type() {
+    i8 value = 10;
+    i8 result = small_number(value);
+    return;
+}</code></pre></section><section id="defaults" aria-labelledby="defaults-heading"><h2 id="defaults-heading">9. Omitting fewer defaults is not a preference</h2><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 choose_default(i32 value) {
+    return value;
+}
+
+i32 choose_default(i32 value, i32 offset = 0) {
+    return value + offset;
+}
+
+// Rejected: both match equally; the omitted-default count is not ranked;
+void ambiguous_default_count() {
+    i32 result = choose_default(10);
+    return;
+}</code></pre><p>Both functions have distinct declared parameter counts and may coexist, but the one-argument call is ambiguous. No rule prefers the candidate that uses zero default arguments. A two-argument call can select the second function directly. See <a href="Arguments_and_Defaults.html">Arguments and Defaults</a>.</p></section><section id="module-origins" aria-labelledby="module-origins-heading"><h2 id="module-origins-heading">10. Resolve a module family before overload matching</h2><p>Assume these independent modules each expose a public function named choose. The code blocks are separate module fixtures, not declarations to concatenate into one module.</p><p><strong>Module calculations.integer</strong></p><pre class="code-block"><code class="language-aevix" data-language="aevix">public i32 choose(i32 value) {
+    return value;
+}</code></pre><p><strong>Module calculations.real</strong></p><pre class="code-block"><code class="language-aevix" data-language="aevix">public f64 choose(f64 value) {
+    return value;
+}</code></pre><p><strong>Consumer: qualification identifies the intended family</strong></p><pre class="code-block"><code class="language-aevix" data-language="aevix">import calculations.integer { choose };
+import calculations.real { choose };
+
+void use_qualified_calls() {
+    i32 first = calculations.integer.choose(10);
+    f64 second = calculations.real.choose(0.5);
+    return;
+}</code></pre><p class="callout warning"><strong>Rejected example.</strong> This intentionally violates a chosen rule.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected in that consumer: different originating modules share choose;
+void invalid_pooled_set() {
+    i32 result = choose(10);
+    return;
+}</code></pre><p>The argument cannot make the ambiguous short name legal by selecting one module’s function. The two original overload families are never pooled. A local family and a different imported family follow the same rule; the local name does not silently absorb or outrank the imported family.</p><p>Repeated access to the same canonical original declaration through re-export routes does not create competing copies of that declaration. Type and function identity follow the original declaration; qualification permission still follows the chosen import and re-export routes.</p></section><section id="named-arguments" aria-labelledby="named-arguments-heading"><h2 id="named-arguments-heading">11. Names participate in candidate matching, not signature identity</h2><p>Each candidate maps named arguments to its declared parameters. Unknown names, duplicate bindings and a positional argument after a named one invalidate that call form. Public parameter names are part of the callable API because changing them changes valid named calls.</p><p>Functions with the same parameter types/count cannot become distinct overloads merely through different parameter names. The source evaluation order of named argument expressions is preserved even when their selected parameter positions differ.</p></section><section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">12. Apply fixed-versus-variadic preference only as the final tie-break</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose_pack(i32 value) {
+    return 1;
+}
+
+i32 choose_pack(i32 values[]) {
+    return 2;
+}
+
+void fixed_wins_equal_tie() {
+    i32 selected = choose_pack(10);
+    return;
+}</code></pre><p>Both candidates accept the i32 argument and both are non-generic. The final pack tie-break prefers the fixed-parameter function, so selected is 1 in the specified design. This is not an observed Aevix execution.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">T generic_or_pack&lt;T&gt;(T value) {
+    return value;
+}
+
+i32 generic_or_pack(i32 values[]) {
+    return 2;
+}
+
+void generic_preference_still_runs_first() {
+    i32 selected = generic_or_pack(10);
+    i32 explicit_generic = generic_or_pack&lt;i32&gt;(10);
+    return;
+}</code></pre><p>The ordinary call chooses the non-generic pack candidate before the final fixed-versus-variadic tie-break is reached; selected is 2. The explicitly typed call selects the generic function and returns 10. Numeric literal preferences also remain earlier than either tie-break.</p><p>The count of omitted ordinary defaults remains unranked. Different originating modules remain separate overload families, canonical duplicate re-exports do not create extra candidates, and a remaining tie is still a compile-time ambiguity.</p><ul><li>Implicit user-defined conversions, extension-method lookup and further interface method conflicts are not introduced by these free-function rules.</li><li>The pack rule does not enable aliases, expose private declarations, import unselected siblings, permit named/spread packs or settle foreign varargs ABI.</li></ul><p><a href="Variadic_Parameters.html">Variadic parameters</a> · <a href="Arguments_and_Defaults.html">Arguments and defaults</a> · <a href="Generic_Functions.html">Generic functions</a></p></section>
+<nav class="page-navigation" aria-label="Adjacent function reference pages"><a href="index.html"><span>Related reference</span>Overview</a><a href="Generic_Functions.html"><span>Related reference</span>Generic functions</a><a href="Arguments_and_Defaults.html"><span>Related reference</span>Arguments and defaults</a><a href="Variadic_Parameters.html"><span>Related reference</span>Variadic parameters</a></nav></article></div>
+<footer class="page-footer"><span>Aevix Language · Function reference</span><span>Design specification · compiler implementation not implied</span></footer>
+</main>
+</body>
+</html>

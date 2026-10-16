@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Typed success and failure with explicit propagation, recovery, ownership, and allocation costs.">
+  <title>Result — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=4">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Result.html" aria-current="true">Result</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html" aria-current="true">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Result.html">Result</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Result</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Result</h1><p class="doc-subtitle">Typed success and failure with explicit propagation, recovery, ownership, and allocation costs.</p><div class="doc-meta"><span class="meta-chip">Result&lt;T, E&gt;</span><span class="meta-chip">Result. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>design draft</dd></div><div class="doc-stat"><dt>Variants</dt><dd>Ok(T) · Err(E)</dd></div><div class="doc-stat"><dt>Exceptions</dt><dd>no implicit throw</dd></div><div class="doc-stat"><dt>API functions</dt><dd>41</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>T | E</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Overview</span></a></li><li><a href="#Declaration"><span class="toc-number">02</span><span>Declarations and variants</span></a></li><li><a href="#Handling"><span class="toc-number">03</span><span>Handling and explicit returns</span></a></li><li><a href="#Ownership"><span class="toc-number">04</span><span>Ownership and borrowed errors</span></a></li><li><a href="#Composition"><span class="toc-number">05</span><span>Composition and error types</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>Function reference</span></a></li><li><a href="#Errors"><span class="toc-number">07</span><span>Collection and allocation errors</span></a></li><li><a href="#Specializations"><span class="toc-number">08</span><span>unit, never, and nested variants</span></a></li><li><a href="#Parallel-Device"><span class="toc-number">09</span><span>Parallel work and completion</span></a></li><li><a href="#Layout-FFI"><span class="toc-number">10</span><span>Layout, FFI, and diagnostics</span></a></li><li><a href="#Examples"><span class="toc-number">11</span><span>Examples and intentional discard</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Result pages"><h2>Result reference</h2><div class="family-links"><a href="Result.html" aria-current="page">Result</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html" aria-current="true">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Result reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Overview
+</h2>
+<p><strong>Design draft.</strong> These are proposed Aevix APIs, not claims that a compiler or standard library implements them. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
+</p>
+<p>Result is a tagged value carrying either success T or failure E. Returning an error is normal control flow. Its mere construction does not throw, unwind, log, terminate, or transfer control to a caller. The caller handles the active variant or explicitly propagates it.
+</p>
+</section>
+<section id="Declaration" aria-labelledby="Declaration-heading">
+<h2 id="Declaration-heading">2. Declarations and variants
+</h2>
+<p>Success and error payloads can have different types and ownership. Type-first declarations provide constructor context. Neither variant requires a wrapper allocation; the active payload can itself own allocated resources.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;i32, i32&gt; success = Result.ok(12);
+Result&lt;i32, i32&gt; failure = Result.err(404);
+bool failed = Result.is_err(&amp;failure);</code></pre>
+</section>
+<section id="Handling" aria-labelledby="Handling-heading">
+<h2 id="Handling-heading">3. Handling and explicit returns
+</h2>
+<p>A Result-returning function is non-void. Ordinary successful completion explicitly returns its Result value; the chosen postfix <code>?</code> may explicitly spell an Err-only early return. A final expression is not an implicit return, and a diverging path does not need an impossible return. See <a href="../../grammar/operators/Error_Propagation.html">Error Propagation</a>.</p>
+<p>This catalog keeps named Result APIs alongside the chosen postfix <code>?</code> and lexical <code>checked(expression)</code> syntax. Ordinary integer arithmetic still produces its scalar type and uses a checked safe-stop contract. A checked expression makes directly written integer arithmetic failures into Result values; postfix <code>?</code> either extracts success or returns the same error type from the current Result-returning function. These are design rules, not an implemented effect boundary or compiler claim. A declared API retains the explicit errors stated in its contract.</p>
+<h3 id="Unused-Results">Discarded Result expressions produce a warning</h3>
+<p>Ignoring a Result-valued expression statement produces a compile-time warning in the default language policy. It is not implicit success, unwrapping or error propagation, and does not by itself make the program ill-typed. This initial policy adds no discard keyword or forced handling syntax. A stored or returned Result remains an ordinary value; callers must explicitly inspect, transform or propagate it before using its success payload.</p>
+<p>Both success and error payloads retain ordinary ownership cleanup when a discarded temporary ends. API-catalog examples that show a fallible call by itself demonstrate its spelling and may produce this warning; they do not demonstrate successful error handling. Additional unused-variable/data-flow diagnostics remain separate tooling work.</p></section>
+<section id="Ownership" aria-labelledby="Ownership-heading">
+<h2 id="Ownership-heading">4. Ownership and borrowed errors
+</h2>
+<p>An owned Result moves its active payload. Shared or exclusive projections borrow only the active variant and keep the source alive. Replacing the tag is forbidden while such a projection remains live. Result has no None state to leave behind during a take.
+</p>
+<p>Replace installs a complete new Result and returns the previous one. Clone returns a nested Result because cloning can fail independently of whether the original value was Ok or Err. It never mistakes a cloned original Err for a cloning failure.
+</p>
+</section>
+<section id="Composition" aria-labelledby="Composition-heading">
+<h2 id="Composition-heading">5. Composition and error types
+</h2>
+<p>Map changes a success type, map_err changes an error type, and and_then sequences a fallible operation with the same E. If two operations have different errors, map them into an explicit application enum before sequencing. A generic hidden exception union is not inserted.
+</p>
+<p>Eager and/or/zip inputs have already executed. And_then and or_else call their branch only when needed. Zip specifies left error priority, not parallel first-to-complete failure. Recovery that discards an error is named and documented.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6. Function reference
+</h2>
+<p><code>T value</code> passes a value: Copy types are copied, and owning non-Copy values move without a deep clone. <code>&amp;T value</code> is a shared read borrow; <code>&amp;mut T value</code> is an exclusive modification borrow. Calls use <code>x</code>, <code>&amp;x</code>, or <code>&amp;mut x</code> respectively. Already borrowed references and view values are passed directly; adding another & changes the type. <code>*ref</code> accesses the referent. Ordinary <code>&amp;mut x</code> requires a <code>mut</code> owner; <code>mut T value</code> alone makes a by-value parameter locally mutable and does not modify the caller. Overlapping active borrows are checked until last use; disjoint regions may be split safely and no borrow outlives its source. Synchronized interior mutation follows its own type contract. <code>Fn(A) -&gt; B</code> describes a callable; returned-reference lifetime relationships remain documented in prose.
+</p>
+<h3>Construction, observation, and replacement
+</h3>
+<div class="table-scroll" role="region" aria-label="Function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Proposed signature</th><th scope="col">Returns</th><th scope="col">Contract and constraints</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Result-ok"><td><code>Result.ok&lt;T, E&gt;(T value)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>Constructs success; E is supplied by context or an explicit type argument.</td><td>Value move cost</td>
+</tr>
+<tr id="Result-err"><td><code>Result.err&lt;T, E&gt;(E error)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>Constructs failure; T is supplied by context or an explicit type argument.</td><td>Error move cost</td>
+</tr>
+<tr id="Result-is_ok"><td><code>Result.is_ok(&amp;Result&lt;T, E&gt; value)</code></td><td><code>bool</code></td><td>Checks the tag without consuming either payload.</td><td>O(1)</td>
+</tr>
+<tr id="Result-is_err"><td><code>Result.is_err(&amp;Result&lt;T, E&gt; value)</code></td><td><code>bool</code></td><td>True for the error variant.</td><td>O(1)</td>
+</tr>
+<tr id="Result-is_ok_and"><td><code>Result.is_ok_and(&amp;Result&lt;T, E&gt; value, Fn(&amp;T) -&gt; bool predicate)</code></td><td><code>bool</code></td><td>Invokes the predicate only on a successful borrow.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-is_err_and"><td><code>Result.is_err_and(&amp;Result&lt;T, E&gt; value, Fn(&amp;E) -&gt; bool predicate)</code></td><td><code>bool</code></td><td>Invokes the predicate only on an error borrow.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-as_ref"><td><code>Result.as_ref(&amp;Result&lt;T, E&gt; value)</code></td><td><code>Result&lt;&amp;T, &amp;E&gt;</code></td><td>Borrows only the active payload, bounded by source lifetime.</td><td>O(1)</td>
+</tr>
+<tr id="Result-as_mut"><td><code>Result.as_mut(&amp;mut Result&lt;T, E&gt; value)</code></td><td><code>Result&lt;&amp;mut T, &amp;mut E&gt;</code></td><td>Exclusively borrows the active payload and prevents tag replacement.</td><td>O(1)</td>
+</tr>
+<tr id="Result-get_ok"><td><code>Result.get_ok(&amp;Result&lt;T, E&gt; value)</code></td><td><code>Optional&lt;&amp;T&gt;</code></td><td>Some shared success borrow or None; owner is retained.</td><td>O(1)</td>
+</tr>
+<tr id="Result-get_err"><td><code>Result.get_err(&amp;Result&lt;T, E&gt; value)</code></td><td><code>Optional&lt;&amp;E&gt;</code></td><td>Some shared error borrow or None; owner is retained.</td><td>O(1)</td>
+</tr>
+<tr id="Result-replace"><td><code>Result.replace(&amp;mut Result&lt;T, E&gt; target, Result&lt;T, E&gt; replacement)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>Installs a complete replacement and returns the previous complete variant. There is no empty intermediate state.</td><td>Move cost</td>
+</tr>
+<tr id="Result-swap"><td><code>Result.swap(&amp;mut Result&lt;T, E&gt; left, &amp;mut Result&lt;T, E&gt; right)</code></td><td><code>unit</code></td><td>Requires disjoint exclusive borrows; exchanges complete variants.</td><td>Value move cost</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Mapping, sequencing, and recovery
+</h3>
+<div class="table-scroll" role="region" aria-label="Function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Proposed signature</th><th scope="col">Returns</th><th scope="col">Contract and constraints</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Result-map"><td><code>Result.map(Result&lt;T, E&gt; value, Fn(T) -&gt; U transform)</code></td><td><code>Result&lt;U, E&gt;</code></td><td>Transforms Ok once; Err is moved unchanged.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-map_err"><td><code>Result.map_err(Result&lt;T, E&gt; value, Fn(E) -&gt; F transform)</code></td><td><code>Result&lt;T, F&gt;</code></td><td>Transforms Err once; Ok is moved unchanged.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-map_both"><td><code>Result.map_both(Result&lt;T, E&gt; value, Fn(T) -&gt; U success, Fn(E) -&gt; F failure)</code></td><td><code>Result&lt;U, F&gt;</code></td><td>Invokes exactly the callback for the active variant.</td><td>One callback</td>
+</tr>
+<tr id="Result-map_ref"><td><code>Result.map_ref(&amp;Result&lt;T, E&gt; value, Fn(&amp;T) -&gt; U transform)</code></td><td><code>Result&lt;U, &amp;E&gt;</code></td><td>Transforms a borrowed success; an error remains borrowed rather than being silently cloned.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-and"><td><code>Result.and(Result&lt;T, E&gt; left, Result&lt;U, E&gt; right)</code></td><td><code>Result&lt;U, E&gt;</code></td><td>Eager right; left Err wins. Discarded active payloads are destroyed once.</td><td>Move + drop costs</td>
+</tr>
+<tr id="Result-and_then"><td><code>Result.and_then(Result&lt;T, E&gt; value, Fn(T) -&gt; Result&lt;U, E&gt; next)</code></td><td><code>Result&lt;U, E&gt;</code></td><td>Runs next only on Ok; the callback uses the same error type E.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-or"><td><code>Result.or(Result&lt;T, E&gt; left, Result&lt;T, F&gt; right)</code></td><td><code>Result&lt;T, F&gt;</code></td><td>Eager right; left Ok wins, otherwise uses right and destroys the old error.</td><td>Move + drop costs</td>
+</tr>
+<tr id="Result-or_else"><td><code>Result.or_else(Result&lt;T, E&gt; value, Fn(E) -&gt; Result&lt;T, F&gt; recover)</code></td><td><code>Result&lt;T, F&gt;</code></td><td>Runs recovery only on Err; changing the error type is explicit.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-inspect"><td><code>Result.inspect(Result&lt;T, E&gt; value, Fn(&amp;T) -&gt; unit observer)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>Observes Ok through a shared borrow, then returns original ownership.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-inspect_err"><td><code>Result.inspect_err(Result&lt;T, E&gt; value, Fn(&amp;E) -&gt; unit observer)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>Observes Err through a shared borrow, then returns original ownership.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-unwrap_or"><td><code>Result.unwrap_or(Result&lt;T, E&gt; value, T fallback)</code></td><td><code>T</code></td><td>Eager fallback; destroys an unused fallback or handled error exactly once.</td><td>Move + drop costs</td>
+</tr>
+<tr id="Result-unwrap_or_else"><td><code>Result.unwrap_or_else(Result&lt;T, E&gt; value, Fn(E) -&gt; T recover)</code></td><td><code>T</code></td><td>Consumes an error into a recovery callback only on Err.</td><td>Optional callback</td>
+</tr>
+<tr id="Result-map_or"><td><code>Result.map_or(Result&lt;T, E&gt; value, U fallback, Fn(T) -&gt; U transform)</code></td><td><code>U</code></td><td>Eager fallback; an error is explicitly discarded under this API contract.</td><td>Optional callback + drops</td>
+</tr>
+<tr id="Result-map_or_else"><td><code>Result.map_or_else(Result&lt;T, E&gt; value, Fn(E) -&gt; U recover, Fn(T) -&gt; U transform)</code></td><td><code>U</code></td><td>Both outcomes are handled by exactly one callback.</td><td>One callback</td>
+</tr>
+<tr id="Result-ok_optional"><td><code>Result.ok_optional(Result&lt;T, E&gt; value)</code></td><td><code>Optional&lt;T&gt;</code></td><td>Keeps success and intentionally destroys an error payload. Does not log or propagate it.</td><td>Move + possible drop</td>
+</tr>
+<tr id="Result-err_optional"><td><code>Result.err_optional(Result&lt;T, E&gt; value)</code></td><td><code>Optional&lt;E&gt;</code></td><td>Keeps an error and intentionally destroys a success payload.</td><td>Move + possible drop</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Nested values, iteration, duplication, and collection
+</h3>
+<div class="table-scroll" role="region" aria-label="Function reference data table">
+<table>
+<thead>
+<tr><th scope="col">Proposed signature</th><th scope="col">Returns</th><th scope="col">Contract and constraints</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Result-flatten"><td><code>Result.flatten(Result&lt;Result&lt;T, E&gt;, E&gt; value)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>Removes one Result layer only when both error types are exactly E.</td><td>O(1) tag + move</td>
+</tr>
+<tr id="Result-transpose"><td><code>Result.transpose(Result&lt;Optional&lt;T&gt;, E&gt; value)</code></td><td><code>Optional&lt;Result&lt;T, E&gt;&gt;</code></td><td>Ok(None) -> None; Ok(Some(x)) -> Some(Ok(x)); Err(e) -> Some(Err(e)).</td><td>O(1) tag + move</td>
+</tr>
+<tr id="Result-zip"><td><code>Result.zip(Result&lt;T, E&gt; left, Result&lt;U, E&gt; right)</code></td><td><code>Result&lt;Tuple&lt;T, U&gt;, E&gt;</code></td><td>Both inputs eager; left error wins if both fail, and the unused payload is destroyed.</td><td>Moves + possible drop</td>
+</tr>
+<tr id="Result-into_ok"><td><code>Result.into_ok(Result&lt;T, never&gt; value)</code></td><td><code>T</code></td><td>Available only with an uninhabited error type; no runtime failure branch is possible.</td><td>Move cost</td>
+</tr>
+<tr id="Result-into_err"><td><code>Result.into_err(Result&lt;never, E&gt; value)</code></td><td><code>E</code></td><td>Available only with an uninhabited success type.</td><td>Move cost</td>
+</tr>
+<tr id="Result-iter"><td><code>Result.iter(&amp;Result&lt;T, E&gt; value)</code></td><td><code>Iterator&lt;&amp;T&gt;</code></td><td>Yields a success borrow zero or one times; errors remain owned by the source.</td><td>O(1)</td>
+</tr>
+<tr id="Result-iter_mut"><td><code>Result.iter_mut(&amp;mut Result&lt;T, E&gt; value)</code></td><td><code>Iterator&lt;&amp;mut T&gt;</code></td><td>Yields an exclusive success borrow zero or one times.</td><td>O(1)</td>
+</tr>
+<tr id="Result-into_iter"><td><code>Result.into_iter(Result&lt;T, E&gt; value)</code></td><td><code>Iterator&lt;T&gt;</code></td><td>Yields Ok once; Err is intentionally destroyed. Unyielded success is destroyed on cursor drop.</td><td>O(1) + possible drop</td>
+</tr>
+<tr id="Result-copy"><td><code>Result.copy(&amp;Result&lt;T, E&gt; value)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>Requires both T and E: Copy; copies the active variant only.</td><td>Active payload size cost</td>
+</tr>
+<tr id="Result-clone"><td><code>Result.clone(&amp;Result&lt;T, E&gt; value)</code></td><td><code>Result&lt;Result&lt;T, E&gt;, CloneError&gt;</code></td><td>Requires both T and E: Clone; the outer Result describes cloning, not the original operation.</td><td>Active payload clone cost</td>
+</tr>
+<tr id="Result-equal"><td><code>Result.equal(&amp;Result&lt;T, E&gt; left, &amp;Result&lt;T, E&gt; right)</code></td><td><code>bool</code></td><td>Requires equality for T and E; different variants are unequal.</td><td>Active comparison cost</td>
+</tr>
+<tr id="Result-compare"><td><code>Result.compare(&amp;Result&lt;T, E&gt; left, &amp;Result&lt;T, E&gt; right)</code></td><td><code>Ordering</code></td><td>Requires total orders for T and E; proposed variant order Ok before Err.</td><td>Active comparison cost</td>
+</tr>
+<tr id="Result-collect"><td><code>Result.collect(Iterator&lt;Result&lt;T, E&gt;&gt; input)</code></td><td><code>Result&lt;Vector&lt;T&gt;, CollectError&lt;E&gt;&gt;</code></td><td>Stops at first input error or allocation/size failure; destroys accumulated values and owns/destroys remaining cursor state.</td><td>O(consumed prefix), allocation</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Errors" aria-labelledby="Errors-heading">
+<h2 id="Errors-heading">7. Collection and allocation errors
+</h2>
+<p><code>CollectError&lt;E&gt;</code> is a proposed library enum that distinguishes an input error E from CollectionError size/allocation failure. The two cases are never conflated or forced into a user error type. Collection stops at the first sequential failure; already accumulated owned elements are safely destroyed.
+</p>
+<p>CloneError and collection error names describe draft support contracts. A cleanup destructor does not silently emit another recoverable Result. Operations such as flushing or closing a resource expose explicit fallible APIs before ownership destruction.
+</p>
+</section>
+<section id="Specializations" aria-labelledby="Specializations-heading">
+<h2 id="Specializations-heading">8. unit, never, and nested variants
+</h2>
+<p><code>Result&lt;unit, E&gt;</code> means fallible completion with no success payload. It is not void and still needs an explicit returned value. <code>Result&lt;T, never&gt;</code> is statically infallible; into_ok extracts its success without a panic-on-error shortcut.
+</p>
+<p>Transpose changes the nesting of Optional and Result with a precise state mapping. Flatten accepts the same inner and outer error type only. No implicit error conversion is introduced by either helper.
+</p>
+</section>
+<section id="Parallel-Device" aria-labelledby="Parallel-Device-heading">
+<h2 id="Parallel-Device-heading">9. Parallel work and completion
+</h2>
+<p>A Result value is not a synchronization primitive. Receiving an Err from a GPU submission attempt differs from observing completion of already submitted work. Pending and Task contracts define when resources and borrowed buffers are safe to release.
+</p>
+<p>Parallel reductions must define failure selection, integer overflow, and cancellation. They cannot reinterpret a poisoned or partially initialized accumulator as a valid success value. Shared mutable error storage needs atomic or lock protection.
+</p>
+</section>
+<section id="Layout-FFI" aria-labelledby="Layout-FFI-heading">
+<h2 id="Layout-FFI-heading">10. Layout, FFI, and diagnostics
+</h2>
+<p>Result layout is not automatically C-compatible. A foreign status code plus output pointer, C++ expected, Python exception, or nullable object needs an explicit binding contract for ownership and error conversion. Python exceptions become error values only at the adapter boundary.
+</p>
+<p>Payload niches and tag elision are compiler optimizations, not stable wire formats. Diagnostic formatting follows payload traits and may allocate; no automatic log is emitted simply because Err is constructed or destroyed.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">11. Examples and intentional discard
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i32, never&gt; infallible = Result.ok(7);
+i32 known = Result.into_ok(infallible);
+i32 fallback = Result.unwrap_or(Result.err&lt;i32, i32&gt;(404), 0);
+Optional&lt;i32&gt; kept = Result.ok_optional(Result.ok&lt;i32, i32&gt;(9));</code></pre>
+<p>Fallback recovery consumes the handled error. ok_optional intentionally removes error information; use it only when that loss is part of the application contract. There is no general panic-on-Err unwrap in this proposed safe catalog.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/result/enum.Result.html" target="_blank" rel="noopener noreferrer">Rust Result reference: typed composition and projections</a>
+</li>
+<li><a href="https://eel.is/c++draft/expected" target="_blank" rel="noopener noreferrer">C++ working draft: expected value/error lifetime model</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

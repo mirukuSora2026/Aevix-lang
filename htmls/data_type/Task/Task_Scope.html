@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Borrowed work finishes before its storage can leave scope.">
+  <title>Task Scope — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Task.html" aria-current="true">Task</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Task.html">Task</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Task Scope</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Task Scope</h1><p class="doc-subtitle">Borrowed work finishes before its storage can leave scope.</p><div class="doc-meta"><span class="meta-chip">TaskScope / LocalTaskScope</span><span class="meta-chip">Task. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>12</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>task</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#lifetime"><span class="toc-number">01</span><span>The scope boundary is a lifetime proof</span></a></li><li><a href="#exit"><span class="toc-number">02</span><span>Normal return, early return and unwinding</span></a></li><li><a href="#capture"><span class="toc-number">03</span><span>Read, exclusive and owned captures</span></a></li><li><a href="#result"><span class="toc-number">04</span><span>Results, failures and admission closure</span></a></li><li><a href="#locks"><span class="toc-number">05</span><span>Suspension and synchronization</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>A scope is an obligation-bearing value</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Design requirements and sources</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Task pages"><h2>Task reference</h2><div class="family-links"><a href="Task.html">Task</a><a href="Task_Scope.html" aria-current="page">Task Scope</a><a href="Task_Cancellation.html">Task Cancellation</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Task Scope reference">
+<section id="lifetime" aria-labelledby="lifetime-heading">
+<h2 id="lifetime-heading">1. The scope boundary is a lifetime proof
+</h2>
+<p>A task scope defines the interval in which child work may access captured borrowed storage. The borrowed environment must outlive that interval. Every child accepted by the scope is registered before it can run. Scope completion closes admission and waits until accepted children can no longer access those loans. A child handle is a way to observe a result, not the source of the lifetime guarantee.
+</p>
+<p>A scope borrowing a local array cannot be returned, detached or stored in a longer-lived container. Moving a Task handle does not move the borrowed storage into an owner. The compiler rejects an escaping relationship even when the code intends to join later. Runtime tracking independently handles accepted work after a handle is forgotten.
+</p>
+</section>
+<section id="exit" aria-labelledby="exit-heading">
+<h2 id="exit-heading">2. Normal return, early return and unwinding
+</h2>
+<p>Normal scope exit is an explicit join boundary. Early return must route through the same required drain before destroying borrowed values. If unwind is part of a selected runtime profile, cancellation may be requested during unwind, but the implementation cannot release borrowed storage until all use has stopped. A second failure during cleanup follows the selected fatal policy rather than inventing a safe Result with live references.
+</p>
+<p>A runtime that cannot establish safe completion must preserve storage or terminate according to its fatal policy. It cannot resume the caller with a dangling child reference. This is a memory-safety requirement and may lead to an unbounded wait. It does not imply that arbitrary application code will cooperate or terminate.
+</p>
+</section>
+<section id="capture" aria-labelledby="capture-heading">
+<h2 id="capture-heading">3. Read, exclusive and owned captures
+</h2>
+<p>Read-only captures can be shared when their element types satisfy the relevant sharing rules. Exclusive captures transfer a unique loan for the child interval. Splitting a mutable collection into disjoint slices can enable independent tasks, but two index ranges that might overlap are rejected or checked before spawning. Shared&lt;T&gt; retains an allocation and does not automatically establish thread-safe access to T.
+</p>
+<p>Owned captures move values into work and can support explicit detach if they have no hidden environment loans. Scope-owned work is still joined by default even when its captures could outlive the scope. LocalTaskScope permits non-Send values only while execution stays on the compatible local executor; converting it into a migratable task is not implicit.
+</p>
+</section>
+<section id="result" aria-labelledby="result-heading">
+<h2 id="result-heading">4. Results, failures and admission closure
+</h2>
+<p>Every task result can be taken once. A scope report collects unobserved lifecycle outcomes after all children are safe, without automatically flattening a Result returned by the child. Application errors remain ordinary returned values. Closing admission rejects new spawn attempts; it does not cancel already accepted children or immediately destroy captured data.
+</p>
+<p>Dynamic child creation during closing needs a clear registration linearization point. Either registration succeeds and the child belongs to the drain set, or it fails before work starts. Ordinary spawn consumes its work value and safely destroys unstarted captures on failure; APIs promising reuse return a typed ownership-preserving error payload. No unregistered task may start and borrow scope data. A report that summarizes failures can allocate during normal operation; required safety cleanup must not depend on a successful late allocation.
+</p>
+</section>
+<section id="locks" aria-labelledby="locks-heading">
+<h2 id="locks-heading">5. Suspension and synchronization
+</h2>
+<p>The safe profile forbids carrying a lock guard across an async suspension and handing that guard to device work. Release it before yield, sleep, awaiting a child or submitting a GPU operation. This is compatible with scoped borrowing: a lifetime-safe capture can still cause deadlock if it holds a resource another child needs.
+</p>
+<p>A blocking join inside an executor worker can deadlock a single-thread scheduler. The runtime must diagnose incompatible blocking contexts or require an explicitly blocking executor boundary. Awaiting the same task from multiple observers does not permit multiple moves of T; observation and exclusive take remain different operations.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. A scope is an obligation-bearing value
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;TaskScope, SpawnError&gt; opened = Task.open_scope(&amp;executor, scope_options);
+// After handling opened as active_scope and preparing lifetime-safe work.
+Result&lt;Task&lt;i32&gt;, SpawnError&gt; child = Task.spawn&lt;i32&gt;(&amp;active_scope, borrowed_work);
+// At the required explicit boundary, after resolving handle ownership.
+Result&lt;ScopeReport, ScopeError&gt; report = Task.close_scope(active_scope);</code></pre>
+<p>TaskScope is tracked specially by lexical rules and the runtime registry; writing a destructor that joins a list of handles is insufficient by itself. The example does not choose how future scope-body syntax will spell that boundary.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Task-scope_id"><td><code>Task.scope_id(&amp;TaskScope scope)</code></td><td><code>ScopeId</code></td><td>Stable registry identity during scope lifetime.</td><td>O(1).</td>
+</tr>
+<tr id="Task-scope_status"><td><code>Task.scope_status(&amp;TaskScope scope)</code></td><td><code>ScopeStatus</code></td><td>Open, Closing or Drained snapshot; Drained proves no remaining scope loan use.</td><td>O(1).</td>
+</tr>
+<tr id="Task-close_admission"><td><code>Task.close_admission(&amp;TaskScope scope)</code></td><td><code>Result&lt;unit, ScopeError&gt;</code></td><td>Stops new accepted registrations; existing work remains live.</td><td>O(1) synchronized transition.</td>
+</tr>
+<tr id="Task-active_count"><td><code>Task.active_count(&amp;TaskScope scope)</code></td><td><code>usize</code></td><td>Snapshot of registered unfinished children; not a standalone synchronization proof.</td><td>O(1) or registry query.</td>
+</tr>
+<tr id="Task-request_scope_cancel"><td><code>Task.request_scope_cancel(&amp;TaskScope scope)</code></td><td><code>Result&lt;CancelRequest, ScopeError&gt;</code></td><td>Signals all registered children and propagating token descendants; does not drain them.</td><td>O(children) notifications possible.</td>
+</tr>
+<tr id="Task-await_scope"><td><code>Task.await_scope(TaskScope scope)</code></td><td><code>Awaitable&lt;Result&lt;ScopeReport, ScopeError&gt;&gt;</code></td><td>Requires admission closed; drains all children and releases scoped loans before returning.</td><td>Suspends; may never complete for noncooperative work.</td>
+</tr>
+<tr id="Task-join_set"><td><code>Task.join_set&lt;T&gt;(&amp;TaskScope scope)</code></td><td><code>Result&lt;JoinSet&lt;T&gt;, SpawnError&gt;</code></td><td>Creates result grouping tied to existing scope; dropping group does not untrack its tasks.</td><td>Allocates grouping state.</td>
+</tr>
+<tr id="Task-insert"><td><code>Task.insert&lt;T&gt;(&amp;mut JoinSet&lt;T&gt; set, Task&lt;T&gt; task)</code></td><td><code>Result&lt;unit, JoinInsertError&lt;Task&lt;T&gt;&gt;&gt;</code></td><td>Requires same compatible scope and no result take; error preserves handle.</td><td>Registration/bookkeeping cost.</td>
+</tr>
+<tr id="Task-join_next"><td><code>Task.join_next&lt;T&gt;(&amp;mut JoinSet&lt;T&gt; set)</code></td><td><code>Awaitable&lt;Result&lt;Optional&lt;Result&lt;T, TaskError&gt;&gt;, JoinError&gt;&gt;</code></td><td>Returns one completed task outcome; absence only when admission/group membership exhausted.</td><td>Suspends; removes one result.</td>
+</tr>
+<tr id="Task-drain"><td><code>Task.drain&lt;T&gt;(JoinSet&lt;T&gt; set)</code></td><td><code>Awaitable&lt;Result&lt;Vector&lt;Result&lt;T, TaskError&gt;&gt;, JoinError&gt;&gt;</code></td><td>Collects every registered group result before returning; scope obligations remain tracked on allocation error.</td><td>O(tasks); output allocation.</td>
+</tr>
+<tr id="Task-local_scope"><td><code>Task.local_scope&lt;T&gt;(&amp;LocalExecutor executor, ScopeBody&lt;T&gt; body)</code></td><td><code>Result&lt;T, ScopeError&gt;</code></td><td>Scope and children stay on same local executor; borrowed data still cannot escape.</td><td>Scheduling and drain costs.</td>
+</tr>
+<tr id="Task-validate_captures"><td><code>Task.validate_captures(Work&lt;T&gt; work, ScopeDescriptor scope)</code></td><td><code>CaptureReport</code></td><td>Compile-time/diagnostic view of transfer and lifetime requirements; not a dynamic bypass.</td><td>Diagnostics; no scheduling.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Design requirements and sources
+</h2>
+<p>These contracts require both compiler lifetime analysis and runtime tracking. They are not inferred automatically from a user handle destructor, a Rust thread interface or Tokio behavior. The referenced systems provide comparison points; Aevix deliberately specifies its own structured default and error-as-value policy. No implementation, bounded shutdown guarantee or deadlock freedom is claimed.
+</p>
+<p><a href="Task.html">Task common reference</a> · <a href="Task_Scope.html">Scope</a> · <a href="Task_Cancellation.html">Cancellation</a> · <a href="../Pending/Pending.html">Device completion</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/future/trait.Future.html" target="_blank" rel="noopener noreferrer">Rust Future polling contract</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/thread/fn.scope.html" target="_blank" rel="noopener noreferrer">Rust scoped threads and lifetime boundary</a>
+</li>
+<li><a href="https://docs.rs/tokio/latest/tokio/task/struct.JoinHandle.html" target="_blank" rel="noopener noreferrer">Tokio JoinHandle lifecycle</a>
+</li>
+<li><a href="https://tokio.rs/tokio/topics/shutdown" target="_blank" rel="noopener noreferrer">Tokio graceful shutdown</a>
+</li>
+<li><a href="https://docs.rs/tokio-util/latest/tokio_util/sync/struct.CancellationToken.html" target="_blank" rel="noopener noreferrer">Tokio CancellationToken</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Task.html"><span>Previous reference</span>Task</a><a href="Task_Cancellation.html"><span>Next reference</span>Task Cancellation</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

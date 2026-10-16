@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Logical lane predicates with no assumed native mask ABI.">
+  <title>SIMD Mask — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Simd.html" aria-current="true">Simd</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Simd.html">Simd</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">SIMD Mask</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>SIMD Mask</h1><p class="doc-subtitle">Logical lane predicates with no assumed native mask ABI.</p><div class="doc-meta"><span class="meta-chip">Mask&lt;N&gt;</span><span class="meta-chip">Simd. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Status</dt><dd>Design draft</dd></div><div class="doc-stat"><dt>Functions</dt><dd>16</dd></div><div class="doc-stat"><dt>Execution</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>N×T</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>One logical predicate per lane</span></a></li><li><a href="#logic"><span class="toc-number">02</span><span>Logical operations and reductions</span></a></li><li><a href="#evaluation"><span class="toc-number">03</span><span>Selecting values and guarding effects</span></a></li><li><a href="#bits"><span class="toc-number">04</span><span>Explicit bitset conversion</span></a></li><li><a href="#ownership"><span class="toc-number">05</span><span>Masks do not grant memory rights</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>A logical array is an explicit conversion</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>Specialized function reference</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>Reference scope</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Simd pages"><h2>Simd reference</h2><div class="family-links"><a href="Simd.html">Simd</a><a href="Simd_Mask.html" aria-current="page">SIMD Mask</a><a href="Simd_Portable.html">Portable SIMD</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="SIMD Mask reference">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1. One logical predicate per lane
+</h2>
+<p>Mask&lt;N&gt; contains N logical truth values and matches the lane count of an associated Simd value. It is a proposed library type, not an alias for bool, Array&lt;bool, N&gt;, an integer vector or a hardware predicate register. Logical operations specify results per lane while leaving native representation to the target. A backend may use bit packing, full-width lane bits or another valid internal format.
+</p>
+<p>The positive lane count is a compile-time constraint. A mask can be copied as a value without heap allocation, but that does not guarantee a single register or stable memory layout. Numeric comparison creates masks. A mask cannot be passed to a C bool array pointer through a bitcast; explicit logical array conversion is required.
+</p>
+</section>
+<section id="logic" aria-labelledby="logic-heading">
+<h2 id="logic-heading">2. Logical operations and reductions
+</h2>
+<p>Conjunction, disjunction, exclusive-or and negation apply independently to each lane. all is true only when every lane is true; any is true when at least one lane is true; count returns the number of true lanes. first_set and last_set return Optional&lt;usize&gt;, avoiding an invalid sentinel index for an all-false mask.
+</p>
+<p>Because N is positive, an all-true mask contains at least one active lane. A future zero-lane extension would need explicit reduction identities and does not follow automatically from ordinary empty-array behavior. Mask equality means identical logical truth values, not identical padding or register bits.
+</p>
+</section>
+<section id="evaluation" aria-labelledby="evaluation-heading">
+<h2 id="evaluation-heading">3. Selecting values and guarding effects
+</h2>
+<p>select receives two already evaluated vector values. It chooses lanes but cannot suppress computation of those inputs. Guarding a zero divisor requires a masked arithmetic function whose contract excludes inactive arithmetic, or a proven-safe replacement divisor before regular division. Guarding a load requires the masked load/gather functions, not a selection after an invalid load.
+</p>
+<p>Masked memory functions validate and access only active indices. They do not form an address for an inactive invalid index. Masked scatter also rejects duplicates among active destinations before writing; duplicates solely among inactive lanes are irrelevant. The borrow checker still requires legal source and destination loans even if every lane is inactive.
+</p>
+</section>
+<section id="bits" aria-labelledby="bits-heading">
+<h2 id="bits-heading">4. Explicit bitset conversion
+</h2>
+<p>Portable bitset conversion assigns lane i to bit i, with bit zero the least-significant logical bit of word zero. Bitset&lt;N&gt; is a library record containing enough u64 words; unused high bits in the final word must be zero when constructing a mask. A compact u64 conversion is available only when N &lt;= 64. These are value conversions and do not expose native mask object memory.
+</p>
+<p>Endianness matters only when that bitset is serialized into bytes, through an explicitly named little-endian or big-endian encoding. N=64 must not be implemented with an invalid shift by 64. A safe adapter validates unused bits using width-aware arithmetic rather than relying on CPU shift masking.
+</p>
+</section>
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">5. Masks do not grant memory rights
+</h2>
+<p>A mask is a value predicate, not a proof that a buffer is uniquely borrowed or that a GPU producer has finished. A masked store still requires MutSlice ownership and bounds proof for active lanes. A copied mask does not retain a source buffer or extend a borrowed task lifetime. Queued work captures masks by value or retains their owning memory explicitly if they are stored in buffers.
+</p>
+<p>Whether a mask operation is native is a compile capability. A compiler can combine masks or remove redundant checks when it proves the same active-access set and error behavior, but cannot turn a checked operation into poison on inactive lanes. AOT and JIT share these semantic requirements.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6. A logical array is an explicit conversion
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Mask&lt;4&gt; active = Simd.mask_from_array&lt;4&gt;([true, false, true, false]);
+Array&lt;bool, 4&gt; flags = Simd.mask_to_array(active);
+usize enabled = Simd.mask_count(active);
+Optional&lt;usize&gt; first = Simd.mask_first_set(active);</code></pre>
+<p>The values flags and active have different abstract types and no shared native layout guarantee. The example allocates no dynamic Vector and makes no implicit conversion to a numeric lane type.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7. Specialized function reference
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="Specialized function reference data table">
+<table>
+<thead>
+<tr><th>Function signature</th><th>Returns</th><th>Contract</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-mask_splat"><td><code>Simd.mask_splat&lt;N&gt;(bool value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Copies one logical predicate into all lanes.</td><td>O(N); no heap.</td>
+</tr>
+<tr id="Simd-mask_from_array"><td><code>Simd.mask_from_array&lt;N&gt;(Array&lt;bool, N&gt; values)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Array element i becomes logical lane i.</td><td>O(N); no ABI reinterpretation.</td>
+</tr>
+<tr id="Simd-mask_to_array"><td><code>Simd.mask_to_array(Mask&lt;N&gt; value)</code></td><td><code>Array&lt;bool, N&gt;</code></td><td>Returns logical bool values with ordinary array representation.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_and"><td><code>Simd.mask_and(Mask&lt;N&gt; a, Mask&lt;N&gt; b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Lane-wise conjunction.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_or"><td><code>Simd.mask_or(Mask&lt;N&gt; a, Mask&lt;N&gt; b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Lane-wise disjunction.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_xor"><td><code>Simd.mask_xor(Mask&lt;N&gt; a, Mask&lt;N&gt; b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Lane-wise truth inequality.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_not"><td><code>Simd.mask_not(Mask&lt;N&gt; value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Lane-wise logical negation.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_all"><td><code>Simd.mask_all(Mask&lt;N&gt; value)</code></td><td><code>bool</code></td><td>True iff all logical lanes are true.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_any"><td><code>Simd.mask_any(Mask&lt;N&gt; value)</code></td><td><code>bool</code></td><td>True iff at least one logical lane is true.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_count"><td><code>Simd.mask_count(Mask&lt;N&gt; value)</code></td><td><code>usize</code></td><td>Number of true lanes, in inclusive range 0..N.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_first_set"><td><code>Simd.mask_first_set(Mask&lt;N&gt; value)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>Lowest true lane index or absence.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_last_set"><td><code>Simd.mask_last_set(Mask&lt;N&gt; value)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>Highest true lane index or absence.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_to_bitset"><td><code>Simd.mask_to_bitset(Mask&lt;N&gt; value)</code></td><td><code>Bitset&lt;N&gt;</code></td><td>Lane i becomes bit i; unused high bits zero.</td><td>O(ceil(N/64)); fixed-size value.</td>
+</tr>
+<tr id="Simd-mask_from_bitset"><td><code>Simd.mask_from_bitset&lt;N&gt;(Bitset&lt;N&gt; value)</code></td><td><code>Result&lt;Mask&lt;N&gt;, MaskError&gt;</code></td><td>Rejects any set bit outside logical N lanes.</td><td>O(ceil(N/64)).</td>
+</tr>
+<tr id="Simd-mask_to_u64"><td><code>Simd.mask_to_u64(Mask&lt;N&gt; value)</code></td><td><code>u64</code></td><td>Available only for N &lt;= 64; lane i maps to bit i; upper bits zero.</td><td>O(N); compile-time width gate.</td>
+</tr>
+<tr id="Simd-mask_from_u64"><td><code>Simd.mask_from_u64&lt;N&gt;(u64 value)</code></td><td><code>Result&lt;Mask&lt;N&gt;, MaskError&gt;</code></td><td>N &lt;= 64; rejects set bits above N.</td><td>O(1) logical validation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8. Reference scope
+</h2>
+<p>All interfaces here are proposals. Rust portable SIMD documentation is explicitly experimental and is used only as an official comparison source. LLVM vector IR is a lowering vocabulary; its poison and undefined-behavior preconditions are not safe Aevix contracts. The language must validate every condition required by its own observable semantics.
+</p>
+<p><a href="Simd.html">Simd common reference</a> · <a href="Simd_Mask.html">Masks</a> · <a href="Simd_Portable.html">Portable lowering</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Simd.html" target="_blank" rel="noopener noreferrer">Rust experimental portable SIMD</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Mask.html" target="_blank" rel="noopener noreferrer">Rust experimental SIMD mask</a>
+</li>
+<li><a href="https://llvm.org/docs/LangRef.html#vector-type" target="_blank" rel="noopener noreferrer">LLVM vector types and operations</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Simd.html"><span>Previous reference</span>Simd</a><a href="Simd_Portable.html"><span>Next reference</span>Portable SIMD</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Owning vectors, borrowed slices, and explicit text or hex codecs.">
+  <title>Byte Buffer — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Byte.html" aria-current="true">Byte</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Byte.html">Byte</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Byte Buffer</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Byte Buffer</h1><p class="doc-subtitle">Owning vectors, borrowed slices, and explicit text or hex codecs.</p><div class="doc-meta"><span class="meta-chip">Vector&lt;byte&gt; / Slice&lt;byte&gt;</span><span class="meta-chip">Byte. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>byte</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Owners and Borrowed Views</span></a></li><li><a href="#Allocation"><span class="toc-number">02</span><span>Allocation and Initialized Length</span></a></li><li><a href="#Growth"><span class="toc-number">03</span><span>Growth, Movement, and Failure</span></a></li><li><a href="#Views"><span class="toc-number">04</span><span>Bounds and Borrowed Slices</span></a></li><li><a href="#Searching"><span class="toc-number">05</span><span>Searching and Iteration</span></a></li><li><a href="#Codecs"><span class="toc-number">06</span><span>Text and Hex Codecs</span></a></li><li><a href="#Serialization"><span class="toc-number">07</span><span>Wider Fields and Execution Places</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>Examples and Related Types</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Byte pages"><h2>Byte reference</h2><div class="family-links"><a href="Byte.html">Byte</a><a href="Byte_Buffer.html" aria-current="page">Byte Buffer</a><a href="Byte_Order.html">Byte Order</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Byte Buffer reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. Owners and Borrowed Views
+</h2>
+<p>A byte buffer uses ordinary <code>Vector&lt;byte&gt;</code> ownership, not a new scalar primitive.
+                    <code>Slice&lt;byte&gt;</code> borrows an initialized range, while <code>MutSlice&lt;byte&gt;</code>
+                    carries exclusive write permission. Views neither own nor extend storage lifetime. Fixed <code>Array&lt;byte,
+                        N&gt;</code> follows the <a href="../Array/Array.html">Array</a> contract. Bytes remain raw
+                    until an explicit decoder or field schema assigns meaning.
+                
+</p>
+                
+<blockquote class="callout note">
+                    
+<p><strong>Design draft.</strong> Names, support records, and conceptual syntax describe proposed
+                        Aevix contracts. They do not claim implementation or measured performance. Declarations put the
+                        type first and bindings are immutable by default. MutSlice&lt;T&gt; denotes an exclusive writable view; <code>mut</code>, <code>&amp;T</code>, and <code>&amp;mut T</code> follow the chosen declaration and borrow rules. Catalog-specific support records and signatures remain proposals.
+                    
+</p>
+                
+</blockquote>
+</section>
+<section id="Allocation" aria-labelledby="Allocation-heading">
+<h2 id="Allocation-heading">2. Allocation and Initialized Length
+</h2>
+<p>Allocations are visible in the signatures and Result contracts. New logical elements are initialized;
+                    reserving capacity does not expose uninitialized bytes for safe reading. Length and capacity use
+                    usize with checked additions and products before requesting memory. A failure cannot leave a usable
+                    vector with a fictitious initialized length. Returned owners are independent unless an explicitly
+                    moving operation says otherwise. Copying one byte is not equivalent in cost or ownership to copying
+                    a vector.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Allocation and Initialized Length data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Byte-allocate">
+                            <th scope="row"><code>Byte.allocate(usize length)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Allocate length zero-initialized bytes; reject size overflow and allocation failure.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Byte-with_capacity">
+                            <th scope="row"><code>Byte.with_capacity(usize capacity)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Allocate logical length zero; spare capacity is not readable initialized data.</td>
+                        
+</tr>
+                        
+<tr id="Byte-from_slice">
+                            <th scope="row"><code>Byte.from_slice(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Allocate an independent copy of all source bytes.</td>
+                        
+</tr>
+                        
+<tr id="Byte-len">
+                            <th scope="row"><code>Byte.len(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>usize</code></td>
+                            <td>Return initialized logical length; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-is_empty">
+                            <th scope="row"><code>Byte.is_empty(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Test logical length zero.</td>
+                        
+</tr>
+                        
+<tr id="Byte-capacity">
+                            <th scope="row"><code>Byte.capacity(&amp;Vector&lt;byte&gt; input)</code></th>
+                            <td><code>usize</code></td>
+                            <td>Return reserved storage capacity without moving ownership.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Growth" aria-labelledby="Growth-heading">
+<h2 id="Growth-heading">3. Growth, Movement, and Failure
+</h2>
+<p>Structural mutation needs exclusive ownership access and must not invalidate a live borrowed view.
+                    Reserve, append, insert, and resize may allocate or relocate storage; removing can shift a suffix
+                    even without allocation. Failed range checks precede modification. Allocating structural operations
+                    preserve the original owner on allocation failure. Clear and truncate release logical contents but
+                    make no cryptographic erasure promise. Writable owners use the chosen &amp;mut Vector&lt;byte&gt; parameter form. Callers pass &amp;mut buffer from an ordinary mut owner. MutSlice&lt;byte&gt; is already an exclusive view and is passed directly.
+                
+</p>
+                
+<p>Known <code>MutSlice&lt;byte&gt;</code> parameters in Byte buffer and byte-order operations borrow the existing writable capability for the call. Returned byte subviews retain that derived loan, including a subview inside Result, so conflicting parent access remains suspended through its last possible use or cleanup. These calls do not consume the original descriptor. Ordinary value moves and generic T value arguments still transfer a non-Copy view. Reborrowing an existing view does not require rebinding its descriptor; creating a fresh write borrow from an owner still requires the owner's mut permission. See the <a href="../Slice/Slice.html#Parameter-Reborrowing">shared Slice contract</a>.</p>
+<div class="table-scroll" role="region" aria-label="Growth, Movement, and Failure data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Byte-reserve">
+                            <th scope="row"><code>Byte.reserve(&amp;mut Vector&lt;byte&gt; buffer, usize
+                                additional)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Check length plus additional; may relocate storage, requiring no invalidated live
+                                views.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Byte-resize">
+                            <th scope="row"><code>Byte.resize(&amp;mut Vector&lt;byte&gt; buffer, usize length, byte
+                                fill)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Grow with initialized fill bytes or truncate; may allocate.</td>
+                        
+</tr>
+                        
+<tr id="Byte-clear">
+                            <th scope="row"><code>Byte.clear(&amp;mut Vector&lt;byte&gt; buffer)</code></th>
+                            <td><code>unit</code></td>
+                            <td>Set length to zero, retain capacity; no secure-erasure guarantee.</td>
+                        
+</tr>
+                        
+<tr id="Byte-truncate">
+                            <th scope="row"><code>Byte.truncate(&amp;mut Vector&lt;byte&gt; buffer, usize length)</code>
+                            </th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Require length no greater than logical length; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-push">
+                            <th scope="row"><code>Byte.push(&amp;mut Vector&lt;byte&gt; buffer, byte value)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Append one initialized byte; may allocate.</td>
+                        
+</tr>
+                        
+<tr id="Byte-pop">
+                            <th scope="row"><code>Byte.pop(&amp;mut Vector&lt;byte&gt; buffer)</code></th>
+                            <td><code>Optional&lt;byte&gt;</code></td>
+                            <td>Remove the last byte or return None without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-extend">
+                            <th scope="row"><code>Byte.extend(&amp;mut Vector&lt;byte&gt; buffer, Slice&lt;byte&gt;
+                                input)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Append copied bytes; check length and allocation first; borrows cannot conflict.</td>
+                        
+</tr>
+                        
+<tr id="Byte-insert">
+                            <th scope="row"><code>Byte.insert(&amp;mut Vector&lt;byte&gt; buffer, usize offset, byte
+                                value)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Allow offsets through length; shift suffix and possibly allocate.</td>
+                        
+</tr>
+                        
+<tr id="Byte-remove">
+                            <th scope="row"><code>Byte.remove(&amp;mut Vector&lt;byte&gt; buffer, usize offset)</code>
+                            </th>
+                            <td><code>Result&lt;byte, ByteError&gt;</code></td>
+                            <td>Require offset below length; shift suffix without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-split_off">
+                            <th scope="row"><code>Byte.split_off(&amp;mut Vector&lt;byte&gt; buffer, usize
+                                offset)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Allocate an owning tail; retain the prefix; validate before changing either.</td>
+                        
+</tr>
+                        
+<tr id="Byte-append">
+                            <th scope="row"><code>Byte.append(&amp;mut Vector&lt;byte&gt; destination, &amp;mut Vector&lt;byte&gt;
+                                source)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Move source contents into destination; source becomes empty after success; may
+                                allocate.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Views" aria-labelledby="Views-heading">
+<h2 id="Views-heading">4. Bounds and Borrowed Slices
+</h2>
+<p>Ranges are half-open. Start may equal end, including an empty range at length; element access still
+                    requires an offset strictly below length. Bounds arithmetic must not wrap. Subviews inherit lifetime
+                    and exclusivity rather than escaping through an unrelated owner handle. Conflicting read/write
+                    aliases are rejected. A single exclusive copy_within call can deliberately support overlap using
+                    movement semantics. Fixed-size copy_from requires equal lengths, keeping partial-copy policies out
+                    of its contract.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Bounds and Borrowed Slices data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Byte-slice">
+                            <th scope="row"><code>Byte.slice(Slice&lt;byte&gt; input, Range&lt;usize&gt; range)</code>
+                            </th>
+                            <td><code>Result&lt;Slice&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Borrow a checked half-open range with inherited lifetime; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-slice_mut">
+                            <th scope="row"><code>Byte.slice_mut(MutSlice&lt;byte&gt; input, Range&lt;usize&gt;
+                                range)</code></th>
+                            <td><code>Result&lt;MutSlice&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Create an exclusive sub-borrow; parent access cannot conflict while it lives.</td>
+                        
+</tr>
+                        
+<tr id="Byte-get">
+                            <th scope="row"><code>Byte.get(Slice&lt;byte&gt; input, usize offset)</code></th>
+                            <td><code>Optional&lt;byte&gt;</code></td>
+                            <td>Copy one byte or return None when out of range.</td>
+                        
+</tr>
+                        
+<tr id="Byte-set">
+                            <th scope="row"><code>Byte.set(MutSlice&lt;byte&gt; output, usize offset, byte value)</code>
+                            </th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Validate offset before modifying one initialized byte.</td>
+                        
+</tr>
+                        
+<tr id="Byte-copy_from">
+                            <th scope="row"><code>Byte.copy_from(MutSlice&lt;byte&gt; destination, Slice&lt;byte&gt;
+                                source)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Require equal lengths and nonconflicting borrows; copy initialized bytes.</td>
+                        
+</tr>
+                        
+<tr id="Byte-copy_within">
+                            <th scope="row"><code>Byte.copy_within(MutSlice&lt;byte&gt; buffer, Range&lt;usize&gt;
+                                source, usize destination)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Checked overlap-safe movement within one exclusive buffer; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-fill">
+                            <th scope="row"><code>Byte.fill(MutSlice&lt;byte&gt; output, byte value)</code></th>
+                            <td><code>unit</code></td>
+                            <td>Write all initialized elements through one exclusive borrow.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Searching" aria-labelledby="Searching-heading">
+<h2 id="Searching-heading">5. Searching and Iteration
+</h2>
+<p>Search compares raw patterns and can match a UTF-8 continuation byte or the middle of an integer
+                    field. An offset therefore counts bytes, not scalars or graphemes. Lazy split and chunk descriptors
+                    borrow input and allocate no output collection. They cannot outlive that input or coexist with
+                    structural mutation that invalidates it. Collecting their results into an owning vector is a
+                    separate allocating action. Search algorithm complexity must be published rather than hidden behind
+                    a universal speed claim.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Searching and Iteration data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Byte-compare_lexicographic">
+                            <th scope="row"><code>Byte.compare_lexicographic(Slice&lt;byte&gt; left, Slice&lt;byte&gt;
+                                right)</code></th>
+                            <td><code>Ordering</code></td>
+                            <td>Compare unsigned byte values and then lengths; no text collation or allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-starts_with">
+                            <th scope="row"><code>Byte.starts_with(Slice&lt;byte&gt; input, Slice&lt;byte&gt;
+                                prefix)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Test a byte prefix without text-boundary assumptions.</td>
+                        
+</tr>
+                        
+<tr id="Byte-ends_with">
+                            <th scope="row"><code>Byte.ends_with(Slice&lt;byte&gt; input, Slice&lt;byte&gt;
+                                suffix)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Test a byte suffix without allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-find">
+                            <th scope="row"><code>Byte.find(Slice&lt;byte&gt; input, byte value)</code></th>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>Return the first matching byte offset; linear scan.</td>
+                        
+</tr>
+                        
+<tr id="Byte-find_subsequence">
+                            <th scope="row"><code>Byte.find_subsequence(Slice&lt;byte&gt; input, Slice&lt;byte&gt;
+                                needle)</code></th>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>Return the first match; empty needle matches zero; publish algorithm bounds.</td>
+                        
+</tr>
+                        
+<tr id="Byte-split">
+                            <th scope="row"><code>Byte.split(Slice&lt;byte&gt; input, byte separator)</code></th>
+                            <td><code>ByteSplit</code></td>
+                            <td>Borrow a lazy separator iterator including empty fields; no result collection
+                                allocation.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Byte-chunks">
+                            <th scope="row"><code>Byte.chunks(Slice&lt;byte&gt; input, usize width)</code></th>
+                            <td><code>Result&lt;ByteChunks, ByteError&gt;</code></td>
+                            <td>Require nonzero width; borrow chunks including a shorter tail.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Codecs" aria-labelledby="Codecs-heading">
+<h2 id="Codecs-heading">6. Text and Hex Codecs
+</h2>
+<p>Strict validation differs from explicitly lossy decoding. A replacement result is useful text, not
+                    proof that original bytes were valid or reversible. Unicode maximal-subpart replacement avoids
+                    swallowing a following valid sequence into an error. Hex uses its own fixed ASCII grammar.
+                    Whole-input codecs reject malformed trailing data. Incremental streaming must separately retain
+                    partial-sequence state; callers cannot safely decode arbitrary transport chunks independently and
+                    assume boundaries align with scalars.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Text and Hex Codecs data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Byte-utf8_validate">
+                            <th scope="row"><code>Byte.utf8_validate(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>Strictly validate the whole sequence; report byte offsets; no output allocation.</td>
+                        
+</tr>
+                        
+<tr id="Byte-decode_utf8">
+                            <th scope="row"><code>Byte.decode_utf8(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;string, ByteError&gt;</code></td>
+                            <td>Strictly validate and allocate owned UTF-8 text; malformed input is an error.</td>
+                        
+</tr>
+                        
+<tr id="Byte-decode_utf8_lossy">
+                            <th scope="row"><code>Byte.decode_utf8_lossy(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;string, ByteError&gt;</code></td>
+                            <td>Allocate text, replacing each maximal ill-formed subpart with U+FFFD.</td>
+                        
+</tr>
+                        
+<tr id="Byte-encode_utf8">
+                            <th scope="row"><code>Byte.encode_utf8(string_view input)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Allocate a byte copy of validated UTF-8 text; no normalization.</td>
+                        
+</tr>
+                        
+<tr id="Byte-encode_hex">
+                            <th scope="row"><code>Byte.encode_hex(Slice&lt;byte&gt; input, bool uppercase)</code></th>
+                            <td><code>Result&lt;string, ByteError&gt;</code></td>
+                            <td>Allocate two ASCII digits per byte; check length multiplication.</td>
+                        
+</tr>
+                        
+<tr id="Byte-decode_hex">
+                            <th scope="row"><code>Byte.decode_hex(string_view input)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>Require an even number of ASCII hex digits; no prefix or whitespace; allocate bytes.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Serialization" aria-labelledby="Serialization-heading">
+<h2 id="Serialization-heading">7. Wider Fields and Execution Places
+</h2>
+<p>A numeric field needs width, signedness, and byte order; see <a href="Byte_Order.html">Byte Order</a>.
+                    Decoding never authorizes alignment assumptions or pointer alias casts. CPU/GPU buffers retain their
+                    placement rules: a view cannot silently migrate memory, and submitted work keeps resources until
+                    actual completion. Host-readable output additionally needs the appropriate transfer and visibility
+                    synchronization. Raw ownership is not an exception to lifetime checks. Buffer growth cannot proceed
+                    through an active conflicting GPU borrow.
+                
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8. Examples and Related Types
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Byte.allocate(16); // Result with zero-initialized logical contents
+Byte.with_capacity(16); // Result with logical length zero
+byte separator = Byte.from_u8(0x00);
+Byte.decode_hex(&quot;41ff&quot;); // allocating byte decoder
+Byte.encode_utf8(&quot;A&quot;); // allocating UTF-8 copy</code></pre>
+                
+<p>See <a href="Byte.html">Byte</a> for scalar bits, <a href="../Char/Unicode_Scalar.html">Unicode
+                    Scalar</a> for exact-one decoding, and <a href="../String/string.html">string</a> for text
+                    sequences. ByteError and borrowed iterators are proposed support records. References motivate
+                    independent contracts, not a specific allocator, native library, or measured performance result.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design
+                    proposals.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://docs.python.org/3/library/codecs.html" target="_blank"
+                           rel="noopener noreferrer">Python codecs — explicit strict and replacement decoding</a>
+                    
+</li>
+                    
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank"
+                           rel="noopener noreferrer">Unicode Core Specification — encoding and error substitution</a>
+                    
+</li>
+                    
+<li><a href="https://docs.python.org/3/library/struct.html" target="_blank"
+                           rel="noopener noreferrer">Python struct — explicit byte order, size, and alignment</a>
+                    
+</li>
+                    
+<li><a href="https://doc.rust-lang.org/std/primitive.u8.html" target="_blank"
+                           rel="noopener noreferrer">Rust u8 — bit operations and byte-order comparison</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Byte.html"><span>Previous reference</span>Byte</a><a href="Byte_Order.html"><span>Next reference</span>Byte Order</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

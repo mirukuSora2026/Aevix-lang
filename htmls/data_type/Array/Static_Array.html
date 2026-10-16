@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Compile-time extents, inline ownership, checked layouts, and fixed-shape transformations.">
+  <title>Static Array — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Array.html" aria-current="true">Array</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html" aria-current="true">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Array.html">Array</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Static Array</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Static Array</h1><p class="doc-subtitle">Compile-time extents, inline ownership, checked layouts, and fixed-shape transformations.</p><div class="doc-meta"><span class="meta-chip">Array&lt;T, N&gt;</span><span class="meta-chip">Array. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"><div class="doc-stat"><dt>Length</dt><dd>Compile-time</dd></div><div class="doc-stat"><dt>Growth</dt><dd>Not supported</dd></div><div class="doc-stat"><dt>Ownership</dt><dd>Move by default</dd></div><div class="doc-stat"><dt>Specialized forms</dt><dd>16</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[N]</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Fixed Length, Not Dynamic Capacity</span></a></li><li><a href="#Type-Identity"><span class="toc-number">02</span><span>Compile-Time Extent &amp; Type Identity</span></a></li><li><a href="#Initialization"><span class="toc-number">03</span><span>Complete Initialization &amp; Empty Arrays</span></a></li><li><a href="#Layout"><span class="toc-number">04</span><span>Contiguity, Alignment &amp; Zero-Sized Elements</span></a></li><li><a href="#Move-Copy"><span class="toc-number">05</span><span>Move, Copy, Clone &amp; Placement</span></a></li><li><a href="#Access-Proofs"><span class="toc-number">06</span><span>Bounds, Constant Evaluation &amp; Borrowing</span></a></li><li><a href="#Shapes"><span class="toc-number">07</span><span>Nested Shapes &amp; Ownership Transformations</span></a></li><li><a href="#Specializations"><span class="toc-number">08</span><span>Fixed-Extent Function Specializations</span></a></li><li><a href="#Examples"><span class="toc-number">09</span><span>Type-First Examples</span></a></li><li><a href="#Targets-Interop"><span class="toc-number">10</span><span>Parallelism, FFI &amp; Related Types</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Array pages"><h2>Array reference</h2><div class="family-links"><a href="Array.html">Array</a><a href="Static_Array.html" aria-current="page">Static Array</a><a href="Vector.html">Vector</a><a href="Slice.html">Slice</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html" aria-current="true">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Static Array reference">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1. Fixed Length, Not Dynamic Capacity
+</h2>
+<div class="callout draft-note"><strong>Language design draft.</strong> “Static Array” means fixed compile-time length. The actual type is <code>Array&lt;T, N&gt;</code>; there is no second <code>Static_Array</code> runtime type or implicit storage-duration rule.
+</div>
+<p>A fixed array owns precisely N initialized element slots throughout its lifetime. It has no spare capacity, push, pop, reserve, or resize operation. To change logical length, construct a different array type or use <a href="Vector.html">Vector</a>. Borrowing fewer elements creates a <a href="Slice.html">Slice</a>, not a shorter owner.
+</p>
+<p>The <a href="Array.html">common Array reference</a> defines ownership, callbacks, errors, and the complete namespace. This page expands size-dependent behavior and lists specialized forms of those same functions.
+</p>
+<h3 id="Selected-Declaration-Syntax">Chosen array declaration spelling</h3>
+<p>The declaration head <code>i32 values[5]</code> denotes a fixed array of five i32 elements. The length is fixed; this does not select process-lifetime storage, implicit zero initialization or pointer decay. Initializers use square-bracket element lists. The inline forms in the table are declaration heads; typed local declarations without initializers follow <a href="../../declaration/Variable_Declaration.html#Definite-Assignment">definite-assignment checks</a>.</p>
+<div class="table-scroll" role="region" aria-label="Chosen array spelling and open boundaries"><table><thead><tr><th scope="col">Declaration head</th><th scope="col">Chosen meaning</th><th scope="col">Boundary or related rule</th></tr></thead><tbody>
+<tr><th scope="row"><code>i32 values[5]</code></th><td>Five-element fixed array.</td><td>The canonical type is Array&lt;i32, 5&gt;; fixed parameters pass an array value without pointer decay.</td></tr>
+<tr><th scope="row"><code>i32 grid[2][3]</code></th><td>Fixed two-dimensional array: two rows of three i32 elements each, with both extents known at compile time.</td><td>Mixed suffixes compose Array and Vector in outer-to-inner order, as explained below.</td></tr>
+<tr><th scope="row"><code>i32 values[][]</code></th><td>Two-dimensional nested dynamic arrays; each row owns its dynamic storage and may have a different length.</td><td>Dynamic construction yields Result&lt;Vector&lt;Vector&lt;i32&gt;&gt;, CollectionError&gt;; a single array parameter uses the canonical type.</td></tr>
+<tr><th scope="row"><code>i32 values[](2)</code></th><td>Exactly the same two-dimensional nested dynamic array type as <code>i32 values[][]</code>. Parentheses specify rank, not axis lengths.</td><td>The rank must be a positive compile-time integer constant; complete constant-expression grammar remains open.</td></tr>
+<tr><th scope="row"><code>i32 values[]</code> as the final parameter</th><td>The chosen variadic spelling accepts multiple same-typed call arguments.</td><td>Read-only call pack with ordinary Copy-or-move inputs; see <a href="../../grammar/functions/Variadic_Parameters.html">Variadic Parameters</a>.</td></tr>
+</tbody></table></div>
+<p>Each empty bracket adds one nesting level. The rank shorthand accepts a positive compile-time integer constant, including a suitable const value. Rank is fixed in the type while each dynamic level may vary in length. These owners move under the collection rules. Nested growable vectors and a rectangular Tensor have different shape and storage contracts: no single allocation, globally contiguous buffer or automatic GPU transfer is promised. Existing <code>Array&lt;T, N&gt;</code> signatures below remain proposed API notation while the declaration spelling above is chosen.</p><h3 id="Canonical-Array-Types">Canonical array types and parameter contexts</h3>
+<p>Array suffixes are shorthand for complete types. Read suffixes from left to right as outer to inner containers: <code>T name[N]</code> means <code>Array&lt;T, N&gt;</code>, and an empty bracket means <code>Vector&lt;T&gt;</code>. Thus <code>T grid[R][C]</code> means <code>Array&lt;Array&lt;T, C&gt;, R&gt;</code>, while <code>T grid[][]</code> and <code>T grid[](2)</code> mean <code>Vector&lt;Vector&lt;T&gt;&gt;</code>. These canonical type names may appear in return types, Result, generic arguments and whole-array references.</p>
+<p>Mixed fixed/dynamic suffixes are permitted for ordinary array declarations. <code>T rows[R][]</code> means <code>Array&lt;Vector&lt;T&gt;, R&gt;</code>; <code>T rows[][C]</code> means <code>Vector&lt;Array&lt;T, C&gt;&gt;</code>. Fixed extents remain compile-time constants; a literal containing any dynamic level produces <code>Result&lt;CollectionType, CollectionError&gt;</code>. The rank shorthand stands for repeated empty brackets only, and is not mixed with other suffixes in the initial grammar.</p>
+<p>In function parameters, exactly one trailing empty bracket, <code>T values[]</code>, is reserved for the chosen final variadic parameter. Receive one dynamic array with <code>Vector&lt;T&gt; values</code>, a complete nested canonical type for a multidimensional array, or a borrowed <code>&amp;Vector&lt;T&gt;</code>/<code>Slice&lt;T&gt;</code>. Repeated-empty-bracket, rank and mixed suffix parameters must use their canonical type in the initial grammar. Fully fixed suffix parameters denote an Array value and follow the ordinary Copy-or-move rules; arrays remain move-by-default. There is no pointer decay.</p>
+<p>A reference written in the base element type belongs to each element: <code>&amp;i32 values[5]</code> denotes five shared-reference elements. Borrow an entire fixed array with <code>&amp;Array&lt;i32, 5&gt; values</code>, or modify one through <code>&amp;mut Array&lt;i32, 5&gt; values</code>. All referent lifetimes remain checked.</p>
+<h3 id="Literal-Type-Context">Literal type context and partial construction</h3>
+<p>An expected array declaration, canonical type or Result payload supplies element/container context. Without such a context, a nonempty bracket literal defaults to a fixed Array whose length is the written element count. Its element type follows the existing typed-value and numeric-literal rules. A context-free empty literal cannot determine its element type. Ragged rows require an explicit compatible nested dynamic context rather than an automatic hidden promotion to Vector.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">rsn fixed_values = [1, 2, 3];
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; dynamic_values = [1, 2, 3];</code></pre>
+<p>The first value is <code>Array&lt;i32, 3&gt;</code>; the second stores the Result of dynamic construction. An explicit zero-length fixed array has a known type, while a typed empty dynamic literal still has Result type even if it needs no allocation. On normal construction failure, destroy every successfully constructed element and row exactly once. This is not rollback of earlier input moves or side effects.</p><h3 id="Selected-Literal-Syntax">Square-bracket initializers and allocation failure</h3>
+<p>Array initializers use <code>[...]</code>. A fixed declaration's element count must exactly match its length or compilation fails. A nested dynamic initializer may contain different row lengths. A dynamic array literal constructs a Result; callers must handle that Result or use the existing <code>?</code> operator in a compatible Result-returning function. The error carrier for dynamic literal construction is the existing CollectionError family.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 values[3] = [1, 2, 3];</code></pre>
+<p>Fixed multidimensional declarations repeat the compile-time extents in outer-to-inner order. Every initializer level must match its declared extent. This example has two rows, each with three elements, and needs no dynamic element-buffer allocation:</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 grid[2][3] = [[1, 2, 3], [4, 5, 6]];</code></pre>
+<p>Both the row count and each row length are checked at compile time. A fixed extent does not mean persist storage. Mixed forms such as <code>grid[2][]</code> compose fixed and dynamic containers and use fallible construction.</p>
+<p>The next examples are independent fragments inside compatible Result-returning functions. Their declared array types supply element and rank context; <code>?</code> extracts the successful array or returns the compatible error.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 grid[][] = [[1, 2], [3, 4, 5]]?;</code></pre>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 grid[](2) = [[1, 2], [3, 4, 5]]?;</code></pre>
+<p>Nested bracket sublists participate in one recursive literal-construction operation. Their allocation failures flow into the outer construction Result, with already initialized rows cleaned once; a question mark at every sublist is not required. This does not implicitly unwrap an ordinary Result-valued element expression.</p><p>The two grid forms denote the same nested dynamic type. The fixed primitive array needs no dynamic element-buffer allocation. Array syntax does not remove failures in element expressions or authorize implicit cloning. See <a href="../../grammar/operators/Error_Propagation.html">Error Propagation</a> for the existing same-error-type Result contract.</p>
+<p class="callout warning"><strong>Rejected example.</strong> The initializer has only two elements for a fixed length of three.</p>
+<pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 values[3] = [1, 2];</code></pre>
+</section>
+<section id="Type-Identity" aria-labelledby="Type-Identity-heading">
+<h2 id="Type-Identity-heading">2. Compile-Time Extent &amp; Type Identity
+</h2>
+<p><code>Array&lt;i32, 4&gt;</code> and <code>Array&lt;i32, 8&gt;</code> are distinct types. N must be a nonnegative compile-time usize value. A runtime input cannot become an extent merely because JIT specialization happens to observe a constant.
+</p>
+<p>Type-level sums, products, and differences are checked before a type is formed. Concatenation, splitting, and reshaping must fit target object limits. A runtime vector can be converted only after checking its current length; failure must preserve the original owner in the conversion error.
+</p>
+<p>Shape equality here is structural. Two-dimensional <code>Array&lt;Array&lt;T, C&gt;, R&gt;</code> contains R row arrays of C elements. Flattening has R*C elements, but does not attach Tensor placement, strides, device capabilities, or symbolic Tensor dimensions.
+</p>
+</section>
+<section id="Initialization" aria-labelledby="Initialization-heading">
+<h2 id="Initialization-heading">3. Complete Initialization &amp; Empty Arrays
+</h2>
+<p>Every safe value has exactly N initialized elements; fixed length does not mean automatic zero initialization. Default construction calls T’s Default operation. Repetition requires explicit Copy or Clone semantics, and index generators construct each element independently.
+</p>
+<p>Length zero is valid and has no first or last element. Element callbacks are not invoked by an index generator at N=0. Ordinary argument expressions are still evaluated before a function call; zero output length does not erase their external side effects.
+</p>
+<p>A fallible generator or clone constructor destroys only the elements successfully produced before Err. The output does not escape partially initialized. These cleanup obligations also apply when a callback uses resources or returns an error after several successful elements.
+</p>
+</section>
+<section id="Layout" aria-labelledby="Layout-heading">
+<h2 id="Layout-heading">4. Contiguity, Alignment &amp; Zero-Sized Elements
+</h2>
+<p>Element slots are contiguous with native stride size_of(T). The value’s element payload is N times that size; padding within T remains present. A nested array’s linear element order is row-major. Neither raw padding nor native layout is a wire-format contract.
+</p>
+<p>For N=0 or zero-sized T, payload byte length may be zero while the value retains alignment, identity, length, and element lifecycle semantics. The actual ABI representation of an empty object is not promised to equal every foreign compiler’s empty-array representation.
+</p>
+<p>Proposed bounds require logical lengths no larger than isize.MAX and nonzero payload sizes within the target object bound. A type fitting those limits does not guarantee that a particular stack frame can be materialized. Explicit Box or Vector placement provides a separate fallible allocation path.
+</p>
+</section>
+<section id="Move-Copy" aria-labelledby="Move-Copy-heading">
+<h2 id="Move-Copy-heading">5. Move, Copy, Clone &amp; Placement
+</h2>
+<p>Owning fixed arrays move by default even when T is a scalar Copy type. The old binding becomes unavailable after ownership transfer. An optimizer may elide storage movement, but large inline arrays and whole-array swaps must not be documented as unconditionally constant-time.
+</p>
+<p><code>Array.copy</code> requires Copy elements and explicitly duplicates all N values. <code>Array.clone</code> requires Clone and follows its element behavior, including potentially shared handles or nested allocations. Neither a memcpy of resource owners nor a universal deep clone is implied.
+</p>
+<p>Inline ownership describes storage containment, not mandatory stack placement. An array can be a field or sit inside a Box. Moving an array to another function does not transfer its contents to a GPU or transform it into a shared reference.
+</p>
+</section>
+<section id="Access-Proofs" aria-labelledby="Access-Proofs-heading">
+<h2 id="Access-Proofs-heading">6. Bounds, Constant Evaluation &amp; Borrowing
+</h2>
+<p>Indices are usize values. Read access borrows an element; write access requires exclusive permission. Fixed length does not permit an out-of-range read, and it does not permit simultaneous overlapping write views.
+</p>
+<p>A constant call to get can fold to None; a constant checked access can fold to Err. A malformed extent or impossible type-level reshape is a compile-time diagnostic. The compiler should preserve those different public contracts instead of treating every known failure as a runtime trap.
+</p>
+<p>Bounds-check removal is an optimization based on proof. AOT and JIT must agree on valid indices and failure values. The source owner must remain alive and cannot be moved while an element, iterator, or derived view still borrows it.
+</p>
+</section>
+<section id="Shapes" aria-labelledby="Shapes-heading">
+<h2 id="Shapes-heading">7. Nested Shapes &amp; Ownership Transformations
+</h2>
+<p>Static concat consumes two owners and forms N+M elements. Owned split returns disjoint owners whose lengths sum to N. Zip and unzip require matching extents and transfer each element once; they do not invent aliasing copies.
+</p>
+<p>Flatten and reshape preserve row-major order. Reshape requires the target product to equal N, including valid zero dimensions. Transpose changes the mapping of positions and may require O(R*C) moves; a strided transpose belongs to TensorView rather than a contiguous Array view.
+</p>
+<p>Compile-time dimensions do not justify unlimited unrolling or code expansion. Optimization may choose loops or specialize shapes. Callback order, drop safety, exact integer size arithmetic, and observable errors remain language contracts.
+</p>
+</section>
+<section id="Specializations" aria-labelledby="Specializations-heading">
+<h2 id="Specializations-heading">8. Fixed-Extent Function Specializations
+</h2>
+<p>These are specializations of functions documented in <a href="Array.html#Function-Reference">the common Array catalog</a>, not a second namespace. Read/write/consume and callback aliases are descriptive notation; the exact lifetime spelling remains open.
+</p>
+<div class="table-scroll" role="region" aria-label="Fixed-Extent Function Specializations data table">
+<table>
+<thead>
+<tr><th scope="col">Specialized signature</th><th scope="col">Returns</th><th scope="col">Constraint and error behavior</th><th scope="col">Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Array-len"><td><code>Array.len(&amp;Array&lt;T, N&gt; values)</code></td><td><code>usize</code></td><td>Exactly N, even when the element size is zero.</td><td>O(1); constant folding possible</td>
+</tr>
+<tr id="Array-byte_len"><td><code>Array.byte_len(&amp;Array&lt;T, N&gt; values)</code></td><td><code>usize</code></td><td>Native element payload bytes; checked when the type is formed.</td><td>O(1)</td>
+</tr>
+<tr id="Array-from_copy"><td><code>Array.from_copy(T, const usize N, &amp;T value)</code></td><td><code>Array&lt;T, N&gt;</code></td><td>T: Copy; repeats the value, not arbitrary ownership bits.</td><td>O(N) copies</td>
+</tr>
+<tr id="Array-from_fn"><td><code>Array.from_fn(T, const usize N, Make&lt;T&gt; make)</code></td><td><code>Array&lt;T, N&gt;</code></td><td>Index callback runs exactly N times; N=0 makes no calls.</td><td>O(N) callback work</td>
+</tr>
+<tr id="Array-from_slice_copy"><td><code>Array.from_slice_copy(T, const usize N, Slice&lt;T&gt; source)</code></td><td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td><td>Exact runtime length N; T: Copy; wrong length is Err.</td><td>O(N) copies</td>
+</tr>
+<tr id="Array-from_slice_clone"><td><code>Array.from_slice_clone(T, const usize N, Slice&lt;T&gt; source)</code></td><td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td><td>Exact length N; T: Clone; cleans partial output on failure.</td><td>O(N) clone work</td>
+</tr>
+<tr id="Array-copy"><td><code>Array.copy(&amp;Array&lt;T, N&gt; values)</code></td><td><code>Array&lt;T, N&gt;</code></td><td>Explicit aggregate copy; T: Copy.</td><td>O(N) representation work</td>
+</tr>
+<tr id="Array-clone"><td><code>Array.clone(&amp;Array&lt;T, N&gt; values)</code></td><td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td><td>T: Clone; does not universally deep-copy nested resources.</td><td>O(N) clones</td>
+</tr>
+<tr id="Array-concat"><td><code>Array.concat(Array&lt;T, N&gt; a, Array&lt;T, M&gt; b)</code></td><td><code>Array&lt;T, N+M&gt;</code></td><td>Compile-time sum and output layout must fit the target.</td><td>O(N+M) logical moves</td>
+</tr>
+<tr id="Array-split_owned"><td><code>Array.split_owned(Array&lt;T, N&gt; values, const usize K)</code></td><td><code>(Array&lt;T, K&gt;, Array&lt;T, N-K&gt;)</code></td><td>K&lt;=N at compile time; does not create two overlapping owners.</td><td>O(N) logical moves</td>
+</tr>
+<tr id="Array-zip"><td><code>Array.zip(Array&lt;T, N&gt; a, Array&lt;U, N&gt; b)</code></td><td><code>Array&lt;(T, U), N&gt;</code></td><td>Lengths agree in the types; each output pair owns its fields.</td><td>O(N) moves</td>
+</tr>
+<tr id="Array-unzip"><td><code>Array.unzip(Array&lt;(T, U), N&gt; pairs)</code></td><td><code>(Array&lt;T, N&gt;, Array&lt;U, N&gt;)</code></td><td>Separates ownership without Clone.</td><td>O(N) moves</td>
+</tr>
+<tr id="Array-flatten"><td><code>Array.flatten(Array&lt;Array&lt;T, C&gt;, R&gt; rows)</code></td><td><code>Array&lt;T, R*C&gt;</code></td><td>Checked static product; preserves row-major element order.</td><td>O(R*C) logical moves; elision possible</td>
+</tr>
+<tr id="Array-reshape"><td><code>Array.reshape(Array&lt;T, N&gt; values, const usize R, const usize C)</code></td><td><code>Array&lt;Array&lt;T, C&gt;, R&gt;</code></td><td>Requires checked R*C=N; no data-dependent shape inference.</td><td>O(N) logical moves; elision possible</td>
+</tr>
+<tr id="Array-transpose"><td><code>Array.transpose(Array&lt;Array&lt;T, C&gt;, R&gt; matrix)</code></td><td><code>Array&lt;Array&lt;T, R&gt;, C&gt;</code></td><td>Reorders elements; not a zero-copy TensorView.</td><td>O(R*C) moves</td>
+</tr>
+<tr id="Array-into_vector"><td><code>Array.into_vector(Array&lt;T, N&gt; values)</code></td><td><code>Result&lt;Vector&lt;T&gt;, OwnerError&lt;Array&lt;T, N&gt;&gt;&gt;</code></td><td>Allocation failure retains original owner inside Err.</td><td>O(N) moves plus allocation</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">9. Type-First Examples
+</h2>
+<p>The following construction and ownership transfer illustrate the chosen type-first declaration order. Constructor spelling and explicit returned-reference lifetime annotations remain draft; parameter borrow forms are chosen.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 fill = 0;
+Array&lt;i32, 4&gt; zeroes = Array.from_copy(i32, 4, &amp;fill);
+Array&lt;i32, 4&gt; duplicate = Array.copy(&amp;zeroes);
+Array&lt;i32, 4&gt; moved = zeroes;
+usize count = Array.len(&amp;moved);</code></pre>
+<p>After the move, zeroes is no longer an owning binding. Duplicate is an independent fixed array; moved still has extent four. No example silently calls a Vector growth operation or creates an extra shared owner.
+</p>
+</section>
+<section id="Targets-Interop" aria-labelledby="Targets-Interop-heading">
+<h2 id="Targets-Interop-heading">10. Parallelism, FFI &amp; Related Types
+</h2>
+<p>Disjoint borrowed ranges may be processed in parallel only with appropriate element and callback thread-safety constraints. Fixed extents simplify proofs but do not make arbitrary captured state race-free. Reduction order must be specified when checked arithmetic can fail.
+</p>
+<p>FFI requires explicit size, alignment, element layout, borrowing lifetime, and allocator ownership contracts. A native array containing string handles, references, or padded records is not automatically a C-compatible element buffer.
+</p>
+<p>An array of <code>char</code> holds Unicode scalar values, not encoded text bytes. See <a href="../String/string.html">string</a> and <a href="../Byte/Byte.html">byte</a>; byte remains distinct from u8. Device transfer, unsafe raw pointer adoption, and foreign allocation release are separate explicit facilities, not implied by these signatures.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design proposals.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank" rel="noopener noreferrer">Rust fixed-size array reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank" rel="noopener noreferrer">Rust Vec ownership and capacity reference</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank" rel="noopener noreferrer">Rust slice operations and disjoint borrowing</a>
+</li>
+<li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ working draft: array</a>
+</li>
+<li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ working draft: vector</a>
+</li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md" target="_blank" rel="noopener noreferrer">Swift Evolution: inline array design discussion</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Array.html"><span>Previous reference</span>Array</a><a href="Vector.html"><span>Next reference</span>Vector</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>

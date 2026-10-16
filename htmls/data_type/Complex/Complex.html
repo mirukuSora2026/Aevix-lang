@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Floating-point component pairs, principal branches, explicit numerical costs, and
+                the complete proposed Complex namespace.">
+  <title>Complex — Aevix Docs</title>
+  <link rel="stylesheet" href="../../css/root.css?v=3">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=3" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix documentation"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Type families"><a href="../../errors/index.html">Errors</a><a href="Complex.html" aria-current="true">Complex</a><details class="type-menu"><summary>All types</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html" aria-current="true">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">DESIGN DRAFT</span>
+  </div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../index.html">Language reference</a><span class="separator" aria-hidden="true">/</span><a href="Complex.html">Complex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Complex</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">DATA TYPE REFERENCE</p><h1>Complex</h1><p class="doc-subtitle">Floating-point component pairs, principal branches, explicit numerical costs, and
+                the complete proposed Complex namespace.</p><div class="doc-meta"><span class="meta-chip">Complex&lt;T&gt;</span><span class="meta-chip">Complex. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>z</strong><span>type reference</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Basic Information</span></a></li><li><a href="#Value-Semantics"><span class="toc-number">02</span><span>Declarations, Ownership &amp; Costs</span></a></li><li><a href="#Numerical-Model"><span class="toc-number">03</span><span>Numerical Model &amp; Error Values</span></a></li><li><a href="#Branches"><span class="toc-number">04</span><span>Principal Branches &amp; Signed Zero</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>Complete Function Catalog</span></a></li><li><a href="#Metadata"><span class="toc-number">06</span><span>Format Metadata &amp; Constants</span></a></li><li><a href="#Construction"><span class="toc-number">07</span><span>Construction &amp; Component Access</span></a></li><li><a href="#Classification"><span class="toc-number">08</span><span>Classification &amp; Predicates</span></a></li><li><a href="#Arithmetic"><span class="toc-number">09</span><span>Arithmetic &amp; Scaling</span></a></li><li><a href="#Checked-Arithmetic"><span class="toc-number">10</span><span>Checked Arithmetic &amp; Errors</span></a></li><li><a href="#Magnitude"><span class="toc-number">11</span><span>Magnitude, Phase &amp; Polar Coordinates</span></a></li><li><a href="#Powers"><span class="toc-number">12</span><span>Roots, Exponentials &amp; Logarithms</span></a></li><li><a href="#Trigonometry"><span class="toc-number">13</span><span>Trigonometric &amp; Hyperbolic Functions</span></a></li><li><a href="#Comparison"><span class="toc-number">14</span><span>Equality &amp; Explicit Ordering</span></a></li><li><a href="#Conversion"><span class="toc-number">15</span><span>Explicit Conversion</span></a></li><li><a href="#Representation"><span class="toc-number">16</span><span>Bits, Bytes &amp; Explicit Layout</span></a></li><li><a href="#Text"><span class="toc-number">17</span><span>Parsing &amp; Formatting</span></a></li><li><a href="#Bulk"><span class="toc-number">18</span><span>Optional Bulk Operations</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">19</span><span>CPU, GPU &amp; Data Layout</span></a></li><li><a href="#Sources"><span class="toc-number">20</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Complex pages"><h2>Complex reference</h2><div class="family-links"><a href="Complex.html" aria-current="page">Complex</a><a href="Complex_16.html">Complex&lt;f16&gt;</a><a href="Complex_BFloat16.html">Complex&lt;bf16&gt;</a><a href="Complex_32.html">Complex&lt;f32&gt;</a><a href="Complex_64.html">Complex&lt;f64&gt;</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html" aria-current="true">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Complex reference">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. Basic Information
+</h2>
+<p><code>Complex&lt;T&gt;</code> is a pair of floating-point components representing real + imaginary ×
+                    i, with i² = −1. The component format T determines range and rounding. Complex numbers extend the
+                    real number system, but they do not have a compatible mathematical total order.
+                
+</p>
+                
+<blockquote class="callout">
+                    
+<p><strong>Design draft.</strong> APIs below specify intended Aevix behavior. They do not claim a
+                        compiler implementation, backend support, or a frozen foreign ABI. The generic spelling is the
+                        unambiguous reference form; <code>complex</code> is the proposed convenience alias for <code>Complex&lt;f64&gt;</code>.
+                        Width-suffixed aliases such as c64 are deliberately not assigned here.
+                    
+</p>
+                
+</blockquote>
+                
+<div class="table-scroll" role="region" aria-label="Basic Information data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Reference type</th>
+                            <th scope="col">Component format</th>
+                            <th scope="col">Value payload</th>
+                            <th scope="col">Status</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <td><a href="Complex_16.html">Complex&lt;f16&gt;</a></td>
+                            <td>f16 × 2</td>
+                            <td>32 bits / 4 bytes</td>
+                            <td>Explicit low-precision capability</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="Complex_BFloat16.html">Complex&lt;bf16&gt;</a></td>
+                            <td>bf16 × 2</td>
+                            <td>32 bits / 4 bytes</td>
+                            <td>Explicit low-precision capability</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="Complex_32.html">Complex&lt;f32&gt;</a></td>
+                            <td>f32 × 2</td>
+                            <td>64 bits / 8 bytes</td>
+                            <td>Core proposed format</td>
+                        
+</tr>
+                        
+<tr>
+                            <td><a href="Complex_64.html">Complex&lt;f64&gt;</a></td>
+                            <td>f64 × 2</td>
+                            <td>128 bits / 16 bytes</td>
+                            <td>Default alias candidate</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">f32 initial_real = 3.0;
+f32 initial_imag = 4.0;
+Complex&lt;f32&gt; z = Complex.new(initial_real, initial_imag);
+f32 magnitude = Complex.norm(z); // approximately 5
+Complex&lt;f32&gt; conjugated = Complex.conjugate(z);
+complex default_value = Complex.zero(Complex&lt;f64&gt;);</code></pre>
+</section>
+<section id="Value-Semantics" aria-labelledby="Value-Semantics-heading">
+<h2 id="Value-Semantics-heading">2. Declarations, Ownership &amp; Costs
+</h2>
+<p>Variable declarations place the type first and end with a semicolon. Components inherit static
+                    typing; contextual literal checking happens directly in the expected format. Constructing a scalar
+                    complex value does not allocate and scalar assignment copies its two components. Bindings are
+                    immutable by default; mutation requires an explicit writable binding or exclusive borrow.
+                
+</p>
+                
+<p>Copying a scalar does not make an owning <code>Array</code>, <code>Vector</code>, or
+                    <code>Tensor</code> implicitly clone its storage. Those containers move by default; explicit cloning
+                    and CPU/GPU transfers expose their costs. A conjugation operation returns a value rather than
+                    mutating its argument.
+                
+</p>
+                
+<p>The value payload is two components. Alignment, register use, stack slots, and containing-structure
+                    padding depend on the target. A numerical pair is not automatically ABI-compatible with a foreign
+                    complex scalar. FFI bindings validate component format, ordering, alignment, call convention, and
+                    ownership independently.
+                
+</p>
+</section>
+<section id="Numerical-Model" aria-labelledby="Numerical-Model-heading">
+<h2 id="Numerical-Model-heading">3. Numerical Model &amp; Error Values
+</h2>
+<p>Strict execution preserves the Float component format, signed zero, subnormals, explicit rounding
+                    points, and branch selection. AOT and JIT must use the same requested numerical profile.
+                    Reassociation, contraction, flush-to-zero, wider intermediates, and fast-math approximation require
+                    an explicit profile; GPU storage support alone does not provide a complex math library.
+                
+</p>
+                
+<p>The baseline uses round-to-nearest, ties-to-even for core component arithmetic. Transcendental
+                    implementations publish their accuracy and non-finite case tables in the selected target profile.
+                    The Annex-G-compatible profile is the proposed interoperability baseline for special values; a
+                    target without that profile rejects the unchecked instantiation. The finite-only checked API remains
+                    a separate, precise error-value contract.
+                
+</p>
+                
+<p><code>ComplexError</code> includes <code>NonFiniteInput</code>, <code>NonFiniteResult</code>, <code>DivideByZero</code>,
+                    <code>Pole</code>, <code>Domain</code>, <code>ZeroMagnitude</code>, <code>Inexact</code>, <code>OutOfRange</code>,
+                    <code>ImaginaryPartPresent</code>, <code>InvalidText</code>, <code>InvalidOptions</code>, <code>BufferTooSmall</code>,
+                    <code>AllocationFailed</code>, <code>LengthMismatch</code>, <code>Aliasing</code>, and <code>UnsupportedCapability</code>.
+                    Underflow to a finite subnormal or zero is valid arithmetic; exact conversion can still reject lost
+                    information.
+                
+</p>
+</section>
+<section id="Branches" aria-labelledby="Branches-heading">
+<h2 id="Branches-heading">4. Principal Branches &amp; Signed Zero
+</h2>
+<p>A multi-valued mathematical inverse needs a selected branch. <code>sqrt</code>, <code>ln</code>, and
+                    non-integer powers use the principal branch, with the negative real axis as the logarithmic cut.
+                    Signed imaginary zero distinguishes approach from above or below the cut: the two representations
+                    must not be merged by a strict optimizer.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Principal Branches &amp; Signed Zero data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Function</th>
+                            <th scope="col">Cut or exceptional input</th>
+                            <th scope="col">Selected behavior</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr>
+                            <td>ln / sqrt / non-integer power</td>
+                            <td>Negative real axis; ln also zero pole</td>
+                            <td>Sign of imaginary zero selects the side; ln phase in [−π, π]</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>asin / acos</td>
+                            <td>Real rays outside [−1, 1]</td>
+                            <td>Principal inverse; endpoint poles/limits follow selected special-value profile</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>atan / asinh</td>
+                            <td>Imaginary rays beyond ±i</td>
+                            <td>Principal inverse; atan has poles at ±i</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>acosh</td>
+                            <td>Real axis below 1</td>
+                            <td>Principal result with nonnegative real part</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>atanh</td>
+                            <td>Real rays outside [−1, 1]</td>
+                            <td>Principal inverse; poles at ±1</td>
+                        
+</tr>
+                        
+<tr>
+                            <td>ln1p</td>
+                            <td>Real axis at and below −1</td>
+                            <td>Translated principal logarithmic cut</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Complex&lt;f64&gt; above = Complex.new(-4.0, 0.0);
+Complex&lt;f64&gt; below = Complex.new(-4.0, -0.0);
+Complex.sqrt(above); // +0 + 2i
+Complex.sqrt(below); // +0 - 2i
+Complex.same_bits(above, below); // false</code></pre>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. Complete Function Catalog
+</h2>
+<p>Each function is listed once in the groups below with its result and failure contract. T, Z, U, N,
+                    the integer type parameter I, writable views, callbacks, and options are conceptual signature
+                    notation; variable examples use type-first declarations. Shared scalar contracts belong here; the
+                    per-format pages specialize limits and return types.
+                
+</p>
+                
+<p>Core calls are allocation-free unless they explicitly return <code>string</code> or another owning
+                    container. Ordinary operators use the matching typed scalar operation; they do not silently convert
+                    between component formats. The catalog intentionally omits a generic min/max, bitwise complex
+                    arithmetic, and a meaningful numeric less-than relation.
+                
+</p>
+</section>
+<section id="Metadata" aria-labelledby="Metadata-heading">
+<h2 id="Metadata-heading">6. Format Metadata &amp; Constants
+</h2>
+<p>T is f16, bf16, f32, or f64; Z is Complex&lt;T&gt;. U is the same-width unsigned integer as one
+                    component. Metadata and constructors allocate no heap storage.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Format Metadata &amp; Constants data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-component_type">
+                            <th scope="row"><code>Complex.component_type(Z)</code></th>
+                            <td><code>type</code></td>
+                            <td>The real component format T; compile-time metadata.</td>
+                        
+</tr>
+                        
+<tr id="Complex-component_bits">
+                            <th scope="row"><code>Complex.component_bits(Z)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Width of one component; 16, 32, or 64.</td>
+                        
+</tr>
+                        
+<tr id="Complex-storage_bits">
+                            <th scope="row"><code>Complex.storage_bits(Z)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Two component widths of value payload; excludes ABI padding.</td>
+                        
+</tr>
+                        
+<tr id="Complex-byte_width">
+                            <th scope="row"><code>Complex.byte_width(Z)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Two component byte widths for the canonical wire representation.</td>
+                        
+</tr>
+                        
+<tr id="Complex-precision_bits">
+                            <th scope="row"><code>Complex.precision_bits(Z)</code></th>
+                            <td><code>u32</code></td>
+                            <td>Significand precision of each normal component, not a combined precision.</td>
+                        
+</tr>
+                        
+<tr id="Complex-epsilon">
+                            <th scope="row"><code>Complex.epsilon(Z)</code></th>
+                            <td><code>T</code></td>
+                            <td>Gap above 1 in one component; not a general comparison tolerance.</td>
+                        
+</tr>
+                        
+<tr id="Complex-zero">
+                            <th scope="row"><code>Complex.zero(Z)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(+0, +0).</td>
+                        
+</tr>
+                        
+<tr id="Complex-one">
+                            <th scope="row"><code>Complex.one(Z)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(1, +0).</td>
+                        
+</tr>
+                        
+<tr id="Complex-imaginary_unit">
+                            <th scope="row"><code>Complex.imaginary_unit(Z)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(+0, 1).</td>
+                        
+</tr>
+                        
+<tr id="Complex-pi">
+                            <th scope="row"><code>Complex.pi(Z)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(rounded π, +0), with the selected T precision.</td>
+                        
+</tr>
+                        
+<tr id="Complex-e">
+                            <th scope="row"><code>Complex.e(Z)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(rounded e, +0).</td>
+                        
+</tr>
+                        
+<tr id="Complex-tau">
+                            <th scope="row"><code>Complex.tau(Z)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(rounded 2π, +0).</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">7. Construction &amp; Component Access
+</h2>
+<p>Typed operands are never implicitly promoted. Constructors take already typed components; converting
+                    a scalar is a separate explicit operation.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Construction &amp; Component Access data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-new">
+                            <th scope="row"><code>Complex.new(T real, T imag)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Cartesian construction; preserves both component representations.</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_real">
+                            <th scope="row"><code>Complex.from_real(T real)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(real, +0).</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_imag">
+                            <th scope="row"><code>Complex.from_imag(T imag)</code></th>
+                            <td><code>Z</code></td>
+                            <td>(+0, imag).</td>
+                        
+</tr>
+                        
+<tr id="Complex-real">
+                            <th scope="row"><code>Complex.real(Z value)</code></th>
+                            <td><code>T</code></td>
+                            <td>Copies the real component.</td>
+                        
+</tr>
+                        
+<tr id="Complex-imag">
+                            <th scope="row"><code>Complex.imag(Z value)</code></th>
+                            <td><code>T</code></td>
+                            <td>Copies the imaginary component.</td>
+                        
+</tr>
+                        
+<tr id="Complex-components">
+                            <th scope="row"><code>Complex.components(Z value)</code></th>
+                            <td><code>(T, T)</code></td>
+                            <td>Copies (real, imaginary) in that order.</td>
+                        
+</tr>
+                        
+<tr id="Complex-with_real">
+                            <th scope="row"><code>Complex.with_real(Z value, T real)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Returns a new value replacing only the real component.</td>
+                        
+</tr>
+                        
+<tr id="Complex-with_imag">
+                            <th scope="row"><code>Complex.with_imag(Z value, T imag)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Returns a new value replacing only the imaginary component.</td>
+                        
+</tr>
+                        
+<tr id="Complex-conjugate">
+                            <th scope="row"><code>Complex.conjugate(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Toggles the imaginary sign bit, including signed zero; no arithmetic rounding.</td>
+                        
+</tr>
+                        
+<tr id="Complex-neg">
+                            <th scope="row"><code>Complex.neg(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Toggles both sign bits.</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_polar">
+                            <th scope="row"><code>Complex.from_polar(T radius, T radians)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Finite radius ≥ 0 and finite angle required; negative radius is Domain. Rounded
+                                trigonometric construction; rejects non-finite output.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-cis">
+                            <th scope="row"><code>Complex.cis(T radians)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Finite angle required; constructs cos(angle) + i sin(angle). No promise of exactly unit
+                                magnitude after rounding.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Classification" aria-labelledby="Classification-heading">
+<h2 id="Classification-heading">8. Classification &amp; Predicates
+</h2>
+<p>These definitions deliberately distinguish a complex value with any infinite component from a value
+                    with all finite components. Predicates use constant work and do not allocate.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Classification &amp; Predicates data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-is_finite">
+                            <th scope="row"><code>Complex.is_finite(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>True only when both components are finite.</td>
+                        
+</tr>
+                        
+<tr id="Complex-is_nan">
+                            <th scope="row"><code>Complex.is_nan(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>True when either component is NaN.</td>
+                        
+</tr>
+                        
+<tr id="Complex-is_infinite">
+                            <th scope="row"><code>Complex.is_infinite(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>True when either component is infinite, even if the other is NaN.</td>
+                        
+</tr>
+                        
+<tr id="Complex-is_zero">
+                            <th scope="row"><code>Complex.is_zero(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Both components numerically equal zero; zero signs are ignored.</td>
+                        
+</tr>
+                        
+<tr id="Complex-is_real">
+                            <th scope="row"><code>Complex.is_real(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Imaginary component is ±0 and real component is not NaN.</td>
+                        
+</tr>
+                        
+<tr id="Complex-is_pure_imaginary">
+                            <th scope="row"><code>Complex.is_pure_imaginary(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Real component is ±0 and imaginary component is not NaN; includes zero.</td>
+                        
+</tr>
+                        
+<tr id="Complex-is_unit">
+                            <th scope="row"><code>Complex.is_unit(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Finite value whose computed magnitude equals 1 exactly; use tolerance for numerical unit
+                                tests.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-real_signbit">
+                            <th scope="row"><code>Complex.real_signbit(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Reads the real component sign bit.</td>
+                        
+</tr>
+                        
+<tr id="Complex-imag_signbit">
+                            <th scope="row"><code>Complex.imag_signbit(Z value)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Reads the imaginary component sign bit.</td>
+                        
+</tr>
+                        
+<tr id="Complex-classify_components">
+                            <th scope="row"><code>Complex.classify_components(Z value)</code></th>
+                            <td><code>(FloatClass, FloatClass)</code></td>
+                            <td>Classifies each component independently as zero, subnormal, normal, infinite, or NaN.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Arithmetic" aria-labelledby="Arithmetic-heading">
+<h2 id="Arithmetic-heading">9. Arithmetic &amp; Scaling
+</h2>
+<p>Core arithmetic returns the source complex type. Component +, −, ×, ÷ round in T. General complex
+                    division and magnitude use scaled algorithms to avoid unnecessary intermediate overflow; exact
+                    reproducibility depends on the explicitly selected numerical profile.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Arithmetic &amp; Scaling data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-add">
+                            <th scope="row"><code>Complex.add(Z a, Z b)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Component-wise sum.</td>
+                        
+</tr>
+                        
+<tr id="Complex-sub">
+                            <th scope="row"><code>Complex.sub(Z a, Z b)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Component-wise difference.</td>
+                        
+</tr>
+                        
+<tr id="Complex-mul">
+                            <th scope="row"><code>Complex.mul(Z a, Z b)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex product; any FMA contraction must be selected by profile.</td>
+                        
+</tr>
+                        
+<tr id="Complex-div">
+                            <th scope="row"><code>Complex.div(Z a, Z b)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Scaled complex quotient. Zero denominator and special inputs follow the selected
+                                non-finite profile; use checked_div for an error value.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-reciprocal">
+                            <th scope="row"><code>Complex.reciprocal(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Scaled 1/value; avoids materializing a naively squared denominator.</td>
+                        
+</tr>
+                        
+<tr id="Complex-square">
+                            <th scope="row"><code>Complex.square(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>value × value, with documented profile rounding.</td>
+                        
+</tr>
+                        
+<tr id="Complex-scale">
+                            <th scope="row"><code>Complex.scale(Z value, T factor)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Multiplies both components by a real factor.</td>
+                        
+</tr>
+                        
+<tr id="Complex-unscale">
+                            <th scope="row"><code>Complex.unscale(Z value, T divisor)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Divides both components by a real divisor.</td>
+                        
+</tr>
+                        
+<tr id="Complex-add_real">
+                            <th scope="row"><code>Complex.add_real(Z value, T scalar)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Adds only to the real component.</td>
+                        
+</tr>
+                        
+<tr id="Complex-sub_real">
+                            <th scope="row"><code>Complex.sub_real(Z value, T scalar)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Subtracts only from the real component.</td>
+                        
+</tr>
+                        
+<tr id="Complex-scale_pow2">
+                            <th scope="row"><code>Complex.scale_pow2(Z value, i32 exponent)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Scales both components by 2^exponent with one rounding per component; may overflow or
+                                underflow.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-mul_add">
+                            <th scope="row"><code>Complex.mul_add(Z a, Z b, Z c)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex a×b+c; no claim of a single correctly rounded complex operation or implicit
+                                hardware complex FMA.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Checked-Arithmetic" aria-labelledby="Checked-Arithmetic-heading">
+<h2 id="Checked-Arithmetic-heading">10. Checked Arithmetic &amp; Errors
+</h2>
+<p>All checked operations reject non-finite inputs before evaluation, report a zero denominator
+                    explicitly, and reject non-finite outputs. Finite rounding and finite underflow remain valid;
+                    Inexact is not an arithmetic error. Every function below allocates no heap storage.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Checked Arithmetic &amp; Errors data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-checked_add">
+                            <th scope="row"><code>Complex.checked_add(Z a, Z b)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Component addition; NonFiniteInput or NonFiniteResult.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_sub">
+                            <th scope="row"><code>Complex.checked_sub(Z a, Z b)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Component subtraction; same finite-result policy.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_mul">
+                            <th scope="row"><code>Complex.checked_mul(Z a, Z b)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Complex multiplication; checks the final component results.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_div">
+                            <th scope="row"><code>Complex.checked_div(Z a, Z b)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>DivideByZero when both b components are ±0; otherwise scaled division.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_reciprocal">
+                            <th scope="row"><code>Complex.checked_reciprocal(Z value)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Rejects complex zero; scaled reciprocal.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_scale">
+                            <th scope="row"><code>Complex.checked_scale(Z value, T factor)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Finite components and finite factor; finite-result check.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_unscale">
+                            <th scope="row"><code>Complex.checked_unscale(Z value, T divisor)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Finite nonzero real divisor; zero gives DivideByZero.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_sqrt">
+                            <th scope="row"><code>Complex.checked_sqrt(Z value)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Principal square root; finite inputs include negative real values.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_ln">
+                            <th scope="row"><code>Complex.checked_ln(Z value)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Complex zero is Pole; other finite values use the principal logarithm.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_exp">
+                            <th scope="row"><code>Complex.checked_exp(Z value)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Finite input and finite exponential output required.</td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_pow">
+                            <th scope="row"><code>Complex.checked_pow(Z base, Z exponent)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Exponent zero returns one, including 0^0. Other zero-base cases require a strictly
+                                positive real exponent; negative real exponent is Pole and nonzero imaginary exponent is
+                                Domain.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-checked_norm">
+                            <th scope="row"><code>Complex.checked_norm(Z value)</code></th>
+                            <td><code>Result&lt;T, ComplexError&gt;</code></td>
+                            <td>Finite components and finite magnitude required.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Magnitude" aria-labelledby="Magnitude-heading">
+<h2 id="Magnitude-heading">11. Magnitude, Phase &amp; Polar Coordinates
+</h2>
+<p>Lengths use the Euclidean plane. The value has no mathematical less-than ordering. These scalar
+                    outputs are rounded in T and carry no hidden output allocation.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Magnitude, Phase &amp; Polar Coordinates data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-norm">
+                            <th scope="row"><code>Complex.norm(Z value)</code></th>
+                            <td><code>T</code></td>
+                            <td>Scaled hypot(real, imag), nonnegative; may overflow if the true magnitude exceeds
+                                max(T).
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-norm_squared">
+                            <th scope="row"><code>Complex.norm_squared(Z value)</code></th>
+                            <td><code>T</code></td>
+                            <td>real²+imag². May overflow even when norm is representable; not a substitute for norm in
+                                robust algorithms.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-l1_norm">
+                            <th scope="row"><code>Complex.l1_norm(Z value)</code></th>
+                            <td><code>T</code></td>
+                            <td>|real|+|imag|; may overflow.</td>
+                        
+</tr>
+                        
+<tr id="Complex-phase">
+                            <th scope="row"><code>Complex.phase(Z value)</code></th>
+                            <td><code>T</code></td>
+                            <td>atan2(imag, real), in [−π, π]. Signed zero selects a side of the negative-real cut;
+                                follows atan2 at the origin.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-to_polar">
+                            <th scope="row"><code>Complex.to_polar(Z value)</code></th>
+                            <td><code>(T, T)</code></td>
+                            <td>(norm(value), phase(value)); no shared-allocation object.</td>
+                        
+</tr>
+                        
+<tr id="Complex-distance">
+                            <th scope="row"><code>Complex.distance(Z a, Z b)</code></th>
+                            <td><code>T</code></td>
+                            <td>Euclidean distance; computed component differences may themselves overflow.</td>
+                        
+</tr>
+                        
+<tr id="Complex-normalize">
+                            <th scope="row"><code>Complex.normalize(Z value)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Finite nonzero value required. Scaled normalization avoids a needless intermediate norm
+                                overflow; ZeroMagnitude for zero.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-project">
+                            <th scope="row"><code>Complex.project(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Riemann-sphere projection: any infinity maps to (+∞, signed imaginary zero); otherwise
+                                preserves components.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Powers" aria-labelledby="Powers-heading">
+<h2 id="Powers-heading">12. Roots, Exponentials &amp; Logarithms
+</h2>
+<p>Principal functions use the branch rules below. Scalar exponent arguments remain explicitly typed.
+                    Library precision is declared per function and target; this catalog does not promise correctly
+                    rounded transcendental results.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Roots, Exponentials &amp; Logarithms data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-sqrt">
+                            <th scope="row"><code>Complex.sqrt(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal square root, nonnegative real part; signed imaginary zero chooses the side at
+                                negative real inputs.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-cbrt">
+                            <th scope="row"><code>Complex.cbrt(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal complex cube root. Unlike a real cbrt, a negative real input need not return a
+                                negative real root.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-powi">
+                            <th scope="row"><code>Complex.powi(Z base, i32 exponent)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Integer exponentiation; exponent zero returns one. Negative exponent requires
+                                reciprocal.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-powu">
+                            <th scope="row"><code>Complex.powu(Z base, u32 exponent)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Unsigned integer exponentiation; zero exponent returns one.</td>
+                        
+</tr>
+                        
+<tr id="Complex-pow_real">
+                            <th scope="row"><code>Complex.pow_real(Z base, T exponent)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal real power via the selected logarithmic branch; zero exponent returns one.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-pow">
+                            <th scope="row"><code>Complex.pow(Z base, Z exponent)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal complex power; exponent zero returns one. Other zero-base behavior follows the
+                                numerical profile or checked_pow.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-exp">
+                            <th scope="row"><code>Complex.exp(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex exponential.</td>
+                        
+</tr>
+                        
+<tr id="Complex-exp2">
+                            <th scope="row"><code>Complex.exp2(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>2^value.</td>
+                        
+</tr>
+                        
+<tr id="Complex-exp10">
+                            <th scope="row"><code>Complex.exp10(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>10^value.</td>
+                        
+</tr>
+                        
+<tr id="Complex-expm1">
+                            <th scope="row"><code>Complex.expm1(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>exp(value)−1 using a cancellation-aware implementation near zero.</td>
+                        
+</tr>
+                        
+<tr id="Complex-ln">
+                            <th scope="row"><code>Complex.ln(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal natural logarithm; imaginary part lies in [−π, π]. Zero is a pole.</td>
+                        
+</tr>
+                        
+<tr id="Complex-log2">
+                            <th scope="row"><code>Complex.log2(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal logarithm divided by ln(2).</td>
+                        
+</tr>
+                        
+<tr id="Complex-log10">
+                            <th scope="row"><code>Complex.log10(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal logarithm divided by ln(10).</td>
+                        
+</tr>
+                        
+<tr id="Complex-log_base">
+                            <th scope="row"><code>Complex.log_base(Z value, Z base)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Principal ln(value)/ln(base). Reject non-finite inputs, value zero, base zero or one;
+                                checks final finiteness.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-ln1p">
+                            <th scope="row"><code>Complex.ln1p(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal ln(1+value) with cancellation-aware evaluation near zero; cut begins at −1.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Trigonometry" aria-labelledby="Trigonometry-heading">
+<h2 id="Trigonometry-heading">13. Trigonometric &amp; Hyperbolic Functions
+</h2>
+<p>All angles are radians. Forward functions are analytic away from poles; inverse functions return
+                    principal values. Availability and maximum error are target capabilities, including CPU fallbacks
+                    explicitly selected by the caller.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Trigonometric &amp; Hyperbolic Functions data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-sin">
+                            <th scope="row"><code>Complex.sin(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex sine.</td>
+                        
+</tr>
+                        
+<tr id="Complex-cos">
+                            <th scope="row"><code>Complex.cos(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex cosine.</td>
+                        
+</tr>
+                        
+<tr id="Complex-tan">
+                            <th scope="row"><code>Complex.tan(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex tangent; real-axis poles may produce non-finite results.</td>
+                        
+</tr>
+                        
+<tr id="Complex-sin_cos">
+                            <th scope="row"><code>Complex.sin_cos(Z value)</code></th>
+                            <td><code>(Z, Z)</code></td>
+                            <td>Returns (sin(value), cos(value)); sharing computation does not change the selected error
+                                profile.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-asin">
+                            <th scope="row"><code>Complex.asin(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal inverse sine, real part in [−π/2, π/2].</td>
+                        
+</tr>
+                        
+<tr id="Complex-acos">
+                            <th scope="row"><code>Complex.acos(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal inverse cosine, real part in [0, π].</td>
+                        
+</tr>
+                        
+<tr id="Complex-atan">
+                            <th scope="row"><code>Complex.atan(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal inverse tangent; singularities at ±i.</td>
+                        
+</tr>
+                        
+<tr id="Complex-sinh">
+                            <th scope="row"><code>Complex.sinh(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex hyperbolic sine.</td>
+                        
+</tr>
+                        
+<tr id="Complex-cosh">
+                            <th scope="row"><code>Complex.cosh(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex hyperbolic cosine.</td>
+                        
+</tr>
+                        
+<tr id="Complex-tanh">
+                            <th scope="row"><code>Complex.tanh(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Complex hyperbolic tangent.</td>
+                        
+</tr>
+                        
+<tr id="Complex-asinh">
+                            <th scope="row"><code>Complex.asinh(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal inverse hyperbolic sine.</td>
+                        
+</tr>
+                        
+<tr id="Complex-acosh">
+                            <th scope="row"><code>Complex.acosh(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal inverse hyperbolic cosine; nonnegative real part.</td>
+                        
+</tr>
+                        
+<tr id="Complex-atanh">
+                            <th scope="row"><code>Complex.atanh(Z value)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Principal inverse hyperbolic tangent; singularities at ±1.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Comparison" aria-labelledby="Comparison-heading">
+<h2 id="Comparison-heading">14. Equality &amp; Explicit Ordering
+</h2>
+<p>Complex values support equality, not an intrinsic ordered-number relation. Comparator helpers are
+                    deliberately named for their purpose; numeric equality never treats a NaN component as equal to
+                    itself; raw representation equality and total ordering remain separate operations.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Equality &amp; Explicit Ordering data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-equal">
+                            <th scope="row"><code>Complex.equal(Z a, Z b)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Both components compare numerically equal; ±0 compare equal and any NaN comparison is
+                                false.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-not_equal">
+                            <th scope="row"><code>Complex.not_equal(Z a, Z b)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Logical negation of equal.</td>
+                        
+</tr>
+                        
+<tr id="Complex-same_bits">
+                            <th scope="row"><code>Complex.same_bits(Z a, Z b)</code></th>
+                            <td><code>bool</code></td>
+                            <td>Both raw component representations match, including zero signs and NaN payloads.</td>
+                        
+</tr>
+                        
+<tr id="Complex-total_compare">
+                            <th scope="row"><code>Complex.total_compare(Z a, Z b)</code></th>
+                            <td><code>Ordering</code></td>
+                            <td>Lexicographic Float.total_compare on (real, imag); a deterministic representation order,
+                                not mathematical magnitude ordering.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-is_close">
+                            <th scope="row"><code>Complex.is_close(Z a, Z b, T rel_tol, T abs_tol)</code></th>
+                            <td><code>Result&lt;bool, ComplexError&gt;</code></td>
+                            <td>Finite nonnegative tolerances required. Equal infinities compare close; other non-finite
+                                pairs do not. Finite values use |a−b| ≤ max(abs_tol, rel_tol×max(|a|,|b|)) with scaled
+                                evaluation.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Conversion" aria-labelledby="Conversion-heading">
+<h2 id="Conversion-heading">15. Explicit Conversion
+</h2>
+<p>D is a destination floating-point format; Rounding is an explicit policy. Exact conversion checks
+                    both components. Failure never produces a partly initialized output.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Explicit Conversion data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-convert_exact">
+                            <th scope="row"><code>Complex.convert_exact(D, Z value)</code></th>
+                            <td><code>Result&lt;Complex&lt;D&gt;, ComplexError&gt;</code></td>
+                            <td>Both components must be exactly representable under Float exact-conversion rules; signed
+                                zeros preserved for float-to-float conversion.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-convert">
+                            <th scope="row"><code>Complex.convert(D, Z value, Rounding mode)</code></th>
+                            <td><code>Result&lt;Complex&lt;D&gt;, ComplexError&gt;</code></td>
+                            <td>Rounds each component once; overflow/non-finite conversion behavior follows explicit
+                                Float conversion policy.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-from_integer_exact">
+                            <th scope="row"><code>Complex.from_integer_exact(T, I value)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Integer must be exactly representable in T; imaginary part +0.</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_integer">
+                            <th scope="row"><code>Complex.from_integer(T, I value, Rounding mode)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Explicit rounded integer-to-real conversion; imaginary +0.</td>
+                        
+</tr>
+                        
+<tr id="Complex-to_real_exact">
+                            <th scope="row"><code>Complex.to_real_exact(Z value)</code></th>
+                            <td><code>Result&lt;T, ComplexError&gt;</code></td>
+                            <td>Imaginary component must be ±0; otherwise ImaginaryPartPresent. Copies real bits.</td>
+                        
+</tr>
+                        
+<tr id="Complex-to_integer_exact">
+                            <th scope="row"><code>Complex.to_integer_exact(I, Z value)</code></th>
+                            <td><code>Result&lt;I, ComplexError&gt;</code></td>
+                            <td>Imaginary zero, finite integral real part, and destination range required; both zero
+                                signs become integer zero.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-to_integer">
+                            <th scope="row"><code>Complex.to_integer(I, Z value, Rounding mode)</code></th>
+                            <td><code>Result&lt;I, ComplexError&gt;</code></td>
+                            <td>Imaginary zero required; finite real part rounded with range validation before
+                                conversion.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Representation" aria-labelledby="Representation-heading">
+<h2 id="Representation-heading">16. Bits, Bytes &amp; Explicit Layout
+</h2>
+<p>Canonical bytes always store real first, imaginary second. Endianness applies within each component;
+                    it never swaps component order. Wire functions do not establish C/C++ ABI compatibility.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Bits, Bytes &amp; Explicit Layout data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-to_bits">
+                            <th scope="row"><code>Complex.to_bits(Z value)</code></th>
+                            <td><code>(U, U)</code></td>
+                            <td>Raw real and imaginary bit patterns; no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_bits">
+                            <th scope="row"><code>Complex.from_bits(T, (U, U) bits)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Reconstructs both component representations; all supported IEEE-like bit patterns
+                                accepted.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-to_le_bytes">
+                            <th scope="row"><code>Complex.to_le_bytes(Z value)</code></th>
+                            <td><code>Array&lt;byte, 2*N&gt;</code></td>
+                            <td>N is one component byte width. Encodes both components little-endian.</td>
+                        
+</tr>
+                        
+<tr id="Complex-to_be_bytes">
+                            <th scope="row"><code>Complex.to_be_bytes(Z value)</code></th>
+                            <td><code>Array&lt;byte, 2*N&gt;</code></td>
+                            <td>Encodes each component big-endian, real before imaginary.</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_le_bytes">
+                            <th scope="row"><code>Complex.from_le_bytes(T, Array&lt;byte, 2*N&gt; bytes)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Fixed-width little-endian decode.</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_be_bytes">
+                            <th scope="row"><code>Complex.from_be_bytes(T, Array&lt;byte, 2*N&gt; bytes)</code></th>
+                            <td><code>Z</code></td>
+                            <td>Fixed-width big-endian decode.</td>
+                        
+</tr>
+                        
+<tr id="Complex-read_le">
+                            <th scope="row"><code>Complex.read_le(T, Slice&lt;byte&gt; bytes, usize offset)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Validates offset plus full width before reading; unaligned buffers are accepted through
+                                safe byte decode.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-read_be">
+                            <th scope="row"><code>Complex.read_be(T, Slice&lt;byte&gt; bytes, usize offset)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Checked big-endian buffer decode.</td>
+                        
+</tr>
+                        
+<tr id="Complex-write_le">
+                            <th scope="row"><code>Complex.write_le(Z value, MutSlice&lt;byte&gt; buffer, usize
+                                offset)</code></th>
+                            <td><code>Result&lt;unit, ComplexError&gt;</code></td>
+                            <td>Requires exclusive destination borrow; validates whole range before writing, unchanged
+                                on bounds error.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-write_be">
+                            <th scope="row"><code>Complex.write_be(Z value, MutSlice&lt;byte&gt; buffer, usize
+                                offset)</code></th>
+                            <td><code>Result&lt;unit, ComplexError&gt;</code></td>
+                            <td>Big-endian checked write, with the same failure guarantee.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Text" aria-labelledby="Text-heading">
+<h2 id="Text-heading">17. Parsing &amp; Formatting
+</h2>
+<p>The Cartesian grammar is locale-independent: optional parentheses around a+bi, with explicit signed
+                    imaginary component and Float decimal grammar for each component. Whitespace is accepted only around
+                    the whole value. Polar text is not silently interpreted as Cartesian text.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Parsing &amp; Formatting data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-parse">
+                            <th scope="row"><code>Complex.parse(T, string_view text)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Parses the whole input; rejects trailing data and malformed separators. Component
+                                non-finite tokens follow ParseOptions defaults.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-parse_with">
+                            <th scope="row"><code>Complex.parse_with(T, string_view text, ComplexParseOptions
+                                options)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Explicit non-finite-token, whitespace, and component grammar policy; no hidden locale
+                                lookup.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-to_string">
+                            <th scope="row"><code>Complex.to_string(Z value)</code></th>
+                            <td><code>Result&lt;string, ComplexError&gt;</code></td>
+                            <td>Round-trip Cartesian text; AllocationFailed reported. NaN text does not retain arbitrary
+                                payloads.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-format">
+                            <th scope="row"><code>Complex.format(Z value, ComplexFormatOptions options)</code></th>
+                            <td><code>Result&lt;string, ComplexError&gt;</code></td>
+                            <td>Explicit Cartesian or polar notation, component precision, and sign policy; allocation
+                                and invalid options can fail.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-format_into">
+                            <th scope="row"><code>Complex.format_into(Z value, MutSlice&lt;byte&gt; output,
+                                ComplexFormatOptions options)</code></th>
+                            <td><code>Result&lt;usize, ComplexError&gt;</code></td>
+                            <td>Writes valid UTF-8, returns bytes written; validates capacity before committing,
+                                unchanged on BufferTooSmall.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-parse_polar">
+                            <th scope="row"><code>Complex.parse_polar(T, string_view radius, string_view radians)</code>
+                            </th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Parses two real fields and delegates to from_polar; rejects negative radius.</td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Bulk" aria-labelledby="Bulk-heading">
+<h2 id="Bulk-heading">18. Optional Bulk Operations
+</h2>
+<p>These optional library functions require explicit target execution and output storage. They are not
+                    primitive scalar instructions. MutSlice is already an exclusive writable view and is passed directly. The owner parameter forms &amp;T and &amp;mut T are chosen; explicit returned-reference lifetime annotations remain descriptive. Length, alias, and capability checks complete before writing.
+                
+</p>
+                
+<div class="table-scroll" role="region" aria-label="Optional Bulk Operations data table">
+<table>
+                        
+<thead>
+                        
+<tr>
+                            <th scope="col">Conceptual signature</th>
+                            <th scope="col">Returns</th>
+                            <th scope="col">Contract and cost</th>
+                        
+</tr>
+                        
+</thead>
+                        
+<tbody>
+                        
+<tr id="Complex-map_into">
+                            <th scope="row"><code>Complex.map_into(Slice&lt;Z&gt; input, MutSlice&lt;Z&gt; output,
+                                PureFn operation)</code></th>
+                            <td><code>Result&lt;unit, ComplexError&gt;</code></td>
+                            <td>Equal lengths; independent pure scalar callback. Explicit O(n), no output allocation.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-conjugate_into">
+                            <th scope="row"><code>Complex.conjugate_into(Slice&lt;Z&gt; input, MutSlice&lt;Z&gt;
+                                output)</code></th>
+                            <td><code>Result&lt;unit, ComplexError&gt;</code></td>
+                            <td>Elementwise conjugation; input and output borrows must be disjoint. Use
+                                conjugate_in_place for one writable buffer.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-multiply_into">
+                            <th scope="row"><code>Complex.multiply_into(Slice&lt;Z&gt; a, Slice&lt;Z&gt; b, MutSlice&lt;Z&gt;
+                                output)</code></th>
+                            <td><code>Result&lt;unit, ComplexError&gt;</code></td>
+                            <td>Equal lengths; disjoint borrows required. O(n) computation.</td>
+                        
+</tr>
+                        
+<tr id="Complex-dotu">
+                            <th scope="row"><code>Complex.dotu(Slice&lt;Z&gt; a, Slice&lt;Z&gt; b, AccumulationPolicy
+                                policy)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Σ a[k]×b[k], with no conjugation. Explicit accumulator format and evaluation order;
+                                length/capability errors reported.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-dotc">
+                            <th scope="row"><code>Complex.dotc(Slice&lt;Z&gt; a, Slice&lt;Z&gt; b, AccumulationPolicy
+                                policy)</code></th>
+                            <td><code>Result&lt;Z, ComplexError&gt;</code></td>
+                            <td>Σ conjugate(a[k])×b[k]. Same explicit reduction policy.</td>
+                        
+</tr>
+                        
+<tr id="Complex-from_split_into">
+                            <th scope="row"><code>Complex.from_split_into(Slice&lt;T&gt; real, Slice&lt;T&gt; imag,
+                                MutSlice&lt;Z&gt; output)</code></th>
+                            <td><code>Result&lt;unit, ComplexError&gt;</code></td>
+                            <td>Zips separate component arrays; equal lengths and disjoint writable storage required;
+                                O(n) writes.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-to_split_into">
+                            <th scope="row"><code>Complex.to_split_into(Slice&lt;Z&gt; input, MutSlice&lt;T&gt; real,
+                                MutSlice&lt;T&gt; imag)</code></th>
+                            <td><code>Result&lt;unit, ComplexError&gt;</code></td>
+                            <td>Materializes separate real/imaginary arrays; disjoint destinations; O(n). No zero-copy
+                                strided scalar view is promised.
+                            </td>
+                        
+</tr>
+                        
+<tr id="Complex-conjugate_in_place">
+                            <th scope="row"><code>Complex.conjugate_in_place(MutSlice&lt;Z&gt; values)</code></th>
+                            <td><code>unit</code></td>
+                            <td>Toggles each imaginary sign bit through one exclusive borrow; O(n), no allocation.</td>
+                        
+</tr>
+                        
+<tr id="Complex-scale_in_place">
+                            <th scope="row"><code>Complex.scale_in_place(MutSlice&lt;Z&gt; values, T factor)</code></th>
+                            <td><code>unit</code></td>
+                            <td>Scales all components under the selected numerical profile; O(n), no allocation,
+                                exclusive borrow.
+                            </td>
+                        
+</tr>
+                        
+</tbody>
+                    
+</table>
+</div>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">19. CPU, GPU &amp; Data Layout
+</h2>
+<p>Arrays of complex values use interleaved component pairs unless another explicit storage layout is
+                    chosen. Separate real and imaginary arrays can improve a particular SIMD or GPU access pattern, but
+                    converting between interleaved and split layout is an O(n) materialization. A compiler may eliminate
+                    an unobservable temporary; it may not hide an observable device transfer or replace the requested
+                    accumulator format.
+                
+</p>
+                
+<p>Parallel writes require disjoint exclusive output borrows. Device submission retains input and output
+                    ownership until actual completion; a Pending value alone is not CPU visibility. Transfer direction,
+                    synchronization, math-library availability, supported formats, and atomic operations are checked
+                    separately. Complex addition is not automatically an atomic two-component transaction.
+                
+</p>
+                
+<p>FFT planning, transforms, matrix decompositions, convolution, special scientific functions, and
+                    automatic differentiation belong to explicitly selected libraries, not scalar Complex methods. Their
+                    plans, workspaces, execution order, and allocations need their own contracts. This page does not
+                    invent device-native support merely by listing scalar operations.
+                
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">20. Sources &amp; Design References
+</h2>
+<p>Primary references inform the design. Aevix names, signatures, and contracts are original design
+                    proposals.
+                
+</p>
+                
+<ul class="source-list">
+                    
+<li><a href="https://docs.python.org/3/library/cmath.html" target="_blank"
+                           rel="noopener noreferrer">Python cmath: branch cuts and signed zero</a>
+                    
+</li>
+                    
+<li><a href="https://docs.rs/num-complex/latest/num_complex/struct.Complex.html" target="_blank"
+                           rel="noopener noreferrer">num-complex: complex operations, scaled division, and FFI</a>
+                    
+</li>
+                    
+<li><a href="https://eel.is/c++draft/complex.syn" target="_blank" rel="noopener noreferrer">C++
+                        working draft: complex interface</a>
+                    
+</li>
+                    
+<li><a href="https://numpy.org/doc/stable/reference/generated/numpy.angle.html" target="_blank"
+                           rel="noopener noreferrer">NumPy angle: explicit phase conventions</a>
+                    
+</li>
+                
+</ul>
+</section><nav class="page-navigation" aria-label="Adjacent reference pages"><a href="Complex_16.html"><span>Next reference</span>Complex&lt;f16&gt;</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix Language · Type reference</span><span>Design specification · compiler implementation not implied</span></footer>
+  </main>
+</body>
+</html>
