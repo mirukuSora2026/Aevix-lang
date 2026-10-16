@@ -23,7 +23,7 @@ Aevix는 소유권과 대여 검사를 사용하는 정적 타입 언어입니�
 VS Code **1.96 이상**에서 사용할 수 있습니다.
 
 1. [릴리스 페이지](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0)에서 `aevix-0.1.0.vsix`를 받습니다.
-2. VS Code의 확장 화면에서 `…` → **Install from VSIX…**를 선택합니다.
+2. VS Code의 확장 화면에서 `…` → `Install from VSIX…`를 선택합니다.
 3. 내려받은 파일을 선택하고 `.avx` 파일을 엽니다.
 
 `code` 명령을 사용할 수 있다면 다운로드한 폴더에서 다음 명령으로 설치해도 됩니다.
