@@ -31,11 +31,11 @@
         </ol></details></aside>
         <article class="content">
             <section id="status"><h2>Existing behavior and new work</h2>
-                <p>This adds to the <a href="index.html#versions">existing 0.3 milestone</a>. The common error interface is new library work. Calls to later-defined functions and interface default overrides already work in the current 0.2 compiler; 0.3 retains those contracts and strengthens their documentation and rejection checks.</p>
+                <p>This adds to the <a href="index.html#versions">existing 0.3 milestone</a>. The common Error interface and owning AnyError carrier are new library work. The selected 0.3 model is common errors with Result; try remains 0.4 design work; Java-style throw/catch unwinding is not selected. Calls to later-defined functions and interface default overrides already work in the current 0.2 compiler; 0.3 retains those contracts and strengthens their documentation and rejection checks.</p>
                 <table><thead><tr><th scope="col">Feature</th><th scope="col">Current boundary</th><th scope="col">0.3 work</th></tr></thead><tbody>
                     <tr><td>Calls before function definitions</td><td>Direct declarations are collected before bodies. Local checks accept later functions and mutual recursion.</td><td>Keep declaration order independent of call availability, with regression coverage for imports, overloads, generics, and methods.</td></tr>
                     <tr><td>Interface default override</td><td>The override keyword and default-replacement checks exist.</td><td>Preserve the rules and reject the modifier everywhere it has no valid target.</td></tr>
-                    <tr><td>Common Error interface</td><td>The error module and common Error interface are planned; neither is a shipped 0.2 declaration.</td><td>Provide a common borrowed receiver for recoverable standard and user-defined errors.</td></tr>
+                    <tr><td>Common errors with Result</td><td>Error and AnyError are planned, not shipped 0.2 declarations.</td><td>Provide borrowed Error inspection and a concrete owning AnyError for Result&lt;T, AnyError&gt;, with explicit conversions.</td></tr>
                     <tr><td>Try/catch syntax</td><td>Not introduced by this page.</td><td>Keep the separate <a href="Syntax_0_4.html#try">0.4 error-scope design</a>; Java-style stack unwinding is not selected.</td></tr>
                 </tbody></table>
                 <p>The code blocks marked planned-0.3 depend on future modules. Other examples illustrate existing syntax. These distinctions do not certify a released artifact or all backend and platform combinations.</p>
@@ -93,7 +93,7 @@ struct Player implements Scored {
                 <p>This retains the <a href="../grammar/interfaces/Interfaces.html#override">chosen interface model</a>. It does not introduce class inheritance, virtual-by-default calls, a super expression, or Java's annotation syntax.</p>
             </section>
             <section id="common-error"><h2>A common error interface</h2>
-                <p><strong>Selected goal:</strong> one handling function can receive different recoverable errors. The recommended 0.3 library surface is an explicitly imported <code>error.Error</code> interface, received by a shared dynamic borrow.</p>
+                <p><strong>Selected 0.3 model:</strong> common error handling with Result. Use an explicitly imported <code>error.Error</code> interface for borrowed inspection and a concrete <code>error.AnyError</code> carrier for owned common propagation.</p>
                 <p>The proposed minimal interface has allocation-free code and message access. The code identifies the error kind; the message is a human-readable summary. A view may borrow from the error owner or static storage and must not outlive that storage.</p>
                 <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">public interface Error {
     public string_view code(&amp;Self self);
@@ -112,20 +112,29 @@ Result&lt;unit, system.IoError&gt; report(&amp;dyn Error e) {
             </section>
             <section id="ownership"><h2>Owning and propagating errors</h2>
                 <p>A borrowed <code>&amp;dyn Error</code> is useful for immediate reporting. It cannot own a temporary error, escape its owner's lifetime, or be stored as though it were a complete concrete Error value. An interface name alone is not the sized error carrier in <code>Result&lt;T, E&gt;</code>.</p>
-                <p>Retain concrete error types and explicit application enums for owned propagation. The <a href="../grammar/operators/Error_Propagation.html">existing ? rule</a> still requires the same E at the propagation boundary. Implementing Error does not make different Result error parameters interchangeable.</p>
-                <p>A future owning erased carrier, including a Box-based design, requires a separate explicit conversion. Allocation failure must be represented without losing the original error. It must be possible to report allocation failure without allocating another wrapper recursively. A fallible boxing operation cannot be hidden as an infallible map_err callback or automatic ? conversion.</p>
-                <p>The 0.3 <a href="Library_Foundation.html#order">error-mapping foundation</a> remains explicit. Finalize any owning carrier only after its layout, allocation, ownership-on-failure, lifetime, and thread-transfer rules are reviewed.</p>
+                <p><strong>Selected carrier:</strong> AnyError is a concrete owning type usable as <code>Result&lt;T, AnyError&gt;</code>. Retain concrete error types and explicit application enums where callers need their precise contracts. The <a href="../grammar/operators/Error_Propagation.html">existing ? rule</a> still requires the same E at the propagation boundary. Implementing Error does not make different Result error parameters interchangeable.</p>
+
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import error { AnyError };
+
+Result&lt;i32, AnyError&gt; forward(Result&lt;i32, AnyError&gt; operation) {
+    i32 value = operation?;
+    return Result.ok(value);
+}</code></pre>
+                <p>The example forwards an error already stored as AnyError; it does not implicitly convert another error type. AnyError implements Error and moves by default. Its use at an application boundary is explicit; typed library errors and their payloads remain available.</p>
+                <p>Recommend inline storage for an explicitly selected set of fixed-size standard errors, so converting those errors into the carrier requires no additional allocation. This does not promise that error creation was allocation-free or that arbitrary payload-bearing errors such as InputError&lt;T&gt; fit inline. Keep those in a typed Result or use explicit fallible packing.</p>
+                <p>Owning type erasure for other errors requires a separate explicit fallible conversion. Allocation failure must be represented without losing the original error. It must be possible to report allocation failure without allocating another wrapper recursively. A fallible packing operation must return the original error on failure. It cannot be hidden as an infallible map_err callback or automatic ? conversion, and nested failures are not automatically flattened.</p>
+                <p>The 0.3 <a href="Library_Foundation.html#order">error-mapping foundation</a> remains explicit. AnyError is selected for 0.3; finalize its constructor names, inline variant set, layout, allocation, ownership-on-failure representation, lifetime, and thread-transfer rules before implementation. No automatic cross-thread permission or borrow lifetime extension is implied.</p>
             </section>
             <section id="try"><h2>Relationship to try and catch</h2>
-                <p>The common error goal is included in 0.3. The exact Java-like catch spelling and control-transfer model remain a separate decision; the existing 0.4 try work is retained. A shared error interface does not silently add throw statements, exception inheritance, runtime stack unwinding, or catching across functions.</p>
+                <p><strong>Confirmed decision:</strong> 0.3 uses common errors with Result and explicit mapping. It does not add Java-like try/catch. The existing 0.4 try work is retained. A shared error interface does not silently add throw statements, exception inheritance, runtime stack unwinding, or catching across functions.</p>
                 <p>The preferred 0.4 direction remains local handling of Result failures. If Java-style unwinding is selected later, specify which operations can transfer control, catch ordering, cleanup, propagation across FFI, and the relationship to Result before changing the compiler.</p>
             </section>
             <section id="gates"><h2>0.3 implementation gates</h2><ol>
                 <li>Keep shared cases for later free functions, methods, overloads, generic functions, and mutual recursion. Reordering independent declarations must not change accepted calls.</li>
                 <li>Reject local use before declaration, missing imports, private access, duplicate signatures, and ambiguous overloads.</li>
                 <li>Retain positive override and dyn-dispatch cases; reject stray modifiers, missing defaults, mismatched receiver/result contracts, and unresolved default conflicts.</li>
-                <li>Finalize the error module's public code/message contracts, implement recoverable standard error adapters, and reject escaping error/message borrows.</li>
-                <li>Test reporting without mandatory allocation, failed output, and explicit error mapping. An owning carrier, if adopted, must preserve the input error on failed conversion.</li>
+                <li>Finalize the error module's public code/message and AnyError contracts, implement the selected standard error adapters, and reject escaping error/message borrows.</li>
+                <li>Test reporting without mandatory allocation, failed output, explicit error mapping, and Result&lt;T, AnyError&gt; propagation. Packing must preserve the input error on failure, including owned generic payloads.</li>
                 <li>Keep current Result/? behavior and the separate 0.4 try decision. Compare language behavior in AOT and JIT before relying on these rules in the compiler port.</li>
             </ol></section>
             <section id="sources"><h2>Primary references</h2>
