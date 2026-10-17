@@ -24,7 +24,8 @@
 <section id="Overview" aria-labelledby="Overview-heading">
 <h2 id="Overview-heading">1. Overview
 </h2>
-<p><strong>Design draft.</strong> These are proposed Aevix APIs, not claims that a compiler or standard library implements them. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> <code>Tuple&lt;...&gt;</code> is in the prelude. Implemented calls are <code>Tuple.make</code>, <code>len</code>, <code>is_empty</code>, <code>get&lt;I&gt;</code>, <code>get_mut&lt;I&gt;</code> and <code>copy</code>. Access uses an explicit tuple borrow and a compile-time valid index; copy requires every field to be Copy. Clone, reverse, map, apply and Array conversion functions below remain proposals. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
+<p><strong>Catalog status.</strong> The scope note identifies the implemented subset; other listed APIs remain proposed Aevix contracts. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
 </p>
 <p>A tuple groups a known number of possibly different types. <code>Tuple&lt;i32, bool&gt;</code> contains one i32 and one bool; changing either type or the number of fields creates a different tuple type. Named domain records belong in Struct when field names carry meaning.
 </p>
@@ -163,7 +164,8 @@ bool empty = Tuple.is_empty(&amp;status);</code></pre>
 </section>
 <section id="Examples" aria-labelledby="Examples-heading">
 <h2 id="Examples-heading">10. Examples and choosing a container
-</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Tuple&lt;i32, bool&gt; pair = Tuple.make(12, false);
+</h2>
+<p><strong>Catalog example.</strong> This fragment also uses proposed functions identified in the scope note; it is not a complete 0.2 program.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Tuple&lt;i32, bool&gt; pair = Tuple.make(12, false);
 Tuple&lt;i32, bool&gt; duplicate = Tuple.copy(&amp;pair);
 Tuple&lt;bool, i32&gt; reversed = Tuple.reverse(duplicate);
 Array&lt;i32, 2&gt; numbers = Tuple.to_array&lt;i32&gt;(Tuple.make(3, 5));</code></pre>

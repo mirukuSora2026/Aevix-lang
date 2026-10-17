@@ -24,6 +24,7 @@
 <section id="Overview" aria-labelledby="Overview-heading">
 <h2 id="Overview-heading">1. A Borrowed UTF-8 View
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> String literals have allocation-free <code>string_view</code> type. Implemented view operations are <code>string.view</code>, <code>byte_len</code>, <code>scalar_count</code>, <code>is_empty</code>, <code>as_bytes</code>, <code>equals</code> and checked <code>slice_bytes</code>. A view retains its source loan. Borrowed validation via <code>string.view_utf8</code> remains a proposal; <code>string.from_utf8</code> instead validates bytes and allocates an owned string. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <blockquote class="callout note">
 <p><strong>Language design draft.</strong> Contracts, helper types, and function spellings below are proposals. They do not claim an implemented compiler, finalized grammar, or validated runtime. Examples use type-first declarations, default immutability, and semicolon-terminated statements.
 </p>
@@ -83,7 +84,7 @@
 </tr>
 <tr id="string-char_indices"><th scope="row"><code>string.char_indices(s)</code></th><td><code>Iterator&lt;(usize, char)&gt;</code></td><td>Scalar values with view-relative byte positions.</td><td>Lazy; no allocation</td>
 </tr>
-<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Check range and both UTF-8 boundaries.</td><td>O(1); no copy</td>
+<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, TextError&gt;</code></td><td>Check range and both UTF-8 boundaries.</td><td>O(1); no copy</td>
 </tr>
 <tr id="string-slice_chars"><th scope="row"><code>string.slice_chars(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Check scalar-ordinal range by traversal.</td><td>O(n); no copy</td>
 </tr>
@@ -120,7 +121,7 @@
 <section id="Examples" aria-labelledby="Examples-heading">
 <h2 id="Examples-heading">7. Examples
 </h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
-Result&lt;string_view, BoundaryError&gt; suffix = string.slice_bytes(text, 2, 5);
+Result&lt;string_view, TextError&gt; suffix = string.slice_bytes(text, 2, 5);
 Optional&lt;usize&gt; location = string.find(text, &quot;fé&quot;);
 Result&lt;string, TextError&gt; independent = string.from_view(text);</code></pre>
 <p>Every example statement ends with a semicolon. The borrowed literal is valid for its storage lifetime. The owning constructor returns a result because copying can allocate; it is not a free cast.

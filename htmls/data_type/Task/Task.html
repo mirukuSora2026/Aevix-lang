@@ -24,6 +24,7 @@
 <section id="overview" aria-labelledby="overview-heading">
 <h2 id="overview-heading">1. A handle to host work in a lifetime scope
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> The Task and task-scope APIs described here are specialist library designs, outside both the default prelude and the implemented 0.2 type/API subset. Their eventual use requires explicit imports; no built-in 0.2 module is supplied by this catalog. The implemented host CPU facility is <a href="../../releases/Parallel_0_2.html">parallel.for_each</a>, which does not create a Task or Pending value. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <p>Task&lt;T&gt; is the proposed move-only handle for scheduled host computation producing one value of type T. A task is not a dedicated operating-system thread, a device queue event or an unstarted lazy future. Scheduling can allocate and fail. Once accepted by a scope, work and its captured resources remain tracked independently of whether the caller retains the user-facing handle.
 </p>
 <p>Structured execution is the default: borrowed captures cannot outlive their storage, and a scope cannot finish while any child might still access its loans. Explicitly detached work requires owned or otherwise independently valid captures. These are design requirements for the compiler and runtime; this documentation does not assert that an executor or cancellation implementation already exists.

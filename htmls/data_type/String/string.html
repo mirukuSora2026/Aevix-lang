@@ -28,6 +28,7 @@
 <p><strong>Language design draft.</strong> Contracts, helper types, and function spellings below are proposals. They do not claim an implemented compiler, finalized grammar, or validated runtime. Examples use type-first declarations, default immutability, and semicolon-terminated statements.
 </p>
 </blockquote>
+<p><strong>Implemented 0.2 subset.</strong> The <a href="../../releases/0_2.html#values">0.2 profile</a> lists byte_len, scalar_count, is_empty, view, as_bytes, equals, from_view, from_utf8, slice_bytes, append, push_char, and clear. Core fallible text operations return TextError. Other rows below, including owning-byte adoption and advanced algorithms, remain proposals. A text input s means a string_view or an explicit borrow of an owned string.</p>
 <p><code>string</code> owns a contiguous, well-formed UTF-8 buffer. Moving it transfers ownership; duplicating its contents uses an explicit fallible copy. Values are immutable by default. Mutable operations require an exclusive write borrow. Empty text is a valid value; absence uses <code>Optional&lt;string&gt;</code>. Embedded U+0000 is valid text and does not terminate the buffer.
 </p>
 <p>A <code>char</code> is one Unicode scalar, not one display character. A <code>byte</code> is an opaque eight-bit storage unit, distinct from the numeric <code>u8</code> type. UTF-8 text exposes read-only bytes without turning arbitrary byte offsets into text indices. Basic ownership follows the memory model; no automatic reference counting or copy-on-write is implied.
@@ -102,7 +103,7 @@ Result&lt;string, TextError&gt; owned = string.from_view(text);</code></pre>
 </tr>
 <tr id="string-from_chars"><th scope="row"><code>string.from_chars(Slice&lt;char&gt; values)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Encode a sequence of valid scalar values.</td><td>Scan; may allocate</td>
 </tr>
-<tr id="string-from_utf8"><th scope="row"><code>string.from_utf8(Vector&lt;byte&gt; owned)</code></th><td><code>Result&lt;string, OwnedUtf8Error&gt;</code></td><td>Validate and adopt compatible storage; recover bytes on error.</td><td>O(n) validation; no payload copy</td>
+<tr id="string-from_utf8"><th scope="row"><code>string.from_utf8(Slice&lt;byte&gt; bytes)</code><br><code>string.from_utf8(Vector&lt;byte&gt; owned)</code> — proposed overload</th><td>Implemented borrowed input: <code>Result&lt;string, TextError&gt;</code>.<br>Proposed owning input: <code>Result&lt;string, OwnedUtf8Error&gt;</code>.</td><td>The implemented Slice overload validates and copies bytes without consuming the source. The proposed Vector overload would adopt compatible storage and return the original bytes on failure; it is not accepted in 0.2.</td><td>Borrowed input: O(n) validation and copy; may allocate. Proposed adoption: O(n) validation without a payload copy.</td>
 </tr>
 <tr id="string-from_utf8_lossy"><th scope="row"><code>string.from_utf8_lossy(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Explicit replacement of malformed maximal subparts by U+FFFD.</td><td>Scan plus output; may allocate</td>
 </tr>
@@ -206,7 +207,7 @@ Result&lt;string, TextError&gt; owned = string.from_view(text);</code></pre>
 </tr>
 </thead>
 <tbody>
-<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Require start ≤ end ≤ byte length and scalar-aligned endpoints.</td><td>O(1); no copy</td>
+<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, TextError&gt;</code></td><td>Require start ≤ end ≤ byte length and scalar-aligned endpoints.</td><td>O(1); no copy</td>
 </tr>
 <tr id="string-slice_chars"><th scope="row"><code>string.slice_chars(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Slice a checked half-open scalar-ordinal range.</td><td>O(n); no copy</td>
 </tr>
@@ -364,7 +365,7 @@ Result&lt;string, TextError&gt; owned = string.from_view(text);</code></pre>
 <tbody>
 <tr id="string-push_char"><th scope="row"><code>string.push_char(&amp;mut string dst, char value)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Append one valid scalar.</td><td>Amortized small append; may reallocate</td>
 </tr>
-<tr id="string-push_view"><th scope="row"><code>string.push_view(&amp;mut string dst, s)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Append a nonoverlapping read view.</td><td>O(input bytes); may reallocate</td>
+<tr id="string-push_view"><th scope="row"><span id="string-append"></span><code>string.append(&amp;mut string dst, s)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Append a nonoverlapping read view.</td><td>O(input bytes); may reallocate</td>
 </tr>
 <tr id="string-insert_char"><th scope="row"><code>string.insert_char(&amp;mut string dst, usize offset, char value)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>Insert at a valid byte boundary.</td><td>Shift suffix; may reallocate</td>
 </tr>
@@ -406,7 +407,7 @@ Result&lt;string, TextError&gt; owned = string.from_view(text);</code></pre>
 </tr>
 </thead>
 <tbody>
-<tr id="string-equal"><th scope="row"><code>string.equal(left, right)</code></th><td><code>bool</code></td><td>Exact UTF-8 byte equality; no normalization.</td><td>O(n) worst case; no allocation</td>
+<tr id="string-equal"><th scope="row"><span id="string-equals"></span><code>string.equals(left, right)</code></th><td><code>bool</code></td><td>Exact UTF-8 byte equality; no normalization.</td><td>O(n) worst case; no allocation</td>
 </tr>
 <tr id="string-compare"><th scope="row"><code>string.compare(left, right)</code></th><td><code>Ordering</code></td><td>Lexicographic unsigned-byte order.</td><td>Compare until first difference; no allocation</td>
 </tr>
@@ -427,13 +428,16 @@ Result&lt;string, TextError&gt; owned = string.from_view(text);</code></pre>
 <section id="Examples" aria-labelledby="Examples-heading">
 <h2 id="Examples-heading">13. Examples &amp; Design Boundaries
 </h2><pre class="code-block"><code class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
-Result&lt;string_view, BoundaryError&gt; word = string.slice_bytes(text, 0, 5);
-Result&lt;string_view, BoundaryError&gt; invalid = string.slice_bytes(text, 4, 5); // Continuation-byte boundary error;
-Optional&lt;usize&gt; hit = string.find(text, &quot;fé&quot;); // Byte offset 2;
+Result&lt;string_view, TextError&gt; word = string.slice_bytes(text, 0, 5);
+Result&lt;string_view, TextError&gt; invalid = string.slice_bytes(text, 4, 5); // Err(TextError.InvalidBoundary);
+bool same = string.equals(text, &quot;café&quot;);</code></pre>
+<p><strong>Future catalog examples.</strong> The search, repeat, and iterator calls below are proposed APIs, not part of the 0.2 implementation.</p>
+<pre class="code-block" data-status="design-proposal"><code class="language-aevix" data-language="aevix">Optional&lt;usize&gt; hit = string.find(text, &quot;fé&quot;); // Byte offset 2;
 Result&lt;string, TextError&gt; repeated = string.repeat(text, 2);
 Result&lt;Iterator&lt;string_view&gt;, PatternError&gt; fields = string.split(&quot;a,,b&quot;, &quot;,&quot;);</code></pre>
 <p>Under this draft, text literals borrow immutable static UTF-8 storage as <code>string_view</code> without allocation. Creating an owned <code>string</code> from literal text requires an explicit fallible owning constructor. This gives the draft one consistent allocation rule while the complete grammar remains under design. The language spelling and namespace are always lowercase <code>string</code>.
 </p>
+<p><strong>Planned 0.3 syntax:</strong> <a href="../../roadmap/System_IO_0_3.html#composition">print/println output composition with +</a> joins borrowed text and printable values without requiring an intermediate owned string. This applies to recognized output calls, not general string-valued expressions. Owned concatenation remains an explicit fallible operation; the catalog above does not by itself claim implementation. The <a href="../../roadmap/Convenience_0_3.html#raw-strings">raw string literal plan</a> likewise produces a string_view, not an implicit string allocation.</p>
 <p>Normalization does not happen during construction, comparison, or concatenation. C-compatible NUL termination is an explicit encoding operation. Regex engines, parsers, file paths, locale resource loading, and secure erasure are separate APIs; a general text escape cannot substitute for context-specific HTML, SQL, shell, or JSON handling.
 </p>
 </section>

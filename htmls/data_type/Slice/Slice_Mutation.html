@@ -24,10 +24,11 @@
 <section id="Exclusive-View" aria-labelledby="Exclusive-View-heading">
 <h2 id="Exclusive-View-heading">1. One Exclusive View, No New Owner
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> Mutable view construction, indexing and checked <code>Slice.slice_mut</code> are implemented. Unlike the proposed borrowing algorithms below, <code>Slice.slice_mut(view, start, end)</code> consumes the original view descriptor on both Result branches. Its successful view still borrows the same owner. Reverse, split, chunk and iterator functions are catalog proposals. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <p>MutSlice&lt;T&gt; describes an exclusive writable borrow of initialized contiguous values. It does not own an allocation and does not free the source when the descriptor ends. Creating it requires an existing exclusive capability over the owner or source view. Moving a descriptor transfers that borrow capability; copying arbitrary mutable descriptors is not permitted. Ordinary read Slice&lt;T&gt; descriptors can be copied only while their inherited lifetime remains valid.
 </p>
 <p>Passing an existing view directly to a known <code>MutSlice&lt;U&gt;</code> or <code>&amp;mut U</code> parameter forms a temporary reborrow under the <a href="../../declaration/Function_Declaration.html#reborrowing">chosen function rule</a>. Its source capability is suspended while derived references, views or iterators remain live, including loans inside Optional or Result and any cleanup that may access their referent. Ending the call alone does not end such a returned loan. Reborrowing uses the existing exclusive capability and does not require a mut binding for the descriptor itself.</p>
-<p>Ordinary assignment, initialization, return and a generic <code>T value</code> argument still move a non-Copy descriptor. T being instantiated as MutSlice does not make a generic value parameter borrowing. All current mutable Slice catalog inputs are borrowing inputs; see the <a href="Slice.html#Parameter-Reborrowing">common parameter modes</a> for the distinction. No general move expression or implicit capability copy is added.</p>
+<p>Ordinary assignment, initialization, return and a generic <code>T value</code> argument still move a non-Copy descriptor. T being instantiated as MutSlice does not make a generic value parameter borrowing. Proposed mutable Slice algorithm inputs are borrowing inputs; the implemented <code>Slice.slice_mut</code> intrinsic consumes its original descriptor on either Result branch; see the <a href="Slice.html#Parameter-Reborrowing">common parameter modes</a> for the distinction. No general move expression or implicit capability copy is added.</p>
 </section>
 <section id="Disjoint-Ranges" aria-labelledby="Disjoint-Ranges-heading">
 <h2 id="Disjoint-Ranges-heading">2. Disjointness Is an Actual Range Proof
@@ -61,11 +62,12 @@
 </section>
 <section id="Examples" aria-labelledby="Examples-heading">
 <h2 id="Examples-heading">7. Read Example and Related Contracts
-</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">mut Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
+</h2>
+<p><strong>Catalog example.</strong> This fragment also uses proposed functions identified in the scope note; it is not a complete 0.2 program.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">mut Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
 MutSlice&lt;i32&gt; writable = Slice.from_array_mut(&amp;mut values);
 Slice.reverse(writable);
 Slice&lt;i32&gt; view = Slice.from_array(&amp;values);
-Result&lt;Slice&lt;i32&gt;, BoundsError&gt; middle = Slice.subslice(view, 1, 3);
+Result&lt;Slice&lt;i32&gt;, BoundsError&gt; middle = Slice.slice(view, 1, 3);
 Optional&lt;&amp;i32&gt; first = Slice.first(view);</code></pre>
 <p>The owner is mut before its exclusive borrow is created. The writable view is passed directly; its final use ends before the later shared owner borrow. See <a href="Slice.html#Function-Reference">the existing complete Slice catalog</a> for individual mutable functions and <a href="../Vector/Vector_Growth.html">Vector Growth</a> for owner invalidation. A numeric slice is not validated UTF-8 text; raw byte and Unicode boundaries remain explicit.
 </p>

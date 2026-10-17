@@ -24,6 +24,7 @@
 <section id="Overview" aria-labelledby="Overview-heading">
 <h2 id="Overview-heading">1. Dynamic Length &amp; Separate Ownership
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> <code>Vector&lt;T&gt;</code> and <code>T values[]</code> need no import. Construct an owner through a contextual dynamic literal, such as <code>Result&lt;Vector&lt;i32&gt;, CollectionError&gt; values = [1, 2];</code>. Implemented calls are <code>Vector.len(&amp;owner)</code>, <code>Vector.capacity(&amp;owner)</code>, <code>Vector.reserve(&amp;mut owner, additional)</code> and <code>Vector.push(&amp;mut owner, value)</code>. Reserve returns <code>Result&lt;unit, CollectionError&gt;</code>; push returns <code>Result&lt;unit, InputError&lt;T&gt;&gt;</code>, preserving rejected input on failure. <code>Vector.new</code>, copy/clone and other catalog constructors/algorithms are not 0.2 APIs. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <div class="callout draft-note"><strong>Language design draft.</strong> Vector is the runtime-length
                     growable owner. It is distinct from fixed <code>Array&lt;T, N&gt;</code>; this catalog describes
                     proposed contracts, not implemented APIs.
@@ -1207,11 +1208,13 @@
 </h2>
 <p>Each owner is immutable by default. Metadata and explicit copy operations borrow owners at their call sites; fallible allocation remains visible in Result.
 </p>
-                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Vector&lt;i32&gt; items = Vector.new(i32);
-Vector&lt;i32&gt; empty = Vector.new(i32);
-usize empty_count = Vector.len(&amp;empty);
-Result&lt;Vector&lt;i32&gt;, CollectionError&gt; duplicate = Vector.copy(&amp;items);
-Result&lt;Array&lt;i32, 4&gt;, CollectionError&gt; fixed_copy = Vector.to_array_copy(4, &amp;items);</code></pre>
+                <p>This example uses only the implemented 0.2 subset. It deliberately maps the push failure into the enclosing CollectionError type; postfix ? does not convert InputError automatically.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;i32, CollectionError&gt; example() {
+    mut i32 items[] = [1, 2]?;
+    Vector.reserve(&amp;mut items, 8)?;
+    Result&lt;unit, InputError&lt;i32&gt;&gt; pushed = Vector.push(&amp;mut items, 3);
+    if (Result.is_err(&amp;pushed)) return Result.err(CollectionError.AllocationFailure);
+    return Result.ok(Vector.len(&amp;items) == 3 ? 0 : 1);
+}</code></pre>
                 
 <p>Use a mut binding before taking &amp;mut owner for reserve, push, or removal. Such a borrow excludes overlapping access until its last use; extra capacity does not waive this rule. The chosen <code>?</code> operator propagates a compatible error from a Result-returning function; see the <a href="../../grammar/operators/Error_Propagation.html">error-handling rules</a>.
 </p>

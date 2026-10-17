@@ -26,6 +26,7 @@
 <section id="Overview" aria-labelledby="Overview-heading">
 <h2 id="Overview-heading">1. Overview
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> The integer primitives, including <code>i128</code>/<code>u128</code>, and <code>int = i32</code> need no import. Literals, matching-type arithmetic, comparisons, bit operations and <code>Integer.convert&lt;D&gt;(value)</code> are implemented. That conversion accepts only integer inputs/destinations and returns <code>Result&lt;D, IntegerError&gt;</code>, with <code>OutOfRange</code> on failure. Use the implemented <code>Float.convert</code>/<code>convert_exact</code> for an integer-to-float conversion. Named arithmetic, parsing, formatting and byte-codec functions in the broader catalog remain proposals. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <div class="callout draft-note"><strong>Language design draft.</strong> This reference describes the
                     proposed Aevix integer model. The API catalog is not an implementation or a compatibility claim.
                     Declaration syntax and ordinary arithmetic failure boundaries now have chosen rules in <a href="../../grammar/index.html">Language Grammar</a>; the 0.2 implementation adds explicit numeric suffixes, including <code>i128</code> and <code>u128</code>. See the <a href="../../releases/0_2.html">implementation profile</a> for executable features.
@@ -136,7 +137,7 @@
 <tbody>
                         
 <tr>
-                            <td><code>Integer.convert(T, x)</code></td>
+                            <td><code>Integer.convert&lt;T&gt;(x)</code></td>
                             <td>Checked integer conversion; returns <code>Result&lt;T, IntegerError&gt;</code> and
                                 rejects an unrepresentable value.
                             </td>
@@ -552,7 +553,7 @@
 <tbody>
                         
 <tr id="Integer-convert">
-                            <td><code>Integer.convert(D, T x)</code></td>
+                            <td><code>Integer.convert&lt;D&gt;(T x)</code></td>
                             <td><code>Result&lt;D, IntegerError&gt;</code></td>
                             <td>Preserves the value; OutOfRange when it cannot fit D.</td>
                         
@@ -1786,7 +1787,7 @@
                 
 </p>
                 <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Integer.checked_add(a, b);    // Ok(42)
-Integer.convert(i64, a);      // Ok(40)
+Integer.convert&lt;i64&gt;(a);      // Ok(40)
 Integer.bit_width(i32);       // 32
 Integer.div_rem_trunc(a, b);  // Ok((20, 0))</code></pre>
                 

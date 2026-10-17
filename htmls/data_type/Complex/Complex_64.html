@@ -24,6 +24,7 @@
                 Complex contracts.</p><div class="doc-meta"><span class="meta-chip">Complex&lt;f64&gt;</span><span class="meta-chip">Complex. namespace</span><span>Proposed API · example syntax under review</span><a href="../index.html#Language-Rules">Chosen language rules</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>z</strong><span>type reference</span></div></header>
     <div class="docs-layout"><aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>Basic Information</span></a></li><li><a href="#Literals"><span class="toc-number">02</span><span>Type-First Declarations &amp; Construction</span></a></li><li><a href="#Range"><span class="toc-number">03</span><span>Range &amp; Magnitude Boundaries</span></a></li><li><a href="#Precision"><span class="toc-number">04</span><span>Precision, Rounding &amp; Accumulation</span></a></li><li><a href="#Special-Values"><span class="toc-number">05</span><span>Signed Zero, Infinity &amp; NaN</span></a></li><li><a href="#Conversion"><span class="toc-number">06</span><span>Conversions &amp; Return Types</span></a></li><li><a href="#Storage"><span class="toc-number">07</span><span>Bytes, Layout &amp; Foreign Functions</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">08</span><span>Arrays, SIMD &amp; GPU Execution</span></a></li><li><a href="#Type-Functions"><span class="toc-number">09</span><span>Format-Specific Function Bindings</span></a></li><li><a href="#Sources"><span class="toc-number">10</span><span>Sources &amp; Design References</span></a></li></ol></details><nav class="family-nav" aria-label="Complex pages"><h2>Complex reference</h2><div class="family-links"><a href="Complex.html">Complex</a><a href="Complex_16.html">Complex&lt;f16&gt;</a><a href="Complex_BFloat16.html">Complex&lt;bf16&gt;</a><a href="Complex_32.html">Complex&lt;f32&gt;</a><a href="Complex_64.html" aria-current="page">Complex&lt;f64&gt;</a></div></nav><nav class="family-nav family-index" aria-label="All type families"><h2>Explore types</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html" aria-current="true">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Complex&lt;f64&gt; reference">
 <p class="callout"><strong>Implemented in 0.2.</strong> See the <a href="Complex_02.html">Complex 0.2 profile</a> for working imports, functions, error values, and format support. The larger catalog below includes future APIs.</p>
+<p class="callout"><strong>Implemented 0.2 core; extended catalog.</strong> Import Complex and ComplexError from complex explicitly. Construction, component fields, basic arithmetic, magnitude, and fallible division follow the <a href="Complex_02.html">0.2 profile</a>. Branch, byte, conversion, checked-finite, and transcendental API discussions below remain proposals unless that profile lists the operation.</p>
 <section id="Basic-Information" aria-labelledby="Basic-Information-heading">
 <h2 id="Basic-Information-heading">1. Basic Information
 </h2>
@@ -128,9 +129,11 @@
                     An imaginary literal suffix is not required by this design.
                 
 </p>
-                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Complex&lt;f64&gt; value = Complex.new(3.0, 4.0);
-f64 real = Complex.real(value);
-f64 magnitude = Complex.norm(value);
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">import complex { Complex, ComplexError };
+
+Complex&lt;f64&gt; value = Complex&lt;f64&gt;.new(3.0, 4.0);
+f64 real = value.real;
+f64 magnitude = Complex&lt;f64&gt;.norm(value);
 Complex&lt;f64&gt; copy = value;</code></pre>
                 
 <p>All statements end with semicolons. The copied scalar has independent component values. No allocation
@@ -149,7 +152,7 @@ Complex&lt;f64&gt; copy = value;</code></pre>
 </p>
                 
 <p><code>Complex.norm</code> uses a scaled evaluation to avoid an unnecessary square overflow. <code>norm_squared</code>
-                    intentionally returns the squared magnitude in f64, so it may overflow much earlier. Checked norm
+                    intentionally returns the squared magnitude in f64, so it may overflow much earlier. The proposed checked norm
                     reports a non-finite result rather than pretending the pair itself was invalid. Division likewise
                     uses a scaled algorithm, not an unconditional real²+imag² denominator.
                 
@@ -303,10 +306,9 @@ Complex&lt;f64&gt; copy = value;</code></pre>
                     the rounding grid and supported target implementations differ.
                 
 </p>
-                <pre class="code-block"><code class="language-aevix" data-language="aevix">Complex.conjugate(value);
-Complex.checked_div(value, Complex.one(Complex&lt;f64&gt;));
-Complex.to_be_bytes(value);
-Complex.convert_exact(f64, value);</code></pre>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Complex&lt;f64&gt; conjugated = Complex&lt;f64&gt;.conjugate(value);
+Result&lt;Complex&lt;f64&gt;, ComplexError&gt; divided =
+    Complex&lt;f64&gt;.div(value, Complex&lt;f64&gt;.one());</code></pre>
                 
 <p>This page is a proposed language reference, not proof that the compiler, foreign library, or GPU
                     backend implements the type. Unsupported capabilities are diagnosed instead of silently selecting

@@ -226,7 +226,7 @@ Direction second_direction = first_direction;</code></pre><p>The Copy declaratio
 };
 
 Pair&lt;i32&gt; numbers = Pair&lt;i32&gt; { first = 10, second = 20 };
-Pair&lt;i32&gt; destination = numbers;</code></pre><p>The where clause requires a Copy type argument. It does not declare <code>Pair&lt;T&gt;</code> itself Copy, so this <code>Pair&lt;i32&gt;</code> owner moves. A separately declared implements Copy opt-in is needed for a generic aggregate to copy under a valid complete field check.</p><p><code>Pair&lt;string&gt;</code> violates the bound because owning string is non-Copy. Generic function requirements use the chosen <a href="../functions/Generic_Functions.html">name-following type parameters and parameter-list-following where clause</a>; multiple function requirements repeat their subject and are separated by commas. The combined header order for a type that has both its own implements list and a where clause remains open. Read <a href="../generics/Generic_Types.html">Generic Types</a> for the selected type-parameter grammar.</p>
+Pair&lt;i32&gt; destination = numbers;</code></pre><p>The where clause requires a Copy type argument. It does not declare <code>Pair&lt;T&gt;</code> itself Copy, so this <code>Pair&lt;i32&gt;</code> owner moves. A separately declared implements Copy opt-in is needed for a generic aggregate to copy under a valid complete field check.</p><p><code>Pair&lt;string&gt;</code> violates the bound because owning string is non-Copy. Generic function requirements use the chosen <a href="../functions/Generic_Functions.html">name-following type parameters and parameter-list-following where clause</a>; multiple function requirements repeat their subject and are separated by commas. The implemented header order is <code>struct CopyPair&lt;T&gt; implements Copy where T implements Copy</code>: the type’s own implements list precedes its where constraints. Read <a href="../generics/Generic_Types.html">Generic Types</a> for the selected type-parameter grammar.</p>
 </section>
 
 <section id="cost-and-cleanup" aria-labelledby="cost-and-cleanup-heading">
@@ -268,7 +268,7 @@ Pair&lt;i32&gt; destination = numbers;</code></pre><p>The where clause requires 
 </div><ul>
 <li>Custom cleanup and partial-move compatibility remain open.</li>
 <li>General Clone interfaces, user operator derivation, comparison derivation, and deep-copy notation remain open.</li>
-<li>Physical layouts, foreign ABI representation, generic implementation strategy, and copy-cost diagnostics remain open.</li>
+<li>Stable public layout/FFI guarantees and copy-cost diagnostics remain open. The 0.2 compiler checks generic contracts and creates concrete specializations; this does not promise a stable generic ABI.</li>
 <li>These are source-level rejection categories, not implemented compiler diagnostic codes.</li>
 </ul>
 </section>

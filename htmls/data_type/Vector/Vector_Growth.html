@@ -24,6 +24,7 @@
 <section id="Growth-Model" aria-labelledby="Growth-Model-heading">
 <h2 id="Growth-Model-heading">1. Length, Capacity, and Relocation
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> The implemented growth calls are <code>Vector.reserve(&amp;mut owner, additional)</code> and <code>Vector.push(&amp;mut owner, value)</code>, with explicit Result errors. Active views prohibit conflicting growth. Clear, truncate, shrink, iterator and task APIs discussed below remain design contracts; supported CPU parallel work is separately described by <a href="../../releases/Parallel_0_2.html">parallel.for_each</a>. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <p>Growth concerns the initialized logical prefix and a separately reserved allocation. A capacity count is not a list of initialized values. The compiler checks target object bounds and size products before layout or allocator requests. Geometric growth is permitted but neither a specific factor nor an allocator-specific size is public ABI. An empty owner may retain storage; zero-sized elements still have logical counts and destructor effects.
 </p>
 </section>
@@ -59,7 +60,8 @@
 </section>
 <section id="Examples" aria-labelledby="Examples-heading">
 <h2 id="Examples-heading">7. Read Views and Common Catalog
-</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
+</h2>
+<p><strong>Catalog example.</strong> This fragment also uses proposed functions identified in the scope note; it is not a complete 0.2 program.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
 Result&lt;Vector&lt;i32&gt;, CollectionError&gt; owned = Vector.from_slice_copy(Slice.from_array(&amp;values));
 mut Vector&lt;i32&gt; scratch = Vector.new(i32);
 Result&lt;unit, CollectionError&gt; reserved = Vector.reserve(&amp;mut scratch, 8);

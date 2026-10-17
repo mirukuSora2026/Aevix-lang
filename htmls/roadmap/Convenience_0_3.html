@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Planned Aevix 0.3 conveniences: boolean integer returns, explicit conversion, output composition, field shorthand, and raw strings.">
+    <title>Convenience features in 0.3 — Aevix</title>
+    <link rel="stylesheet" href="../css/root.css?v=6">
+    <script src="../js/docs.js?v=4" defer></script>
+    <link rel="icon" type="image/png" href="../images/aevix-favicon.png">
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header">
+    <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
+    <nav class="header-nav" aria-label="Roadmap"><a href="index.html">Roadmap</a><a href="Convenience_0_3.html" aria-current="page">0.3 conveniences</a><a href="System_IO_0_3.html">0.3 console IO</a><a href="../releases/0_2.html">0.2 profile</a></nav>
+    <span class="draft-badge">0.3 PLAN · NOT IMPLEMENTED</span>
+</div></header>
+<main id="main-content" class="page-shell">
+    <header class="doc-intro"><div><p class="eyebrow">ADDITIONAL ROADMAP WORK</p><h1>Convenience features in 0.3</h1><p class="doc-subtitle">Shorter source forms with defined types, ownership, and failure behavior.</p></div></header>
+    <div class="docs-layout">
+        <aside class="table"><details class="toc" open><summary>On this page</summary><ol>
+            <li><a href="#scope">Scope and version boundary</a></li>
+            <li><a href="#boolean-return">Boolean results in integer returns</a></li>
+            <li><a href="#explicit-conversion">Explicit boolean conversion</a></li>
+            <li><a href="#output">Output composition with +</a></li>
+            <li><a href="#fields">Named field shorthand</a></li>
+            <li><a href="#raw-strings">Raw string literals</a></li>
+            <li><a href="#gates">Implementation gates</a></li>
+            <li><a href="#sources">Primary references</a></li>
+        </ol></details></aside>
+        <article class="content">
+            <section id="scope"><h2>Scope and version boundary</h2>
+                <p>Add these conveniences to the <a href="index.html#versions">existing 0.3 roadmap</a>. Native resources, FFI, library foundations, and the compiler subset remain required. The 0.4 compiler port and 0.5 self-hosting target are unchanged.</p>
+                <p class="callout warning"><strong>Planned for 0.3.</strong> These examples describe the proposed implementation target. They are not accepted-source promises for the released <a href="../releases/0_2.html">0.2 profile</a>. The boolean conversion API already appears in the design catalog; this plan schedules its implementation.</p>
+                <p>Keep type-first declarations, immutable defaults, explicit non-void returns, bool-only conditions, and the established move, borrow, and access rules.</p>
+            </section>
+            <section id="boolean-return"><h2>Boolean results in integer returns</h2>
+                <p>At an explicit <code>return expression;</code>, allow a bool value to satisfy a scalar integer return type. Encode <code>false</code> as <code>0</code> and <code>true</code> as <code>1</code>. Evaluate the expression once. The comparison expression itself still has type bool.</p>
+                <pre class="code-block" data-status="planned-0.3"><code id="Aevix" class="language-aevix" data-language="aevix">i32 is_larger(i32 left, i32 right) {
+    return left &gt; right;
+}
+
+i32 main() {
+    return 1 &gt; 2;
+}</code></pre>
+                <p>The helper returns either 0 or 1. The main example returns 0. For a process exit status, 0 means success; this is a numeric encoding of the comparison, not a rule that a true condition means successful process termination.</p>
+                <table><thead><tr><th scope="col">Context</th><th scope="col">Planned rule</th></tr></thead><tbody>
+                    <tr><td>Explicit return to a scalar integer</td><td>Allow the 0/1 adaptation for signed and unsigned integers through 128 bits, isize/usize, and transparent aliases such as int.</td></tr>
+                    <tr><td>Methods and explicitly typed closures</td><td>Use the same rule when their declared result resolves to a scalar integer.</td></tr>
+                    <tr><td>Return to bool</td><td>Keep the bool value unchanged.</td></tr>
+                    <tr><td>Variable initialization, assignment, arguments, arithmetic, and overload matching</td><td>No new implicit bool-to-integer conversion.</td></tr>
+                    <tr><td>Float, byte, char, enum, SIMD, Optional, or Result destination</td><td>No adaptation. Do not wrap a bool in Ok or map a container payload automatically.</td></tr>
+                    <tr><td>Borrowed bool or integer conditions</td><td>No automatic dereference for this rule and no numeric truthiness.</td></tr>
+                </tbody></table>
+                <p>The source must resolve to bool under ordinary expression typing before applying this return rule. Preserve numeric literal context, generic inference, and generic-body contract checks; do not add bool compatibility to the compiler's general type-matching relation or choose a missing generic type merely to enable adaptation. A favorable concrete specialization must not make an otherwise invalid generic body legal. The rule requires no allocation, cloning, or representation reinterpretation.</p>
+                <p>The explicit spelling already available in 0.2 remains valid:</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 main() {
+    return (1 &gt; 2) ? 1 : 0;
+}</code></pre>
+            </section>
+            <section id="explicit-conversion"><h2>Explicit boolean conversion</h2>
+                <p>Implement the existing catalog spelling <a href="../data_type/Boolean/Boolean.html#Boolean-to_integer"><code>Boolean.to_integer&lt;T&gt;(bool value)</code></a> for scalar integer T. It uses the same false-to-0 and true-to-1 mapping, including outside return statements.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">bool ready = true;
+i32 encoded = Boolean.to_integer&lt;i32&gt;(ready);
+rsn comparison = 1 &gt; 2;</code></pre>
+                <p>Here encoded is 1 and comparison remains bool. This schedules one catalog operation; it does not mark every Boolean helper as implemented. Decoding an integer into bool remains an explicit, separately specified operation.</p>
+            </section>
+            <section id="output"><h2>Output composition with +</h2>
+                <p>Use <code>+</code> to join text and printable values in <code>system.print</code> and <code>system.println</code>. A single built-in printable value may also be passed directly. Keep ordinary numeric addition and the existing left-associative precedence. Add no separator automatically.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import system;
+
+Result&lt;unit, system.IoError&gt; show_count(i32 count) {
+    system.println("count: " + count)?;
+    system.println("sum: " + 1 + 2)?;
+    system.println("sum: " + (1 + 2))?;
+    return Result.ok(Unit.value());
+}</code></pre>
+                <p>The last two calls produce <code>sum: 12</code> and <code>sum: 3</code>. This is planned output composition into borrowed formatting segments, with no required intermediate owned string. It does not introduce a general string allocation operator. See the <a href="System_IO_0_3.html#composition">console IO contract</a> for supported values, evaluation, borrows, and partial-output errors.</p>
+                <p>Printing bool uses <code>true</code> or <code>false</code>; the 0/1 rule applies to integer returns and explicit conversion, not display. Owned strings are read by borrow. Built-in value support does not automatically make structs, enums, containers, or pointers printable.</p>
+            </section>
+            <section id="fields"><h2>Named field shorthand</h2>
+                <p>Allow a local name to supply a same-named field in a named initializer. <code>Point { x, y }</code> means <code>Point { x = x, y = y }</code>.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">struct Point {
+    public f64 x;
+    public f64 y;
+};
+
+Point make_point(f64 x, f64 y) {
+    Point point = Point { x, y };
+    return point;
+}</code></pre>
+                <p>The value name must exist in the current lexical scope; shorthand does not search instance fields implicitly. Apply ordinary field visibility, type, duplicate, unknown-field, and completeness checks. Evaluate fields left to right, once each. Copy fields copy and non-Copy values move under the ordinary rules; there is no automatic clone, borrow, spread, or default filling.</p>
+                <p>Apply the same shorthand to enum variant named initializers, preserving their field access rules. It does not change case-pattern binding syntax or allow name shadowing.</p>
+            </section>
+            <section id="raw-strings"><h2>Raw string literals</h2>
+                <p>Add raw UTF-8 literals for text containing backslashes or quotes. Their value is the same allocation-free <code>string_view</code> as an ordinary literal. Raw contents have no escape processing or interpolation.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">string_view path = r"C:\temp\main.avx";
+string_view quoted = r#"say "hello""#;
+string_view pattern = r##"a "# marker"##;</code></pre>
+                <p>Use <code>r"..."</code>, or place 1–255 hash marks between r and the opening quote and require the same number after the closing quote. A quote without that closing delimiter stays in the contents. Multiline contents are allowed; preserve valid UTF-8 source bytes, including line-ending bytes inside the literal. No Unicode normalization is implied.</p>
+                <p>An unterminated literal or excessive delimiter count is a compile error. This is text syntax, not an OS path type, shell escaping, or a bypass for printf format checks. Creating an owning string still uses an explicit fallible constructor.</p>
+            </section>
+            <section id="gates"><h2>Implementation gates</h2><ol>
+                <li>Implement and test the return-only adaptation without widening initialization, argument, arithmetic, condition, generic, or overload compatibility. Include all integer widths, aliases, methods, closures, and rejected wrapper/reference destinations.</li>
+                <li>Implement the canonical Boolean.to_integer API with the same mapping and no hidden allocation.</li>
+                <li>Lower output composition after resolving the actual system function. Preserve numeric subtrees, left-to-right evaluation, borrow lifetimes, failure before output, and the existing Result-based IO contract.</li>
+                <li>Lower field shorthand into ordinary named initialization before existing visibility, completeness, move, and borrow checks. Include enum variants and partial-initialization cleanup.</li>
+                <li>Extend the lexer for raw literals, byte spans, multiline diagnostics, UTF-8, line endings, and matching delimiter limits. Keep ordinary string lexing intact.</li>
+                <li>Use shared acceptance, rejection, and execution cases across AOT and JIT. Freeze the approved rules before the 0.4 compiler port relies on them.</li>
+            </ol></section>
+            <section id="sources"><h2>Primary references</h2>
+                <p>These are comparison material. Aevix's return-only restriction and existing initialization syntax are its own rules.</p>
+                <ul class="source-list">
+                    <li><a href="https://eel.is/c++draft/conv.prom">C++ working draft: integral promotions</a> — the false-to-0 and true-to-1 mapping; C++ permits conversion in more contexts than this plan.</li>
+                    <li><a href="https://doc.rust-lang.org/reference/expressions/struct-expr.html#struct-field-init-shorthand">Rust Reference: struct field initialization shorthand</a> — a comparison for supplying a field from a same-named variable.</li>
+                    <li><a href="https://doc.rust-lang.org/reference/tokens.html#raw-string-literals">Rust Reference: raw string literals</a> — delimiter and escape-free literal comparison. Aevix specifies its own source-byte and line-ending policy above.</li>
+                </ul>
+            </section>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix · 0.3 convenience plan</span><span>2026-10-17 · planned; not implemented in 0.2</span></footer>
+</main>
+</body>
+</html>

@@ -26,6 +26,7 @@
 <section id="Basic-Information" aria-labelledby="Basic-Information-heading">
 <h2 id="Basic-Information-heading">1. Basic Information
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> The automatically available formats are <code>f16</code>, <code>bf16</code>, <code>f32</code> and <code>f64</code>; <code>float</code> aliases <code>f64</code>. Numeric suffixes, scalar arithmetic and comparisons are implemented. The implemented namespace calls are <code>Float.convert&lt;D&gt;(value)</code>, <code>Float.convert_exact&lt;D&gt;(value)</code> and <code>Float.to_integer_exact&lt;I&gt;(value)</code>. The first two accept an integer or float and require a floating destination; the last accepts a float and requires an integer destination. They return <code>Result</code> with <code>FloatError</code> and take no rounding-mode argument. Classification, bit/byte codecs and the math-function catalog below are not implemented 0.2 APIs. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <p>Aevix provides binary floating-point values through <code>f16</code>, <code>bf16</code>,
                     <code>f32</code>, and <code>f64</code>. The convenience alias <code>float</code> is exactly <code>f64</code>.
                     Scalars copy their value without heap allocation. Owning arrays and tensors retain their own
@@ -159,13 +160,13 @@ Float.is_nan(Float.sqrt(-1.0)); // true under the draft IEEE contract</code></pr
                     format; arguments marked <code>x</code>, <code>y</code>, or <code>a</code> have that same
                     <code>T</code> unless stated otherwise. <code>D</code> is a destination float, <code>I</code> an
                     integer type, <code>U</code> the same-width unsigned bit type, and <code>B</code> the storage byte
-                    count. Type arguments are explicit namespace parameters, such as <code>Float.epsilon(f32)</code>.
+                    count. Implemented numeric conversions use generic type arguments, such as <code>Float.convert&lt;f32&gt;(value)</code>. Unimplemented catalog notation such as <code>Float.epsilon(f32)</code> remains descriptive.
                 
 </p>
                 
 <p><code>FloatClass</code>, <code>RoundingMode</code>, <code>Ordering</code>, <code>FloatError</code>,
                     <code>ParseError</code>, <code>FormatError</code>, <code>ByteError</code>, <code>FloatParts</code>,
-                    and capability descriptors are proposed support types. They are not additions to the approved scalar
+                    and capability descriptors are support types. The implemented FloatError variants are <code>OutOfRange</code>, <code>NonFinite</code> and <code>NonExact</code>; the other listed support types remain proposals. They are not additions to the approved scalar
                     list. Rounding modes are <code>TiesEven</code>, <code>TiesAway</code>, <code>TowardZero</code>,
                     <code>TowardPositive</code>, and <code>TowardNegative</code>.
                 
@@ -190,7 +191,7 @@ Float.is_nan(Float.sqrt(-1.0)); // true under the draft IEEE contract</code></pr
 <section id="Function-Reference" aria-labelledby="Function-Reference-heading">
 <h2 id="Function-Reference-heading">4. Complete Function Catalog
 </h2>
-<p>Every proposed function is listed individually below with a conceptual signature, result type, and
+<p>The catalog lists implemented conversion rows and proposed functions individually, with a signature, result type, and
                     contract. Core format operations and optional scientific-library candidates are distinguished; a
                     listed signature is not a promise of native support on every target.
                 
@@ -1926,6 +1927,7 @@ Float.is_nan(Float.sqrt(-1.0)); // true under the draft IEEE contract</code></pr
 <section id="Conversion" aria-labelledby="Conversion-heading">
 <h2 id="Conversion-heading">17. Explicit Numeric Conversion
 </h2>
+<p>The three rows explicitly marked implemented use generic destination arguments. The proposed <code>from_integer</code>/<code>from_integer_exact</code> names are not 0.2 aliases: use <code>Float.convert&lt;D&gt;</code>/<code>Float.convert_exact&lt;D&gt;</code>. Other rounding modes and saturating conversions remain proposals. Finite conversion that rounds to a subnormal or zero succeeds unless exact conversion was requested.</p>
 <p>Converting a number is different from reinterpreting its bits. Exact float-to-float conversion
                     preserves mathematical value and signed zero; NaN payload conversion requires a separate encoding
                     policy. Float-to-integer conversion maps either signed zero to integer zero, because integers have
@@ -1952,16 +1954,16 @@ Float.is_nan(Float.sqrt(-1.0)); // true under the draft IEEE contract</code></pr
 <tbody>
                         
 <tr id="Float-convert_exact">
-                            <th scope="row"><code>Float.convert_exact(D, x)</code></th>
+                            <th scope="row"><code>Float.convert_exact&lt;D&gt;(x)</code></th>
                             <td><code>Result&lt;D, FloatError&gt;</code></td>
-                            <td>Require exact finite representation and signed-zero preservation.</td>
+                            <td>Implemented 0.2: integer/float input to floating D; finite and exactly representable, preserving signed zero. Returns NonFinite, OutOfRange or NonExact on failure.</td>
                         
 </tr>
                         
 <tr id="Float-convert">
-                            <th scope="row"><code>Float.convert(D, x, mode)</code></th>
+                            <th scope="row"><code>Float.convert&lt;D&gt;(x)</code></th>
                             <td><code>Result&lt;D, FloatError&gt;</code></td>
-                            <td>Explicit rounding; reject unsupported special values and finite overflow.</td>
+                            <td>Implemented 0.2: integer/float input to floating D; round nearest, ties to even. Reject nonfinite input and a rounded nonfinite result; finite precision loss is allowed.</td>
                         
 </tr>
                         
@@ -1987,9 +1989,9 @@ Float.is_nan(Float.sqrt(-1.0)); // true under the draft IEEE contract</code></pr
 </tr>
                         
 <tr id="Float-to_integer_exact">
-                            <th scope="row"><code>Float.to_integer_exact(I, x)</code></th>
+                            <th scope="row"><code>Float.to_integer_exact&lt;I&gt;(x)</code></th>
                             <td><code>Result&lt;I, FloatError&gt;</code></td>
-                            <td>Finite, integral, and within exact destination bounds.</td>
+                            <td>Implemented 0.2: floating input to integer I; require finite, integral and in range. Returns NonFinite, NonExact or OutOfRange on failure.</td>
                         
 </tr>
                         

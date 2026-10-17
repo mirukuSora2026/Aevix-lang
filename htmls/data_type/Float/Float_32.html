@@ -24,6 +24,7 @@
 <section id="Basic-Information" aria-labelledby="Basic-Information-heading">
 <h2 id="Basic-Information-heading">1. Basic Information
 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> The automatically available formats are <code>f16</code>, <code>bf16</code>, <code>f32</code> and <code>f64</code>; <code>float</code> aliases <code>f64</code>. Numeric suffixes, scalar arithmetic and comparisons are implemented. The implemented namespace calls are <code>Float.convert&lt;D&gt;(value)</code>, <code>Float.convert_exact&lt;D&gt;(value)</code> and <code>Float.to_integer_exact&lt;I&gt;(value)</code>. The first two accept an integer or float and require a floating destination; the last accepts a float and requires an integer destination. They return <code>Result</code> with <code>FloatError</code> and take no rounding-mode argument. Classification, bit/byte codecs and the math-function catalog below are not implemented 0.2 APIs. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
 <p><code>f32</code> is a 32-bit binary floating-point value with 24 bits of normal significand precision. This type is selected explicitly or inferred from a typed context; the default <code>float</code> alias remains <code>f64</code>.
 </p>
 <div class="table-scroll" role="region" aria-label="Basic Information data table">
@@ -125,7 +126,7 @@ Float.next_up(a); // adjacent representable value</code></pre>
 </h2>
 <p><code>Float.convert_exact</code> reports whether the mathematical value is representable in the destination format. <code>Float.convert</code> uses an explicit rounding policy and may lose precision. Narrowing does not silently become a bitcast.
 </p>
-<p>Converting to an integer checks finiteness, rounding rules, and the destination range before producing a value. No NaN or infinity is converted to an arbitrary integer.
+<p><code>Float.to_integer_exact&lt;I&gt;(value)</code> requires a finite integral input in the destination integer range. A fractional value returns <code>FloatError.NonExact</code>; NaN/infinity return <code>NonFinite</code>, and a range failure returns <code>OutOfRange</code>. Rounded integer conversion is a separate proposed API.
 </p>
 <div class="table-scroll" role="region" aria-label="Type Conversion data table">
 <table>
@@ -138,7 +139,7 @@ Float.next_up(a); // adjacent representable value</code></pre>
 </tr>
 <tr><td>u32 → f32 with from_bits</td><td>Equal-width representation decode</td>
 </tr>
-<tr><td>f32 → integer</td><td>Finite value, declared rounding, and destination range</td>
+<tr><td>f32 → integer</td><td>Implemented <code>Float.to_integer_exact&lt;I&gt;</code>: finite, integral and in range</td>
 </tr>
 <tr><td>Integer → this format</td><td>Exact conversion succeeds only for representable integers; the consecutive guarantee ends at 2^24</td>
 </tr>

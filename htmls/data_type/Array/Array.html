@@ -127,6 +127,7 @@
             <section id="Overview" aria-labelledby="Overview-heading">
                 <h2 id="Overview-heading">1 . Array Family Overview
                 </h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> <code>Array</code>, <code>Vector</code>, <code>Slice</code> and <code>MutSlice</code> are in the default prelude. Fixed/nested array literals, contextual fallible dynamic literals, indexing and supported iteration are implemented. <code>[value; N]</code> constructs a fixed array, evaluates value once even for N = 0, and requires Copy elements. The individual <code>Array.</code> library functions below remain proposals; canonical Vector/Slice pages identify their smaller implemented subsets. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
                 <div class="callout draft-note"><strong>Language design draft.</strong> These are proposed Aevix
                     contracts, not implemented compiler or standard-library guarantees. Declarations are type first and
                     values are immutable by default. Borrow, callback, const-parameter, and mutation annotations in
@@ -253,7 +254,7 @@ Result&lt;Vector&lt;i32&gt;, CollectionError&gt; dynamic_values = [1, 2, 3];</co
                     traits: equality needs Eq, sorting needs a total comparator, and clone/copy have separate
                     requirements.
                 </p>
-                <p>Core literal and callback grammar remains under design. All API rows state observable ownership,
+                <p>Core literals are chosen and implemented as described above. Explicit-capture closures and the Fn/FnMut/FnOnce foundations are implemented in 0.2; descriptive algorithm callback aliases and the remaining library APIs are still designs. All API rows state observable ownership,
                     failure, and cost contracts rather than claiming existing implementation.
                 </p>
                 <h3>Construction
@@ -881,6 +882,7 @@ Result&lt;Vector&lt;i32&gt;, CollectionError&gt; dynamic_values = [1, 2, 3];</co
             <section id="Examples" aria-labelledby="Examples-heading">
                 <h2 id="Examples-heading">7. Type-First Examples
                 </h2>
+<p><strong>Catalog example.</strong> This fragment also uses proposed functions identified in the scope note; it is not a complete 0.2 program.</p>
                 <p>Assume <code>values</code> is an existing read-accessible <code>Array&lt;i32, 3&gt;</code>. The
                     declarations below illustrate namespace access and explicit duplication; every executable statement
                     ends with a semicolon.
@@ -892,8 +894,7 @@ Array&lt;i32, 3&gt; duplicate = Array.copy(&amp;values);
 Result&lt;Vector&lt;i32&gt;, CollectionError&gt; dynamic_copy = Array.to_vector_clone(&amp;values);</code></pre>
                 <p>The last operation allocates a separate Vector; it does not change the original fixed length. The
                     parameter borrow forms are chosen; error-type spelling and explicit returned-reference lifetime
-                    annotations remain proposed. Array construction literals will receive a separate grammar
-                    specification.
+                    annotations remain proposed. The bracket construction grammar is defined above; proposed Array helper calls are separate from that grammar.
                 </p>
             </section>
             <section id="Parallelism-Devices" aria-labelledby="Parallelism-Devices-heading">

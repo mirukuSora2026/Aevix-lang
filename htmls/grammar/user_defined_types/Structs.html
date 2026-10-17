@@ -128,7 +128,7 @@ Point wrong_type = Point { x = typed_integer, y = 2.0 }; // Invalid: typed i32 i
 <h2 id="private-initialization-heading">4. Initializer access is checked</h2>
 <p>A named initializer is not an escape hatch through a private field boundary. External code cannot set a private field simply by spelling its name. When required private fields must be initialized, an accessible type-internal factory can perform the initialization and return a complete owner.</p><blockquote class="callout warning"><p><strong>Rejected external fragment.</strong> User.name is private. This function is outside the User declaration and receives an already owned string.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">User invalid_external_initialization(string owned_name) {
     return User { name = owned_name, level = 1 }; // Invalid: private name.
-}</code></pre><p>The <a href="Methods_and_Factories.html">factory reference</a> provides the selected type-internal function syntax. Field defaults and other omitted-field mechanisms remain open; no implicit zero, empty string, or placeholder is supplied here.</p>
+}</code></pre><p>The <a href="Methods_and_Factories.html">factory reference</a> provides the selected type-internal function syntax. Field defaults remain outside the 0.2 profile; no implicit zero, empty string, or placeholder is supplied here. The <a href="../../roadmap/Convenience_0_3.html#fields">planned 0.3 field shorthand</a> abbreviates a named initializer without omitting required values or bypassing private access.</p>
 </section>
 
 <section id="evaluation-order" aria-labelledby="evaluation-order-heading">
@@ -227,7 +227,7 @@ f64 outside_coordinate = point.y;</code></pre><p>A local name is available in it
 <ul>
 <li>Field default expressions, alternative omitted-field mechanisms, and initialization update/spread syntax.</li>
 <li>Custom destructor spelling, field cleanup ordering within aggregates, and partial-move restrictions.</li>
-<li>Field automatic dereference, method/field name collisions, overload rules, and forward lookup.</li>
+<li>Field automatic dereference remains outside the method-call borrowing convenience. In 0.2, field/method name collisions are rejected; distinct method signatures may overload, and accessible later-defined methods may be called without prototypes. See <a href="../functions/Overloading.html">overloading</a> and <a href="Methods_and_Factories.html">method calls</a>.</li>
 <li>Memory layout, alignment directives, ABI guarantees, and foreign representation annotations.</li>
 <li>Automatic comparison, operator derivation, inheritance, or shared heap identity are not selected here.</li>
 <li>Reference-return lifetime annotation syntax and the complete modifier grammar remain open.</li>

@@ -24,7 +24,8 @@
 <section id="Overview" aria-labelledby="Overview-heading">
 <h2 id="Overview-heading">1. Overview
 </h2>
-<p><strong>Design draft.</strong> These are proposed Aevix APIs, not claims that a compiler or standard library implements them. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
+<div class="callout note" id="Implementation-02"><p><strong>0.2 implementation scope.</strong> <code>Range&lt;T&gt;</code> is available without an import for the supported integer primitives, including i128/u128. Implemented constructors are <code>new</code>, <code>closed</code>, <code>descending</code> and <code>descending_closed</code>; <code>0..10</code> and <code>0..=10</code> are shorthand for the ascending forms. <code>Range.with_step(range, magnitude)</code> and <code>Range.len(&amp;range)</code> return Result with the implemented <code>RangeError.InvalidStep</code>/<code>CountOverflow</code> variants. Other queries, iterator objects and materialization helpers below remain proposals. See the <a href="../../releases/0_2.html">0.2 implementation profile</a>; other catalog entries remain design contracts.</p></div>
+<p><strong>Catalog status.</strong> The scope note identifies the implemented subset; other listed APIs remain proposed Aevix contracts. Parameter modes are chosen: <code>T value</code>, <code>&amp;T value</code>, and <code>&amp;mut T value</code>. Type-pack notation, callable types, explicit returned-reference lifetime spelling, and error enums remain descriptive where marked. Namespace functions are used throughout; there are no value-method aliases.
 </p>
 <p>Range is a non-owning value descriptor, not an allocated container or a borrow of a collection. The chosen range literal <code>0..10</code> creates the descriptor represented by <code>Range.new(0, 10)</code>, while <code>0..=10</code> corresponds to <code>Range.closed(0, 10)</code>. Both literals and existing Range values are accepted by the range-form <code>for</code>; see <a href="../../grammar/control_flow/Loops.html">Loops</a>. This first design supports integer primitives and target-sized integers. Floating-point ranges, Unicode traversal, unbounded endpoints, and arbitrary user-defined stepping require separate contracts.</p>
 </section>
@@ -149,7 +150,7 @@ Range&lt;u8&gt; countdown = Range.descending_closed(countdown_start, countdown_e
 <section id="Errors" aria-labelledby="Errors-heading">
 <h2 id="Errors-heading">8. Error values and materialization
 </h2>
-<p>RangeError covers InvalidStep, StepOverflow, CountOverflow, OutOfBounds and LengthMismatch. Infallible descriptor construction accepts reversed bounds as an empty sequence. Materialization uses CollectionError to preserve size and allocation failures.
+<p>The implemented RangeError variants are <code>InvalidStep</code> and <code>CountOverflow</code>. <code>StepOverflow</code>, <code>OutOfBounds</code> and <code>LengthMismatch</code> belong to proposed extra range operations, not the 0.2 enum. Infallible descriptor construction accepts reversed bounds as an empty sequence. Materialization uses CollectionError to preserve size and allocation failures.
 </p>
 <p>Error returns do not leave a partially initialized Array or Vector visible. If construction has initialized a prefix before an unrelated element-generation failure in a future extension, that prefix must be destroyed safely. The current integer sequence itself has no fallible element callback.
 </p>
@@ -171,7 +172,7 @@ Range&lt;u64&gt; full = Range.closed(smallest, largest);
 Result&lt;usize, RangeError&gt; too_many = Range.len(&amp;full);
 Optional&lt;u8&gt; last = Range.last(&amp;countdown);
 Result&lt;Vector&lt;i32&gt;, CollectionError&gt; values = Range.collect_vector(indices);</code></pre>
-<p>The full-domain count fails because the count exceeds target usize on supported 32- and 64-bit targets. The descending unsigned range ends at zero without wrapping to 255. Type-first declarations give each large literal an explicit integer context.
+<p>The full-domain count fails because the count exceeds target usize on the supported 64-bit ARM64 and x86-64 targets. The descending unsigned range ends at zero without wrapping to 255. Type-first declarations give each large literal an explicit integer context.
 </p>
 </section>
 <section id="Sources" aria-labelledby="Sources-heading">
