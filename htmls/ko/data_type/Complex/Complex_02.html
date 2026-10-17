@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="구현된 Aevix 0.2 복잡한 라이브러리: 명시적인 가져오기, 플로팅 컴포넌트 형식, 안정적인 크기 및 오류 발생 가능한 분할.">
+  <title>0.2의 Complex 복소수 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Complex/Complex_02.html">
+<link rel="alternate" hreflang="ko" href="Complex_02.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="Complex 참조 문서"><a href="Complex.html">설계 문서</a><a href="Complex_02.html" aria-current="page">0.2 프로필</a><a href="../../errors/index.html">오류</a></nav>
+    <span class="draft-badge">0.2 프로파일</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Complex.html">Complex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">0.2 프로필</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">구현된 언어 범위</p><h1>0.2의 Complex 복소수</h1><p class="doc-subtitle">두 개의 부동 소수점 구성 요소, 명시적 가져오기 및 오류 발생 가능한 분할입니다.</p><div class="doc-meta"><span class="meta-chip">Complex&lt;T = f64&gt;</span><span class="meta-chip">복잡한 = Complex&lt;f64&gt;</span><span class="meta-chip">스칼라 값 · AOT / JIT</span></div></div></header>
+    <div class="docs-layout">
+      <aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#start">수입 및 건설</a></li><li><a href="#functions">사용 가능한 함수</a></li><li><a href="#numerics">숫자적 행동</a></li><li><a href="#errors">오류 및 소유권</a></li><li><a href="#formats">형식 및 범위</a></li></ol></details><nav class="family-nav"><h2>관련 레퍼런스</h2><div class="family-links"><a href="Complex.html">전체 디자인 카탈로그</a><a href="../../grammar/generics/Generics_02.html">0.2 제네릭 및 플로팅</a></div></nav></aside>
+      <article class="content" aria-label="구현된 Complex 참조 문서">
+<section id="start"><h2>수입 및 건설</h2>
+<p>이 페이지는 구현된 0.2 범위를 나열합니다. 더 넓은 설계 카탈로그에는 향후 API도 포함됩니다. Complex 값은 일반적인 제네릭 라이브러리 구조체이며 import한 경우에만 불러옵니다.</p>
+<pre><code id="Aevix">import complex { Complex, complex, ComplexError };
+
+i32 main() {
+    complex value = complex.new(3.0, 4.0);
+    Complex&lt;f32&gt; single = Complex&lt;f32&gt;.new(3.0f32, 4.0f32);
+    return complex.magnitude(value) == 5.0 ? 42 : 1;
+}</code></pre>
+<p><code>Complex&lt;T = f64&gt;</code> #공공 <code>T real</code> 및 <code>T imag</code> 필드. 투명한 별칭 <code>complex</code> 는 다음 표기와 같습니다: <code>Complex&lt;f64&gt;</code>. 전체 모듈로 <code>import complex;</code>, 사용 <code>complex.Complex&lt;f64&gt;</code>. 모호한 C-폭 별칭이나 가상의 접미사가 할당되지 않습니다.</p>
+</section>
+<section id="functions"><h2>사용 가능한 형식 함수</h2>
+<p>테이블에서, <code>C</code> 즉, 선택된 타입, 즉 <code>Complex&lt;f32&gt;</code>. 이 함수는 이 함수를 통해 호출됩니다. 인수는 값입니다; 2 성분 구조체는 구현합니다 <code>Copy</code>.</p>
+<table><thead><tr><th>호출</th><th>Result 및 동작</th></tr></thead><tbody>
+<tr><td><code>C.new(T real, T imag)</code></td><td>C는 이미 입력 된 구성 요소와 함께 제공됩니다.</td></tr>
+<tr><td><code>C.zero()</code>, <code>C.one()</code>, <code>C.imaginary_unit()</code></td><td>C는 0, 1 또는 i를 나타냅니다.</td></tr>
+<tr><td><code>C.add(C left, C right)</code>, <code>C.sub(C left, C right)</code></td><td>부품 추가 또는 빼기.</td></tr>
+<tr><td><code>C.mul(C left, C right)</code></td><td>일반적인 복잡한 곱셈; 중간 성분 산술은 범람할 수 있다.</td></tr>
+<tr><td><code>C.neg(C value)</code>, <code>C.conjugate(C value)</code></td><td>두 요소를 모두 무시하거나 가상의 구성 요소만 무시합니다.</td></tr>
+<tr><td><code>C.eq(C left, C right)</code></td><td>bool, 성분 평등을 사용하여; NaN는 불평등에 남아 있습니다.</td></tr>
+<tr><td><code>C.is_nan(C value)</code>, <code>C.is_finite(C value)</code></td><td>bool; 각각의 NaN 성분, 또는 두 성분 모두 유한.</td></tr>
+<tr><td><code>C.norm_squared(C value)</code></td><td>T, real2 + imag2는 일반적인 구성 요소 산술을 사용합니다.</td></tr>
+<tr><td><code>C.magnitude(C value)</code>, <code>C.norm(C value)</code></td><td>T, 안정적인 유클리드 등급. 이 두 이름은 같은 의미를 갖는다.</td></tr>
+<tr><td><code>C.div(C numerator, C denominator)</code></td><td><code>Result&lt;C, ComplexError&gt;</code>.</td></tr>
+<tr><td><code>C.reciprocal(C value)</code></td><td><code>Result&lt;C, ComplexError&gt;</code>1을 값으로 나누는 것과 같습니다.</td></tr>
+</tbody></table>
+</section>
+<section id="numerics"><h2>숫자적 행동</h2>
+<p>각 구성 요소에는 자체 형식과 반올림이 있습니다. 일반적인 산술은 그 구성 요소를 사용합니다. 안정적인 크기 및 분할은 이미 둥근 입력 구성 요소를 f64로 홍보하고 각 최종 결과를 T로 되돌려줍니다. 추가 입력 정밀도를 생성하지 않습니다.</p>
+<p>Magnitude는 확장된 표준 수치 구현을 사용하여 real2 + imag2를 명시적으로 형성하는 불필요한 오버플로를 피합니다. 무한대는 NaN 성분을 크기로 지배합니다; 그렇지 않으면 NaN 성분은 NaN를 일으킵니다. 0 등급은 양수 0입니다.</p>
+<p>유한 분할은 각 출력 성분을 형성하기 전에 제품 만티사와 이진 지수를 분리합니다. 이것은 제품에서 불필요한 오버플로를 방지하고 거대한 실제 구성 요소 옆에 작은 가상의 구성 요소를 보존합니다. 무제한 입력은 플랫폼 표준 복잡한 복구 규칙을 사용합니다. 올바르게 반올림 된 결과, NaN 페이로드 보존 또는 모든 플랫폼 수학 라이브러리에서 동일한 마지막 비트가 약속됩니다.</p>
+<p>NaN과 무한대는 수치 값이며 자동으로 Result 오류가 되지는 않습니다. 이 구현 범위에서 Complex 값에는 암시적 순서나 새로운 연산자 오버로딩이 없습니다.</p>
+</section>
+<section id="errors"><h2>오류 및 소유권</h2>
+<p>부호 있는 0을 포함하여 두 성분이 모두 0인 분모가 반환됩니다. <code>ComplexError.ZeroDivisor</code>. Result를 확인하거나 그것을 전파 <code>?</code>. <code>ComplexError</code> Copy를 구현합니다.</p>
+<pre><code class="language-aevix">import complex { complex, ComplexError };
+
+Result&lt;complex, ComplexError&gt; quotient() {
+    complex a = complex.new(3.0, 4.0);
+    complex b = complex.new(1.0, -2.0);
+    complex result = complex.div(a, b)?;
+    return Result.ok(result);
+}</code></pre>
+<p>Complex 값은 소유한 힙 할당을 포함하지 않습니다. 값을 복사하면 두 성분을 복사합니다. 런타임 수치 보조 함수는 스칼라 인수와 호출자가 제공한 출력 저장소를 사용하며, 메모리를 할당하거나 예외를 던지지 않습니다. 사용자 모듈에서는 비공개 구현 보조 함수에 접근할 수 없습니다.</p>
+</section>
+<section id="formats"><h2>형식 및 범위</h2>
+<p>지원되는 구성 요소 형식 <code>f16</code>, <code>bf16</code>, <code>f32</code>, 및 <code>f64</code>이러한 유형의 투명한 별칭을 포함합니다. 구조체는 밀봉한 것을 요구합니다 <code>numeric.Floating</code> 계약. Integer, 사용자 정의 및 관련 없는 동일한 이름의 인터페이스가 이를 충족시키지 못합니다.</p>
+<p>AOT 및 JIT는 동일한 checked 언어 파이프라인을 사용합니다. 런타임 지원은 대상 플랫폼과 일치해야 합니다. 초월적인 복잡한 기능, 극 변환, 복잡한 SIMD 및 GPU 실행은 향후 작업으로 남아 있습니다.</p>
+</section>
+      </article>
+    </div>
+    <footer class="page-footer"><span>Aevix 0.2 · Complex 라이브러리</span><span>구현 된 프로필 · 플랫폼 실행에는 런타임이 필요합니다.</span></footer>
+  </main>
+</body>
+</html>

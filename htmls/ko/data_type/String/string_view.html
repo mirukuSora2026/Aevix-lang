@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="제안 된 빌린 UTF-8 텍스트보기와 컴파일러-checked 수명 및 가시적 인 복사.">
+  <title>string_view — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/String/string_view.html">
+<link rel="alternate" hreflang="ko" href="string_view.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="string.html" aria-current="true">string</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="string.html">string</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">string_view</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>string_view</h1><p class="doc-subtitle">제안 된 빌린 UTF-8 텍스트보기와 컴파일러-checked 수명 및 가시적 인 복사.</p><div class="doc-meta"><span class="meta-chip">string_view</span><span class="meta-chip">string. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>저장 방식</dt><dd>빌린 UTF-8</dd></div><div class="doc-stat"><dt>함수</dt><dd>18 shared/specialized</dd></div><div class="doc-stat"><dt>할당</dt><dd>보기 전용 없음</dd></div><div class="doc-stat"><dt>상태</dt><dd>표기 제안</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>스트링</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>대여된 UTF-8 보기</span></a></li><li><a href="#Lifetime"><span class="toc-number">02</span><span>수명 및 소유자 변경</span></a></li><li><a href="#Units"><span class="toc-number">03</span><span>Byte 범위와 스칼라 경계</span></a></li><li><a href="#Construction"><span class="toc-number">04</span><span>건설 및 검증</span></a></li><li><a href="#Functions"><span class="toc-number">05</span><span>대여된 뷰 기능 서페이스</span></a></li><li><a href="#Equality"><span class="toc-number">06</span><span>평등, 순서 및 Optional 데이터</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>예제</span></a></li><li><a href="#Targets"><span class="toc-number">08</span><span>타겟 및 비교 소스</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="string 페이지"><h2>string 참조</h2><div class="family-links"><a href="string.html">string</a><a href="string_view.html" aria-current="page">string_view</a><a href="unicode.html">Unicode 텍스트 서비스</a><a href="encoding.html">텍스트 인코딩</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="string_view 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 대여된 UTF-8 보기
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 문자열 리터럴은 할당이 없습니다. <code>string_view</code> 유형. 뷰 작업View operations <code>string.view</code>, <code>byte_len</code>, <code>scalar_count</code>, <code>is_empty</code>, <code>as_bytes</code>, <code>equals</code> 그리고 checked <code>slice_bytes</code>. 뷰는 소스 대여을 유지합니다. validation을 통한 대여 <code>string.view_utf8</code> 여전히 제안; <code>string.from_utf8</code> 대신 바이트의 유효성을 검사하고 소유한 string를 할당합니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<blockquote class="callout note">
+<p><strong>언어 설계 초안.</strong> 아래 계약·보조 타입·함수 표기는 제안입니다. 컴파일러 구현, 확정된 문법이나 검증된 런타임을 주장하지 않습니다. 예제는 타입 우선 선언, 기본 불변성과 세미콜론으로 끝나는 문장을 사용합니다.
+</p>
+</blockquote>
+<p><code>string_view</code> 는 유효한 UTF-8 저장소에 대한 수명 검사를 받는 읽기 뷰의 제안된 표기입니다. 스칼라 타입을 대체하지 않으며, 원본을 소유하거나 할당·정규화하지 않고 참조 횟수도 유지하지 않습니다. 논리적 표현은 주소와 바이트 길이지만, ABI와 구체적인 크기는 아직 미정입니다. 소유 값, 불변 리터럴 저장소, 검증된 대여 바이트 슬라이스를 가리킬 수 있습니다.
+</p>
+<p>이것은 체크되지 않은 포인터 쌍보다는 텍스트 특정 대여 계약입니다. UTF-8 유효성 및 소스 수명은 값을 구성하기 전에 설정됩니다. 뷰를 복사하면 디스크립터만 복사되고 동일한 차입 제한이 유지됩니다. 자세히 보기 <a href="string.html">string 참고 소유</a> 전체 네임스페이스 및 <a href="../Array/Array.html">배열 보기</a> 관련 스토리지 모델.
+</p>
+</section>
+<section id="Lifetime" aria-labelledby="Lifetime-heading">
+<h2 id="Lifetime-heading">2입니다. 수명 및 소유자 변경
+</h2>
+<p>소유자는보기의 모든 사용 중에 살아 있어야합니다. 기능은 파괴되고 있는 국부적으로 소유자로 return 뷰을 할 수 없다. 다른 객체 안에 저장된 뷰는 소유권을 연장하지 않는 동일한 수명 의무를 지닙니다. 런타임 및 형식 시스템이 소유자가 유효한 상태임을 증명하지 않는 한 백그라운드 작업에서는 범위를 넘어 작업을 유지할 수 없습니다.
+</p>
+<p>뛰어난 읽기 뷰는 재배치 및 현장 편집을 포함하여 충돌하는 쓰기를 방지합니다. 주소를 변경하지 않는 편집조차도 텍스트 경계 또는 의미 론적 위치를 변경할 수 있습니다. 컴파일러는 유효하지 않은 규칙을 기억하기 위하여 프로그래머를 신뢰 대신에 이 관계를 추적한다. 소유 사본은 작은 부분 문자열을 독립적으로 유지하는 명시적인 방법이며, 바이트를 복사하는 비용입니다.
+</p>
+</section>
+<section id="Units" aria-labelledby="Units-heading">
+<h2 id="Units-heading">3입니다. Byte 범위와 스칼라 경계
+</h2>
+<p>보기 길이 바이트 수. 엔드포인트가 멀티바이트 스칼라를 가리키기 때문에 반쯤 열린 범위는 텍스트로서는 유효하지 않을 수 있습니다. 안전한 생성자는 그 범위를 거부합니다. Scalar-index 슬라이싱은 요청된 스칼라 경계로 스캔하고 대여 상태로 유지됩니다; 자소 클러스터-index 슬라이싱은 옵션인 Unicode 모듈에 속합니다.
+</p>
+<p>가장 가까운 스칼라 경계로 이동하는 것은 사용자가 인식한 문자를 보존하는 것과 동등하지 않습니다. 마크와 이모티콘 시퀀스를 결합하면 여러 스칼라에 걸쳐있을 수 있습니다. Integer 오프셋은 또한 본질적인 소스 ID를 가지고 있지 않습니다: 다른 뷰에서 얻은 오프셋을 적용하려면 새로운 범위 및 경계 검사가 필요합니다. 끝 오프셋은 유효한 경계이지만 제거하거나 읽을 스칼라를 지정하지 않습니다.
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">4입니다. 건설 및 검증
+</h2>
+<p><code>string.view</code> 이미 유효한 텍스트를 일정한 시간에 빌려줍니다. <code>string.view_utf8</code> 대신 임의의 바이트를 빌리고 텍스트를 반환하기 전에 전체 범위를 확인합니다. 기본 byte 스토리지는 결과 뷰의 수명 동안 읽기 대여되어 break UTF-8의 변경를 방지합니다. 빈 입력이 성공합니다.
+</p>
+<p>확인되지 않은 변환 및 임의 원시 포인터 생성기는 안전 카탈로그에서 제외됩니다. FFI 래퍼는 뷰를 빌드하기 전에 길이, 가독성, 수명 및 인코딩을 설정해야 합니다. 뷰가 NUL로 끝날 필요는 없으며, 내장된 NUL은 byte count의 일부로 남아 있습니다. 종료자를 자동으로 추가하지 않고 호출자 버퍼로 복사합니다.
+</p>
+</section>
+<section id="Functions" aria-labelledby="Functions-heading">
+<h2 id="Functions-heading">5입니다. 대여된 뷰 기능 서페이스
+</h2>
+<p>이들은 공유 <code>string.</code> 인스턴스 메서드나 두 번째 기본 네임스페이스가 아닌 뷰에 특화된 함수입니다. 반복자는 소스와 패턴을 빌려온다; 출력을 소유하는 것은 항상 명백하다.
+</p>
+<div class="table-scroll" role="region" aria-label="대여된 뷰 함수 서페이스 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-view"><th scope="row"><code>string.view(s)</code></th><td><code>string_view</code></td><td>이미 유효한 UTF-8를 대여하십시오.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="string-view_utf8"><th scope="row"><code>string.view_utf8(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string_view, TextError&gt;</code></td><td>빌린 바이트를 유효하게 하십시오; 그들의 읽힌 대여을 유지하십시오.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="string-byte_len"><th scope="row"><code>string.byte_len(s)</code></th><td><code>usize</code></td><td>보이는 범위의 Byte count입니다.</td><td>O(1)</td>
+</tr>
+<tr id="string-scalar_count"><th scope="row"><code>string.scalar_count(s)</code></th><td><code>usize</code></td><td>보이는 범위의 스칼라 count입니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="string-as_bytes"><th scope="row"><code>string.as_bytes(s)</code></th><td><code>Slice&lt;byte&gt;</code></td><td>동일한 수명으로 읽기 전용 byte 보기.</td><td>O(1); 사본 없음</td>
+</tr>
+<tr id="string-chars"><th scope="row"><code>string.chars(s)</code></th><td><code>Iterator&lt;char&gt;</code></td><td>전방 스칼라 디코딩.</td><td>지연; 할당 없음</td>
+</tr>
+<tr id="string-char_indices"><th scope="row"><code>string.char_indices(s)</code></th><td><code>Iterator&lt;(usize, char)&gt;</code></td><td>뷰 상대적인 byte 위치가 있는 스칼라 값입니다.</td><td>지연; 할당 없음</td>
+</tr>
+<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, TextError&gt;</code></td><td>범위와 UTF-8 경계를 모두 확인하십시오.</td><td>O(1); 사본 없음</td>
+</tr>
+<tr id="string-slice_chars"><th scope="row"><code>string.slice_chars(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>스칼라-ordinal range를 traversal로 확인한다.</td><td>O(n); 사본 없음</td>
+</tr>
+<tr id="string-split_at"><th scope="row"><code>string.split_at(s, usize offset)</code></th><td><code>Result&lt;(string_view, string_view), BoundaryError&gt;</code></td><td>복사하지 않고 확인된 뷰를 분할합니다.</td><td>O(1)</td>
+</tr>
+<tr id="string-strip_prefix"><th scope="row"><code>string.strip_prefix(s, prefix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>일치하는 문자 접두사를 제거합니다.</td><td>접두어 비교; 사본 없음</td>
+</tr>
+<tr id="string-strip_suffix"><th scope="row"><code>string.strip_suffix(s, suffix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>일치하는 접미사 하나를 제거합니다.</td><td>접미사 비교; 사본 없음</td>
+</tr>
+<tr id="string-trim_ascii"><th scope="row"><code>string.trim_ascii(s)</code></th><td><code>string_view</code></td><td>공통 참조의 다섯 가지 ASCII 공백 값인 HT, LF, FF, CR 및 SPACE를 트리밍합니다. VT는 제외됩니다. 더 보기 <a href="string.html#string-trim_ascii">공유 trim_ascii 계약</a>.</td><td>검사 끝; 배부 없음</td>
+</tr>
+<tr id="string-find"><th scope="row"><code>string.find(s, needle)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>View-relative 첫 번째 경기 위치.</td><td>검색; 페이로드 할당 없음</td>
+</tr>
+<tr id="string-split"><th scope="row"><code>string.split(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>게으른 필드; 빈 구분 기호를 거부합니다.</td><td>지연 검색; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-lines"><th scope="row"><code>string.lines(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>공통 계약을 사용하는 LF/CRLF 라인.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-from_view"><th scope="row"><code>string.from_view(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy는 독립적 인 소유자로.</td><td>O(n); 할당할 수 있음</td>
+</tr>
+<tr id="string-copy_into"><th scope="row"><code>string.copy_into(s, out)</code></th><td><code>Result&lt;usize, TextError&gt;</code></td><td>용량 유효성 검사 후 Copy 바이트가 호출기 버퍼로 전달됩니다.</td><td>O(n); 힙 할당 없음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Equality" aria-labelledby="Equality-heading">
+<h2 id="Equality-heading">6입니다. 평등, 순서 및 Optional 데이터
+</h2>
+<p>뷰와 소유자는 동일한 UTF-8 평등 계약을 사용합니다. 동등한 콘텐츠는 동일한 주소 또는 공유 소유권을 의미하지 않습니다. 비교도 뷰 생성도 Unicode 정규화를 수행하지 않습니다. 비어 있는 텍스트는 없는 선택적 값과 구별됩니다. 검색 매치의 부재는 다음과 같이 표현된다. <code>Optional</code>잘못된 입력 또는 잘못된 슬라이싱은 다음과 같이 표현됩니다. <code>Result</code>.
+</p>
+<p>제안된 설명자는 복사하지 않고 일반 읽기 전용 string 함수로 전달될 수 있습니다. 예비 용량, 쓰기 가능한 바이트 또는 크기 조정 가능한 컨테이너 인터페이스를 노출하지 않습니다. 별도의 가변 텍스트 뷰 디자인은 추가 불변성이 필요하며 여기에 도입되지 않습니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7입니다. 예제
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+Result&lt;string_view, TextError&gt; suffix = string.slice_bytes(text, 2, 5);
+Optional&lt;usize&gt; location = string.find(text, &quot;fé&quot;);
+Result&lt;string, TextError&gt; independent = string.from_view(text);</code></pre>
+<p>모든 예제는 세미콜론으로 끝납니다. 빌린 리터럴은 저장 수명 동안 유효합니다. 소유 생성자는 복사가 할당할 수 있기 때문에 결과를 반환합니다; 이것은 자유 캐스트가 아닙니다.
+</p>
+</section>
+<section id="Targets" aria-labelledby="Targets-heading">
+<h2 id="Targets-heading">8입니다. 타겟 및 비교 소스
+</h2>
+<p>AOT 및 JIT는 수명과 유효성 검사를 보존해야 합니다. 컴파일러 제거 복사본은 소스 작업이 의미상 소유자를 생성하는지 여부를 변경하지 않습니다. GPU 표현에는 명시적인 스토리지 접근성과 지원되는 작업이 필요하며, CPU 주소를 단순히 장치 보기에 내장할 수는 없습니다. Unicode 라이브러리 지원은 별도로 선언되어 있습니다.
+</p>
+<p><a href="https://eel.is/c++draft/string.view">C++ string보기</a> 상기 소유하지 않는 표면은, The not owning surface, <a href="https://doc.rust-lang.org/std/primitive.str.html">Rust UTF-8보기</a> 유효성 및 checked 경계를 알립니다. Swift의 분리된 코드-unit 뷰는 또 다른 비교 포인트를 제공합니다. 이러한 참조는 자신의 동작을 지정합니다; 이 제안 된 수명 보증은 독립적 인 Aevix 구현 및 검증이 필요합니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.str.html" target="_blank" rel="noopener noreferrer">Rust UTF-8 슬라이스 - 유효성 및 범위 검사</a>
+</li>
+<li><a href="https://eel.is/c++draft/string.view" target="_blank" rel="noopener noreferrer">C++ 작업 초안 — 비소유 string 보기</a>
+</li>
+<li><a href="https://developer.apple.com/documentation/swift/string" target="_blank" rel="noopener noreferrer">Swift 텍스트 API — 별도의 코드-unit 및 문자 보기</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="string.html"><span>이전 레퍼런스</span>string</a><a href="unicode.html"><span>다음 레퍼런스</span>Unicode 텍스트 서비스</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

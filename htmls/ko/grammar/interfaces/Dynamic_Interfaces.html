@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="명시적 dyn 읽기 또는 쓰기 뷰를 사용 하 여 콘크리트 소유자와 그것의 수명을 그대로 유지 하면서.">
+<title>대여된 동적 인터페이스 — Aevix Docs</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/interfaces/Dynamic_Interfaces.html">
+<link rel="alternate" hreflang="ko" href="Dynamic_Interfaces.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">인터페이스</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">빌린 동적 인터페이스</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">문법 레퍼런스</p><h1>빌린 동적 인터페이스</h1><p class="doc-subtitle">명시적 dyn 읽기 또는 쓰기 뷰를 사용 하 여 콘크리트 소유자와 그것의 수명을 그대로 유지 하면서.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙과 미정 사항</span><span class="meta-chip">Aevix의 독자적 설계</span><a href="../../declaration/Function_Declaration.html">함수 선언</a></div><dl class="doc-stats"><div class="doc-stat"><dt>보기 읽기</dt><dd>&amp;dyn 나는</dd></div><div class="doc-stat"><dt>보기 쓰기</dt><dd>&amp;mut dyn I을 발음하는 법</dd></div><div class="doc-stat"><dt>저장 방식</dt><dd>대여</dd></div><div class="doc-stat"><dt>발송</dt><dd>런타임 선택</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>&amp;dyn (한국어)</strong><span>문법</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>뷰는 빌려; 그것은 소유권을 차지 하지 않습니다.</span></a></li><li><a href="#forms"><span class="toc-number">02</span><span>수신자 권한은 여전히 호출을 제어</span></a></li><li><a href="#mutable"><span class="toc-number">03</span><span>독점 뷰는 원래 값을 변경합니다.</span></a></li><li><a href="#lifetime"><span class="toc-number">04</span><span>Concrete Provenance가 살아남는 방법</span></a></li><li><a href="#eligible-methods"><span class="toc-number">05</span><span>dyn 뷰는 계약의 일부만 노출할 수 있습니다.</span></a></li><li><a href="#defaults"><span class="toc-number">06</span><span>기본값과 재정의는 그 의미를 유지합니다.</span></a></li><li><a href="#cost"><span class="toc-number">07</span><span>런타임 선택 및 액세스 비용 표시</span></a></li><li><a href="#diagnostics"><span class="toc-number">08</span><span>거부된 권한 및 호환성 변경</span></a></li><li><a href="#open-decisions"><span class="toc-number">09</span><span>동적 규칙 및 관련 참조 열기</span></a></li></ol></details><nav class="family-nav" aria-label="인터페이스 페이지"><h2>인터페이스</h2><div class="family-links"><a href="index.html">개요</a><a href="Interfaces.html">인터페이스</a><a href="Dynamic_Interfaces.html" aria-current="page">빌린 동적 인터페이스</a><a href="Owned_Dynamic_Interfaces.html">소유된 동적 인터페이스</a></div></nav><nav class="family-nav" aria-label="관련 언어 reference"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../user_defined_types/Structs.html">구조체</a><a href="../enums/Enums.html">열거형</a><a href="index.html">인터페이스</a><a href="../generics/index.html">제네릭</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/index.html">자료형</a></div></nav></aside><article class="content" aria-label="빌린 동적 인터페이스 참조">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1입니다. 뷰는 빌려; 그것은 소유권을 차지 하지 않습니다.</h2><p><code>&amp;dyn Interface</code> 은 구체 구현을 가리키는 명시적 공유 뷰입니다. <code>&amp;mut dyn Interface</code> 은 독점 쓰기 뷰입니다. 구체 소유자는 값과 정리에 대한 책임을 유지하며, 뷰는 실행 중 구체 타입에 따라 호출 가능한 메서드를 선택합니다.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">User user = User.new(7);
+&amp;dyn Leveled view = &amp;user;
+bool beginner = view.is_beginner();</code></pre><p>이 예제는 다음 문서의 User·Leveled 선언을 사용합니다: <a href="Interfaces.html#override">인터페이스 계약</a>. 선택된 User의 override는 뷰를 통한 호출에도 적용됩니다. 이 공유 뷰를 만들 때 할당·clone·CPU/GPU 전송은 발생하지 않습니다.</p></section><section id="forms" aria-labelledby="forms-heading"><h2 id="forms-heading">2입니다. 수신자 권한은 여전히 호출을 제어</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="빌린 동적 뷰 권한"><table><thead><tr><th scope="col">종류</th><th scope="col">대여 능력</th><th scope="col">메서드 접근</th></tr></thead><tbody><tr><th scope="row"><code>&amp;dyn I</code></th><td>Shared 대여 읽기.</td><td>적격한 read-receiver 메소드; 독점적인 수신기로의 업그레이드 없음.</td></tr><tr><th scope="row"><code>&amp;mut dyn I</code></th><td>단독 대여입니다.</td><td>적격한 write-receiver 방법과 borrow 규칙에 따라 호환 가능한 read access.</td></tr></tbody></table></div></div><p>메서드에 선언된 self 매개변수 타입이 권한을 결정합니다. <code>dyn</code> 은 구현을 선택하는 방식을 바꿉니다. 일반 공유 참조에 수정 권한을 주거나 값 self를 대여 호출로 바꾸지는 않습니다. 직접 소유한 값에서 일반 쓰기 대여를 만들려면 <code>mut</code> 바인딩이 필요합니다.</p></section><section id="mutable" aria-labelledby="mutable-heading"><h2 id="mutable-heading">3입니다. 독점 뷰는 원래 값을 변경합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">interface Counter {
+    public i32 read(&amp;Self self);
+    public void write(&amp;mut Self self, i32 next_value);
+};
+
+struct CounterState implements Counter {
+    i32 value;
+
+    public CounterState new(i32 initial_value) {
+        return CounterState { value = initial_value };
+    }
+
+    public i32 read(&amp;CounterState self) {
+        return (*self).value;
+    }
+
+    public void write(&amp;mut CounterState self, i32 next_value) {
+        (*self).value = next_value;
+    }
+};
+
+mut CounterState counter = CounterState.new(1);
+{
+    &amp;mut dyn Counter view = &amp;mut counter;
+    view.write(2);
+}
+i32 updated = counter.read();</code></pre><p>뷰가 같은 counter 저장소를 수정하므로 updated는 2입니다. 참조 대상에 대한 독점 권한을 사용하기 위해 참조 바인딩 자체가 <code>mut</code> 일 필요는 없습니다. 이 예제에서는 명시적 내부 블록으로 뷰의 범위를 제한하며, 뷰를 사용하는 동안 충돌하는 접근은 하지 않습니다.</p></section><section id="lifetime" aria-labelledby="lifetime-heading"><h2 id="lifetime-heading">4입니다. Concrete Provenance가 살아남는 방법</h2><p>타입 소거는 호출 위치에서 공개 구체 타입을 숨길 뿐, 대여의 원본을 지우지 않습니다. 뷰는 소유자나 소유자 내부에 저장된 대여 데이터보다 오래 살 수 없습니다. 충돌하는 뷰가 살아 있는 동안 소유자를 이동·소비·정리하면 거부합니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: the view is used after its owner is moved;
+User user = User.new(7);
+&amp;dyn Leveled view = &amp;user;
+User moved = user;
+bool beginner = view.is_beginner();</code></pre><p>뷰의 마지막 사용은 기존 대여 분석에 반영됩니다. 변수의 스코프와 증명된 대여 범위는 관련이 있지만 다릅니다. 한 분기를 벗어났다고 해서 밖으로 탈출한 참조가 유효해지지는 않습니다. 독점 뷰는 충돌하는 읽기·쓰기를 만드는 겹치는 대여와 공존할 수 없습니다.</p></section><section id="eligible-methods" aria-labelledby="eligible-methods-heading"><h2 id="eligible-methods-heading">5입니다. dyn 뷰는 계약의 일부만 노출할 수 있습니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">interface Rebuildable {
+    public i32 level(&amp;Self self);
+    public Self rebuild(&amp;Self self);
+};
+
+void inspect(&amp;dyn Rebuildable view) {
+    i32 observed = view.level();
+}</code></pre><p>인터페이스에는 구체 Self를 알아야 하는 메서드가 있을 수 있습니다. 그래도 dyn 뷰는 허용하지만, 뷰에서는 호출 가능한 메서드만 사용할 수 있습니다. rebuild처럼 값으로 반환하는 <code>Self</code> 결과는 선택된 모델에서 구체 타입의 연산으로 유지됩니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a dyn view cannot produce an erased concrete Self value;
+void invalid_rebuild(&amp;dyn Rebuildable view) {
+    view.rebuild();
+}</code></pre><p>사용할 수 없는 메서드를 호출 가능하게 만들기 위해 자동 Box 할당이나 clone을 넣지 않습니다. 컴파일러는 메서드 하나 때문에 인터페이스 뷰 전체를 거부하는 대신 해당 동적 뷰에서 그 호출을 지원하지 않는다고 진단합니다.</p></section><section id="defaults" aria-labelledby="defaults-heading"><h2 id="defaults-heading">6입니다. 기본값과 재정의는 그 의미를 유지합니다.</h2><p>호출 가능한 기본 메서드는 인터페이스 계약의 동작을 사용합니다. 구현 타입이 override를 제공하면 동적 호출도 이를 사용합니다. 기본 구현이 필수 메서드를 호출하면 구체 구현이 해당 연산을 제공합니다.</p><p>공유 동적 뷰는 수신자에 독점 접근이 필요한 기본 메서드를 호출할 수 없습니다. 같은 서명의 기본 구현이 충돌하면 해당 타입이 유효한 구현이 되기 전에 구체 override가 필요합니다. 동적 디스패치는 인터페이스 목록 순서로 우선순위를 만들지 않습니다.</p></section><section id="cost" aria-labelledby="cost-heading"><h2 id="cost-heading">7입니다. 런타임 선택 및 액세스 비용 표시</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="동적 뷰 비용 경계"><table><thead><tr><th scope="col">작동</th><th scope="col">선택한 계약</th></tr></thead><tbody><tr><th scope="row">빌린 시야 만들기</th><td>새로운 할당, 복제 또는 데이터 전송이 없습니다.</td></tr><tr><th scope="row">적격 메서드 호출</th><td>런타임에 구현을 선택하십시오; 메소드 바디 비용은 그대로 유지됩니다.</td></tr><tr><th scope="row">구체적인 필드 액세스</th><td>인터페이스 뷰는 임의의 숨겨진 필드 액세스가 아닌 계약을 제공합니다.</td></tr><tr><th scope="row">보기 끝내기</th><td>대여금을 끊는 것은 소유자의 페이로드를 파괴하지 않습니다.</td></tr><tr><th scope="row">장치 사용</th><td>자동 GPU 지원 또는 전송은 dyn에서 유추되지 않습니다.</td></tr></tbody></table></div></div><p>백엔드는 구체 구현을 증명할 수 있을 때 동적 호출을 최적화할 수 있습니다. 이는 구현상의 기회일 뿐, 명시적으로 런타임에서 선택하는 언어 모델을 바꾸지 않습니다. 이 문서는 메타데이터 배치, 포인터 개수, 크기를 규정하지 않습니다.</p></section><section id="diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">8입니다. 거부된 권한 및 호환성 변경</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: this owner does not grant ordinary write permission;
+CounterState counter = CounterState.new(1);
+&amp;mut dyn Counter view = &amp;mut counter;
+view.write(2);</code></pre><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a shared view cannot invoke Counter.write;
+mut CounterState counter = CounterState.new(1);
+&amp;dyn Counter view = &amp;counter;
+view.write(2);</code></pre><p>원본은 요청한 인터페이스를 구현해야 합니다. dyn 변환은 누락된 구현을 유효하게 만들거나 private 멤버 접근 제한을 완화하거나 숨겨진 대여의 수명을 늘리거나 대여 중인 소유자의 소비를 허용하지 않습니다.</p></section><section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">9입니다. 동적 규칙 및 관련 참조 열기</h2><ul><li>0.2의 dyn 호출에서는 제네릭 메서드와 구체 Self 인자·결과가 필요한 서명을 제외합니다. 호출 가능한 비제네릭 메서드는 대여한 self 수신자를 사용합니다. 연관 타입과 더 넓은 동적 서명은 이 프로필에 포함되지 않습니다.</li><li>동적 소유자를 통한 값 self, 값 추출, 인터페이스 다운캐스팅, 여러 인터페이스를 결합한 동적 타입은 미정입니다.</li><li>원본이 Reader&lt;i32&gt;를 구현하면 &amp;dyn Reader&lt;i32&gt;처럼 구체 인터페이스 특수화를 동적으로 대여할 수 있습니다. 그 인터페이스의 제네릭 메서드는 여전히 정적 호출이 필요합니다.</li><li>인터페이스 ABI, 메타데이터 표현, FFI 경계, GPU에서 지원할 동적 연산은 미정입니다.</li></ul><p><a href="../user_defined_types/Structs.html">구조체</a> · <a href="../enums/Enums.html">열거형</a> · <a href="../../declaration/Function_Declaration.html">함수 선언</a> · <a href="../../data_type/Box/Box.html">Box APIs에 오신 것을 환영합니다</a> · <a href="../scope_and_comments/Resource_Cleanup.html">자원 정리</a></p><p><a href="Interfaces.html">인터페이스 계약</a> · <a href="Owned_Dynamic_Interfaces.html">소유된 동적 인터페이스</a></p></section>
+<nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="index.html"><span>관련 레퍼런스</span>개요</a><a href="Interfaces.html"><span>관련 레퍼런스</span>인터페이스</a><a href="Owned_Dynamic_Interfaces.html"><span>관련 레퍼런스</span>소유된 동적 인터페이스</a></nav></article></div>
+<footer class="page-footer"><span>Aevix 언어 · 인터페이스 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="i8(Int8 참조): 부호 있는 값, 8비트 경계 및 명시적 변환 규칙입니다.">
+  <title>Int8 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Integer/Integer_8.html">
+<link rel="alternate" hreflang="ko" href="Integer_8.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Integer.html" aria-current="true">Integer</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Integer.html">Integer</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Int8에서</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Int8에서</h1><p class="doc-subtitle">i8(Int8 참조): 부호 있는 값, 8비트 경계 및 명시적 변환 규칙입니다.</p><div class="doc-meta"><span class="meta-chip">i8</span><span class="meta-chip">Integer. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>i8</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>기본 정보</span></a></li><li><a href="#Value-Range"><span class="toc-number">02</span><span>가치 Range &amp; 조금 대표</span></a></li><li><a href="#Literals"><span class="toc-number">03</span><span>문자 및 형식 추론</span></a></li><li><a href="#Value-Copying"><span class="toc-number">04</span><span>가치 복사 및 저장</span></a></li><li><a href="#Type-Conversion"><span class="toc-number">05</span><span>유형 변환</span></a></li><li><a href="#Arithmetic-Boundaries"><span class="toc-number">06</span><span>산술 경계 값</span></a></li><li><a href="#Bitwise-Operations"><span class="toc-number">07</span><span>Bitwise 작동 특성</span></a></li><li><a href="#String-Byte"><span class="toc-number">08</span><span>string 및 Byte 표현</span></a></li><li><a href="#Return-Types"><span class="toc-number">09</span><span>일반적인 함수의 반환 유형</span></a></li><li><a href="#Arrays-Tensors"><span class="toc-number">10</span><span>배열, 텐서 및 실행 대상</span></a></li><li><a href="#Int8-Functions"><span class="toc-number">11</span><span>Int8 특정 함수</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Integer 페이지"><h2>Integer 레퍼런스</h2><div class="family-links"><a href="Integer.html">Integer</a><a href="Integer_8.html" aria-current="page">Int8에서</a><a href="Integer_16.html">Integer · 16-bit</a><a href="Integer_32.html">Integer · 32-bit</a><a href="Integer_64.html">Integer · 64-bit</a><a href="Integer_128.html">Integer · 128-bit</a><a href="Unsigned_Integer_8.html">서명되지 않음 Integer · 8-bit</a><a href="Unsigned_Integer_16.html">서명되지 않음 Integer · 16-bit</a><a href="Unsigned_Integer_32.html">서명되지 않음 Integer · 32-bit</a><a href="Unsigned_Integer_64.html">서명되지 않음 Integer · 64-bit</a><a href="Unsigned_Integer_128.html">서명되지 않음 Integer · 128-bit</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Int8 참조 문서">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. 기본 정보
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 정수 기본 타입인 <code>i128</code>/<code>u128</code>, 및 <code>int = i32</code> 에는 import가 필요하지 않습니다. 리터럴, 같은 타입끼리의 산술, 비교, 비트 연산과 <code>Integer.convert&lt;D&gt;(value)</code> 가 구현되어 있습니다. 이 변환은 정수 입력과 정수 목적지만 허용하며 반환 타입은 <code>Result&lt;D, IntegerError&gt;</code>입니다. 실패 시에는 <code>OutOfRange</code> 를 반환합니다. 정수에서 부동소수점으로 변환할 때는 구현된 <code>Float.convert</code>/<code>convert_exact</code> 를 사용하세요. 더 넓은 카탈로그의 이름 있는 산술·파싱·포매팅·바이트 인코딩 함수는 여전히 제안입니다. 자세한 내용: <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p><code>i8</code> 8비트 값 표현을 가진 부호 있는 고정폭 정수입니다. &quot;Int8&quot;은 이 참조 페이지를 지칭한다; <code>int8</code> 코드 별칭이 승인되지 않았습니다. 기본값
+                    <code>int</code> 별칭이 남음 <code>i32</code>.
+
+</p>
+
+<blockquote class="callout note">
+
+<p><strong>설계 초안.</strong> 정책 및 <code>Integer.</code> 아래의 함수 철자는 제안서입니다. 예제는 의도된 동작을 나타내며, 작업 컴파일러, 최종 문법 또는 검증된 런타임을 요구하지 않습니다.
+
+</p>
+
+</blockquote>
+
+<div class="table-scroll" role="region" aria-label="기본 정보 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">속성</th>
+                            <th scope="col">i8 동작</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <th scope="row">코드 종류</th>
+                            <td><code>i8</code></td>
+
+</tr>
+
+<tr>
+                            <th scope="row">값 표현</th>
+                            <td>8 비트; 1 byte</td>
+
+</tr>
+
+<tr>
+                            <th scope="row">부호 있는 범위</th>
+                            <td><code>-128</code> 부터 <code>127</code></td>
+
+</tr>
+
+<tr>
+                            <th scope="row">구별되는 값</th>
+                            <td>256</td>
+
+</tr>
+
+<tr>
+                            <th scope="row">대표</th>
+                            <td>2의 보충</td>
+
+</tr>
+
+<tr>
+                            <th scope="row">가치 의미론</th>
+                            <td>Copy</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<p>하나의 byte는 값 표현을 설명합니다. 그것은 하나의 byte 레지스터, 스택 슬롯, 정렬, 포함 구조, 또는 보편적 인 외국 기능 ABI를 약속하지 않습니다. 자세히 보기 <a
+                            href="Integer.html">공통 Integer 참조</a> 공유된 계약을 위해
+
+</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Integer.min_value(i8);  // -128
+Integer.max_value(i8);  // 127
+Integer.bit_width(i8);  // 8
+Integer.byte_width(i8); // 1
+Integer.is_signed(i8);  // true</code></pre>
+</section>
+<section id="Value-Range" aria-labelledby="Value-Range-heading">
+<h2 id="Value-Range-heading">2입니다. 가치 Range &amp; 조금 대표
+</h2>
+<p>가장 높은 비트는 무게를 가지고 <code>-128</code>; 나머지 비트는 두 개의 음이 아닌 힘을 기여합니다. 모든 8비트 패턴은 하나의 유효한 패턴을 나타냅니다. <code>i8</code> 값. 별도의 마이너스는 없습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="가치 Range &amp; 조금 대표 자료표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">비트 패턴</th>
+                            <th scope="col">부호 있는 값</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <th scope="row">00000000</th>
+                            <td><code>0</code></td>
+
+</tr>
+
+<tr>
+                            <th scope="row">01111111</th>
+                            <td><code>127</code></td>
+
+</tr>
+
+<tr>
+                            <th scope="row">10000000</th>
+                            <td><code>-128</code></td>
+
+</tr>
+
+<tr>
+                            <th scope="row">11111111</th>
+                            <td><code>-1</code></td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<p>동일한 비트는 부호 없는 다른 값을 나타낼 수 있습니다. <code>11111111</code> 있습니다. <code>255</code> →
+                    <code>u8</code>. Two&#x27;s complement는 표현을 지정합니다; 그것은 자동으로 일반적인 산술 랩을 만들지 않습니다.
+
+</p>
+</section>
+<section id="Literals" aria-labelledby="Literals-heading">
+<h2 id="Literals-heading">3입니다. 문자 및 형식 추론
+</h2>
+<p>예상된 <code>i8</code> type 이 범위에 숫자 리터럴을 제한합니다. 10진법, 16진법 및 이진 맞춤법은 명시적인 비트 재 해석이 요청되지 않는 한 숫자 값을 설명합니다. 따라서 숫자 <code>0xff</code> 는 다음 표기와 같습니다: <code>255</code> 초기화할 수 없음 <code>i8</code>
+                    직접.
+
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i8 low = -128;   // valid minimum literal
+i8 high = 127;   // valid maximum literal
+i8 bad = 128;    // compile-time range error
+i8 hex = 0xff;   // compile-time range error
+int ordinary = 12;   // int aliases i32</code></pre>
+
+<p>최소 리터럴은 부호 있는 값으로 수락됩니다. 이미 입력된 항목 무시하기 <code>-128:i8</code> 별도의 산술 연산이며 실패할 수 있습니다; 리터럴 검사는 이러한 경우를 혼동해서는 안 됩니다.
+
+</p>
+</section>
+<section id="Value-Copying" aria-labelledby="Value-Copying-heading">
+<h2 id="Value-Copying-heading">4입니다. 가치 복사 및 저장
+</h2>
+<p>복사 중 <code>i8</code> 힙 할당 또는 소유권 이전 없이 해당 값을 복제합니다. 복사본을 변경해도 원본은 변경되지 않습니다. 또는 return an <code>i8</code> 같은 스칼라 법칙을 따른다.
+
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i8 original = 12;
+i8 copy = original; // both values remain usable</code></pre>
+
+<p>이 속성이 모든 컨테이너를 복사할 수 있는 것은 아닙니다. <code>Vector&lt;i8&gt;</code>, 텐서 소유 및 박스형 스토리지는 소유권 규칙을 따릅니다. <code>Array&lt;i8, N&gt;</code> 복사는 배열 계약을 따르고 많은 성분을 베낄지도 모른다. 슬라이스 또는 텐서 뷰는 스토리지를 빌리며, 해당 요소를 복제하지 않습니다.
+
+</p>
+</section>
+<section id="Type-Conversion" aria-labelledby="Type-Conversion-heading">
+<h2 id="Type-Conversion-heading">5입니다. 유형 변환
+</h2>
+<p>never는 대상의 크기가 충분히 커 보이기 때문에 암시적 캐스트를 얻습니다. 명시적 변환 작업을 사용합니다. 확장은 부호 있는 수학적 값을 보존하고 비트 재 해석은 비트를 보존합니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="유형 변환 데이터 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">변환</th>
+                            <th scope="col">값 규칙</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <th scope="row">i8 → i16 / i32 / i64 / i128 / isize</th>
+                            <td>모든 값은 대상 너비가 최소 8비트인 지원되는 대상에 적합합니다. 부호 있는 확장은 음수 값을 보존합니다.
+                            </td>
+
+</tr>
+
+<tr>
+                            <th scope="row">i8 → u8 / u16 / u32 / u64 / u128 / usize</th>
+                            <td>음수가 아닌 값만 성공적으로 변환됩니다. 더 넓은 부호 없는 대상은 여전히 부정적인 값을 나타낼 수 없습니다.
+                            </td>
+
+</tr>
+
+<tr>
+                            <th scope="row">다른 정수 → i8</th>
+                            <td>성공적인 변환은 <code>-128 ≤ value ≤ 127</code>.</td>
+
+</tr>
+
+<tr>
+                            <th scope="row">i8 → f16 / bf16 / f32 / f64</th>
+                            <td>모든 i8 값은 4가지 형식 모두에서 정확히 표현 가능하며, 변환은 명시적입니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<p>구현된 0.2 변환은 <code>Integer.convert&lt;D&gt;(value)</code>오시는 길 <code>Result&lt;D, IntegerError&gt;</code>. 대상 범위에 포함된 경우 수학적 값을 보존합니다. 범위가 좁고 부호 없는 변환 return <code>IntegerError.OutOfRange</code>그들은 부호 조금을 잘리거나, 감싸거나, 재해석하지 않거나, 프로그램을 멈추지 않는다. 모든 값에 안전한 확장도 명시적이며 동일한 Result API를 사용합니다. 결과를 처리하거나 오류를 전파합니다. <code>?</code> 호환 가능한 Result 반환 기능.</p>
+<p>플로팅 데스티네이션 사용 <code>Float.convert&lt;D&gt;</code> 또는 <code>Float.convert_exact&lt;D&gt;</code>; 정확한 float-to-integer 변환을 위해 <code>Float.to_integer_exact&lt;D&gt;</code>. 일반적인 카탈로그의 <code>widen</code>, <code>bitcast</code>, <code>wrapping_convert</code>, 및 <code>saturating_convert</code> 별도의 제안 된 작업을 설명하고 0.2 대안을 구현하지 않습니다. <code>Integer.convert&lt;D&gt;</code>. 자세히 보기 <a href="../../releases/0_2.html#numbers">구현 된 숫자 프로파일</a>.</p>
+</section>
+<section id="Arithmetic-Boundaries" aria-labelledby="Arithmetic-Boundaries-heading">
+<h2 id="Arithmetic-Boundaries-heading">6입니다. 산술 경계 값
+</h2>
+<p>일반 정수 산술은 동일한 정수 유형을 반환하고 오버플로우, 부호 없는 언더플로우 및 분할을 0으로 확인합니다. 런타임 실패는 안전하게 실행을 멈춥니다; 그것은 return하지 않습니다 <code>Result</code>. 렉시컬 사용 <code>checked(expression)</code> 또는 이름 <code>Integer.checked_*</code> 받을 API <code>Result&lt;T, IntegerError&gt;</code>그 후, 그것을 처리하거나 명시 적으로 전파. <code>?</code>. 이 경계는 debug/release 및 AOT/JIT 실행에서 동일합니다. 포장 및 포화 작업은 명시적인 대안으로 남아 있습니다. 더 보기 <a href="../../grammar/operators/Checked_Arithmetic.html">검사 산술</a> 커버된 작업과 별도의 오픈 에지 케이스.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Integer.checked_add(127:i8, 1:i8);    // overflow
+Integer.wrapping_add(127:i8, 1:i8);   // -128
+Integer.saturating_add(127:i8, 1:i8); // 127
+Integer.unsigned_abs(-128:i8);       // 128:u8
+Integer.abs_diff(-128:i8, 127:i8);   // 255:u8</code></pre>
+
+<p><code>-(-128)</code>서명수 <code>abs(-128)</code>, 및 <code>-128 / -1</code> 생산할 수 없으며
+                    <code>i8</code> 결과. 0 으로 나누는 것도 실패합니다. 제안 된 나머지 규칙은 <code>-128 %
+                        -1 = 0</code>이것은 의도적인 백엔드 처리가 필요하며 초안 결정으로 남아 있습니다. 포장 및 포화 행동은이 최소 경계를 포함하여 명시 적으로 요청해야합니다.
+
+</p>
+</section>
+<section id="Bitwise-Operations" aria-labelledby="Bitwise-Operations-heading">
+<h2 id="Bitwise-Operations-heading">7입니다. Bitwise 작동 특성
+</h2>
+<p>비트 카운트는 정확히 8 비트를 검사합니다. 0의 경우, 선행 및 후행 제로 카운트는 다음과 같습니다 <code>8</code>; one-count 및 부호 없는 비트 길이는 다음과 같습니다. <code>0</code>. 부호 있는 입력은 일반적인 함수가 허용하는 고정폭 비트 패턴으로 해석됩니다.
+
+</p>
+
+<p>엄격한 count 이동이 있어야 함 <code>0…7</code>. 하드웨어 마스킹을 상속하는 대신 Negative 또는 Oversized가 return를 오류로 간주합니다. 카운트 유효성 검사는 왼쪽 시프트에 의해 손실된 비트와 분리되며, 공통 시프트 계약은 해당 손실이 checked인지 또는 명시적으로 허용되는지 여부를 결정합니다.
+
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Integer.shift_right(-3:i8, 1); // successful Result containing -2
+// Arithmetic right shift rounds downward; -3 / 2 instead yields -1.</code></pre>
+
+<p>Rotation uses counts modulo eight: 8로 회전하면 값이 변경되지 않습니다. 회전은 이동과는 달리 변위 된 비트를 유지합니다. <code>reverse_bits</code> 8개의 위치 전부를 반전합니다; <code>swap_bytes</code>
+                    1-byte 값을 변경하지 않습니다.
+
+</p>
+</section>
+<section id="String-Byte" aria-labelledby="String-Byte-heading">
+<h2 id="String-Byte-heading">8. string 및 Byte 표현
+</h2>
+<p>이러한 인코딩 API return <code>Array&lt;byte, 1&gt;</code> 그리고 그들의 고정폭 역방향 API는 같은 타입을 받아들입니다. <code>byte</code> 숫자와 구별된다. <code>u8</code>; 사용 <a href="../Byte/Byte.html">Byte</a> 암시적 변환에 의존하는 대신 명시적으로 변환합니다.</p>
+<p>숫자 구문 분석은 부호 있는 수학적 값을 읽습니다. 소수점 파싱 <code>&quot;127&quot;</code> 다음으로
+                    <code>i8</code> 성공; <code>&quot;128&quot;</code> 실패합니다. 파싱 <code>&quot;ff&quot;</code>
+                    기수 16로 표시합니다 <code>255</code> 실패, 그러나 <code>&quot;-80&quot;</code> 다음을 나타내며 <code>-128</code>.
+
+</p>
+
+<p>byte 재 해석이 다릅니다. 단일 byte 해석 <code>0xff</code> →
+                    <code>i8</code> 수율 <code>-1</code>. 에서 숫자 변환 <code>255:u8</code> 에 대하여
+                    <code>i8</code> 여전히 실패해야 한다.
+
+</p>
+
+<p><code>Integer.to_le_bytes</code> 및 <code>to_be_bytes</code> 각각은 동일한 단일 byte를 생성합니다.
+                    <code>i8</code>그들의 역 연산은 정확히 하나의 byte를 소비한다. Endianness는 byte 순서를 변경하므로 1-byte 표현을 구별할 수 없습니다. 서식 지정 <code>-1:i8</code> 16진수 비트 패턴에 대한 요청은 숫자로 자동 되지 않습니다. <code>ff</code>.
+
+</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i8 value = -1;
+Array&lt;byte, 1&gt; bytes = Integer.to_be_bytes(value);
+u8 numeric = Byte.to_u8(bytes[0]); // 255; explicit numeric view
+i8 decoded = Integer.from_be_bytes(i8, bytes);</code></pre>
+</section>
+<section id="Return-Types" aria-labelledby="Return-Types-heading">
+<h2 id="Return-Types-heading">9입니다. 일반적인 함수의 반환 유형
+</h2>
+<p>성공적인 값 보존 산술 반환 <code>i8</code>. 더 넓은 수학적 결과는 명시 적으로 더 넓은 대상 또는 특수 return 유형이 필요합니다; 그들은 자동으로이 스칼라의 유형을 변경하지 않습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="공통 함수 데이터 테이블의 반환 유형">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">기능 가족</th>
+                            <th scope="col">i8 관련 결과</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <th scope="row">min_value / max_value</th>
+                            <td><code>i8</code></td>
+
+</tr>
+
+<tr>
+                            <th scope="row">unsigned_abs / abs_diff</th>
+                            <td><code>u8</code>, 덮음 <code>128</code> 및 <code>255</code> 각각</td>
+
+</tr>
+
+<tr>
+                            <th scope="row">엄격한 교대 작업</th>
+                            <td><code>Result&lt;i8, …&gt;</code> 공동 계약 초안에 따라</td>
+
+</tr>
+
+<tr>
+                            <th scope="row">비트 카운트 및 너비 메타데이터</th>
+                            <td>일반적인 count 유형; 카운트 범위 <code>0</code> 에 대하여 <code>8</code>i8를 상속으로 반환하는 대신.
+                            </td>
+
+</tr>
+
+<tr>
+                            <th scope="row">Byte 인코딩</th>
+                            <td>일반적인 byte 계약 하의 one-byte 배열</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Arrays-Tensors" aria-labelledby="Arrays-Tensors-heading">
+<h2 id="Arrays-Tensors-heading">10입니다. 배열, 텐서 및 실행 대상
+</h2>
+<p><code>Array&lt;i8, N&gt;</code> 고정된 너비의 부호 있는 요소를 저장합니다. <code>Tensor&lt;i8, Shape, Place&gt;</code>
+                    모양과 배치를 추가합니다; 이러한 속성은 요소의 범위를 확대하지 않습니다. 할당 크기, 치수 제품 및 인덱싱은 i8 산술이 아닌 checked 크기 산술을 사용합니다.
+
+</p>
+
+<p>CPU AOT, CPU JIT 및 GPU 실행은 동일한 i8 값 및 오류 정책을 유지해야 합니다. 8비트 스토리지는 기본 8비트 산술, 원자 지원 또는 특정 GPU 속도를 보장하지 않습니다. 백엔드는 관찰 가능한 i8 동작을 유지하면서 더 넓은 명령을 사용할 수 있습니다. 비교를 위해 Vulkan은 8-bit 셰이더 지원을 별도의 스토리지 클래스 제한이 있는 기능으로 노출합니다.
+
+</p>
+
+<p>원시 i8 텐서는 자동으로 양자화되지 않습니다: 스케일, 영점, 누적 폭 및 변환 규칙은 양자화 메타데이터에 속합니다. GPU 지원 <code>Pending</code> 실제 완료 될 때까지 필요한 저장소를 유지합니다. 완성만으로는 CPU 가시성을 확보할 수 없으며, 전송 및 동기화는 공통 메모리 계약을 따릅니다.
+
+</p>
+</section>
+<section id="Int8-Functions" aria-labelledby="Int8-Functions-heading">
+<h2 id="Int8-Functions-heading">11입니다. Int8 특정 함수
+</h2>
+<p>현재 i8 전용 함수는 제안되지 않습니다. 공유 사용 <code>Integer.</code> i8 값 또는 명시적 i8 대상의 네임스페이스입니다. 이 페이지는 ranges, boundary examples, storage representation 및 return 결과를 전문으로 하며, 전체 정수 API를 재정의하지 않습니다.
+
+</p>
+
+<p>링크 된 외부 참조는 산술 및 대상 행동의 비교를 알렸다. 그들은 그들 자신의 언어와 백엔드를 명시한다; 그들은 제안된 Aevix 컴파일러나 런타임이 이러한 보증을 구현했다는 것을 확립하지 않는다.
+
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 API 이름과 계약은 독립적으로 제안했습니다.
+
+</p>
+
+<ul class="source-list">
+
+<li><a href="https://doc.rust-lang.org/reference/expressions/operator-expr.html" target="_blank"
+                           rel="noopener noreferrer">Rust 참조 — 연산자 표현식 및 정수 경계</a>
+
+</li>
+
+<li><a href="https://llvm.org/docs/LangRef.html#arithmetic-with-overflow-intrinsics" target="_blank"
+                           rel="noopener noreferrer">LLVM 언어 참조 — 정의된 오버플로우 검사 본질</a>
+
+</li>
+
+<li>
+                        <a href="https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceShaderFloat16Int8Features.html"
+                           target="_blank" rel="noopener noreferrer">Vulkan 사양 — 8-bit 셰이더 지원 및 스토리지 클래스 제한</a>
+
+</li>
+
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Integer.html"><span>이전 레퍼런스</span>Integer</a><a href="Integer_16.html"><span>다음 레퍼런스</span>Integer · 16-bit</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

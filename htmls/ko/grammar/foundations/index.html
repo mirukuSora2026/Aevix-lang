@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="15 Aevix 원칙과 AOT 컴파일 및 선택적 JIT 실행을 위한 공유 시맨틱 모델.">
+<title>언어 기반 — Aevix 문서</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/foundations/index.html">
+<link rel="alternate" hreflang="ko" href="index.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><span>언어 기초</span><span class="separator" aria-hidden="true">/</span><span aria-current="page">언어 기반</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">언어 디자인 참고</p><h1>언어 기반</h1><p class="doc-subtitle">15 Aevix 원칙과 AOT 컴파일 및 선택적 JIT 실행을 위한 공유 시맨틱 모델.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙 + 공개 결정</span><span class="meta-chip">영어 원문 문서</span></div><dl class="doc-stats"><div class="doc-stat"><dt>원칙</dt><dd>15</dd></div><div class="doc-stat"><dt>편집</dt><dd>AOT + 선택적인 JIT</dd></div><div class="doc-stat"><dt>증거</dt><dd>설계 사양</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>15</strong><span>설계 목표</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="레퍼런스 탐색">
+<details class="toc" open><summary>이 페이지의 내용</summary><ol>
+<li><a href="#overview"><span class="toc-number">01</span><span>목표와 선택한 경계를 명시</span></a></li>
+<li><a href="#references"><span class="toc-number">02</span><span>2 기초 참조</span></a></li>
+<li><a href="#small-example"><span class="toc-number">03</span><span>일반적인 소스를 간단하고 분명하게 유지하십시오.</span></a></li>
+<li><a href="#chosen-direction"><span class="toc-number">04</span><span>확인된 방향 및 열린 메커니즘</span></a></li>
+<li><a href="#evidence"><span class="toc-number">05</span><span>구현 증거는 나중에 이정표입니다.</span></a></li>
+<li><a href="#related"><span class="toc-number">06</span><span>소스 수준 계약 읽기</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="언어 기초 페이지"><h2>언어 기초</h2><div class="family-links">
+<a href="index.html" aria-current="page">개요</a>
+<a href="Design_Principles.html">15 설계 원칙</a>
+<a href="Compilation_Model.html">AOT 및 선택적 JIT</a>
+</div></nav>
+<nav class="family-nav" aria-label="관련 언어 섹션"><h2>언어 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="index.html">기반</a><a href="../user_defined_types/index.html">사용자 정의 타입</a><a href="../enums/Enums.html">열거형</a><a href="../generics/Generic_Types.html">제네릭 타입</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/index.html">자료형</a></div></nav>
+</aside>
+<article class="content" aria-label="언어 기초 참조">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1입니다. 목표와 선택한 경계를 명시</h2>
+<p>Aevix는 Rust가 목표로 하는 수준의 C++급 네이티브 성능과 안전성을 목표로 하며, 접근 가능한 구문과 통합된 CPU/GPU 프로그래밍 모델을 목표로 한다. 이는 사용자가 선택한 설계 목표이며 비교 벤치마크 결과, 공식 안전 증명 또는 구현된 컴파일러의 증거입니다.</p><p>확인된 실행 방향은 기준선과 선택적인 Just-in-Time 컴파일로 미리 컴파일됩니다. 두 경로 모두 동일한 유형, 소유권, 오류, 평가 및 비용 의미 체계를 유지해야 합니다.</p>
+</section>
+
+<section id="references" aria-labelledby="references-heading">
+<h2 id="references-heading">2입니다. 2 기초 참조</h2>
+<nav class="page-navigation" aria-label="재단 참조">
+<a href="Design_Principles.html"><span>언어 방향</span><strong>15 디자인 원칙</strong><p>완전한 목표, 그들의 근원 수준 결과, 그리고 각각은 여전히 필요한 증거.</p></a>
+<a href="Compilation_Model.html"><span>실행 방향</span><strong>AOT 및 선택적 JIT</strong><p>실행 경로에 걸쳐 하나의 의미 계약, 메커니즘 선택은 명시 적으로 열려.</p></a>
+</nav>
+</section>
+
+<section id="small-example" aria-labelledby="small-example-heading">
+<h2 id="small-example-heading">3입니다. 일반적인 소스를 간단하고 분명하게 유지하십시오.</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 add(i32 first, i32 second) {
+    return first + second;
+}
+
+i32 result = add(10, 20);
+mut i32 accumulated = result;
+accumulated += 1;</code></pre><p>타입은 이름 앞에 나타나며, 바인딩은 mut가 없으면 변경할 수 없고, 문장은 세미콜론으로 끝나고, 값 반환 함수는 return를 철자한다. 일반 정수 연산은 선택된 안전 계약을 유지하며 컴파일러 최적화는 이 계약을 자동으로 변경할 수 없습니다.</p>
+</section>
+
+<section id="chosen-direction" aria-labelledby="chosen-direction-heading">
+<h2 id="chosen-direction-heading">4입니다. 확인된 방향 및 열린 메커니즘</h2>
+<div class="table-scroll" role="region" aria-label="기초 설계 상태">
+<table>
+<thead><tr>
+<th scope="col">지역</th>
+<th scope="col">확인된 방향</th>
+<th scope="col">아직 열려 있음</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">편집</th>
+<td>선택적인 JIT를 가진 AOT 기준선.</td>
+<td>트리거, 캐시, 설치, 폴백 및 배포 패키징.</td>
+</tr>
+<tr>
+<th scope="row">안전</th>
+<td>정적 타이핑 및 ownership/borrowing 가이드 메모리 및 병렬 안전.</td>
+<td>컴파일러 구현, 전체 unsafe/FFI 경계 규칙 및 검증 증거.</td>
+</tr>
+<tr>
+<th scope="row">컴퓨팅</th>
+<td>AI 네이티브 Tensor/Shape 지원 및 통합 CPU/GPU 모델.</td>
+<td>커널 구문, 대상 스케줄링, 메모리 표현 및 백엔드 범위.</td>
+</tr>
+<tr>
+<th scope="row">비용</th>
+<td>사본, 할당 계약 및 CPU/GPU 전송이 계속 표시됩니다.</td>
+<td>최종 진단, 프로파일링 및 대상별 메커니즘.</td>
+</tr>
+<tr>
+<th scope="row">확장 가능성</th>
+<td>확장 가능한 컴파일러는 LLVM 및 MLIR와 같은 백엔드를 지원할 수 있습니다.</td>
+<td>정확한 중간 표현, 패스 및 plugin/backend 인터페이스.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="evidence" aria-labelledby="evidence-heading">
+<h2 id="evidence-heading">5입니다. 구현 증거는 나중에 이정표입니다.</h2>
+<p>이 문서는 디자인 선택과 예제 구문을 기록합니다. 네이티브 처리량, 레이스 거부, 누출 방지, GPU 실행, 상호 운용성 및 JIT 최적화를 위해서는 각각의 구현 및 검증이 필요합니다. 실행 가능한 Aevix 컴파일러, 벤치마크 제품군, 배포 패키지 또는 안정적인 ABI는 이러한 HTML 페이지에 의해 입증되지 않습니다.</p><p>자세한 형식 카탈로그에는 제안된 표준 API가 포함되어 있습니다. 제안된 API 테이블은 백엔드, 할당자, 동기화 프로토콜 또는 외부 바인딩이 구현되었는지를 설정하지 않습니다.</p>
+</section>
+
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">6입니다. 소스 수준 계약 읽기</h2>
+<nav class="page-navigation" aria-label="관련 언어 계약">
+<a href="../user_defined_types/index.html"><span>값</span><strong>사용자 정의 형식</strong><p>명명된 필드, 입력된 수신기 및 명시적인 Copy 옵트인.</p></a>
+<a href="../../declaration/index.html"><span>구문</span><strong>선언</strong><p>타입-퍼스트 변수, 유추된 타입, 그리고 명시적 반환.</p></a>
+<a href="../operators/index.html"><span>평가 방식</span><strong>연산자</strong><p>산술, 평가 순서 및 오류 종료를 확인합니다.</p></a>
+<a href="../../data_type/index.html"><span>가치 카탈로그</span><strong>자료형</strong><p>숫자, 텍스트, 소유권, 동시성 및 텐서 패밀리입니다.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix 언어 · 언어 기초</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

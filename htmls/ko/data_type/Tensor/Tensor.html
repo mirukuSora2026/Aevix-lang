@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="배치와 데이터 이동이 명시적인 Shape 인식 소유권.">
+  <title>Tensor — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Tensor/Tensor.html">
+<link rel="alternate" hreflang="ko" href="Tensor.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Tensor.html" aria-current="true">Tensor</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Tensor.html">Tensor</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tensor</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Tensor</h1><p class="doc-subtitle">배치와 데이터 이동이 명시적인 Shape 인식 소유권.</p><div class="doc-meta"><span class="meta-chip">Tensor&lt;T, S, P&gt;</span><span class="meta-chip">Tensor. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>77</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[S]한국어</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>다차원 데이터에 대한 형식화된 소유자</span></a></li><li><a href="#notation"><span class="toc-number">02</span><span>레퍼런스 표기법 및 지원 기록</span></a></li><li><a href="#shape-contract"><span class="toc-number">03</span><span>정적 사실, 동적 검사 및 빈 모양</span></a></li><li><a href="#layout-contract"><span class="toc-number">04</span><span>보기, 명시적인 사본 및 변경</span></a></li><li><a href="#numeric-contract"><span class="toc-number">05</span><span>산술 정밀도 및 재현성</span></a></li><li><a href="#execution-contract"><span class="toc-number">06</span><span>CPU 결과 및 명시적으로 제출된 장치 작업</span></a></li><li><a href="#metadata"><span class="toc-number">07</span><span>메타데이터 및 구성</span></a></li><li><a href="#view-functions"><span class="toc-number">08</span><span>대여 및 레이아웃 기능</span></a></li><li><a href="#element-functions"><span class="toc-number">09</span><span>액세스 및 elementwise CPU 산술</span></a></li><li><a href="#reduction-functions"><span class="toc-number">10</span><span>감소, 선택 및 선형 대수학</span></a></li><li><a href="#device-functions"><span class="toc-number">11</span><span>할당, 전송 및 입력된 제출</span></a></li><li><a href="#examples"><span class="toc-number">12</span><span>비용 이 많이 드는 예 들</span></a></li><li><a href="#scope"><span class="toc-number">13</span><span>범위 및 관련 유형</span></a></li><li><a href="#Sources"><span class="toc-number">14</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Tensor 페이지"><h2>Tensor 참조</h2><div class="family-links"><a href="Tensor.html" aria-current="page">Tensor</a><a href="Tensor_Shape.html">Tensor 모양</a><a href="Tensor_View.html">Tensor 조회수</a><a href="Tensor_Device.html">Tensor 장치</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tensor 참조">
+<p class="callout"><strong>가져오기가 필요합니다.</strong> Tensor는 전문 도서관 유형입니다. 추가 <code>import tensor { Tensor };</code> 짧은 이름을 사용하기 전에 선언. 프로그램에서 사용하는 다른 전문 이름도 허용된 가져오기 경로가 필요합니다. 아래의 카탈로그 예제는 API 프래그먼트에 초점을 맞추고 있으며, 자동 형식 가용성을 의미하지는 않습니다.</p>
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1입니다. 다차원 데이터에 대한 형식화된 소유자
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 여기에 설명 된 Tensor, 모양 및 배치 유형은 기본 전주곡과 구현 된 0.2 type/API 하위 집합 외부의 전문 라이브러리 디자인입니다. 최종 사용은 명시적인 가져오기가 필요하며, 이 카탈로그에서 내장된 0.2 모듈이 제공되지 않습니다. 가져오기 예제는 의도된 라이브러리 경계를 설명하며, 사용 가능한 0.2 백엔드 또는 패키지는 설명하지 않습니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>Tensor&lt;T, S, P&gt;는 다차원 컨테이너를 소유하는 제안이다. T는 요소 유형이고 S는 모양을 설명하고 P는 배치 클래스를 설명합니다. 값은 초기화된 저장소와 shape/layout 메타데이터를 소유합니다. 할당은 그 소유권을 이동시킨다; 큰 요소 버퍼는 단지 값이 함수에 전달되기 때문에 복사된 never이다. 이 참조는 원래 Aevix 설계 계약이며 구현 된 컴파일러 또는 나열된 모든 작업이 모든 백엔드에서 지원된다는 약속이 아닙니다.
+</p>
+<p>Shape&lt;2, 3&gt;는 정적으로 알려진 형태를 나타낸다. Cpu 및 Gpu는 물리적 장치 ID가 아닌 후보 배치 마커입니다. 한 GPU의 텐서는 두 가지 유형에 모두 Gpu가 포함되어 있기 때문에 다른 GPU 대기열로 전달할 수 없습니다. 런타임 장치 ID, 할당 컨텍스트 및 큐 호환성은 계속 검증됩니다. 뷰는 스토리지를 빌리고 다른 소유자를 만들지 않습니다.
+</p>
+</section>
+<section id="notation" aria-labelledby="notation-heading">
+<h2 id="notation-heading">2입니다. 레퍼런스 표기법 및 지원 기록
+</h2>
+<p>시그니처에서 X는 이미 빌린 입력에 대한 카탈로그 변수입니다: &amp;Tensor&lt;T, S, P&gt; 또는 TensorView&lt;T, S, P&gt;. O는 추론 결과 텐서이고, V는 읽기 전용 TensorView이며, M은 독점적으로 빌린 입력입니다 : &amp; mut Tensor&lt;T, S, P&gt; 또는 MutTensorView&lt;T, S, P&gt;. 소유자는 &amp;owner 또는 &amp;mut 소유자와 함께 전달되며, 기존 뷰는 추가 참조 계층 없이 직접 전달됩니다. 이러한 문자는 추가 언어 유형이 아닌 문서 변수입니다. S2는 요청된 형태이다. TensorError, ShapeError, LayoutError, AllocationError, DeviceError 및 SubmitError는 제안된 라이브러리 오류 레코드입니다. TensorError는 모양, 경계, 오버플로우, 할당, 별칭, 지원되지 않는 작동 및 스칼라-아리스메틱 오류를 구별합니다.
+</p>
+<p>TensorOp&lt;Inputs, Out&gt;, ReductionSpec&lt;A&gt;, AxisList, Layout, DeviceId, Queue 및 Capabilities는 제안된 라이브러리 설명자입니다. TensorOp은 input/output 타입과 동작 파라미터를 선언한다; 이것은 새로 정착된 lazy expression primitive가 아니다. 감소 spec는 누산기 유형 A, 산출 변환, 축선 보유 및 축적 순서를 지명합니다. 매개 변수는 승인 된 문법을 따릅니다. T 값은 Copy 값을 복사로 전달하고 비 Copy 값을 소유합니다. &amp;T 값은 읽기 대여을 공유합니다. &amp;mut T 값은 독점적 인 쓰기 대여을 허용합니다. 호출은 각각 x, &amp;x 또는 &amp;mut x를 사용합니다. &amp;mut 액세스를 생성하려면 가변 소유자 바인딩이 필요합니다. Returned-reference lifetime notation(반환 참조 수명 표기법)은 여전히 기술되어 있습니다.
+</p>
+<p>Slice&lt;T&gt;, MutSlice&lt;T&gt;, TensorView, MutTensorView, ShapeLike 및 카탈로그 X/M 인수는 이미 차입 기능을 갖추고 있으며 직접 전달됩니다. 대여 수명은 중복되는 스토리지와 마지막 사용을 따릅니다. mut T 값은 호출자 로컬의 by-value 매개 변수 만 변경합니다. &amp;mut T를 대체하지 않습니다. 동기화 된 내부 변형 유형은 자체 규칙을 따릅니다.
+</p>
+</section>
+<section id="shape-contract" aria-labelledby="shape-contract-heading">
+<h2 id="shape-contract-heading">3입니다. 정적 사실, 동적 검사 및 빈 모양
+</h2>
+<p>호환되지 않는 정적 도형은 컴파일 타임 오류입니다. 런타임 치수는 checked Result 값을 생성합니다. 모든 치수 제품, byte 크기 계산, 스트라이드 곱셈 및 도달 가능한 주소 범위는 저장 또는 포인터 액세스 전에 표현 가능해야 합니다. Rank 0 에는 하나의 스칼라 요소가 포함되어 있습니다. 0의 범위는 다른 범위가 큰 경우를 포함하여 count 요소를 0으로 만듭니다. 설명자 유효성 검사는 여전히 정수 오버플로우에 의존하지 않고 각 차원과 byte 크기 계산을 검사합니다.
+</p>
+<p>방송은 후행 차원을 정렬합니다. 정렬된 쌍은 범위가 같거나 한 범위가 1일 때 호환됩니다. 결과는 비 싱글 톤 범위를 사용합니다 : 0를 1로 방송하면 0가 생성됩니다. 0를 2로 방송하는 것은 유효하지 않습니다. 생략된 주 차원은 1로 동작합니다. 방송은 읽기 전용 보기 작업이며 반복된 스토리지에 대한 독점 보기를 제작해서는 안 됩니다.
+</p>
+</section>
+<section id="layout-contract" aria-labelledby="layout-contract-heading">
+<h2 id="layout-contract-heading">4입니다. 보기, 명시적인 사본 및 변경
+</h2>
+<p>형태는 일관성을 의미하지 않습니다. 뷰는 범위, 스트라이드, 오리진 및 검증된 스토리지 범위를 전달합니다. 슬라이싱, 전치 및 호환 가능한 재구성은 빌린 설명자만 만듭니다. 고급 선택, 연결 및 명시적인 구체화는 출력 저장소를 만듭니다. 데이터 이동이 필요한 변경 요청은 레이아웃 오류를 반환합니다. 호출자는 복사 작업을 선택합니다. 일반적인 인덱싱 작업은 GPU 버퍼를 호스트로 비밀리에 이동시키지 않습니다.
+</p>
+<p>변경는 배타적 대여이 필요합니다. 가변 뷰는 논리적 인덱스에 대해 주입적이어야 합니다: 겹치는 창, 싱글톤이 아닌 범위에 대한 제로 보폭 및 반복된 인덱스는 일반적인 가변 뷰를 산출할 수 없습니다. _into 함수는 쓰기를 시작하기 전에 모양, 인덱싱 및 금지 앨리어싱을 검증합니다. 이후의 스칼라-arithmetic 또는 장치 실행 실패는 롤백을 의미하지 않는다; 호출자 소유의 목적지는 부분적으로 변경될 수 있으며, 보고된 유효성 상태를 따라야 한다. 새로 할당된 출력은 성공적인 초기화 후에만 노출됩니다.
+</p>
+</section>
+<section id="numeric-contract" aria-labelledby="numeric-contract-heading">
+<h2 id="numeric-contract-heading">5입니다. 산술 정밀도 및 재현성
+</h2>
+<p>요소 연산은 정수 오버플로우 규칙, NaN, 무한대 및 부호 0을 포함한 스칼라 타입 계약을 사용합니다. 감소 정밀도 및 누적 순서은 스토리지 유형과 별개입니다. strict profile은 논리적 사전 순서와 명시적 누산기 변환을 지정합니다; 트리 또는 이완된 순서는 ReductionSpec에서 요청해야 하며 다른 부동 소수점 비트를 생성할 수 있습니다. 코드가 GPU 또는 JIT를 사용하기 때문에 백엔드가 자동으로 더 좁은 축적, 플러시 서브노멀 또는 빠른 수학을 사용할 수 없습니다.
+</p>
+<p>명시적 fma는 요소당 하나의 fused-multiple-add를 수행한다. 컴파일러는 선택된 숫자 계약이 동일한 결과를 허용하는 경우에만 작업을 퓨즈 할 수 있습니다. 재현 가능한 모드는 동작 순서와 스칼라 행동을 제약한다; 그 자체로는 모든 대상에 대해 동일한 초월적 구현을 약속하지 않는다. 지원되지 않는 숫자 기능은 자동으로 의미를 변경하기보다는 오류로 진단되거나 반환됩니다.
+</p>
+</section>
+<section id="execution-contract" aria-labelledby="execution-contract-heading">
+<h2 id="execution-contract-heading">6입니다. CPU 결과 및 명시적으로 제출된 장치 작업
+</h2>
+<p>이 카탈로그에 있는 준비되어 있는 산술 함수는 Cpu 저장을 위해 인스턴스화됩니다. 메타데이터 및 안전 뷰 기능은 배치 독립적이며 호스트에서 장치 요소를 읽을 수 없습니다. 장치 산술은 Tensor.submit을 통해 동일한 형식화된 작업 설명을 사용하고 Pending&lt;Out&gt;를 반환합니다. 이렇게 하면 큐 제출, 동기화 및 실패가 표시됩니다. 장치 출력은 호스트 읽기가 되지 않고 다른 장치 작동에 대비할 수 있습니다.
+</p>
+<p>할당, 업로드, 다운로드, 준비 및 구체화는 별도의 작업입니다. 소유권 및 대여 임대는 Pending 핸들을 떨어 뜨린 경우에도 대기열 작업이 정지 될 때까지 라이브로 유지됩니다. 완료, 성공적인 실행, 캐시 가시성 및 호스트 스토리지로의 전송은 별개의 보증입니다. Pending 참조에서 리소스 보존 및 장치 손실에 대한 동작을 참조하십시오.
+</p>
+<p><a href="../Pending/Pending.html">Pending 완성 및 가시성</a> · <a href="Tensor_Device.html">장치 배치 세부 정보</a>
+</p>
+</section>
+<section id="metadata" aria-labelledby="metadata-heading">
+<h2 id="metadata-heading">7입니다. 메타데이터 및 구성
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="메타데이터 및 시공 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-rank"><td><code>Tensor.rank(X value)</code></td><td><code>usize</code></td><td>논리 축의 개수; 0 순위가 유효합니다.</td><td>O(1); 모든 배치.</td>
+</tr>
+<tr id="Tensor-shape"><td><code>Tensor.shape(X value)</code></td><td><code>ShapeView</code></td><td>빌린 불변의 정도 설명자; 수명은 가치를 따른다.</td><td>O(1); 요소 복사가 없습니다.</td>
+</tr>
+<tr id="Tensor-dim"><td><code>Tensor.dim(X value, usize axis)</code></td><td><code>Result&lt;usize, ShapeError&gt;</code></td><td>계급 이상으로 축선을 거절하십시오; 부정 축선 규칙 없음.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-element_count"><td><code>Tensor.element_count(X value)</code></td><td><code>usize</code></td><td>읽기 뷰를 패딩 또는 중첩하지 않고 검증된 논리 count입니다.</td><td>O(1) 캐시된 메타데이터입니다.</td>
+</tr>
+<tr id="Tensor-byte_length"><td><code>Tensor.byte_length(X value)</code></td><td><code>Result&lt;usize, ShapeError&gt;</code></td><td>논리적 count 시간 요소 폭; 할당 용량 또는 범위.</td><td>O(1); checked 제품.</td>
+</tr>
+<tr id="Tensor-strides"><td><code>Tensor.strides(X value)</code></td><td><code>StrideView</code></td><td>빌린 element-스트라이드 메타 데이터; 부호 있는 스트라이드은 검증 된 상태로 유지됩니다.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-layout"><td><code>Tensor.layout(X value)</code></td><td><code>Layout</code></td><td>모든 뷰가 연속적이라고 주장하지 않고 레이아웃 분류.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-is_contiguous"><td><code>Tensor.is_contiguous(X value, Layout order)</code></td><td><code>bool</code></td><td>싱글톤 및 빈 축을 설명하는 명명된 row/column 순서를 테스트합니다.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-device"><td><code>Tensor.device(X value)</code></td><td><code>DeviceId</code></td><td>P와 구별되는 물리적 할당 컨텍스트 ID.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-capabilities"><td><code>Tensor.capabilities(DeviceId device)</code></td><td><code>Capabilities</code></td><td>스토리지, 컴퓨팅 및 전송 지원을 별도로 쿼리합니다.</td><td>런타임 쿼리; 성능 보장 없음.</td>
+</tr>
+<tr id="Tensor-from_array"><td><code>Tensor.from_array&lt;T, S&gt;(Array&lt;T, N&gt; values)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>N이 checked 제품과 동일한 후에 저장소를 이동하거나 초기화합니다.</td><td>O(N); 할당이 필요할 수 있습니다.</td>
+</tr>
+<tr id="Tensor-from_slice"><td><code>Tensor.from_slice&lt;T, S&gt;(Slice&lt;T&gt; values)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>명시적 요소 복사; count는 product(S)와 같아야 합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-from_vector"><td><code>Tensor.from_vector&lt;T, S&gt;(Vector&lt;T&gt; values)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>벡터 소유권을 사용합니다; 숨겨진 요소 변환 없이 count/layout 불일치를 거부합니다.</td><td>O(rank); 할당 재사용 허용, 보장되지 않음.</td>
+</tr>
+<tr id="Tensor-full"><td><code>Tensor.full&lt;T, S&gt;(T fill)</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>모든 요소를 복사 가능한 값으로 초기화합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-zeros"><td><code>Tensor.zeros&lt;T, S&gt;()</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>요소의 형식이 숫자 0이어야 합니다. 임의의 올-제로 비트 가정이 필요하지 않습니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-ones"><td><code>Tensor.ones&lt;T, S&gt;()</code></td><td><code>Result&lt;Tensor&lt;T, S, Cpu&gt;, TensorError&gt;</code></td><td>T에 있는 다중화 1를 요구합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-arange"><td><code>Tensor.arange&lt;T&gt;(T start, T step, usize count)</code></td><td><code>Result&lt;Tensor&lt;T, DynamicShape&lt;1&gt;, Cpu&gt;, TensorError&gt;</code></td><td>정확히 count 값; checked 정수 산술 및 부동 평가 순서 정의.</td><td>O(count); 할당합니다.</td>
+</tr>
+<tr id="Tensor-linspace"><td><code>Tensor.linspace&lt;F&gt;(F start, F end, usize count, bool endpoint)</code></td><td><code>Result&lt;Tensor&lt;F, DynamicShape&lt;1&gt;, Cpu&gt;, TensorError&gt;</code></td><td>count=0가 비어 있습니다. count=1가 시작을 반환합니다. 유한한 끝점이 필요합니다.</td><td>O(count); 명시적 엔드포인트 정책.</td>
+</tr>
+<tr id="Tensor-eye"><td><code>Tensor.eye&lt;T&gt;(usize rows, usize columns)</code></td><td><code>Result&lt;Tensor&lt;T, DynamicShape&lt;2&gt;, Cpu&gt;, TensorError&gt;</code></td><td>주 대각선의 숫자와 다른 곳의 0입니다.</td><td>O(rows*columns); checked 할당입니다.</td>
+</tr>
+<tr id="Tensor-clone"><td><code>Tensor.clone(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>명시적 깊은 요소는 동일한 배치에 복사; 준비 양식 Cpu만.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-into_vector"><td><code>Tensor.into_vector(Tensor&lt;T, S, Cpu&gt; value)</code></td><td><code>Result&lt;Vector&lt;T&gt;, TensorError&gt;</code></td><td>소유자를 사용합니다. 호환 가능한 경우 할당을 재사용하고, 그렇지 않으면 레이아웃 오류를 반환합니다.</td><td>O(rank); 숨겨진 복사본이 없습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="view-functions" aria-labelledby="view-functions-heading">
+<h2 id="view-functions-heading">8입니다. 대여 및 레이아웃 기능
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="대여 및 레이아웃 함수 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-view"><td><code>Tensor.view(X value)</code></td><td><code>V</code></td><td>렉시컬 대여을 유지하는 읽기 전용 설명자를 만듭니다.</td><td>O(rank) 설명자만 가능합니다.</td>
+</tr>
+<tr id="Tensor-view_mut"><td><code>Tensor.view_mut(M owner)</code></td><td><code>M</code></td><td>하나의 독점적 인 삽입보기를 만듭니다; 중복 레이아웃을 거부합니다.</td><td>O(rank) 플러스 오버랩 증거.</td>
+</tr>
+<tr id="Tensor-slice_view"><td><code>Tensor.slice_view(X value, SliceSpec spec)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>반 개방형 축당 슬라이싱; checked 시작, 단계 및 길이.</td><td>O(rank); 사본 없음.</td>
+</tr>
+<tr id="Tensor-transpose_view"><td><code>Tensor.transpose_view(X value, usize a, usize b)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>두 개의 유효한 축과 해당 보폭을 바꿉니다.</td><td>O(rank); 사본 없음.</td>
+</tr>
+<tr id="Tensor-permute_view"><td><code>Tensor.permute_view(X value, AxisList axes)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>도끼는 중복이 없는 순열이어야 합니다.</td><td>O(rank); 설명자 할당이 실패할 수 있습니다.</td>
+</tr>
+<tr id="Tensor-reshape_view"><td><code>Tensor.reshape_view(X value, S2 shape)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>동등한 checked count 및 보폭 호환성이 필요합니다.</td><td>O(rank); never는 구체화합니다.</td>
+</tr>
+<tr id="Tensor-broadcast_view"><td><code>Tensor.broadcast_view(X value, S2 shape)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>추적 브로드캐스트 규칙; 반복되는 요소는 읽기 전용으로 유지됩니다.</td><td>O(rank); 사본 없음.</td>
+</tr>
+<tr id="Tensor-squeeze_view"><td><code>Tensor.squeeze_view(X value, AxisList axes)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>이름이 지정된 축은 1 범위가 있어야 합니다.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-expand_dims_view"><td><code>Tensor.expand_dims_view(X value, usize axis)</code></td><td><code>Result&lt;V, ShapeError&gt;</code></td><td>포함 삽입 범위에 extent-1 축을 삽입합니다.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-flatten_view"><td><code>Tensor.flatten_view(X value)</code></td><td><code>Result&lt;V, LayoutError&gt;</code></td><td>렉시코그래픽 순회가 연속적인 경우에만 하나의 논리 축을 반환합니다.</td><td>O(rank); 사본 없음.</td>
+</tr>
+<tr id="Tensor-materialize"><td><code>Tensor.materialize(X value, Layout order)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Cpu 입력만; 논리적 요소를 새로운 인접 Cpu 소유자에 복사합니다.</td><td>O(N); 명시적 allocation/copy.</td>
+</tr>
+<tr id="Tensor-contiguous_copy"><td><code>Tensor.contiguous_copy(X value, Layout order)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Cpu 입력만; 입력이 이미 순서와 일치하는 경우에도 항상 독립 소유자를 반환합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="element-functions" aria-labelledby="element-functions-heading">
+<h2 id="element-functions-heading">9입니다. 액세스 및 elementwise CPU 산술
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="액세스 및 elementwise CPU 산술 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-get"><td><code>Tensor.get(X value, Index index)</code></td><td><code>Result&lt;T, TensorError&gt;</code></td><td>하나의 Cpu 요소를 복사합니다. 모든 좌표 checked.</td><td>O(rank); T는 반드시 Copy여야 합니다.</td>
+</tr>
+<tr id="Tensor-set"><td><code>Tensor.set(M value, Index index, T element)</code></td><td><code>Result&lt;unit, TensorError&gt;</code></td><td>독점적 인 Cpu 변경; 쓰기 전에 전체 색인 checked.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-fill"><td><code>Tensor.fill(M value, T element)</code></td><td><code>Result&lt;unit, TensorError&gt;</code></td><td>검증된 전용 Cpu 보기를 초기화합니다. 요소 복사 정책 명시적입니다.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-copy_into"><td><code>Tensor.copy_into(M destination, X source)</code></td><td><code>Result&lt;unit, TensorError&gt;</code></td><td>동등한 shape/type; 쓰기 전에 금지 된 오버랩 거부.</td><td>O(N); 성공 시 할당이 없습니다.</td>
+</tr>
+<tr id="Tensor-add"><td><code>Tensor.add(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>T의 엄격한 스칼라 의미론을 사용하여 추가 방송.</td><td>O(N); Cpu 결과를 할당합니다.</td>
+</tr>
+<tr id="Tensor-subtract"><td><code>Tensor.subtract(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>브로드캐스트 빼기; 부호 없는 프로모션 없음.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-multiply"><td><code>Tensor.multiply(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>방송 요소 곱셈, matmul에서 구별.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-divide"><td><code>Tensor.divide(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>스칼라 분할 정책; 정수 0 및 부호 있는 오버플로는 checked 오류입니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-remainder"><td><code>Tensor.remainder(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>스칼라 나머지 협약; Euclidean modulo와 구별됩니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-negate"><td><code>Tensor.negate(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>부호 있는 정수 최소값은 checked 스칼라 정책을 따릅니다. 지원되지 않는 부호 없는 거부가 거부되었습니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-abs"><td><code>Tensor.abs(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Integer 최소한 checked; float signed-zero/NaN는 Float.abs를 따릅니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-fma"><td><code>Tensor.fma(X a, X b, X c)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>floating only; 방송된 요소당 하나의 fused 라운딩</td><td>O(N); 기능 checked.</td>
+</tr>
+<tr id="Tensor-sqrt"><td><code>Tensor.sqrt(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Floating IEEE sqrt: 음의 유한 입력은 ShapeError가 아닌 NaN을 생성합니다.</td><td>O(N); 할당; 엄격한 능력.</td>
+</tr>
+<tr id="Tensor-exp"><td><code>Tensor.exp(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>부동 elementwise 기하 급수적으로 선언 된 수학 정확도 프로필.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-log"><td><code>Tensor.log(X value)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>부동 IEEE 로그; 0은 음의 무한대와 음의 유한값 NaN을 제공합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-equal"><td><code>Tensor.equal(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>방송 수치 비교; 출력 요소 bool; NaN 이 같지 않습니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-less"><td><code>Tensor.less(X a, X b)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>순서가 없는 NaN은 false를 생성합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-select"><td><code>Tensor.select(X mask, X when_true, X when_false)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>bool 마스크와 값 브로드캐스트; 이미 평가된 입력.</td><td>O(N); 게으른 분지 보증 없음.</td>
+</tr>
+<tr id="Tensor-clamp"><td><code>Tensor.clamp(X value, T lower, T upper)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>낮은 &lt;= 위쪽으로 NaN이 아닌 경계 순서; 보존된 NaN 입력.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Tensor-cast"><td><code>Tensor.cast&lt;U&gt;(X value, ConversionPolicy policy)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>명시적인 숫자 변환; narrowing/rounding 및 실패 이름이 지정됩니다.</td><td>O(N); 독립적 인 결과 유형.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="reduction-functions" aria-labelledby="reduction-functions-heading">
+<h2 id="reduction-functions-heading">10입니다. 감소, 선택 및 선형 대수학
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="감소, 선택 및 선형 대수 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-sum"><td><code>Tensor.sum&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>명시적인 축, 누산기 및 순서; 빈 감소는 첨가제 제로를 사용합니다.</td><td>O(N); 출력을 할당합니다.</td>
+</tr>
+<tr id="Tensor-product"><td><code>Tensor.product&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>빈 감소는 복합적인 것을 사용합니다; checked 오버플로가 적용됩니다.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-mean"><td><code>Tensor.mean&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>플로팅 누산기가 필요합니다. 빈 감소 도메인이 오류입니다.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-minimum"><td><code>Tensor.minimum(X value, ReductionSpec&lt;T&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>빈 도메인 오류; NaN을 전파; -0는 제로 넥타이 승리.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-maximum"><td><code>Tensor.maximum(X value, ReductionSpec&lt;T&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>빈 도메인 오류; NaN을 전파; +0는 제로 넥타이 승리.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-argmin"><td><code>Tensor.argmin(X value, usize axis)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>빈 축 또는 NaN 오류; 가장 낮은 논리 인덱스가 숫자 타이를 이깁니다.</td><td>O(N); usize 산출.</td>
+</tr>
+<tr id="Tensor-argmax"><td><code>Tensor.argmax(X value, usize axis)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>빈 축 또는 NaN 오류; 가장 낮은 논리 인덱스가 숫자 타이를 이깁니다.</td><td>O(N); usize 산출.</td>
+</tr>
+<tr id="Tensor-all"><td><code>Tensor.all(X mask, AxisList axes)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>bool 입력; 빈 감소 ID true.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-any"><td><code>Tensor.any(X mask, AxisList axes)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>bool 입력; 빈 감소 ID false.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-count_nonzero"><td><code>Tensor.count_nonzero(X value, AxisList axes)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>0과 같지 않은 숫자 값을 계산합니다. NaN은 0이 아닌 값으로 계산합니다. usize 오버플로 checked.</td><td>O(N).</td>
+</tr>
+<tr id="Tensor-variance"><td><code>Tensor.variance&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec, usize correction)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>algorithm/order 플로팅 명시적; count는 보정을 초과해야 합니다.</td><td>O(N); 스크래치 할당이 가능합니다.</td>
+</tr>
+<tr id="Tensor-norm"><td><code>Tensor.norm&lt;A&gt;(X value, ReductionSpec&lt;A&gt; spec, NormKind kind)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>명명 된 표준 및 안정적인 알고리즘; 종류별로 지정된 빈 도메인 ID.</td><td>O(N); 기능 checked.</td>
+</tr>
+<tr id="Tensor-matmul"><td><code>Tensor.matmul&lt;A&gt;(X a, X b, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>마지막 2개의 도끼는 모체 도끼, 안 넓이 동등합니다입니다; 주요한 배치는 방송했습니다.</td><td>O(batch*M*N*K); checked 모양.</td>
+</tr>
+<tr id="Tensor-dot"><td><code>Tensor.dot&lt;A&gt;(X a, X b, ReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;T, TensorError&gt;</code></td><td>Rank-1 동일한 길이; 명시 적 누산기 변환; 빈 점 0.</td><td>O(N); 출력 할당이 필요하지 않습니다.</td>
+</tr>
+<tr id="Tensor-gather"><td><code>Tensor.gather(X value, usize axis, X indices)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Integer 인덱스 checked; 선택한 요소를 복사합니다.</td><td>O(output count); 할당합니다.</td>
+</tr>
+<tr id="Tensor-concatenate"><td><code>Tensor.concatenate(Slice&lt;X&gt; values, usize axis)</code></td><td><code>Result&lt;O, TensorError&gt;</code></td><td>Nonempty 입력 리스트; 모든 비축 넓이가 같음; 합산된 넓이 checked.</td><td>O(total elements); 할당합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="device-functions" aria-labelledby="device-functions-heading">
+<h2 id="device-functions-heading">11입니다. 할당, 전송 및 입력된 제출
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="할당, 전송 및 입력된 제출 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-zeros_async"><td><code>Tensor.zeros_async&lt;T, S&gt;(&amp;Queue queue)</code></td><td><code>Result&lt;Pending&lt;Tensor&lt;T, S, Gpu&gt;&gt;, SubmitError&gt;</code></td><td>큐의 장치에 할당하고 초기화합니다. 완료는 초기화 결과를 소유합니다.</td><td>할당을 유지합니다.Retains allocation.</td>
+</tr>
+<tr id="Tensor-transfer_async"><td><code>Tensor.transfer_async(X source, DeviceId destination, TransferPolicy policy)</code></td><td><code>Result&lt;Pending&lt;O&gt;, SubmitError&gt;</code></td><td>명시적 배치 변경; 읽기 대여 또는 이동 된 소유자를 quiescence 때까지 유지합니다.</td><td>O(bytes) 전송; 정책의 명시적 준비.</td>
+</tr>
+<tr id="Tensor-copy_async"><td><code>Tensor.copy_async(&amp;Queue queue, M destination, X source)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>Shape/type/device 호환성 및 별칭 검증; 완료를 통해 대여 유지.</td><td>대기 중인 복사본: 숨겨진 호스트가 없습니다.</td>
+</tr>
+<tr id="Tensor-submit"><td><code>Tensor.submit(&amp;Queue queue, TensorOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;Out&gt;, SubmitError&gt;</code></td><td>작동 기능 및 모양을 검사합니다. 장치 작업은 작동에 의해 선언된 스칼라 계약을 사용합니다.</td><td>Compilation/allocation/submission가 실패할 수 있습니다.</td>
+</tr>
+<tr id="Tensor-submit_into"><td><code>Tensor.submit_into(&amp;Queue queue, TensorOp&lt;Inputs, unit&gt; operation, M output, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>완료할 때까지 독점 출력 임대; 늦은 실패는 부분적으로 작성된 출력을 남길 수 있습니다.</td><td>롤백 보증이 없습니다.</td>
+</tr>
+<tr id="Tensor-compile"><td><code>Tensor.compile(DeviceId device, TensorOp&lt;Inputs, Out&gt; operation, CompileOptions options)</code></td><td><code>Result&lt;CompiledOp&lt;Inputs, Out&gt;, DeviceError&gt;</code></td><td>동일한 AOT/JIT 관측 가능한 숫자 계약으로 명시적인 전문화.</td><td>5월 compile/cache/allocate입니다.</td>
+</tr>
+<tr id="Tensor-supports"><td><code>Tensor.supports(DeviceId device, TensorOp&lt;Inputs, Out&gt; operation)</code></td><td><code>CapabilityReport</code></td><td>보고서 지원 조건; 미래의 allocation/submission가 성공한다는 증거가 아닙니다.</td><td>Query 뿐입니다.</td>
+</tr>
+<tr id="Tensor-storage_span"><td><code>Tensor.storage_span(X value)</code></td><td><code>Result&lt;StorageSpan, LayoutError&gt;</code></td><td>도달 가능한 byte 간격 및 할당 ID가 확인되었습니다. 원시 역참조 권한이 아닙니다.</td><td>O(rank); 보폭 범위 포함.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">12입니다. 비용 이 많이 드는 예 들
+</h2>
+<p>다음 문장은 승인된 type-first 선언과 대여 문법을 보여줍니다. Result를 암시적으로 풀지 않습니다. Result는 페이로드를 빌리거나 이동하거나 제출하기 전에 처리되어야 한다; 이후의 제어 흐름 참조는 처리 구문을 정의한다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Tensor&lt;f32, Shape&lt;2, 3&gt;, Cpu&gt;, TensorError&gt; matrix = Tensor.zeros&lt;f32, Shape&lt;2, 3&gt;&gt;();
+Result&lt;Tensor&lt;f32, DynamicShape&lt;1&gt;, Cpu&gt;, TensorError&gt; samples = Tensor.linspace&lt;f32&gt;(0.0, 1.0, 4, true);
+// Given a validated Cpu tensor owner named source and a borrowed shape descriptor named target_shape.
+Result&lt;TensorView&lt;f32, Shape&lt;3, 2&gt;, Cpu&gt;, TensorError&gt; reshaped = Tensor.reshape_view(&amp;source, target_shape);</code></pre>
+</section>
+<section id="scope" aria-labelledby="scope-heading">
+<h2 id="scope-heading">13입니다. 범위 및 관련 유형
+</h2>
+<p>Autodiff, sparse formats, distributed tensors, compiler fusion heuristics 및 벤더별 매트릭스 명령어는 선택적 라이브러리 또는 이후 프로파일에 속합니다. 그들은 핵심 소유자, 모양 또는 비용 계약을 변경하지 않습니다. 컴파일러는 입증 된 중복 복사본을 제거 할 수 있지만 관찰 가능한 전송을 발명하거나 차입을 약화시킬 수는 없습니다. 백엔드 어댑터는 IR 작업에서 정의되지 않은 동작을 안전한 Aevix로 가져오는 대신 외부 설명자를 검증해야 합니다.
+</p>
+<p><a href="Tensor_Shape.html">정적 및 동적 모양</a> · <a href="Tensor_View.html">뷰 및 레이아웃</a> · <a href="../Quantized/Quantized.html">Quantized 페이로드</a> · <a href="../Array/Array.html">Array</a> · <a href="../Float/Float.html">부동 소수점 규칙</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">14입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/TensorOps/" target="_blank" rel="noopener noreferrer">MLIR Tensor 방언</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/MemRef/" target="_blank" rel="noopener noreferrer">MLIR MemRef 사투리</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/ShapeDialect/" target="_blank" rel="noopener noreferrer">MLIR 모양 방언</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy 방송</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.copies.html" target="_blank" rel="noopener noreferrer">NumPy 복사 및 보기</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Tensor_Shape.html"><span>다음 레퍼런스</span>Tensor 모양</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

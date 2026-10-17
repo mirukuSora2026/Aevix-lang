@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="메모리 접근 검사와 명시적 숫자 정책을 가진 고정 논리 레인.">
+  <title>Simd — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Simd/Simd.html">
+<link rel="alternate" hreflang="ko" href="Simd.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Simd.html" aria-current="true">Simd</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Simd.html">Simd</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Simd</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Simd</h1><p class="doc-subtitle">메모리 접근 검사와 명시적 숫자 정책을 가진 고정 논리 레인.</p><div class="doc-meta"><span class="meta-chip">Simd&lt;T, N&gt;</span><span class="meta-chip">Simd. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>58</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>한국어 (ko)</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>스칼라 의미를 가진 고정 차선</span></a></li><li><a href="#notation"><span class="toc-number">02</span><span>값, 마스크 및 레인 오류</span></a></li><li><a href="#numeric"><span class="toc-number">03</span><span>레인 산술과 오버플로우</span></a></li><li><a href="#memory"><span class="toc-number">04</span><span>확인된 메모리 작업</span></a></li><li><a href="#masking"><span class="toc-number">05</span><span>선택 은 평가 를 게으르게 하지 않는다</span></a></li><li><a href="#reduction"><span class="toc-number">06</span><span>순서 및 전환 감소</span></a></li><li><a href="#construct-functions"><span class="toc-number">07</span><span>건설, 액세스 및 메모리</span></a></li><li><a href="#arithmetic-functions"><span class="toc-number">08</span><span>명시적 산술 계약</span></a></li><li><a href="#comparison-functions"><span class="toc-number">09</span><span>비교, 레이아웃 및 축소</span></a></li><li><a href="#examples"><span class="toc-number">10</span><span>숨겨진 동적 할당이 없는 값</span></a></li><li><a href="#related"><span class="toc-number">11</span><span>마스크, 휴대성 및 스칼라 참조</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Simd 페이지"><h2>Simd 참조</h2><div class="family-links"><a href="Simd.html" aria-current="page">Simd</a><a href="Simd_Mask.html">SIMD 마스크</a><a href="Simd_Portable.html">휴대용 SIMD</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Simd 참조">
+<section id="implemented-02"><h2>0.2 CPU 프로파일 구현</h2><p><a href="Simd_02.html">구현된 SIMD 프로파일 읽기</a> 0.2에서 사용할 수 있는 정확한 가져오기, 지원되는 레인 카운트, checked 작업, 마스크 및 고정 어레이 액세스. 아래의 광범위한 API 카탈로그는 설계 초안으로 남아 있으며 컴파일러 지원 함수 목록이 아닙니다.</p></section>
+
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1입니다. 스칼라 의미를 가진 고정 차선
+</h2>
+<p>Simd&lt;T, N&gt;는 제안된 고정 레인 값 유형입니다. N은 양의 컴파일 타임 레인 count이고 T는 지원되는 스칼라 숫자 유형입니다. 동적으로 할당된 Vector&lt;T&gt;, 행렬 텐서 또는 자동으로 병렬 호스트 작업과는 구별됩니다. 값은 정확히 N개의 논리적 레인을 포함한다; 힙 할당은 그 값을 구성하거나 복사함으로써 함축되지 않는다.
+</p>
+<p>초기 휴대용 프로파일은 기능에 의해 더 작은 플로팅 포맷을 가진 고정폭 정수 레인 및 f32/f64를 대상으로 합니다. 지원되는 값은 하나의 네이티브 벡터, 여러 벡터 또는 스칼라 코드로 낮아질 수 있습니다. 소스 유형이나 기능 보고서는 한 번의 명령 실행, 레지스터 ABI 또는 특정 속도 향상을 증명하지 않습니다. 이는 공용 벡터 인터페이스에 의해 알려진 원래의 Aevix 계약이며, 채택 된 외국 API가 아닙니다.
+</p>
+</section>
+<section id="notation" aria-labelledby="notation-heading">
+<h2 id="notation-heading">2입니다. 값, 마스크 및 레인 오류
+</h2>
+<p>V는 Simd&lt;T, N&gt;, W는 Simd&lt;U, N&gt;, Mask&lt;N&gt;는 논리 레인 마스크를 나타낸다. 마스크는 레인 시맨틱이 bool인 제안된 라이브러리 값이다; 그것의 네이티브 메모리 표현은 Array&lt;bool, N&gt;가 아니다. SimdError&lt;N&gt;는 checked 숫자 연산에 대한 원인 및 실패 레인 마스크 또는 메모리 연산에 대한 index/bounds/alias 오류가 있는 제안된 오류 레코드입니다. 어떤 함수도 안전 코드에 보이는 LLVM 독으로 유효하지 않은 레인을 사용하지 않습니다.
+</p>
+<p>대여된 Slice 및 독점 MutSlice 값은 일반 소유권 규칙을 유지합니다. Array&lt;T, N&gt;는 고정 크기 배열 유형입니다; from_array 및 to_array는 배열을 벡터 ABI로 비트 캐스팅하는 대신 논리적 값을 설명합니다. 일반 매개 변수 지원 및 대상 레인 세트는 컴파일 시간 기능입니다. 지원되지 않는 작업은 조용히 스칼라 계약을 약화시키지 않고 진단됩니다.
+</p>
+</section>
+<section id="numeric" aria-labelledby="numeric-heading">
+<h2 id="numeric-heading">3입니다. 레인 산술과 오버플로우
+</h2>
+<p>각 숫자 레인은 해당 스칼라 의미를 따릅니다. 체크된 정수 연산은 부분 결과를 노출하지 않고 모든 실패한 레인을 보고합니다. 포장 및 포화 작업은 별도로 명명됩니다. 시프트 count는 차선 폭에 대해 checked이며, 하드웨어에 의해 자동으로 마스킹되지 않습니다. 최소 부호를 -1로 나누면 정수 나셈이 0으로 남습니다. 부동 분할은 엄격한 프로파일에서 0, NaN 및 무한대에 대한 IEEE 동작을 따릅니다.
+</p>
+<p>Fused multiplication-add 는 명시적입니다. Float min/max 변형은 NaN을 전파할지 여부와 부호 있는 0개의 관계를 해결하는 방법을 명시합니다. 숫자의 등호는 NaN을 등호로 취급하고 0을 등호로 서명합니다. 표현의 등호는 다른 연산입니다. AOT 및 JIT는 값이 벡터화되어 있기 때문에 하위 정규값을 다시 연결하거나 플러시하거나 라운딩을 변경할 수 없습니다.
+</p>
+</section>
+<section id="memory" aria-labelledby="memory-heading">
+<h2 id="memory-heading">4입니다. 확인된 메모리 작업
+</h2>
+<p>연속적인 로드는 선택한 시작에서 정확히 N개의 요소를 읽습니다; 상점은 정확히 N개의 요소를 씁니다. Safe API는 액세스 전에 길이와 주소 산술을 검증하고 일반 Slice에 숨겨진 네이티브 정렬 가정을 부과하지 않습니다. 활성 인덱스의 유효성을 검사합니다. 산란은 활성 인덱스의 유효성을 검사하고 쓰기 전에 중복된 활성 대상을 거부합니다. 이렇게 하면 지정되지 않은 인종이나 숨겨진 라스트레인 정책을 피할 수 있습니다.
+</p>
+<p>Masked-off 메모리 레인은 액세스되지 않으며 bounds-checked가 활성 레인으로 표시되지 않으며 never는 유효하지 않은 주소를 형성해야 합니다. 마스킹된 로드는 명시적 폴백 값을 제공합니다. 마스크는 별칭 규칙을 완화하지 않습니다 : 불변의 출처 대여과 중복 된 독점적 인 목적지 대여은 여전히 공존 할 수 없습니다. 중복 유효성 검사는 시맨틱 비용이며 큰 N에 대해 경계된 스크래치 공간 또는 checked 할당을 사용할 수 있습니다.
+</p>
+</section>
+<section id="masking" aria-labelledby="masking-heading">
+<h2 id="masking-heading">5입니다. 선택 은 평가 를 게으르게 하지 않는다
+</h2>
+<p>Simd.select는 이미 계산된 두 값 중에서 선택합니다. 그것은 0에 의하여 선행하는 사단 또는 밖으로의 경계 집결을 보호할 수 없다. 대신 masked_divide 함수는 활성 레인에 대해서만 산수를 평가하고 명시적 폴백 레인을 보존할 것을 약속합니다. 컴파일러는 비활성 레인에서 관측 가능한 오류를 추측적으로 도입해서는 안 됩니다.
+</p>
+<p>마스크 논리 연산은 lane-wise입니다. all, any 및 count는 논리 레인을 검사합니다. 레지스터 비트 인코딩을 노출하지 않습니다. 명시적 비트셋 변환은 lane i를 bit i로 지정하고 N 이상으로 설정된 비트를 거부합니다. 호스트 측 마스크 직렬화는 자체 형식을 가지고 있습니다; 벤더 네이티브 마스크 레지스터는 휴대용 byte 표현이 아닙니다.
+</p>
+</section>
+<section id="reduction" aria-labelledby="reduction-heading">
+<h2 id="reduction-heading">6입니다. 순서 및 전환 감소
+</h2>
+<p>Integer 감소는 명명된 checked/wrapping 누산기 계약을 사용합니다. 플로팅 감소는 명시적 누산기 유형과 순서를 선택합니다. 엄격한 왼쪽에서 오른쪽 순서는 누산기로 변환 한 후 0에서 N-1를 처리합니다. 트리 순서는 명시 적 옵션이 필요하며 비트를 변경할 수 있습니다. 도트 제품은 곱셈이 융합되었는지, 개별적으로 반올림되었는지 또는 확대되었는지를 나타냅니다.
+</p>
+<p>숫자형 캐스트와 표현형 비트캐스트는 별도로 명명됩니다. cast_checked는 표현 가능성과 선택된 반올림 정책을 검증합니다; 비트캐스트는 동일한 총 비트 폭과 정의된 스칼라 레인 표현을 필요로 합니다. 정렬, 소유권 또는 유효성을 위반하는 원시 참조 재 해석을 허용하지 않습니다. SIMD 값은 FFI의 논리 배열을 사용하여 저장할 수 있습니다. 네이티브 벡터 호출 규칙에는 명시적 대상 ABI 어댑터가 필요합니다.
+</p>
+</section>
+<section id="construct-functions" aria-labelledby="construct-functions-heading">
+<h2 id="construct-functions-heading">7입니다. 건설, 액세스 및 메모리
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="건설, 액세스 및 메모리 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-splat"><td><code>Simd.splat&lt;T, N&gt;(T value)</code></td><td><code>V</code></td><td>모든 논리 레인에 값을 복사합니다.</td><td>O(N) 논리적인 일; 힙 없음.</td>
+</tr>
+<tr id="Simd-from_array"><td><code>Simd.from_array&lt;T, N&gt;(Array&lt;T, N&gt; values)</code></td><td><code>V</code></td><td>차선 차수와 스칼라 값을 보존합니다; ABI 등가성은 주장하지 않습니다.</td><td>O(N); 힙 없음.</td>
+</tr>
+<tr id="Simd-to_array"><td><code>Simd.to_array(V value)</code></td><td><code>Array&lt;T, N&gt;</code></td><td>레인 i 는 배열 요소 i 가 됩니다.</td><td>O(N); 힙 없음.</td>
+</tr>
+<tr id="Simd-lanes"><td><code>Simd.lanes&lt;T, N&gt;()</code></td><td><code>usize</code></td><td>컴파일 시간 양성 레인 count N.</td><td>상수.</td>
+</tr>
+<tr id="Simd-extract"><td><code>Simd.extract(V value, usize lane)</code></td><td><code>Result&lt;T, SimdError&lt;N&gt;&gt;</code></td><td>lane &gt;= N을 거부합니다. 복사된 스칼라를 반환합니다.</td><td>O(1) 추상적인 접근; 낮추는 것은 변화한다.</td>
+</tr>
+<tr id="Simd-replace"><td><code>Simd.replace(V value, usize lane, T element)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>정확히 하나의 레인이 치환된 새로운 벡터를 반환합니다; 경계 checked.</td><td>힙 없음; 낮추는 것은 다릅니다.</td>
+</tr>
+<tr id="Simd-load"><td><code>Simd.load&lt;T, N&gt;(Slice&lt;T&gt; source, usize start)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>오버플로우 없이 start+N을 검사하고 정확히 N개의 요소를 읽습니다.</td><td>O(N); 정렬되지 않은 일반 조각이 허용됩니다.</td>
+</tr>
+<tr id="Simd-store"><td><code>Simd.store(MutSlice&lt;T&gt; destination, usize start, V value)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>쓰기 전에 전체 범위 checked; 숨겨진 중복 권한이 없습니다.</td><td>O(N); 힙 없음.</td>
+</tr>
+<tr id="Simd-load_masked"><td><code>Simd.load_masked(Slice&lt;T&gt; source, Simd&lt;usize, N&gt; indices, Mask&lt;N&gt; active, V fallback)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>활성 인덱스 checked/read; 비활성 레인은 주소 형성 없이 폴백을 사용합니다.</td><td>O(N); 비활성 액세스 없음.</td>
+</tr>
+<tr id="Simd-gather"><td><code>Simd.gather(Slice&lt;T&gt; source, Simd&lt;usize, N&gt; indices)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>모든 인덱스 checked; 중복 읽기 허용.</td><td>O(N); 스칼라 화 될 수 있습니다.</td>
+</tr>
+<tr id="Simd-gather_masked"><td><code>Simd.gather_masked(Slice&lt;T&gt; source, Simd&lt;usize, N&gt; indices, Mask&lt;N&gt; active, V fallback)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>오직 활성 인덱스에만 경계가 필요하며 폴백에서 비활성 출력이 필요합니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-scatter"><td><code>Simd.scatter(MutSlice&lt;T&gt; destination, Simd&lt;usize, N&gt; indices, V values)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>쓰기 전에 checked의 모든 범위와 중복 대상; 오류가 중복됩니다.</td><td>O(N) 액세스와 중복 분석.</td>
+</tr>
+<tr id="Simd-scatter_masked"><td><code>Simd.scatter_masked(MutSlice&lt;T&gt; destination, Simd&lt;usize, N&gt; indices, Mask&lt;N&gt; active, V values)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>활성 인덱스만 검증되었습니다. 쓰기 전에 활성 대상 오류가 중복됩니다.</td><td>중복 분석은 스크래치가 필요할 수 있습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="arithmetic-functions" aria-labelledby="arithmetic-functions-heading">
+<h2 id="arithmetic-functions-heading">8입니다. 명시적 산술 계약
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="명시적 산술 계약 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-checked_add"><td><code>Simd.checked_add(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer 추가; 오버플로에 실패한 레인 마스크가 반환되었습니다.</td><td>O(N); 부분 출력 없음.</td>
+</tr>
+<tr id="Simd-checked_subtract"><td><code>Simd.checked_subtract(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>차선별 checked 범위의 Integer 차감.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-checked_multiply"><td><code>Simd.checked_multiply(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer 제품 checked (정확한 수학적 도메인).</td><td>O(N).</td>
+</tr>
+<tr id="Simd-checked_divide"><td><code>Simd.checked_divide(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer 제로 디바이저 및 부호 있는 최소 / -1 오류.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-checked_remainder"><td><code>Simd.checked_remainder(V a, V b)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer 스칼라 나머지; 제로 제수 및 스칼라 정의 오버플로 checked.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-wrapping_add"><td><code>Simd.wrapping_add(V a, V b)</code></td><td><code>V</code></td><td>Integer는 각 차선을 위한 modulo 2^width를 추가합니다.</td><td>O(N); 힙 없음.</td>
+</tr>
+<tr id="Simd-wrapping_subtract"><td><code>Simd.wrapping_subtract(V a, V b)</code></td><td><code>V</code></td><td>Integer 뺄셈 모듈로 2^width.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-wrapping_multiply"><td><code>Simd.wrapping_multiply(V a, V b)</code></td><td><code>V</code></td><td>Integer 제품 모듈 2^width.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-saturating_add"><td><code>Simd.saturating_add(V a, V b)</code></td><td><code>V</code></td><td>Integer 합계가 T 엔드포인트에 고정되었습니다.</td><td>O(N); 네이티브 지원이 가정되지 않았습니다.</td>
+</tr>
+<tr id="Simd-saturating_subtract"><td><code>Simd.saturating_subtract(V a, V b)</code></td><td><code>V</code></td><td>Integer 차이가 T 엔드포인트로 고정되었습니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-saturating_multiply"><td><code>Simd.saturating_multiply(V a, V b)</code></td><td><code>V</code></td><td>Integer 제품이 T 엔드포인트에 고정되었습니다.</td><td>O(N); widening/scalarization가 필요할 수 있습니다.</td>
+</tr>
+<tr id="Simd-float_add"><td><code>Simd.float_add(V a, V b)</code></td><td><code>V</code></td><td>차선 당 엄격한 스칼라 추가 부동.</td><td>O(N); 부동 T 만.</td>
+</tr>
+<tr id="Simd-float_subtract"><td><code>Simd.float_subtract(V a, V b)</code></td><td><code>V</code></td><td>차선 당 엄격한 스칼라 차감 부동.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-float_multiply"><td><code>Simd.float_multiply(V a, V b)</code></td><td><code>V</code></td><td>플로팅 제품은 차선당 한 번 반올림됩니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-float_divide"><td><code>Simd.float_divide(V a, V b)</code></td><td><code>V</code></td><td>IEEE 부동 분할; NaN/infinity는 숫자 결과입니다.</td><td>O(N); 기능 checked.</td>
+</tr>
+<tr id="Simd-masked_divide"><td><code>Simd.masked_divide(V a, V b, Mask&lt;N&gt; active, V fallback)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>활성 산술만 평가되고, 비활성 폴백은 보존되며, 정수는 활성 레인만 검사합니다.</td><td>O(active lanes) 논리 작업.</td>
+</tr>
+<tr id="Simd-fma"><td><code>Simd.fma(V a, V b, V c)</code></td><td><code>V</code></td><td>Floating fluded multiply-add, 차선 당 최종 라운딩 1개.</td><td>O(N); 엄격한 지원이 필요합니다.</td>
+</tr>
+<tr id="Simd-sqrt"><td><code>Simd.sqrt(V value)</code></td><td><code>V</code></td><td>부동 IEEE sqrt; 음의 유한 레인은 NaN을 생성합니다.</td><td>O(N); 기능 checked.</td>
+</tr>
+<tr id="Simd-abs"><td><code>Simd.abs(V value)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Integer는 최소 오류를 서명했습니다; 부동 절대는 스칼라 계약 당 서명을 지웁니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-negate"><td><code>Simd.negate(V value)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>checked signed integer negate; float는 zero/NaN 기호 정책을 포함한 기호를 무효화합니다.</td><td>O(N); 서명되지 않았습니다.</td>
+</tr>
+<tr id="Simd-shift_left"><td><code>Simd.shift_left(V value, Simd&lt;u32, N&gt; counts)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>T 너비 아래의 모든 count; 스칼라 비트 시프트 계약 당 버려지는 시프트 아웃 비트.</td><td>O(N); 정수만.</td>
+</tr>
+<tr id="Simd-shift_right"><td><code>Simd.shift_right(V value, Simd&lt;u32, N&gt; counts)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>카운트 범위 checked; 부호 있는 산술 및 부호 없는 논리 오른쪽 시프트.</td><td>O(N); 정수만.</td>
+</tr>
+<tr id="Simd-bit_and"><td><code>Simd.bit_and(V a, V b)</code></td><td><code>V</code></td><td>레인 와이즈 정수 비트 결합.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bit_or"><td><code>Simd.bit_or(V a, V b)</code></td><td><code>V</code></td><td>Lane-wise 정수 비트 분리.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bit_xor"><td><code>Simd.bit_xor(V a, V b)</code></td><td><code>V</code></td><td>레인 와이즈 정수 비트 배타적 또는.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bit_not"><td><code>Simd.bit_not(V value)</code></td><td><code>V</code></td><td>각 정수 레인의 고정 폭 표현을 보완합니다.</td><td>O(N).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="comparison-functions" aria-labelledby="comparison-functions-heading">
+<h2 id="comparison-functions-heading">9입니다. 비교, 레이아웃 및 축소
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="비교, 레이아웃 및 축소 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-equal"><td><code>Simd.equal(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>등호; NaN 등호, 부호 0이 같습니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-less"><td><code>Simd.less(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>순서가 없는 float 레인은 거짓입니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-less_equal"><td><code>Simd.less_equal(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>less-or-equal; 순서가 없는 float 레인 false</td><td>O(N).</td>
+</tr>
+<tr id="Simd-is_nan"><td><code>Simd.is_nan(V value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>NaNs를 가로로 부동하는 것을 분류합니다.</td><td>O(N); float 전용.</td>
+</tr>
+<tr id="Simd-is_finite"><td><code>Simd.is_finite(V value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>부호 있는 zero/subnormal를 포함한 유한한 float 레인에 적용됩니다.</td><td>O(N); float 전용.</td>
+</tr>
+<tr id="Simd-select"><td><code>Simd.select(Mask&lt;N&gt; active, V when_true, V when_false)</code></td><td><code>V</code></td><td>이미 평가된 레인 값을 선택합니다. 단락 평가는 없습니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-minimum_propagating"><td><code>Simd.minimum_propagating(V a, V b)</code></td><td><code>V</code></td><td>부동 NaN 전파; -0는 제로 타이를 이긴다; NaN 페이로드가 안정화되지 않았습니다.</td><td>O(N); float 전용.</td>
+</tr>
+<tr id="Simd-maximum_propagating"><td><code>Simd.maximum_propagating(V a, V b)</code></td><td><code>V</code></td><td>부동 NaN 전파; +0는 제로 넥타이 승리.</td><td>O(N); float 전용.</td>
+</tr>
+<tr id="Simd-minimum_number"><td><code>Simd.minimum_number(V a, V b)</code></td><td><code>V</code></td><td>하나의 NaN은 숫자 피연산자를 산출하고, 두 개의 NaN은 NaN을 산출하며, -0는 동점이다.</td><td>O(N); float 전용.</td>
+</tr>
+<tr id="Simd-maximum_number"><td><code>Simd.maximum_number(V a, V b)</code></td><td><code>V</code></td><td>하나의 NaN은 숫자 피연산자를, 두 개의 NaN은 NaN을, +0는 동점을 산출합니다.</td><td>O(N); float 전용.</td>
+</tr>
+<tr id="Simd-reverse"><td><code>Simd.reverse(V value)</code></td><td><code>V</code></td><td>논리 레인 i는 레인 N-1-i를 수신한다.</td><td>O(N); 힙 없음.</td>
+</tr>
+<tr id="Simd-rotate_lanes_left"><td><code>Simd.rotate_lanes_left(V value, usize count)</code></td><td><code>V</code></td><td>count modulo 긍정적인 N에 의하여 차선 교체; 자전 정수 조금에서 구별하는.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-swizzle"><td><code>Simd.swizzle(V value, Array&lt;usize, M&gt; indices)</code></td><td><code>Result&lt;Simd&lt;T, M&gt;, SimdError&lt;M&gt;&gt;</code></td><td>모든 소스 인덱스 &lt; N; 반복 읽기 유효; 결과 레인 count 컴파일 시간.</td><td>O(M).</td>
+</tr>
+<tr id="Simd-reduce_sum"><td><code>Simd.reduce_sum&lt;A&gt;(V value, ReductionOrder order)</code></td><td><code>Result&lt;A, SimdError&lt;N&gt;&gt;</code></td><td>명백한 누산기 type/order; checked 정수 축적 및 엄격한 float 변환.</td><td>O(N); 암시적 재연관 없음.</td>
+</tr>
+<tr id="Simd-reduce_product"><td><code>Simd.reduce_product&lt;A&gt;(V value, ReductionOrder order)</code></td><td><code>Result&lt;A, SimdError&lt;N&gt;&gt;</code></td><td>accumulator/order; checked 정수 축적이라고 합니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-dot"><td><code>Simd.dot&lt;A&gt;(V a, V b, DotSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;A, SimdError&lt;N&gt;&gt;</code></td><td>명백한 제품 폭, 융해, 누산기 및 감소 순서.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-cast_checked"><td><code>Simd.cast_checked&lt;U&gt;(V value, ConversionPolicy policy)</code></td><td><code>Result&lt;W, SimdError&lt;N&gt;&gt;</code></td><td>명명된 반올림 및 범위 정책으로 숫자 레인 변환.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-bitcast"><td><code>Simd.bitcast&lt;U, M&gt;(V value)</code></td><td><code>Simd&lt;U, M&gt;</code></td><td>동등한 총 비트 폭과 유효한 스칼라 표현 필요; 명시적 타겟 독립적 비트 시퀀스에 의해 지정된 lane/bit 순서.</td><td>참조 별칭 없음; bool/Mask 제외.</td>
+</tr>
+<tr id="Simd-same_representation"><td><code>Simd.same_representation(V a, V b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>스칼라 표현 비트를 비교하여 0개의 부호와 NaN 페이로드 비트를 구분합니다.</td><td>O(N); 초기화된 지원 스칼라 레인.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">10입니다. 숨겨진 동적 할당이 없는 값
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Simd&lt;f32, 4&gt; bias = Simd.splat&lt;f32, 4&gt;(0.5);
+Simd&lt;f32, 4&gt; input = Simd.from_array&lt;f32, 4&gt;([1.0, 2.0, 3.0, 4.0]);
+Simd&lt;f32, 4&gt; shifted = Simd.float_add(input, bias);
+Mask&lt;4&gt; active = Simd.less(input, shifted);</code></pre>
+<p>이러한 문은 기본적으로 불변의 값을 사용합니다. 대상 버퍼는 독점 저장소 액세스 전에 명시적인 mut 선언이 필요합니다. 4개의 레인이 현재 CPU에 대한 하나의 명령으로 실행되거나 GPU에서 동일한 호스트 ABI가 사용된다는 결과는 없습니다.
+</p>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">11입니다. 마스크, 휴대성 및 스칼라 참조
+</h2>
+<p>Simd는 자동 스레딩 모델이 아닌 시맨틱 벡터 값입니다. 호스트 Task는 Simd 값을 처리하고 GPU 커널은 지원되는 레인 작업을 사용할 수 있지만 스케줄링, 스토리지 배치 및 벡터화는 별도의 결정입니다. Autovectorization은 동일한 스칼라 동작을 보존할 때만 일반 코드에 Simd와 유사한 낮추기를 사용할 수 있습니다.
+</p>
+<p><a href="Simd_Mask.html">논리적 마스크</a> · <a href="Simd_Portable.html">휴대용 낮추고는 그리고 ABI</a> · <a href="../Integer/Integer.html">Integer</a> · <a href="../Float/Float.html">Float</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Simd.html" target="_blank" rel="noopener noreferrer">Rust 실험 휴대용 SIMD</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Mask.html" target="_blank" rel="noopener noreferrer">Rust 실험용 SIMD 마스크</a>
+</li>
+<li><a href="https://llvm.org/docs/LangRef.html#vector-type" target="_blank" rel="noopener noreferrer">LLVM 벡터 유형 및 작업</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Simd_Mask.html"><span>다음 레퍼런스</span>SIMD 마스크</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="스토리지 ID, 이름 가시성, 소유권 및 일반 코드 버전을 구별합니다.">
+<title>선언 및 ID — Aevix 문서</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/persistent_storage/Declarations_and_Identity.html">
+<link rel="alternate" hreflang="ko" href="Declarations_and_Identity.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html" aria-current="true">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">영속 저장소</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">선언과 정체성</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">문법 레퍼런스</p><h1>선언과 정체성</h1><p class="doc-subtitle">스토리지 ID, 이름 가시성, 소유권 및 일반 코드 버전을 구별합니다.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙과 미정 사항</span><span class="meta-chip">Aevix의 독자적 설계</span></div><dl class="doc-stats"><div class="doc-stat"><dt>수명</dt><dd>프로세스</dd></div><div class="doc-stat"><dt>인증</dt><dd>선언</dd></div><div class="doc-stat"><dt>일반 로컬</dt><dd>유형별 튜플</dd></div><div class="doc-stat"><dt>AOT / JIT</dt><dd>Shared 스토리지</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>아이디</strong><span>문법</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#declarations"><span class="toc-number">01</span><span>형식 우선 선언에서 persist 사용하기</span></a></li><li><a href="#identity"><span class="toc-number">02</span><span>선언당 하나의 저장소 ID</span></a></li><li><a href="#visibility"><span class="toc-number">03</span><span>긴 저장 시간이 이름의 범위를 넓힐 수 없음</span></a></li><li><a href="#inputs"><span class="toc-number">04</span><span>로컬 초기화는 호출의 입력을 직접 캡처할 수 없습니다.</span></a></li><li><a href="#generics"><span class="toc-number">05</span><span>제네릭 함수 locals는 concrete type 인수를 사용합니다.</span></a></li><li><a href="#code-versions"><span class="toc-number">06</span><span>AOT 및 JIT 버전은 하나의 언어 수준 ID를 유지합니다.</span></a></li><li><a href="#open"><span class="toc-number">07</span><span>관련 규칙 및 열린 경계</span></a></li></ol></details><nav class="family-nav" aria-label="영구 저장소 페이지"><h2>영속 저장소</h2><div class="family-links"><a href="index.html">개요</a><a href="Declarations_and_Identity.html" aria-current="page">선언과 정체성</a><a href="Initialization.html">초기화</a><a href="Concurrency.html">동시성과 실패</a><a href="Shutdown.html">정상적인 폐쇄</a></div></nav><nav class="family-nav" aria-label="관련 언어 참조"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../modules/index.html">모듈과 import</a><a href="../functions/index.html">함수와 호출</a><a href="../../declaration/Variable_Declaration.html">변수 선언</a><a href="../scope_and_comments/Resource_Cleanup.html">자원 정리</a><a href="../../data_type/index.html">자료형</a></div></nav></aside><article class="content" aria-label="선언 및 ID 참조">
+<section id="declarations" aria-labelledby="declarations-heading"><h2 id="declarations-heading">1입니다. 형식 우선 선언에서 persist 사용하기</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">persist i32 protocol_revision = 1;
+
+i32 read_limit() {
+    persist i32 limit = 64;
+    return limit;
+}</code></pre><p>선언된 형식이 바인딩 이름보다 앞에 있습니다. 모듈 수준 선언에는 프로그램 입장의 앞에 초기화된 가공 수명 저장이 있다; 기능에 있는 선언은 그 외침 후에 그것의 저장을 돌려보내고 첫번째 도달에 초기화한다 유지한다. 스토리지를 유지한다고 해서 일반적인 불변의 바인딩이 쓰기 가능해지는 것은 아닙니다.</p><p>이 참조는 선택된 <code>persist T name = value;</code> 형식. 그것은 const, mut, 시정 및 persist 수식어구의 모든 조합 또는 순서를 침전하지 않는다.</p></section>
+<section id="identity" aria-labelledby="identity-heading"><h2 id="identity-heading">2입니다. 선언당 하나의 저장소 ID</h2><div class="table-scroll" role="region" aria-label="영구 스토리지 ID"><table><thead><tr><th scope="col">상황</th><th scope="col">저장소 규칙</th></tr></thead><tbody><tr><th scope="row">두 개의 서로 다른 persist 선언</th><td>각각에는 그것의 유형이, 분리되는 범위에 있는 이름 및 처음 가치가 일치할 때라도, 그것의 자신의 저장 신원이 있다.</td></tr><tr><th scope="row">한 지역 선언의 반복된 범위</th><td>그 선언에 속하는 성공적으로 초기화된 값을 재사용합니다.</td></tr><tr><th scope="row">루프가 한 로컬 선언에 반복적으로 도달함</th><td>선언은 각 반복에 대한 새로운 영구 셀이 아닙니다.</td></tr><tr><th scope="row">여러 스레드가 하나의 선언에 도달</th><td>하나의 초기화를 조정하고 그 결과 저장소를 액세스 안전 규칙의 적용을 받습니다.</td></tr><tr><th scope="row">프로세스가 종료되고 다시 시작됩니다.</th><td>새로운 프로세스가 새로 초기화 된 저장소를 얻습니다. 디스크 복원이 암시되지 않습니다.</td></tr></tbody></table></div><p>저장된 값은 그 타입의 소유권 및 차입 요건을 유지하며, 그 영구적인 장소는 이동에 의해 초기화되지 않은 채로 둘 수 없다는 추가적인 규칙이 있다. Persist는 암묵적 클론, 참조 카운트된 핸들, 직렬화 형식 또는 가비지 컬렉터가 아닙니다.</p><h3 id="stored-value">저장된 값은 초기화 상태를 유지해야 합니다.</h3>
+<p>필드 또는 요소 중 하나를 포함한 persist 장소는 초기화되지 않은 상태로 이동하거나 둘 수 없습니다. Copy 값을 읽어들이면 복사하고, 다른 접근은 저장된 값을 빌려온다. 소유권을 추출하는 작업은 성공을 노출하기 전에 완전한 교체를 설치해야하며 일반적인 동기화 및 대여 요구 사항을 충족해야합니다. 이 규칙은 동기화되지 않은 변경에 대한 새로운 대체 API 또는 권한을 도입하지 않습니다.</p>
+<blockquote class="callout warning"><p><strong>허용되지 않는 예제.</strong> 이 non-Copy Result를 반환하면 저장된 소유자가 영구적 인 위치에서 벗어나게됩니다.</p></blockquote>
+<pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Result&lt;Box&lt;i32&gt;, InputError&lt;i32&gt;&gt; take_owner() {
+    persist Result&lt;Box&lt;i32&gt;, InputError&lt;i32&gt;&gt; retained = Box.new(7);
+    return retained;
+}</code></pre>
+<h3 id="initializer-exits">이니셜라이저는 둘러싸는 기능에서 전파될 수 없습니다.</h3>
+<p>persist 초기화는 저장된 값을 완료하거나 초기화-오류 중지 정책을 따라야 합니다. 우편 번호 <code>?</code> 이니셜라이저 내부에서는 주변 함수로부터 반환되는 것이 금지되어 있으며, 값이 미완성인 다른 비로컬 종료도 마찬가지입니다. Result 자체를 저장하여 예상 오류를 전체 값으로 유지합니다. 이니셜라이저가 사용할 수 있는 함수 <code>?</code> 자신의 몸 안에 : 반환 된 Result는 초기화에 대한 일반적인 입력입니다.</p>
+<pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Result&lt;i32, IntegerError&gt; invalid_initializer() {
+    persist i32 saved = checked(2147483647 + 1)?;
+    return Result.ok(saved);
+}</code></pre>
+<p>이니셜라이저는 enclosing 함수로부터 Err를 반환함으로써, 자신의 first-reach guard를 초기화 상태로 둘 수 없다. 이 제한은 재시도 또는 중독 상태 복구 정책을 추가하지 않습니다.</p></section>
+<section id="visibility" aria-labelledby="visibility-heading"><h2 id="visibility-heading">3입니다. 긴 저장 시간이 이름의 범위를 넓힐 수 없음</h2><p>로컬 persist 이름은 여전히 어휘 블록과 중첩된 범위에서만 볼 수 있으며, 보이는 외부 이름은 그림자를 칠 수 없습니다. 이 값은 해당 블록의 끝에 해제되지 않지만, 그 로컬 식별자는 이후에 임의 코드에서 액세스할 수 없게 됩니다. Public/private는 이미 선택한 모듈에 적용되며 로컬 변수를 내보내는 방법이 아닌 선언 경계를 입력합니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 read_revision() {
+    {
+        persist i32 retained_revision = 3;
+        i32 observed = retained_revision;
+    }
+    return 3;
+}</code></pre><blockquote class="callout warning"><p><strong>허용되지 않는 예제.</strong> 그 함수에 다음의 추가는 그것의 렉시컬 범위 밖의 이름을 사용할 것이다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 read_revision() {
+    {
+        persist i32 retained_revision = 3;
+    }
+    return retained_revision;
+}</code></pre><p>또한 영구 저장 기간은 다른 곳에서 빌린 데이터의 수명을 연장하지 않습니다. persist에 저장된 참조는 전체 소스 수명 제약을 충족해야 합니다. returned-reference lifetime 문법은 별도의 설계 문제로 남아있다.</p></section>
+<section id="inputs" aria-labelledby="inputs-heading"><h2 id="inputs-heading">4입니다. 로컬 초기화는 호출의 입력을 직접 캡처할 수 없습니다.</h2><p>로컬 persist 초기화는 런타임 함수 매개 변수 또는 일반 로컬 변수에 직접 의존하지 않을 수 있습니다. 언어는 선언에 먼저 도달했기 때문에 첫 번째 호출자의 입력이 영구적으로 선택되는 것을 거부합니다. 동시 호출에서, 이것은 또한 어느 스레드가 초기화에서 승리하든지 입력을 선택하는 것을 피한다.</p><blockquote class="callout warning"><p><strong>예를 거부합니다.</strong> 두 초기화는 모두 call-local runtime 값에 직접적으로 의존한다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 from_parameter(i32 input) {
+    persist i32 saved = input;
+    return saved;
+}
+
+i32 from_local() {
+    i32 ordinary = 10;
+    persist i32 saved = ordinary;
+    return saved;
+}</code></pre><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 offset(i32 input) {
+    persist i32 fixed_offset = 10;
+    return input + fixed_offset;
+}</code></pre><p>허용된 예제는 이니셜라이저 외부에서 일반 함수 결과의 매개 변수를 사용합니다. 직접 의존성 제한은 완전한 전이 순도 분석의 약속이 아닙니다: 호출 뒤에 숨겨진 효과는 런타임 persist 초기화 검사를 포함한 자체 규칙에 의해 처리됩니다.</p></section>
+<section id="generics" aria-labelledby="generics-heading"><h2 id="generics-heading">5입니다. 제네릭 함수 locals는 concrete type 인수를 사용합니다.</h2><p>제네릭 함수 안에 있는 persist는 해당 함수의 타입 인수의 각 콘크리트 조합에 대해 별도의 스토리지 인스턴스를 가지고 있습니다. 동일한 조합으로 반복되는 호출은 인스턴스를 재사용합니다. 다른 조합은 persist의 자체 유형이 동일하더라도 다른 인스턴스를 선택합니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 marker&lt;T&gt;(T value) {
+    persist i32 stamp = 7;
+    return stamp;
+}
+
+i32 first = marker&lt;i32&gt;(10);
+i32 second = marker&lt;i32&gt;(20);
+i32 third = marker&lt;f64&gt;(2.5);</code></pre><p>처음 두 호출은 동일한 i32 인스턴스를 참조하고, 세 번째는 f64 인스턴스를 참조합니다. 이 그림의 모든 return 7, 따라서 반환된 숫자는 저장소 ID 검사 API가 아닙니다. 도달하지 않은 인스턴스는 로컬 값을 성공적으로 초기화하지 못했습니다.</p><p>여러 유형의 매개 변수로, 전체 주문 튜플 문제. 일반적인 함수 유형 추론 및 명시적 인수는 일반적인 규칙을 유지합니다. 이 스토리지 정책은 const, Shape 또는 수명 일반 매개 변수 구문을 추가하지 않습니다.</p></section>
+<section id="code-versions" aria-labelledby="code-versions-heading"><h2 id="code-versions-heading">6입니다. AOT 및 JIT 버전은 하나의 언어 수준 ID를 유지합니다.</h2><p>AOT 컴파일 및 선택적 JIT 전문화는 하나의 함수 및 하나의 구체적인 유형-논쟁 조합에 대해 여러 코드 버전을 생성할 수 있습니다. 그들은 여전히 동일한 영구 저장소에 액세스합니다. 코드 버전을 생성하거나 교체해도 다른 초기화 실행이 생성되지 않거나 초기화된 값이 재설정되지 않습니다.</p><p>이것은 semantic requirement입니다. Symbol naming, runtime registries, code-cache implementation, dynamic-library loading, 그리고 hot reload는 여기에서 선택되지 않는다.</p></section>
+<section id="open" aria-labelledby="open-heading"><h2 id="open-heading">7입니다. 관련 규칙 및 열린 경계</h2><ul><li>일반적인 형식 멤버 persist 및 스레드 로컬 저장소 규칙이 선택되지 않습니다.</li><li>나머지 수정자 조합과 영구 저장소 검사 API는 도입되지 않습니다.</li><li>빌린 필드와 반환 참조 수명 표기은 저장 기간과 별도로 유지됩니다.</li></ul><p><a href="Initialization.html">초기화 타이밍 및 순서</a> · <a href="Concurrency.html">Shared 액세스</a> · <a href="../functions/Generic_Functions.html">제네릭 함수</a> · <a href="../scope_and_comments/Scope_and_Visibility.html">스코프와 접근 권한</a></p></section>
+<nav class="page-navigation" aria-label="인접한 영구 스토리지 참조"><a href="index.html"><span>이전 레퍼런스</span>개요</a><a href="Initialization.html"><span>다음 레퍼런스</span>초기화</a></nav></article></div>
+<footer class="page-footer"><span>Aevix 언어 · 영구 저장소 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

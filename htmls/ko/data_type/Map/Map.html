@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="명시적 확장과 대여를 갖춘 소유 해시 키·값.">
+  <title>Map — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Map/Map.html">
+<link rel="alternate" hreflang="ko" href="Map.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Map.html" aria-current="true">Map</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Map.html">Map</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Map</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Map</h1><p class="doc-subtitle">명시적 확장과 대여를 갖춘 소유 해시 키·값.</p><div class="doc-meta"><span class="meta-chip">Map&lt;K, V&gt;</span><span class="meta-chip">Map 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>34</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>K: 그렇습니다</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Hashed 지도</span></a></li><li><a href="#Key-Invariants"><span class="toc-number">02</span><span>키 평등 및 해싱</span></a></li><li><a href="#Ownership-Borrows"><span class="toc-number">03</span><span>소유권 및 진입 신원</span></a></li><li><a href="#Errors-Guarantees"><span class="toc-number">04</span><span>실패 보증</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>Map 함수 참조</span></a></li><li><a href="#Iteration-Cost"><span class="toc-number">06</span><span>질서와 복잡성</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>예제</span></a></li><li><a href="#Targets-Related"><span class="toc-number">08</span><span>목표 및 관련 컬렉션</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Map 문서"><h2>Map 참조 문서</h2><div class="family-links"><a href="Map.html" aria-current="page">Map</a><a href="Ordered_Map.html">명령된맵</a><a href="Map_Entry.html">맵엔트리</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Map 참조 문서">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. Hashed 지도
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> Map 및 OrderedMap은 기본 전주곡과 구현된 0.2 type/API 하위 집합을 제외한 전문 라이브러리 설계입니다. 최종 사용은 명시적인 가져오기가 필요하며, 이 카탈로그에서 내장된 0.2 모듈이 제공되지 않습니다. 이 디자인 페이지에서는 사용 가능한 0.2 백엔드 또는 패키지가 아닌 의도된 라이브러리 경계를 설명합니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>Map&lt;K, V&gt;는 키의 각 등가 클래스에 대해 최대 하나의 값을 소유합니다. 기본 표현은 해시 처리되며, 인스턴스별 무작위 정책이 있고 안정적인 순회 순서가 없습니다. 호스트 소유 컬렉션이며 암시적 동시 테이블이나 GPU 사전이 아닙니다. 삽입 버킷을 성장할 수 있습니다; 복제 없이 모든 항목의 핸들 전송 소유권을 이동 합니다.
+</p>
+<blockquote class="callout note">
+<p><strong>설계 초안.</strong> 이것은 Aevix 계약 제안이며 구현 주장이 아닙니다. 콜백, 반복자, 특성 및 오류 전달자 이름이 설명됩니다. 매개 변수 사용 <code>T value</code> 가치에 의하여, <code>&amp;T value</code> 공유 대여, 그리고 <code>&amp;mut T value</code> 단독 대여. 패스 소유자를 호출합니다 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code>; 복용 <code>&amp;mut owner</code> 에는 <code>mut</code> 바인딩. 기존 참조 및 빌린된 보기는 직접 전달 됩니다. 콜백 별칭, 오류 레코드 및 반환 참조 수명 표기는 설계 설명으로 남아 있습니다. mut를 선언하지 않는 한 바인딩은 변경할 수 없으며 unit는 값 형식입니다.
+</p>
+</blockquote>
+</section>
+<section id="Key-Invariants" aria-labelledby="Key-Invariants-heading">
+<h2 id="Key-Invariants-heading">2입니다. 키 평등 및 해싱
+</h2>
+<p>Equal key는 맵의 정책에 따라 Equal hashes를 생성해야 합니다. 평등과 해시의 의미는 키가 저장되는 동안 안정적으로 유지되어야 합니다. 공용 API는 공유 대여을 통해서만 저장된 키를 노출합니다. 내부 변경, 외부 전역 상태 및 안전하지 않은 코드는 여전히이 규칙을 위반 할 수 있습니다; 잘못된 조회 또는 진단 실패가 가능하지만 안전한 구현은 초기화, 경계 및 별칭 안전을 유지해야합니다. 플로트는 NaN을 일반적인 동등한 키로 조용히 취급하는 대신 명시적 법적 equality/hash 정책이 필요합니다.
+</p>
+</section>
+<section id="Ownership-Borrows" aria-labelledby="Ownership-Borrows-heading">
+<h2 id="Ownership-Borrows-heading">3입니다. 소유권 및 진입 신원
+</h2>
+<p>Lookups borrow; 삭제는 소유권을 반환합니다. 값은 고유한 대여을 통해 편집할 수 있지만 키는 고정되어 있습니다. 모든 라이브 값 참조, 엔트리 능력, 드레인 또는 가변 반복기는 예비 용량이 존재하는 경우에도 구조 변경를 제한합니다. 원시 포인터 안정성, 삽입 순서 또는 키 주소 안정성은 계약의 일부가 아닙니다. 동일한 키가 다른 설명 메타데이터를 전달할 때 Canonical 키 ID가 중요합니다.
+</p>
+</section>
+<section id="Errors-Guarantees" aria-labelledby="Errors-Guarantees-heading">
+<h2 id="Errors-Guarantees-heading">4입니다. 실패 보증
+</h2>
+<p>CollectionError에는 크기 오버플로우, 할당, 시드 초기화, 적용 가능한 경우 오류 복제가 포함됩니다. InsertError는 사용되지 않은 수신 키와 중복 거부 또는 성장 사전 비행 실패에 대한 값을 유지합니다. 이러한 사전 비행 오류는 기존 항목을 변경하지 않습니다. 사용자 hash/equality 콜백은 합법적이어야하며 빌린지도를 다시 입력해서는 안됩니다. 콜백이 풀리면 메모리 안전 및 초기화 된 소유권은 유지되지만 콜백 효과는 롤백되지 않습니다. 대량 건설은 부분 출력을 청소하고 빌린 소스를 그대로 둡니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. Map 함수 참조
+</h2>
+<div class="table-scroll" role="region" aria-label="Map 함수 참조 데이터 표">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">도메인, 소유권, 오류 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Map-new"><th scope="row"><code>Map.new(K, V)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>빈 해시 맵을 만듭니다; 시드 초기화 실패를 보고합니다. 삽입 전에 버킷 할당이 필요하지 않습니다. 예상 O(1).</td>
+</tr>
+<tr id="Map-with_capacity"><th scope="row"><code>Map.with_capacity(K, V, usize minimum)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>최소한도 명백한 입장을 위한 예비 방; 크기 과잉과 배부 실패는 과실입니다; O(capacity) 초기화.</td>
+</tr>
+<tr id="Map-with_hasher"><th scope="row"><code>Map.with_hasher(K, V, HashPolicy policy)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, InputError&lt;HashPolicy&gt;&gt;</code></td><td>명시적인 해시 정책을 선택합니다; 사용되지 않은 정책으로 초기화 실패를 보고합니다. 보안 및 결정론은이 정책에 달려 있습니다.</td>
+</tr>
+<tr id="Map-from_pairs"><th scope="row"><code>Map.from_pairs(Slice&lt;(K, V)&gt; pairs, DuplicatePolicy policy)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>빌린 쌍을 명시적으로 복제합니다. KeepFirst, KeepLastValue 또는 Reject를 선택합니다. 복제, 복제 거부 및 할당 실패는 부분 출력을 청소합니다.</td>
+</tr>
+<tr id="Map-len"><th scope="row"><code>Map.len(&amp;Map&lt;K, V&gt; map)</code></th><td><code>usize</code></td><td>저장된 항목 count를 반환합니다; O(1), 할당 없음.</td>
+</tr>
+<tr id="Map-capacity"><th scope="row"><code>Map.capacity(&amp;Map&lt;K, V&gt; map)</code></th><td><code>usize</code></td><td>버킷 성장없이 저장 가능한 총 항목의 하한; O(1). byte count 또는 대여 허가가 아닙니다.</td>
+</tr>
+<tr id="Map-is_empty"><th scope="row"><code>Map.is_empty(&amp;Map&lt;K, V&gt; map)</code></th><td><code>bool</code></td><td>0과 같은 len; O(1).</td>
+</tr>
+<tr id="Map-reserve"><th scope="row"><code>Map.reserve(&amp;mut Map&lt;K, V&gt; map, usize additional)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>checked len + 추가를 위한 용량을 확보하십시오; 사전 비행 실패는 항목과 소유권을 보존합니다; rehash는 O(capacity)를 요할지도 모릅니다.</td>
+</tr>
+<tr id="Map-shrink_to"><th scope="row"><code>Map.shrink_to(&amp;mut Map&lt;K, V&gt; map, usize minimum)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>항목을 제거하지 않고 여분의 버킷을 줄이십시오; 더 많은 용량을 유지할 수 있습니다. 실패는 항목을 보존합니다. O(capacity) rehash.</td>
+</tr>
+<tr id="Map-clear"><th scope="row"><code>Map.clear(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>unit</code></td><td>모든 항목을 제거하고 파괴하여 버킷 용량을 유지합니다. O(capacity) plus destructors; 바이트 영점화의 약속 없음.</td>
+</tr>
+<tr id="Map-get"><th scope="row"><code>Map.get(&amp;Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;&amp;V&gt;</code></td><td>동등한 쿼리 키에 대한 대여 값; Q는 호환 가능한 평등 및 해싱을 제공해야합니다. 예상 O(1), 최악의 O(n), 플러스 주요 비용.</td>
+</tr>
+<tr id="Map-get_mut"><th scope="row"><code>Map.get_mut(&amp;mut Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;&amp;mut V&gt;</code></td><td>기존 값 never 저장된 키를 독점적으로 대여합니다. 지도는 구조적으로 출시 될 때까지 대여 남아 있습니다.</td>
+</tr>
+<tr id="Map-get_key_value"><th scope="row"><code>Map.get_key_value(&amp;Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;(&amp;K, &amp;V)&gt;</code></td><td>canonical stored key and value; 임시 쿼리 키를 대체하지 않습니다.</td>
+</tr>
+<tr id="Map-contains_key"><th scope="row"><code>Map.contains_key(&amp;Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>bool</code></td><td>값을 복제하지 않고 멤버십을 테스트합니다. 예상 O(1), 최악의 O(n), 해시 및 평등.</td>
+</tr>
+<tr id="Map-get_many_mut"><th scope="row"><code>Map.get_many_mut(&amp;mut Map&lt;K, V&gt; map, Array&lt;Q, N&gt; keys)</code></th><td><code>Result&lt;Array&lt;Optional&lt;&amp;mut V&gt;, N&gt;, AliasError&gt;</code></td><td>쿼리를 해결한 다음 참조를 반환하기 전에 중복된 실제 항목 ID를 거부합니다. 누락된 항목은 아무 것도 생성하지 않습니다. 일관되지 않은 키 구현에서도 안전합니다. O(N squared) 별칭 검사가 허용됩니다.</td>
+</tr>
+<tr id="Map-insert"><th scope="row"><code>Map.insert(&amp;mut Map&lt;K, V&gt; map, K key, V value)</code></th><td><code>Result&lt;Optional&lt;V&gt;, InsertError&lt;K, V&gt;&gt;</code></td><td>새로운 키 삽입; 동일한 키는 저장된 키를 유지하고 값을 대체하여 이전 V를 반환합니다. 성장 preflight 실패에 두 들어오는 입력 다 재기하십시오; 성공적인 보충은 사용되지 않는 들어오는 열쇠를 파괴합니다.</td>
+</tr>
+<tr id="Map-try_insert"><th scope="row"><code>Map.try_insert(&amp;mut Map&lt;K, V&gt; map, K key, V value)</code></th><td><code>Result&lt;&amp;mut V, InsertError&lt;K, V&gt;&gt;</code></td><td>빈 경우에만 삽입합니다. 점령 및 사전 비행 실패 return 들어오는 key/value; 대체 없음. 반환 값 대여은 구조 변경를 방지합니다.</td>
+</tr>
+<tr id="Map-remove"><th scope="row"><code>Map.remove(&amp;mut Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;V&gt;</code></td><td>동등한 항목을 제거하고 return 값을 삭제하고 저장된 키를 파괴합니다. 예상 O(1), 최악의 O(n), 플러스 파괴자.</td>
+</tr>
+<tr id="Map-remove_entry"><th scope="row"><code>Map.remove_entry(&amp;mut Map&lt;K, V&gt; map, &amp;Q key)</code></th><td><code>Optional&lt;(K, V)&gt;</code></td><td>제거 및 return 모두 저장된 소유자; 아니 복제 또는 할당.</td>
+</tr>
+<tr id="Map-entry"><th scope="row"><code>Map.entry(&amp;mut Map&lt;K, V&gt; map, K key)</code></th><td><code>MapEntry&lt;K, V&gt;</code></td><td>배분없이 독점적 인 진입 능력을 습득하십시오. 그것은 빈 들어오는 키를 소유하거나 입력 능력이 소비되거나 떨어질 때까지 동등한 들어오는 키를 유지합니다.</td>
+</tr>
+<tr id="Map-iter"><th scope="row"><code>Map.iter(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;(&amp;K, &amp;V)&gt;</code></td><td>지정되지 않은 순서로 모든 쌍을 빌려; 전체 산책 O(capacity), 약속하지 O(len). 구조 변경는 제외됩니다.</td>
+</tr>
+<tr id="Map-iter_mut"><th scope="row"><code>Map.iter_mut(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;(&amp;K, &amp;mut V)&gt;</code></td><td>변경 불가능한 키로 취소 가능한 값을 빌리세요. 전체 산책 O(capacity).</td>
+</tr>
+<tr id="Map-keys"><th scope="row"><code>Map.keys(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;&amp;K&gt;</code></td><td>지정된 순서로 저장된 키를 빌리십시오. O(capacity) 전체 도보.</td>
+</tr>
+<tr id="Map-values"><th scope="row"><code>Map.values(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;&amp;V&gt;</code></td><td>키나 클론없이 값을 빌려; O(capacity) 전체 도보.</td>
+</tr>
+<tr id="Map-values_mut"><th scope="row"><code>Map.values_mut(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>Iterator&lt;&amp;mut V&gt;</code></td><td>독점적 인 수집 액세스를 유지하면서 가변 값을 분리하십시오. O(capacity) 전체 도보.</td>
+</tr>
+<tr id="Map-drain"><th scope="row"><code>Map.drain(&amp;mut Map&lt;K, V&gt; map)</code></th><td><code>Drain&lt;(K, V)&gt;</code></td><td>독점 소유 반복자를 통해 모든 항목을 제거합니다. 그것을 떨어 뜨리는 것은 unyielded 항목을 파괴; 버킷 용량은 남아; O(capacity) 총 플러스 파괴자.</td>
+</tr>
+<tr id="Map-retain"><th scope="row"><code>Map.retain(&amp;mut Map&lt;K, V&gt; map, Predicate&lt;(&amp;K, &amp;mut V)&gt; keep)</code></th><td><code>unit</code></td><td>항목을 방문하고 거부된 항목을 제거합니다. 초기화를 유지하지만 이전 edits/removals; O(capacity)와 콜백 및 소멸자를 유지합니다.</td>
+</tr>
+<tr id="Map-extract_if"><th scope="row"><code>Map.extract_if(&amp;mut Map&lt;K, V&gt; map, Predicate&lt;(&amp;K, &amp;mut V)&gt; remove)</code></th><td><code>ExtractIterator&lt;(K, V)&gt;</code></td><td>Lazy removal: 방문한 일치하는 항목이 이동합니다. iterator를 삭제하면 방문하지 않은 항목이 남습니다. 이전 콜백 편집은 남아; O(capacity) 전체 도보.</td>
+</tr>
+<tr id="Map-into_iter"><th scope="row"><code>Map.into_iter(Map&lt;K, V&gt; map)</code></th><td><code>OwningIterator&lt;(K, V)&gt;</code></td><td>지정되지 않은 순서로 쌍을 이동시킵니다; 반복자는 버킷을 소유하고 떨어뜨릴 때 unyielded 쌍을 파괴합니다.</td>
+</tr>
+<tr id="Map-into_keys"><th scope="row"><code>Map.into_keys(Map&lt;K, V&gt; map)</code></th><td><code>OwningIterator&lt;K&gt;</code></td><td>소유된 키를 반환하면서 연관된 값들을 파괴한다; iterator는 남아있는 저장소와 엔트리들을 소유한다.</td>
+</tr>
+<tr id="Map-into_values"><th scope="row"><code>Map.into_values(Map&lt;K, V&gt; map)</code></th><td><code>OwningIterator&lt;V&gt;</code></td><td>연결된 키를 삭제하는 동안 소유된 값의 수율; 값 클론 없음.</td>
+</tr>
+<tr id="Map-clone"><th scope="row"><code>Map.clone(&amp;Map&lt;K, V&gt; map)</code></th><td><code>Result&lt;Map&lt;K, V&gt;, CollectionError&gt;</code></td><td>키, 값 및 해시 정책을 명시적으로 복제합니다. Clone/allocation 실패는 부분적인 산출을 파괴합니다; 본래 입장은 남아 있습니다; O(capacity) 플러스 복제품.</td>
+</tr>
+<tr id="Map-equal"><th scope="row"><code>Map.equal(&amp;Map&lt;K, V&gt; a, &amp;Map&lt;K, V&gt; b)</code></th><td><code>bool</code></td><td>key/value 멤버쉽을 거래 순서와 무관하게 비교하십시오. O(n), 최악의 O(n squared) 및 사용자 key/value 작업을 예상하십시오.</td>
+</tr>
+<tr id="Map-hasher"><th scope="row"><code>Map.hasher(&amp;Map&lt;K, V&gt; map)</code></th><td><code>&amp;HashPolicy</code></td><td>키 해시 시맨틱을 변경하지 않고 설정된 정책을 빌려줍니다; O(1). 씨앗 추출은 약속되지 않습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Iteration-Cost" aria-labelledby="Iteration-Cost-heading">
+<h2 id="Iteration-Cost-heading">6입니다. 질서와 복잡성
+</h2>
+<p>예상되는 상수 시간 조회는 워크로드 및 해시 배포 기대이며 최악의 경우 보증 또는 충돌 방지 보안 청구가 아닙니다. 최악의 경우 조회 및 삽입은 선형 수의 항목을 검사할 수 있습니다. 리해싱 및 전체 트래버설은 빈 버킷을 포함한 용량을 검사할 수 있으며, 따라서 대형 스파스 맵은 관찰 가능한 스캔 비용을 가집니다. 긴 문자열, 평등, 복제 및 파괴 해싱은 자신의 작업을 추가합니다. 정렬된 트래버설 또는 키 범위가 필요할 때 정렬된 맵을 사용합니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7입니다. 예제
+</h2>
+<p>이러한 완전한 표현식은 명시적 호출자 처리를 위한 Result 구조를 유지합니다. 할당 오류를 풀거나 Result 자체가 맵이라는 것을 암시하지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Map&lt;i32, i32&gt;, CollectionError&gt; scores = Map.with_capacity(i32, i32, 32);
+Result&lt;Map&lt;string, i32&gt;, CollectionError&gt; names = Map.new(string, i32);</code></pre>
+</section>
+<section id="Targets-Related" aria-labelledby="Targets-Related-heading">
+<h2 id="Targets-Related-heading">8입니다. 목표 및 관련 컬렉션
+</h2>
+<p>스레드 간에 맵을 공유하려면 여전히 동기화된 액세스와 Send/Sync-compatible 키, 값 및 해시 정책 경계가 필요합니다. 호스트 잠금은 장치에 테이블을 게시하지 않습니다. 호스트 핸들을 복사하거나 버킷 레이아웃에 의존하는 대신 명시적 필드를 직렬화하거나 장치가 지원하는 배열로 변환합니다. 더 보기 <a href="Ordered_Map.html">명령된맵</a>, <a href="Map_Entry.html">진입 능력</a>, <a href="../Set/Set.html">Set</a>, <a href="../Vector/Vector.html">Vector</a>, 및 <a href="../String/string.html">string</a>.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.HashMap.html" target="_blank" rel="noopener noreferrer">Rust HashMap 참조: 키 불변, 항목 API, 용량 및 반복</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/collections/struct.BTreeMap.html" target="_blank" rel="noopener noreferrer">Rust BTreeMap 참조: 주문 키 및 범위 횡단</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Ordered_Map.html"><span>다음 레퍼런스</span>명령된맵</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

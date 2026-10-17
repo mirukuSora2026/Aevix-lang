@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="선택된 정시 작업이 포함된 사전 기준선으로, 편집 경로 간에 하나의 언어 계약이 유지됩니다.">
+<title>AOT 및 선택적 JIT - Aevix 문서</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/foundations/Compilation_Model.html">
+<link rel="alternate" hreflang="ko" href="Compilation_Model.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">언어 기초</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">AOT 및 선택적 JIT</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">언어 디자인 참고</p><h1>AOT 및 선택적 JIT</h1><p class="doc-subtitle">선택된 정시 작업이 포함된 사전 기준선으로, 편집 경로 간에 하나의 언어 계약이 유지됩니다.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙 + 공개 결정</span><span class="meta-chip">영어 원문 문서</span></div><dl class="doc-stats"><div class="doc-stat"><dt>기준</dt><dd>모델 번호:AOT</dd></div><div class="doc-stat"><dt>추가 경로</dt><dd>선택적인 JIT</dd></div><div class="doc-stat"><dt>CPU 타겟</dt><dd>AArch64 / x86-64</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>모델 번호:A/J</strong><span>하나의 Semantics</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="레퍼런스 탐색">
+<details class="toc" open><summary>이 페이지의 내용</summary><ol>
+<li><a href="#confirmed-model"><span class="toc-number">01</span><span>미리 컴파일하고 런타임에 선택적으로 컴파일</span></a></li>
+<li><a href="#aot-baseline"><span class="toc-number">02</span><span>AOT는 기본 기준선입니다.</span></a></li>
+<li><a href="#selective-jit"><span class="toc-number">03</span><span>JIT는 제 2 언어가 아닌 선택적입니다.</span></a></li>
+<li><a href="#shared-static-contract"><span class="toc-number">04</span><span>동일한 static contract를 유지한다.</span></a></li>
+<li><a href="#observable-semantics"><span class="toc-number">05</span><span>관찰 가능한 평가 및 오류 유지</span></a></li>
+<li><a href="#optimization-and-specialization"><span class="toc-number">06</span><span>유효한 계약에 의해서만 전문화</span></a></li>
+<li><a href="#cpu-gpu"><span class="toc-number">07</span><span>통합된 CPU/GPU 모델은 여전히 명확한 목표 규칙이 필요합니다.</span></a></li>
+<li><a href="#backend-extensibility"><span class="toc-number">08</span><span>확장 가능한 백엔드 아키텍처 지원</span></a></li>
+<li><a href="#deployment-and-cache"><span class="toc-number">09</span><span>배포, 캐싱 및 폴백이 열려 있음</span></a></li>
+<li><a href="#validation"><span class="toc-number">10</span><span>성과 주장을하기 전에 정확성을 검증</span></a></li>
+<li><a href="#open-decisions"><span class="toc-number">11</span><span>한 눈에 보는 개방형 메커니즘</span></a></li>
+<li><a href="#cpu-execution"><span class="toc-number">12</span><span>ARM64 및 x86-64 실행 아키텍처</span></a></li><li><a href="#related"><span class="toc-number">13</span><span>언어 계약을 통해 계속</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="언어 기초 페이지"><h2>언어 기초</h2><div class="family-links">
+<a href="index.html">개요</a>
+<a href="Design_Principles.html">15 설계 원칙</a>
+<a href="Compilation_Model.html" aria-current="page">AOT 및 선택적 JIT</a>
+</div></nav>
+<nav class="family-nav" aria-label="관련 언어 섹션"><h2>언어 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="index.html">기반</a><a href="../user_defined_types/index.html">사용자 정의 타입</a><a href="../enums/Enums.html">열거형</a><a href="../generics/Generic_Types.html">제네릭 타입</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/index.html">자료형</a></div></nav>
+</aside>
+<article class="content" aria-label="AOT 및 선택적 JIT 참조">
+<section id="confirmed-model" aria-labelledby="confirmed-model-heading">
+<h2 id="confirmed-model-heading">1입니다. 미리 컴파일하고 런타임에 선택적으로 컴파일</h2>
+<p>Aevix는 사전 컴파일과 선택적 Just-In-Time 컴파일을 결합합니다. AOT는 네이티브 코드의 기준선입니다. 선택된 부분은 JIT를 통해 런타임에 컴파일되거나 전문화될 수 있다. 이 선택은 완전한 런타임 아키텍처가 아닌 실행 방향을 설정합니다.</p><blockquote class="callout note"><p><strong>설계 및 0.2 구현 범위.</strong> 컴파일러는 명시적인 AOT 및 ORC JIT 실행 모드를 구현합니다. <a href="../../releases/0_2.html">0.2 구현 프로필</a> 지원 된 행동 및 플랫폼 증거를 기록합니다. 자동 선택적 JIT 트리거, 핫니스 임계값, 영구 캐시 형식 및 완벽한 폴백 정책은 아키텍처 작업으로 남아 있습니다. CPU 프로파일 포함 <a href="../../data_type/Simd/Simd_02.html">명시적 SIMD</a> 및 <a href="../../releases/Parallel_0_2.html">parallel.for_each 범위, 검증된 스칼라 워커</a>. 일반 Task API 및 GPU 실행은 지원되지 않습니다.</p></blockquote>
+</section>
+
+<section id="aot-baseline" aria-labelledby="aot-baseline-heading">
+<h2 id="aot-baseline-heading">2입니다. AOT는 기본 기준선입니다.</h2>
+<p>Ahead-of-time 컴파일은 정상적인 실행 전에 실행 코드를 준비합니다. 소스는 정적으로 타이핑되고 checked 대여 및 대여 모델 선택 베이스라인 작업은 모든 소스 작업이 필수 런타임 컴파일 요청이 될 것을 요구하지는 않습니다.</p><p>역사적인 초기 타겟 매트릭스 및 플랫폼 object/linking 경로는 아래에 설명되어 있습니다. 0.2 컴파일러는 표준 라이브러리 페이로드 패키징, 명시적 최적화 레벨 및 선택적 JIT 빌드를 갖추고 있습니다. 향후 자동 선택적 JIT 배포 및 캐싱 정책은 이러한 구현된 배포 선택 사항과 별개로 유지됩니다.</p>
+</section>
+
+<section id="selective-jit" aria-labelledby="selective-jit-heading">
+<h2 id="selective-jit-heading">3입니다. JIT는 제 2 언어가 아닌 선택적입니다.</h2>
+<p>런타임 컴파일은 선택한 작업에 대해 추가적인 전문화 또는 실행 경로를 제공할 수 있습니다. 동일한 소스 규칙과 지원되는 대상 기능의 적용을 받아야 합니다. 소스는 단순히 코드가 나중에 컴파일되기 때문에 다른 안전 모드를 얻지 못합니다.</p><div class="table-scroll" role="region" aria-label="JIT 관련 선택 사항">
+<table>
+<thead><tr>
+<th scope="col">질문</th>
+<th scope="col">승인된 정책이 아닌 가능한 설계 작업</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">컴파일을 트리거하는 것은 무엇입니까?</th>
+<td>명시적인 요청, 측정된 열량, 런타임 type/shape 사실 또는 다른 선택된 정책.</td>
+</tr>
+<tr>
+<th scope="row">무엇이 전문화 될 수 있습니까?</th>
+<td>사용하는 경우에만 언어의 유형, 오류, 효과 및 비용 계약을 유지합니다.</td>
+</tr>
+<tr>
+<th scope="row">컴파일된 코드는 언제 설치됩니까?</th>
+<td>컴파일 스케줄링, 출판, 동시 호출 동작은 정의된 의미론을 필요로 한다.</td>
+</tr>
+<tr>
+<th scope="row">컴파일을 사용할 수 없거나 실패하면 어떻게 됩니까?</th>
+<td>폴백, 명시적 실패, 재시도 또는 다른 정책이 선택되지 않았습니다.</td>
+</tr>
+<tr>
+<th scope="row">컴파일 시간은 어떻게 노출되나요?</th>
+<td>시작, 대기 시간, 프로파일링 및 런타임 리소스 회계에는 설계가 필요합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="shared-static-contract" aria-labelledby="shared-static-contract-heading">
+<h2 id="shared-static-contract-heading">4입니다. 동일한 static contract를 유지한다.</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct Point {
+    public i32 x;
+    public i32 y;
+};
+
+i32 sum(&amp;Point point) {
+    return (*point).x + (*point).y;
+}
+
+Point input = Point { x = 10, y = 20 };
+i32 output = sum(&amp;input);</code></pre><p>선택한 형식 우선 구문인 명시적인 return, 이름있는 초기화, 참조 권한 및 정수 안전 동작은 두 컴파일 경로 모두에서 동일합니다. JIT는 이동된 바인딩을 재해석하거나, 공유 참조를 업그레이드하거나, 유효하지 않은 필드 유형을 허용할 수 있는 권한이 아닙니다.</p><p>필수 정적 타이핑 및 소유권 진단은 체크되지 않은 실행으로 연기되어서는 안됩니다. 0.2 AOT 및 ORC 경로는 이미 frontend/AIR를 공유하고 생성된 모듈을 확인한다. 미래의 자동 선택적 JIT 가드, 폴백 및 영구 캐시 정책은 별도의 아키텍처 작업으로 남아 있습니다.</p>
+</section>
+
+<section id="observable-semantics" aria-labelledby="observable-semantics-heading">
+<h2 id="observable-semantics-heading">5입니다. 관찰 가능한 평가 및 오류 유지</h2>
+<div class="table-scroll" role="region" aria-label="AOT와 JIT가 공유하는 의미">
+<table>
+<thead><tr>
+<th scope="col">지역</th>
+<th scope="col">유효한 선택된 규칙</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">평가 방식</th>
+<td>Operands, initializer values, receivers, ordinary call arguments는 선택한 순서에 따라 한 번 평가됩니다.</td>
+</tr>
+<tr>
+<th scope="row">산술</th>
+<td>일반 checked 정수 안전 및 명시적 checked Result 복구는 고유한 의미 체계를 유지합니다.</td>
+</tr>
+<tr>
+<th scope="row">오류</th>
+<td>Result/Optional 계약은 명시 적으로 유지됩니다. postfix ?는 Result 오류와 일치하는 전파를 전파합니다.</td>
+</tr>
+<tr>
+<th scope="row">소유권</th>
+<td>Move 기본값, 명시적 Copy, 소스 수명, 상충되는 대여 확인이 유지됩니다.</td>
+</tr>
+<tr>
+<th scope="row">범위 정리</th>
+<td>정상 종료는 선택한 범위 모델에서 현재 소유한 초기화된 값만 정리합니다.</td>
+</tr>
+<tr>
+<th scope="row">발송</th>
+<td>정적 기본 및 명시적으로 선택한 dyn 호출은 컴파일 단계에 따라 암시적으로 변경되지 않습니다.</td>
+</tr>
+<tr>
+<th scope="row">비용 경계</th>
+<td>컴파일은 요청되지 않은 딥 클론, 소유권 상자 또는 CPU/GPU 전송을 삽입할 수 없습니다.</td>
+</tr>
+</tbody>
+</table>
+</div><p>컴파일은 필요한 관찰 가능한 동작을 보존할 때 생성된 명령을 변경할 수 있습니다. 그것은 유효한 증거로만 중복 검사를 제거 할 수 있습니다, 하지 이전에 관찰 된 입력은 모든 미래의 호출을 커버 가정하여. 이불 이불 포인트 또는 빌드 모드 안전 예외가 선택되지 않습니다.</p>
+</section>
+
+<section id="optimization-and-specialization" aria-labelledby="optimization-and-specialization-heading">
+<h2 id="optimization-and-specialization-heading">6입니다. 유효한 계약에 의해서만 전문화</h2>
+<p>선택한 컴파일러 우선 방향은 유효한 최적화를 위해 유형, 모양, 소유권, 효과 및 대상 정보를 사용하는 것을 권장합니다. AOT는 실행 전에 사용 가능한 사실을 사용할 수 있으며, JIT는 유효성이 확립될 때 잠재적으로 추가 런타임 사실을 사용할 수 있습니다.</p><p>감시, 재컴파일, 최적화 해제, 추측 제한, 전문화 예산, 무효화는 여전히 열려 있는 메커니즘 문제이다. 여기에 이름을 붙이는 것은 구현을 선택하지 않습니다. 제네릭 컴파일은 전문화 또는 다른 전략을 사용할 수 있다; 사용자 정의 제네릭 문법은 그 전략을 정착시키지 않는다.</p>
+</section>
+
+<section id="cpu-gpu" aria-labelledby="cpu-gpu-heading">
+<h2 id="cpu-gpu-heading">7입니다. 통합된 CPU/GPU 모델은 여전히 명확한 목표 규칙이 필요합니다.</h2>
+<p>언어 방향은 명백한 전송 및 복사 비용으로 CPU 및 GPU에서 하나의 프로그래밍 모델입니다. AOT/JIT 선택은 어떤 프로세서가 JIT 컴파일을 실행하는지, 어떤 코드가 장치 실행에 적합한지, 또는 장치 코드가 실행 전 또는 실행 중에 컴파일되는지를 규정하지 않습니다.</p><p>대상 가용성, 장치 모듈 형식, 커널 실행 구문, 데이터 배치, 전송 API, 동기화 및 대상별 지원되지 않는 작업은 계속 열려 있습니다. 통합 구문은 공유된 물리적 메모리 또는 비용이 들지 않는 마이그레이션의 약속이 아닙니다.</p><p>Pending 장치 액세스가 릴리스된 백업 저장소보다 오래 유지되어서는 안 됩니다. 빌린 로컬 스토리지는 범위가 끝나기 전에 유효한 completion/lifetime 계약이 필요합니다. 숨겨진 대기와 명시적인 구조화된 완료가 완료되지 않았습니다.</p>
+</section>
+
+<section id="backend-extensibility" aria-labelledby="backend-extensibility-heading">
+<h2 id="backend-extensibility-heading">8입니다. 확장 가능한 백엔드 아키텍처 지원</h2>
+<p>컴파일러는 LLVM 및 MLIR와 같은 백엔드를 확장 할 수 있어야하며 동일한 의미 체계를 다른 대상으로 낮추기에 충분한 언어 정보를 보존해야합니다. 이것은 특정 프론트 엔드, IR 체인, 코드 생성기 또는 백엔드 플러그인이 이미 존재한다는 주장이 아닌 아키텍처 목표입니다.</p><p>초기 경로는 frontend와 AIR를 공유한 다음 AOT 및 ORC 실행을 위해 대상 인식 LLVM를 낮춥니다. 정확한 AIR 스키마, 패스 인터페이스 및 백엔드 API는 열려 있습니다. 장치 백엔드가 지연됩니다. 소스 레벨의 시맨틱 보증은 문서화되지 않은 백엔드 최적화가 우연히 발생하는 것에 의존해서는 안 됩니다.</p>
+</section>
+
+<section id="deployment-and-cache" aria-labelledby="deployment-and-cache-heading">
+<h2 id="deployment-and-cache-heading">9입니다. 배포, 캐싱 및 폴백이 열려 있음</h2>
+<div class="table-scroll" role="region" aria-label="선택되지 않은 런타임 및 배포 메커니즘">
+<table>
+<thead><tr>
+<th scope="col">주제</th>
+<th scope="col">추후 결정을 요구하는 질문</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">배포</th>
+<td>어떤 runtime/compiler 구성 요소가 AOT 프로그램과 함께 제공됩니까?</td>
+</tr>
+<tr>
+<th scope="row">컴파일 캐시</th>
+<td>필요한 source/target/ABI/feature/version 호환성 검사는 아래에서 선택됩니다. 캐시 위치, 형식 및 제거가 열려 있습니다.</td>
+</tr>
+<tr>
+<th scope="row">모델 번호:Failure/fallback</th>
+<td>JIT에서 선택한 작업에 AOT를 항상 사용할 수 있습니까, 아니면 일부 기능이 명시적 오류를 보고합니까?</td>
+</tr>
+<tr>
+<th scope="row">동시성</th>
+<td>자동 스케줄링 및 라이브 코드 교체는 향후 작업으로 남아 있습니다. 현재 ORC API는 모듈 publication/removal를 추적하고 참조 모듈 또는 종료 콜백 모듈의 언로딩을 거부합니다.</td>
+</tr>
+<tr>
+<th scope="row">목표</th>
+<td>역사적인 CPU 범위는 아래에 나열되어 있습니다. 현재 0.2 대상 및 아티팩트 관련 최소 OS/libc 요구 사항은 구현 프로파일에 기록되며 GPU 대상은 계속 지연됩니다.</td>
+</tr>
+<tr>
+<th scope="row">컨트롤</th>
+<td>소스 주석이나 런타임 설정이 있으며 비용은 어떻게 노출됩니까?</td>
+</tr>
+</tbody>
+</table>
+</div><p>캐시 디렉토리, 런타임 플래그, 소스 키워드, 컴파일 임계값, 자동 폴백 또는 기계 코드 ABI가 이 페이지에 의해 생성되지 않습니다.</p>
+</section>
+
+<section id="validation" aria-labelledby="validation-heading">
+<h2 id="validation-heading">10입니다. 성과 주장을하기 전에 정확성을 검증</h2>
+<p>구현에는 유형 및 소유권 거부, checked 산술 실패, Result 종료, 평가 순서, 디스패치, 정리, 대상 기능 처리 및 리소스 수명 보존이라는 두 경로 모두에 대한 적절한 의미 검사가 필요합니다. 런타임 전문화는 또한 생성된 코드를 지원하는 가정이 유효하다는 증거가 필요합니다.</p><p>대표 벤치마크는 기본 처리량, 컴파일 대기 시간, 따뜻한 실행 및 차가운 실행, 메모리 사용, 동기화, 데이터 이동 및 지원되는 장치를 고려해야 합니다. 비교 속도 주장은 AOT/JIT 표기만으로 이어지지 않습니다.</p><blockquote class="callout note"><p><strong>증거 경계.</strong> 이 페이지에서는 아키텍처와 향후 선택적 JIT 메커니즘에 대해 설명합니다. 자세히 보기 <a href="../../releases/0_2.html#limits">0.2 구현 프로필</a> 현재 컴파일러 및 플랫폼 검사. 이러한 검사는 GPU 실행 또는 비교 성능을 설정하지 않습니다.</p></blockquote>
+</section>
+
+<section id="open-decisions" aria-labelledby="open-decisions-heading">
+<h2 id="open-decisions-heading">11입니다. 한 눈에 보는 개방형 메커니즘</h2>
+<ul>
+<li>선택 트리거, 편집 스케줄링, 임계값 및 프로파일링 컨트롤.</li>
+<li>런타임 사실 검증, 가드, 전문화 제한, 무효화 또는 교체 메커니즘.</li>
+<li>자동 선택-JIT fallback/error 정책, deployment/runtime 포함 정책, 영구 캐시 저장 및 퇴거.</li>
+<li>일반 Task 및 GPU 작업: CPU/GPU 부서, 장치 지원 및 launch/transfer/completion 구문. 구현된 CPU parallel.for_each는 반환하기 전에 확인된 명명된 스칼라 워커에 조인하는 범위 호출입니다.</li>
+<li>미래의 공유 코드 일반 하강, 안정적인 공개 AIR/backend 스키마 및 현재 구현을 넘어서는 게시 된 런타임 ABI.</li>
+<li>Safe-stop cleanup과 Custom cleanup declarations은 계속 열려 있으며, 정상적인 영구적 셧다운 순서가 이미 선택되어 있습니다.</li>
+</ul>
+</section>
+
+<section id="cpu-execution" aria-labelledby="cpu-execution-heading">
+<h2 id="cpu-execution-heading">12입니다. ARM64 및 x86-64 실행 아키텍처</h2>
+<p><strong>역사적인 처음 표적 범위:</strong> ARM64(AArch64)와 x86-64를 macOS와 Linux 각각에서 대상으로 삼았습니다. 이 표는 원래의 아키텍처 요구사항을 유지한 것이며, 실행 검증 결과표가 아닙니다. <a href="../../releases/0_2.html#limits">현재 0.2 프로파일</a> 또한 Windows x86-64 대상을 포함하며, object/link 검사는 네이티브 실행과 구별됩니다. ARM32는 이 프로필에서 제외됩니다. 명시적 CPU SIMD 및 범위 지정된 이름-작업자 병렬 처리가 구현되며, 일반 Task API 및 GPU 실행은 지원되지 않습니다.</p>
+<div class="table-scroll" role="region" aria-label="초기 CPU 및 운영 체제 대상"><table><thead><tr><th scope="col">CPU</th><th scope="col">운영 체제</th><th scope="col">목표 요구 사항</th></tr></thead><tbody>
+<tr><th scope="row">모델 번호:AArch64</th><td>모델 번호:macOS</td><td>Apple 플랫폼 ABI, SDK/deployment 대상, Mach-O 연결 및 플랫폼 JIT 메모리 규칙.</td></tr>
+<tr><th scope="row">모델 번호:x86-64</th><td>모델 번호:macOS</td><td>Apple 플랫폼 ABI, SDK/deployment 대상 및 Mach-O 연결; AArch64와 별도의 생성 코드.</td></tr>
+<tr><th scope="row">모델 번호:AArch64</th><td>모델 번호:Linux</td><td>AArch64 Linux ABI, libc/sysroot 선택, ELF 링크 및 호환 가능한 네이티브 런타임.</td></tr>
+<tr><th scope="row">모델 번호:x86-64</th><td>모델 번호:Linux</td><td>x86-64 Linux ABI, libc/sysroot 선택, ELF 링크 및 호환 가능한 네이티브 런타임.</td></tr>
+</tbody></table></div>
+<p>최소 OS, Linux libc 및 SDK/toolchain 요구 사항은 각 자격을 갖춘 릴리스 아티팩트에 속합니다. 이 역사적인 매트릭스에서 지원을 추론하기보다는 현재 릴리스 및 설치 정보를 참조하십시오. 대상 설명에는 아키텍처, OS, environment/ABI, CPU 기능 및 데이터 레이아웃이 포함됩니다. 프론트엔드 검사는 크기, 정렬 및 FFI 결정에 대해 이 타겟 정보를 참조할 수 있다; A shared frontend does not mean target-independent pointer sizes or calling conventions.</p>
+<h3 id="execution-pipeline">Shared 검사, 대상별 생성 코드</h3>
+<ol><li>하나의 프론트 엔드, 유형 시스템 및 소유권 모델을 사용하여 Aevix 소스를 구문 분석하고 확인하십시오. AIR에서 언어 수준 의미 체계를 보존합니다.</li><li>선택한 대상의 데이터 레이아웃을 사용하여 초기 LLVM 백엔드를 통해 AIR를 낮추고 ABI를 호출합니다. 대상 레이아웃이 있는 LLVM IR은 자동으로 휴대용 바이트코드 번들이 아닙니다.</li><li>AOT의 경우 대상 개체 코드를 방출하고 적절한 대상 링커와 sysroot를 사용하여 일치하는 런타임 및 시스템 라이브러리를 연결합니다. 운영 체제의 실행 가능한 로더를 사용합니다.</li><li>소스로부터의 실행을 위해, 현재 aivixc 명령어 compiles/runs는 기본적으로 AOT 경로를 통과하고, --jit이 명시적이고 사용 가능할 때 ORC를 사용한다. JIT는 호스트 프로세스를 대상으로 하며 다른 CPU 아키텍처 또는 OS ABI를 직접 실행할 수 없습니다. 별도의 aevix-run CLI는 확장 포인트로 남아 있습니다.</li><li>공유 런타임 시작 및 일반 종료를 사용합니다(기존 persist 초기화 및 정리 계약 포함). 정리 콜백을 통해 필요한 JIT 코드를 유지합니다.</li></ol>
+<p>LLVM 코드 생성 및 ORC는 초기 구현 경로입니다. 기존 Backend/Native 아키텍처 관련 인코더 폴더는 이후의 확장 포인트로 남아 있습니다. 사용자 정의 기본 인코더, 사용자 정의 실행 로더, 에뮬레이터 및 원격 실행기는 첫 번째 구현에 필요하지 않습니다. 객체 파일을 교차 컴파일한다고 해서 컴파일러의 컴퓨터에서 링크되거나 실행될 수 있는 것은 아니다.</p>
+<div class="table-scroll" role="region" aria-label="실행 디렉터리 책임"><table><thead><tr><th scope="col">폴더</th><th scope="col">책임</th></tr></thead><tbody>
+<tr><th scope="row">include/aevix/Target 그리고 src/Target</th><td>하나의 대상 설명, CPU 기능 정책 및 ABI/data-layout 선택. 백엔드 어댑터는 두 번째 대상 ID를 정의하는 대신 이 설명을 사용합니다.</td></tr>
+<tr><th scope="row">include/aevix/Execution 그리고 src/Execution</th><td>소스 실행, 대상 호환성, AOT/JIT 입력 및 실행 코드 수명 조정</td></tr>
+<tr><th scope="row">Backend/LLVM 그리고 JIT/ORC</th><td>구현 LLVM 공유를 사용하여 코드 방출 및 ORC 통합을 낮추기 target/runtime 계약.</td></tr>
+<tr><th scope="row">모델 번호:include/aevix/Runtime/ABI</th><td>컴파일러 대 런타임 C ABI 버전; 처음에는 간단한 스칼라, 포인터, 명시적 길이 및 출력 매개 변수를 선호합니다. 네이티브 C++ 개체와 예외는 암시적으로 교차해서는 안 됩니다.</td></tr>
+<tr><th scope="row">runtime/Startup, runtime/Platform 및 runtime/Arch는 유효합니다.</th><td>공통 언어 수명주기; OS memory/loader 서비스; 최소한의 ISA 특정 기능 및 명령어 캐시 지원. POSIX 서비스를 공유하지만 macOS/Linux-specific 차이를 유지합니다.</td></tr>
+<tr><th scope="row">모델 번호:cmake/Toolchains</th><td>기계 건물 Aevix를 그것을 달리는 기계 및 생성한 Aevix 부호의 표적에서 분리하십시오. 일치하는 SDK, sysroots 및 런타임 라이브러리를 선택합니다.</td></tr>
+<tr><th scope="row">tools/aevix-run 그리고 tests/Portability</th><td>제안된 실행 CLI 및 architecture/OS 유효성 검사 매트릭스. 폴더 존재는 구현된 러너가 아닙니다.</td></tr>
+</tbody></table></div>
+<h3 id="execution-safety">네이티브 실행 및 캐시 호환성</h3>
+<p>AOT 배포는 각 대상에 대해 명시적인 휴대용 CPU 기준선을 사용합니다. Optional CPU 명령어는 명시적인 타겟 요구사항이나 검증된 런타임 디스패치 경로를 필요로 한다; 빌드 머신의 기능에 대한 분산 코드를 자동으로 컴파일하지 않는다. JIT 기능 선택은 실행기의 사용 가능한 기능을 기반으로 합니다.</p>
+<p>코드를 설치하거나 로드하기 전에 대상, ABI 및 필요한 CPU 기능을 확인하십시오. 캐시 ID에는 소스 및 종속성, compiler/LLVM 버전, language/runtime ABI, 대상 트리플, 데이터 레이아웃 및 코드 생성 옵션이 포함되어야 합니다. 캐시 경로와 파일 형식은 열려 있습니다. 캐시 히트는 두 번째 persist 인스턴스를 생성하지 않습니다.</p>
+<p>OS 전용 실행 가능 메모리 할당, write/execute 전환 및 필수 명령어 캐시 동기화는 platform/architecture 인터페이스 뒤에 있습니다. macOS에서는 선택한 배포 및 Hardened Runtime 구성에 대해 지원되는 JIT 메모리 및 코드 서명 규칙을 적용합니다.</p>
+<p>현재 0.2 JIT가 모듈 제거를 추적했습니다. 참조 모듈과 출구 콜백을 소유 한 모듈은 언로드 할 수 없습니다. 정리에 필요한 코드는 세션 분해를 통해 계속 사용할 수 있습니다. 자동 핫 교체, signature/layout 마이그레이션, 핫니스 트리거 및 투기적 최적화 해제는 향후 작업으로 남아 있습니다. 명시적 모듈 제거는 라이브 값이 임의 코드 교체에서 살아남을 수 있다는 약속이 아닙니다.</p>
+<h3 id="entry-contract">명시적 초기 진입 계약</h3>
+<p>0.2 명령 <code>aevixc entry.avx</code> Entry Module 을 선택합니다. 프로젝트는 일반적으로 사용할 수 있습니다. <code>src/main.avx</code>그러나 CLI는 그 경로를 요구하거나 입력 인수없이 선택하지 않습니다. 원본 루트는 다음과 같이 설정할 수 있습니다. <code>--source-root DIR</code>프로젝트 매니페스트 기본값은 향후 작업으로 유지됩니다. 초기 엔트리 함수는 정확히 하나의 수신기가 없고, 비정형이며, 과부하되지 않은 것입니다. <code>i32 main()</code>. 공개가 필요하지 않습니다: 실행 가능한 시작 어댑터는 일반 언어 모듈에서 개인 선언을 가져오는 대신 해당 항목을 선택합니다.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 main() {
+    return 0;
+}</code></pre>
+<p>필요한 모든 최상위 persist 초기화는 main이 시작되기 전에 성공합니다. i32 결과는 플랫폼 종료 어댑터로 전달되며, 0은 성공을 의미하며 운영 체제의 관측 가능한 종료 상태 표시는 모든 i32 비트를 보존할 것을 약속하지 않습니다. 명령행 인수 매개 변수, Result-returning main 및 async main은 초기 입력 형식이 아닙니다. 도서관은 주인공을 필요로 하지 않는다.</p>
+<p>공유 런타임 시작 래퍼는 플랫폼 ABI 항목을 제공하고 일치하는 생성 된 ABI를 사용하여 checked 언어 항목을 호출합니다. compiler/runtime C ABI는 운영 체제 항목 ABI와 구별됩니다. CMake 툴체인은 선택한 호스트 또는 크로스 빌드 환경에 대한 compiler/runtime를 빌드합니다. 컴파일러가 나중에 방출하는 모든 Aevix 프로그램의 대상을 실수로 결정해서는 안 됩니다.</p>
+<h3 id="execution-validation">지원을 선언하기 전에 필요한 증거</h3>
+<p>네 가지 아키텍처·OS 조합 모두에서 네이티브 AOT 및 JIT 테스트를 실행합니다. 산술과 Result 동작, 소유권 위반 거부, 평가 순서, struct·enum 호출과 반환, C ABI 왕복, persist 식별과 정리, CPU 기능 거부, 플랫폼별 JIT 권한을 확인합니다. 교차 빌드와 에뮬레이션 검사는 네이티브 실행의 근거를 보완하며 대체하지는 않습니다. <a href="../../releases/0_2.html#execution">현재 0.2 프로파일</a> 실제 지원 대상 및 검사를 기록합니다. 이 역사적인 4-결합 매트릭스는 macOS Intel 자격의 주장으로 읽혀서는 안됩니다.</p>
+<p>기본 구현 참조 : <a href="https://llvm.org/docs/LangRef.html#target-triple">LLVM 타겟 트리플</a>, <a href="https://clang.llvm.org/docs/CrossCompilation.html">Clang 크로스 컴파일 및 sysroots</a>, <a href="https://llvm.org/docs/ORCv2.html">LLVM ORC 아키텍처</a>, <a href="https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html">CMake 툴체인</a> 및 <a href="https://developer.apple.com/documentation/apple-silicon/porting-just-in-time-compilers-to-apple-silicon">애플 실리콘 JIT 요구 사항</a>. 이러한 소스는 아키텍처를 안내하며 Aevix 구현의 유효성을 검사하지 않습니다.</p>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">13입니다. 언어 계약을 통해 계속</h2>
+<nav class="page-navigation" aria-label="관련 모음집">
+<a href="Design_Principles.html"><span>목표</span><strong>15 디자인 원칙</strong><p>전체 선택한 언어 및 컴파일러 방향입니다.</p></a>
+<a href="../operators/Checked_Arithmetic.html"><span>실패</span><strong>검사 산술</strong><p>컴파일 경로에서 하나의 checked 산술 계약.</p></a>
+<a href="../scope_and_comments/Resource_Cleanup.html"><span>자원</span><strong>자원 정리</strong><p>소유권 릴리스 및 보류 중 액세스 수명 경계.</p></a>
+<a href="../generics/Generic_Types.html"><span>자료형</span><strong>일반 유형</strong><p>타입 파라미터는 하나의 백엔드 전문화 전략을 의미하지 않는다.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix 언어 · 언어 기초</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

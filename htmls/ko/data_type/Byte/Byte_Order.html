@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="별칭이 없고 명시적인 엔디안이 있는 고정폭 필드를 검사했습니다.">
+  <title>Byte 순서 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Byte/Byte_Order.html">
+<link rel="alternate" hreflang="ko" href="Byte_Order.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Byte.html" aria-current="true">Byte</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Byte.html">Byte</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Byte 순서</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Byte 순서</h1><p class="doc-subtitle">별칭이 없고 명시적인 엔디안이 있는 고정폭 필드를 검사했습니다.</p><div class="doc-meta"><span class="meta-chip">Slice&lt;byte&gt;</span><span class="meta-chip">Byte. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>오프셋</dt><dd>Byte 오프셋</dd></div><div class="doc-stat"><dt>주문</dt><dd>Little / big / native</dd></div><div class="doc-stat"><dt>카탈로그</dt><dd>48 APIs에 오신 것을 환영합니다</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>byte</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>넓이와 순서</span></a></li><li><a href="#Portable-Layout"><span class="toc-number">02</span><span>휴대용 레이아웃 및 네이티브 인터럽</span></a></li><li><a href="#Read-Contract"><span class="toc-number">03</span><span>경계, 서명 및 비용</span></a></li><li><a href="#Integer-16"><span class="toc-number">04</span><span>열 여섯 비트 필드</span></a></li><li><a href="#Integer-32"><span class="toc-number">05</span><span>32 비트 필드</span></a></li><li><a href="#Integer-64"><span class="toc-number">06</span><span>64비트 필드</span></a></li><li><a href="#Single-Byte-Float"><span class="toc-number">07</span><span>단일 바이트 및 부동 표현</span></a></li><li><a href="#Writes-Examples"><span class="toc-number">08</span><span>쓰기, 소유권 및 예제</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Byte 페이지"><h2>Byte 참조</h2><div class="family-links"><a href="Byte.html">Byte</a><a href="Byte_Buffer.html">Byte 버퍼</a><a href="Byte_Order.html" aria-current="page">Byte 순서</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Byte 순서 참조">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1입니다. 넓이와 순서
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> <code>byte</code> 그녀의 명백한 <code>Byte.from_u8</code>/<code>to_u8</code> scalar conversion이 실행되고 있습니다. 이 페이지의 엔디안 read/write 함수와 그들이 참조하는 Integer/Float byte-codec 카탈로그는 제안으로 남아 있습니다. 그들의 사용을 <code>Array&lt;byte, N&gt;</code> 표현 계약이며, 구현 된 직렬화의 증거가 아닙니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>엔디언은 여러 바이트로 된 값 안에서 바이트의 순서를 정합니다. 각 바이트 안의 비트를 뒤집거나, 부호 유무를 정하거나, 완전한 파일 형식을 지정하지는 않습니다. 한 바이트짜리 필드에는 바이트 순서 구분이 필요하지 않습니다. 이 페이지는 검사 없는 네이티브 포인터 캐스트 대신 원시 슬라이스에 대한 Byte 네임스페이스 연산을 정의합니다. 모든 오프셋과 반환되는 쓰기 길이는 바이트 단위입니다. 애플리케이션 수준의 필드 스키마는 호출자가 별도로 선택합니다.
+</p>
+<blockquote class="callout note">
+<p><strong>설계 초안.</strong> 이름, 지원 레코드 및 개념 구문은 제안된 Aevix 계약을 설명합니다. 그들은 실행을 주장하거나 성과를 측정하지 않습니다. 선언은 형식을 먼저 놓고 바인딩은 기본적으로 변경할 수 없습니다. MutSlice&lt;T&gt;는 독점적인 쓰기 가능 뷰를 나타냅니다. <code>mut</code>, <code>&amp;T</code>, 및 <code>&amp;mut T</code> 선택한 선언을 따르고 규칙을 대여하십시오. 카탈로그 관련 지원 기록 및 시그니처은 제안으로 남아 있습니다.
+</p>
+</blockquote>
+</section>
+<section id="Portable-Layout" aria-labelledby="Portable-Layout-heading">
+<h2 id="Portable-Layout-heading">2입니다. 휴대용 레이아웃 및 네이티브 인터럽
+</h2>
+<p>리틀 엔디안은 가장 중요하지 않은 byte를 먼저 배치하고 빅 엔디안은 마지막으로 배치합니다. 따라서 u16 값 0x1234는 little-endian에서는 [0x34, 0x12], big-endian에서는 [0x12, 0x34]로 인코딩됩니다. 네이티브 오더는 실행 대상의 문서화된 표현을 의미하며, 범용 호스트 컨벤션을 의미하지 않습니다. 네이티브 순서 필드는 지정되지 않은 휴대용 파일 형식으로는 적합하지 않습니다. 스키마는 필드 순서, 너비, 패딩, 태그, 길이 및 버전 지정을 별도로 선언합니다.
+</p><p>일반 <a href="../Integer/Integer.html#Integer-to_le_bytes">Integer 표현 API</a> 및 <a href="../Float/Float.html">Float 표현 API</a> 동일한 Raw 사용 <code>byte</code> 이 문서의 형식입니다. 고정된 코덱이 생성 또는 소비 <code>Array&lt;byte, N&gt;</code>; 동적 코덱 borrow <code>Slice&lt;byte&gt;</code> 또는 <code>MutSlice&lt;byte&gt;</code>. 숫자 <code>u8</code> 배열은 암시적 재해석이 아닌 명시적 요소 변환이 필요합니다. 모델 번호:Float <code>to_bits</code>/<code>from_bits</code> 대신 부호 없는 정수 단어를 사용하고 byte 직렬화와는 구별됩니다.</p>
+</section>
+<section id="Read-Contract" aria-labelledby="Read-Contract-heading">
+<h2 id="Read-Contract-heading">3입니다. 경계, 서명 및 비용
+</h2>
+<p>판독값은 오프셋 ≤ 길이 및 폭 ≤ 길이  오프셋이 필요합니다. 이것은 오버 플로우 오프셋 플러스 폭을 방지 합니다. 읽기는 네이티브 정렬 요구 사항없이 초기화 된 바이트를 사용하고 힙 메모리를 할당하지 않습니다. 부호 있는 디코딩은 선택한 고정폭 2&#x27;s-보완 해석을 사용합니다: ff ff는 −1를 i16로, 65535를 u16로 제공합니다. 이것은 선언 된 표현을 디코딩하는 것이지 변환 오류를 자동으로 무시하는 숫자가 아닙니다. 고정 너비는 usize로 변경되지 않습니다.
+</p>
+</section>
+<section id="Integer-16" aria-labelledby="Integer-16-heading">
+<h2 id="Integer-16-heading">4입니다. 열 여섯 비트 필드
+</h2>
+<p>아래의 각 함수는 정확히 2 바이트를 소비하거나 씁니다. 그 철자는 결과 유형을 수정하고 byte 순서; 데이터 never는 자체 인코딩을 선택합니다. 호출자는 소스 소유자를 유지하고 그 결과는 독립적인 스칼라입니다. MutSlice 배타성이 필요합니다. 용량 확인에 실패하면 출력이 변경되지 않고 never 쓰기가 암시적으로 소유자를 증가시킵니다. 허용된 값 범위와 같은 프로토콜 시맨틱 제약은 성공적인 필드 디코딩 후 별도의 상태로 유지됩니다.
+</p>
+<div class="table-scroll" role="region" aria-label="16비트 필드 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">시그니처</th><th scope="col">반환</th><th scope="col">계약 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u16_le"><th scope="row"><code>Byte.read_u16_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u16, ByteError&gt;</code></td><td>정확하게 2 little-endian 바이트를 unsigned로 읽는다; 할당 또는 정렬 요구 사항이 없다.</td>
+</tr>
+<tr id="Byte-write_u16_le"><th scope="row"><code>Byte.write_u16_le(MutSlice&lt;byte&gt; output, usize offset, u16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 2 little-endian 바이트를 쓰고 return 2; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_u16_be"><th scope="row"><code>Byte.read_u16_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u16, ByteError&gt;</code></td><td>정확하게 2 큰 endian 바이트를 unsigned로 읽으십시오; 배부 또는 줄맞춤 필요조건 없음.</td>
+</tr>
+<tr id="Byte-write_u16_be"><th scope="row"><code>Byte.write_u16_be(MutSlice&lt;byte&gt; output, usize offset, u16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 2 큰 엔디안 바이트를 쓰고 return 2; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_u16_ne"><th scope="row"><code>Byte.read_u16_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u16, ByteError&gt;</code></td><td>정확하게 2 target-native-endian 바이트를 unsigned로 읽습니다. 할당 또는 정렬 요구 사항이 없습니다.</td>
+</tr>
+<tr id="Byte-write_u16_ne"><th scope="row"><code>Byte.write_u16_ne(MutSlice&lt;byte&gt; output, usize offset, u16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고, 2 target-native-endian 바이트를 쓰고, return 2; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i16_le"><th scope="row"><code>Byte.read_i16_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i16, ByteError&gt;</code></td><td>정확하게 2 little-endian 바이트를 2&#x27;s-complement signed로 읽는다; 할당이나 정렬 요구 사항이 없다.</td>
+</tr>
+<tr id="Byte-write_i16_le"><th scope="row"><code>Byte.write_i16_le(MutSlice&lt;byte&gt; output, usize offset, i16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 2 little-endian 바이트를 쓰고 return 2; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i16_be"><th scope="row"><code>Byte.read_i16_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i16, ByteError&gt;</code></td><td>정확하게 2 큰 endian 바이트를 부호 있는 2&#x27;s-complement로 읽으십시오; 배부 또는 줄맞춤 필요조건 없음.</td>
+</tr>
+<tr id="Byte-write_i16_be"><th scope="row"><code>Byte.write_i16_be(MutSlice&lt;byte&gt; output, usize offset, i16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 2 큰 엔디안 바이트를 쓰고 return 2; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i16_ne"><th scope="row"><code>Byte.read_i16_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i16, ByteError&gt;</code></td><td>정확하게 2 target-native-endian 바이트를 부호 있는 두 개의 완성으로 읽습니다. 할당 또는 정렬 요구 사항이 없습니다.</td>
+</tr>
+<tr id="Byte-write_i16_ne"><th scope="row"><code>Byte.write_i16_ne(MutSlice&lt;byte&gt; output, usize offset, i16 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고, 2 target-native-endian 바이트를 쓰고, return 2; 할당 없음.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Integer-32" aria-labelledby="Integer-32-heading">
+<h2 id="Integer-32-heading">5입니다. 32 비트 필드
+</h2>
+<p>이러한 함수는 C int 또는 포인터 크기의 정수의 플랫폼 너비가 아닌 정확히 4 바이트를 사용합니다. 기본 순서 변형은 고정폭으로 유지됩니다. 응용 프로그램 코드는 더 좁은 값 또는 usize가 필요한 경우 디코딩 후 명시적 checked 변환을 수행할 수 있습니다. 유효한 디코딩된 정수는 유효한 인덱스, 할당 길이, Unicode 스칼라 또는 신뢰할 수 있는 프로토콜 태그가 아닙니다. Byte 순서만으로는 이러한 의미를 검증하거나 메시지를 인증하지 않습니다.
+</p>
+<div class="table-scroll" role="region" aria-label="32비트 필드 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">시그니처</th><th scope="col">반환</th><th scope="col">계약 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u32_le"><th scope="row"><code>Byte.read_u32_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u32, ByteError&gt;</code></td><td>정확하게 4 little-endian 바이트를 unsigned로 읽는다; 할당 또는 정렬 요구 사항이 없다.</td>
+</tr>
+<tr id="Byte-write_u32_le"><th scope="row"><code>Byte.write_u32_le(MutSlice&lt;byte&gt; output, usize offset, u32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 4 little-endian 바이트를 쓰고 return 4; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_u32_be"><th scope="row"><code>Byte.read_u32_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u32, ByteError&gt;</code></td><td>정확하게 4 큰 endian 바이트를 unsigned로 읽으십시오; 배부 또는 줄맞춤 필요조건 없음.</td>
+</tr>
+<tr id="Byte-write_u32_be"><th scope="row"><code>Byte.write_u32_be(MutSlice&lt;byte&gt; output, usize offset, u32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 4 큰 엔디안 바이트를 쓰고 return 4; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_u32_ne"><th scope="row"><code>Byte.read_u32_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u32, ByteError&gt;</code></td><td>정확하게 4 target-native-endian 바이트를 unsigned로 읽습니다. 할당 또는 정렬 요구 사항이 없습니다.</td>
+</tr>
+<tr id="Byte-write_u32_ne"><th scope="row"><code>Byte.write_u32_ne(MutSlice&lt;byte&gt; output, usize offset, u32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고, 4 target-native-endian 바이트를 쓰고, return 4; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i32_le"><th scope="row"><code>Byte.read_i32_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i32, ByteError&gt;</code></td><td>정확하게 4 little-endian 바이트를 2&#x27;s-complement signed로 읽는다; 할당이나 정렬 요구 사항이 없다.</td>
+</tr>
+<tr id="Byte-write_i32_le"><th scope="row"><code>Byte.write_i32_le(MutSlice&lt;byte&gt; output, usize offset, i32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 4 little-endian 바이트를 쓰고 return 4; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i32_be"><th scope="row"><code>Byte.read_i32_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i32, ByteError&gt;</code></td><td>정확하게 4 큰 endian 바이트를 부호 있는 2&#x27;s-complement로 읽으십시오; 배부 또는 줄맞춤 필요조건 없음.</td>
+</tr>
+<tr id="Byte-write_i32_be"><th scope="row"><code>Byte.write_i32_be(MutSlice&lt;byte&gt; output, usize offset, i32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 4 큰 엔디안 바이트를 쓰고 return 4; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i32_ne"><th scope="row"><code>Byte.read_i32_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i32, ByteError&gt;</code></td><td>정확하게 4 target-native-endian 바이트를 부호 있는 두 개의 완성으로 읽습니다. 할당 또는 정렬 요구 사항이 없습니다.</td>
+</tr>
+<tr id="Byte-write_i32_ne"><th scope="row"><code>Byte.write_i32_ne(MutSlice&lt;byte&gt; output, usize offset, i32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고, 4 target-native-endian 바이트를 쓰고, return 4; 할당 없음.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Integer-64" aria-labelledby="Integer-64-heading">
+<h2 id="Integer-64-heading">6입니다. 64비트 필드
+</h2>
+<p>8-byte 코덱은 높은 부호 없는 비트를 포함하여 모든 정수 비트를 보존합니다. f64가 모든 64-bit 정수를 정확히 나타낼 수 없기 때문에 부동 중간체는 허용되지 않습니다. 구현은 정렬된 로드 없이 결과를 조합할 수 있습니다; 네이티브 가속은 동일한 범위와 표현 계약을 보존해야 합니다. 8-byte 스토리지 지원은 네이티브 GPU 산술, 원자 또는 특정 속도를 약속하지 않습니다. Tensor 배치 및 기내 액세스 권한은 그대로 유지됩니다.
+</p>
+<div class="table-scroll" role="region" aria-label="64비트 필드 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">시그니처</th><th scope="col">반환</th><th scope="col">계약 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u64_le"><th scope="row"><code>Byte.read_u64_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u64, ByteError&gt;</code></td><td>정확하게 8 little-endian 바이트를 unsigned로 읽는다; 할당 또는 정렬 요구 사항이 없다.</td>
+</tr>
+<tr id="Byte-write_u64_le"><th scope="row"><code>Byte.write_u64_le(MutSlice&lt;byte&gt; output, usize offset, u64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 8 little-endian 바이트를 쓰고 return 8; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_u64_be"><th scope="row"><code>Byte.read_u64_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u64, ByteError&gt;</code></td><td>정확하게 8 큰 endian 바이트를 unsigned로 읽으십시오; 배부 또는 줄맞춤 필요조건 없음.</td>
+</tr>
+<tr id="Byte-write_u64_be"><th scope="row"><code>Byte.write_u64_be(MutSlice&lt;byte&gt; output, usize offset, u64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 8 큰 엔디안 바이트를 쓰고 return 8; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_u64_ne"><th scope="row"><code>Byte.read_u64_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u64, ByteError&gt;</code></td><td>정확하게 8 target-native-endian 바이트를 unsigned로 읽습니다. 할당 또는 정렬 요구 사항이 없습니다.</td>
+</tr>
+<tr id="Byte-write_u64_ne"><th scope="row"><code>Byte.write_u64_ne(MutSlice&lt;byte&gt; output, usize offset, u64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고, 8 target-native-endian 바이트를 쓰고, return 8; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i64_le"><th scope="row"><code>Byte.read_i64_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i64, ByteError&gt;</code></td><td>정확하게 8 little-endian 바이트를 2&#x27;s-complement signed로 읽는다; 할당이나 정렬 요구 사항이 없다.</td>
+</tr>
+<tr id="Byte-write_i64_le"><th scope="row"><code>Byte.write_i64_le(MutSlice&lt;byte&gt; output, usize offset, i64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 8 little-endian 바이트를 쓰고 return 8; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i64_be"><th scope="row"><code>Byte.read_i64_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i64, ByteError&gt;</code></td><td>정확하게 8 큰 endian 바이트를 부호 있는 2&#x27;s-complement로 읽으십시오; 배부 또는 줄맞춤 필요조건 없음.</td>
+</tr>
+<tr id="Byte-write_i64_be"><th scope="row"><code>Byte.write_i64_be(MutSlice&lt;byte&gt; output, usize offset, i64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고 8 큰 엔디안 바이트를 쓰고 return 8; 할당 없음.</td>
+</tr>
+<tr id="Byte-read_i64_ne"><th scope="row"><code>Byte.read_i64_ne(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i64, ByteError&gt;</code></td><td>정확하게 8 target-native-endian 바이트를 부호 있는 두 개의 완성으로 읽습니다. 할당 또는 정렬 요구 사항이 없습니다.</td>
+</tr>
+<tr id="Byte-write_i64_ne"><th scope="row"><code>Byte.write_i64_ne(MutSlice&lt;byte&gt; output, usize offset, i64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>모든 범위를 확인하고, 8 target-native-endian 바이트를 쓰고, return 8; 할당 없음.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Single-Byte-Float" aria-labelledby="Single-Byte-Float-heading">
+<h2 id="Single-Byte-Float-heading">7입니다. 단일 바이트 및 부동 표현
+</h2>
+<p>단일 byte 함수는 중복 엔디안 접미사 없이 u8 및 i8 숫자 해석을 구분합니다. 부동 코덱은 정수에서 float로의 숫자 변환이 아닌 f32/f64 표현을 전송합니다. 전송은 부호 있는 0 및 NaN 페이로드 비트를 보존합니다; 나중에 산술은 Float 규칙을 따르고 NaN을 변환할 수 있습니다. 를 사용 <a href="../Float/Float.html">Float byte API에서</a> 여기서 코덱을 재정의하는 대신 f16 및 bf16 용. raw floating 디코드는 finiteness나 유효한 application-domain 값을 설정하지 않는다.
+</p>
+<div class="table-scroll" role="region" aria-label="단일 바이트 및 부동 표현 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">시그니처</th><th scope="col">반환</th><th scope="col">계약 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Byte-read_u8"><th scope="row"><code>Byte.read_u8(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;u8, ByteError&gt;</code></td><td>선언된 unsigned 또는 two’s-complement 해석을 사용하여 byte를 한 번 읽습니다.</td>
+</tr>
+<tr id="Byte-write_u8"><th scope="row"><code>Byte.write_u8(MutSlice&lt;byte&gt; output, usize offset, u8 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>그런 다음 하나의 표현 byte; return를 작성합니다.</td>
+</tr>
+<tr id="Byte-read_i8"><th scope="row"><code>Byte.read_i8(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;i8, ByteError&gt;</code></td><td>선언된 unsigned 또는 two’s-complement 해석을 사용하여 byte를 한 번 읽습니다.</td>
+</tr>
+<tr id="Byte-write_i8"><th scope="row"><code>Byte.write_i8(MutSlice&lt;byte&gt; output, usize offset, i8 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>그런 다음 하나의 표현 byte; return를 작성합니다.</td>
+</tr>
+<tr id="Byte-read_f32_le"><th scope="row"><code>Byte.read_f32_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f32, ByteError&gt;</code></td><td>정확히 4 리틀 엔디안 표현 바이트를 디코딩하여 부호 있는 0 및 NaN 비트를 보존합니다.</td>
+</tr>
+<tr id="Byte-write_f32_le"><th scope="row"><code>Byte.write_f32_le(MutSlice&lt;byte&gt; output, usize offset, f32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>경계를 확인하고 4 정확한 리틀 엔디언 표현 바이트와 return 4를 작성합니다.</td>
+</tr>
+<tr id="Byte-read_f32_be"><th scope="row"><code>Byte.read_f32_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f32, ByteError&gt;</code></td><td>정확히 4의 빅 엔디안 표현 바이트를 디코딩하여 부호 있는 0 및 NaN 비트를 보존합니다.</td>
+</tr>
+<tr id="Byte-write_f32_be"><th scope="row"><code>Byte.write_f32_be(MutSlice&lt;byte&gt; output, usize offset, f32 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>경계를 확인하고 4 정확한 빅 엔디언 표현 바이트와 return 4를 작성합니다.</td>
+</tr>
+<tr id="Byte-read_f64_le"><th scope="row"><code>Byte.read_f64_le(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f64, ByteError&gt;</code></td><td>정확히 8 리틀 엔디안 표현 바이트를 디코딩하여 부호 있는 0 및 NaN 비트를 보존합니다.</td>
+</tr>
+<tr id="Byte-write_f64_le"><th scope="row"><code>Byte.write_f64_le(MutSlice&lt;byte&gt; output, usize offset, f64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>경계를 확인하고 8 정확한 리틀 엔디언 표현 바이트와 return 8를 작성합니다.</td>
+</tr>
+<tr id="Byte-read_f64_be"><th scope="row"><code>Byte.read_f64_be(Slice&lt;byte&gt; input, usize offset)</code></th><td><code>Result&lt;f64, ByteError&gt;</code></td><td>정확히 8의 빅 엔디안 표현 바이트를 디코딩하여 부호 있는 0 및 NaN 비트를 보존합니다.</td>
+</tr>
+<tr id="Byte-write_f64_be"><th scope="row"><code>Byte.write_f64_be(MutSlice&lt;byte&gt; output, usize offset, f64 value)</code></th><td><code>Result&lt;usize, ByteError&gt;</code></td><td>경계를 확인하고 8 정확한 빅 엔디언 표현 바이트와 return 8를 작성합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Writes-Examples" aria-labelledby="Writes-Examples-heading">
+<h2 id="Writes-Examples-heading">8입니다. 쓰기, 소유권 및 예제
+</h2>
+<p>그런 다음 write는 bounds failure leaves 출력을 변경하지 않음을 의미하며 하드웨어 원자 트랜잭션, 동기화 또는 내구성있는 스토리지를 약속하지 않습니다. 대여 규칙은 상충되는 소스 및 출력 별칭을 금지합니다. 숫자 스칼라 입력은 대상 바이트에 별칭을 지정하지 않습니다. never가 숨겨진 저장소를 할당합니다. 사용 <a href="Byte_Buffer.html">Byte 버퍼</a> 주인을 키우기 위해 그리고 <a href="../Integer/Integer.html">Integer</a> 산술에 대한.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;byte, 2&gt; data = [Byte.from_u8(0x34), Byte.from_u8(0x12)];
+Slice&lt;byte&gt; view = Slice.from_array(&amp;data);
+Byte.read_u16_le(view, 0); // Result containing 4660
+Byte.read_u16_be(view, 0); // Result containing 13330
+Byte.read_u16_le(view, 1); // bounds error</code></pre>
+<p>텍스트 스트림은 자신의 UTF-16/UTF-32 코덱과 BOM 정책이 필요합니다; UTF-8는 엔디안 대안이 없습니다. 더 보기 <a href="../String/string.html">string</a> 및 <a href="../Char/Unicode_Scalar.html">Unicode 스칼라</a>. API 이름 및 지원 레코드는 제안으로 남아 있으며 기본 참조는 Aevix 구현을 인증하지 않습니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://docs.python.org/3/library/struct.html" target="_blank" rel="noopener noreferrer">Python 구조체 — 명시적 byte 순서, 크기 및 정렬</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.u8.html" target="_blank" rel="noopener noreferrer">Rust u8 — 비트 조작과 byte 순서 비교</a>
+</li>
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank" rel="noopener noreferrer">Unicode 코어 사양 — 인코딩 및 오류 대체</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Byte_Buffer.html"><span>이전 레퍼런스</span>Byte 버퍼</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

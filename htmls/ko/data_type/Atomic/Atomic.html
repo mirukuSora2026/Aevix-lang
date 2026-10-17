@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="메모리 순서·산술·타깃 지원을 명시하는 타입 지정 원자 셀.">
+  <title>Atomic — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Atomic/Atomic.html">
+<link rel="alternate" hreflang="ko" href="Atomic.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Atomic.html" aria-current="true">Atomic</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Atomic.html">Atomic</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Atomic</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Atomic</h1><p class="doc-subtitle">메모리 순서·산술·타깃 지원을 명시하는 타입 지정 원자 셀.</p><div class="doc-meta"><span class="meta-chip">Atomic&lt;T&gt;</span><span class="meta-chip">Atomic 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>31</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>원자</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Atomic 액세스는 프로토콜입니다</span></a></li><li><a href="#Orders"><span class="toc-number">02</span><span>로드, 저장 및 읽기-수정-쓰기</span></a></li><li><a href="#Compare-Exchange"><span class="toc-number">03</span><span>비교-교환은 평범한 평등이 아니다.</span></a></li><li><a href="#Arithmetic"><span class="toc-number">04</span><span>명시적 모듈형, 검사 및 포화 업데이트</span></a></li><li><a href="#Capabilities"><span class="toc-number">05</span><span>저장, 진행 및 대기</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>전체 제안 Atomic API</span></a></li><li><a href="#Lifetime"><span class="toc-number">07</span><span>셀 수명 및 비 Atomic 액세스</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>예제 및 관련 계약</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Atomic 페이지"><h2>Atomic 참조</h2><div class="family-links"><a href="Atomic.html" aria-current="page">Atomic</a><a href="Memory_Order.html">메모리 순서</a><a href="Atomic_Capabilities.html">Atomic 기능</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Atomic 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. Atomic 액세스는 프로토콜입니다
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> Atomic 및 메모리 순서 지원 유형은 기본 전주와 구현된 0.2 type/API 하위 집합을 제외한 전문 라이브러리 설계입니다. 최종 사용은 명시적인 가져오기가 필요하며, 이 카탈로그에서 내장된 0.2 모듈이 제공되지 않습니다. 이 디자인 페이지에서는 사용 가능한 0.2 백엔드 또는 패키지가 아닌 의도된 라이브러리 경계를 설명합니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>Atomic&lt;T&gt;는 지원되는 Copy 정수 또는 bool 값에 대한 비Copy 셀입니다. 선언 된 액세스 너비 및 메모리 범위 내에서 작업에 대한 찢어 방지; 그것은 임의의 개체 잠금 또는 수명 관리자가 아닙니다. 일반 불변 바인딩은 이 유형을 통해 명시적으로 동기화된 내부 업데이트를 노출할 수 있습니다. 조정되지 않은 원시 또는 혼합 크기 액세스는 금지되어 있습니다. 스칼라의 비트 너비만으로는 네이티브 원자 지원을 설정하지 않습니다.
+</p>
+<blockquote class="callout note">
+<p><strong>설계 초안.</strong> API, 메모리 순서 및 오류 레코드 및 특성 이름은 의도한 Aevix 계약을 설명합니다. 매개 변수 사용 <code>T value</code> 가치에 의하여, <code>&amp;T value</code> 공유 대여, 그리고 <code>&amp;mut T value</code> 단독 대여. 패스 소유자를 호출합니다 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code>; 복용 <code>&amp;mut owner</code> 에는 <code>mut</code> 바인딩. 기존 참조 및 빌린된 보기는 직접 전달 됩니다. 콜백 별칭, 오류 레코드 및 반환 참조 수명 표기법은 설계 설명으로 남아 있습니다. unit는 void와는 다른 값 유형입니다. 네이티브 구현, 공정성 또는 벤치 마크 주장이 함축되어 있지 않습니다.
+</p>
+</blockquote>
+</section>
+<section id="Orders" aria-labelledby="Orders-heading">
+<h2 id="Orders-heading">2입니다. 로드, 저장 및 읽기-수정-쓰기
+</h2>
+<p>5 개의 드래프트 순서은 Relaxed, Acquire, Release, AcqRel 및 SeqCst입니다. 짐은 Relaxed/Acquire/SeqCst를 받아들입니다; 상점은 Relaxed/Release/SeqCst를 받아들입니다. RMW 운영은 5 개 모두를 수락합니다. 알려진 잘못된 상수 순서는 컴파일 시간 진단이며, 동적 잘못된 순서는 수행된 작업이 없는 AtomicError입니다. Relaxed는 하나의 세포 작동을 원자로 만들지 만 관련없는 데이터를 게시하지 않습니다. 더 보기 <a href="Memory_Order.html">메모리 순서</a> synchronization 경계를 넘어
+</p>
+</section>
+<section id="Compare-Exchange" aria-labelledby="Compare-Exchange-heading">
+<h2 id="Compare-Exchange-heading">3입니다. 비교-교환은 평범한 평등이 아니다.
+</h2>
+<p>CAS는 이 호출이 셀과 관찰된 값을 변경했는지 여부를 보고합니다. 불일치는 잘못된 순서 오류가 아닌 정상적인 결과입니다. Weak CAS는 가짜로 실패할 수 있고 정확한 재시도 루프에서 사용되어야 합니다. 실패는 로드되므로 Release와 AcqRel은 유효하지 않은 실패 명령입니다. 이 초안은 해당 부하에 대해 Relaxed, Acquire 또는 SeqCst를 허용합니다. 평등은 지원되는 셀 값 표현을 비교합니다. 범용 부동 NaN CAS 정책은 함축되어 있지 않습니다.
+</p>
+</section>
+<section id="Arithmetic" aria-labelledby="Arithmetic-heading">
+<h2 id="Arithmetic-heading">4입니다. 명시적 모듈형, 검사 및 포화 업데이트
+</h2>
+<p>fetch_add/fetch_sub는 고정폭 모듈식 정수 연산을 사용하고 return는 이전 값을 사용합니다. 그들은 자동으로 checked 일반 Integer 산술 계약을 대체하지 않습니다. 별도의 checked 및 포화 통화는 정책을 광고합니다. 오버플로우 return는 이 호출이 산술 쓰기를 수행하지 않았음을 의미하며, 다른 스레드가 여전히 셀을 변경했을 수 있습니다. 재시도 콜백은 여러 번 실행될 수 있으므로 부작용, 할당 및 재진입 업데이트는 정확히 한 번 가정해서는 안 됩니다.
+</p>
+</section>
+<section id="Capabilities" aria-labelledby="Capabilities-heading">
+<h2 id="Capabilities-heading">5입니다. 저장, 진행 및 대기
+</h2>
+<p>대상 매니페스트는 셀 유형, 정렬, load/store, RMW, 메모리 범위 및 호스트 대기를 별도로 선언합니다. 지원되는 동작은 명시적인 에뮬레이션 프로파일을 요구할 수 있다; 그것은 자동으로 락 자유(lock freedom)를 주장해서는 안된다. Lock-free는 wait-free 또는 fair를 의미하지 않습니다. Float 원자, 벡터 원자, GPU 시스템 범위 및 교차 장치 작업은 별도의 계약이 있는 선택적 확장입니다. 대기는 가짜로 깨어날 수 있다; 알림 자체는 보호된 상태를 게시하지 않는다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6입니다. 전체 제안 Atomic API
+</h2>
+<div class="table-scroll" role="region" aria-label="제안된 Atomic API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">도메인, 오류 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Atomic-new"><th scope="row"><code>Atomic.new(T value)</code></th><td><code>Atomic&lt;T&gt;</code></td><td>인라인 지원 셀; 힙 할당 없음; 셀 자체는 Copy가 아닙니다.</td>
+</tr>
+<tr id="Atomic-load"><th scope="row"><code>Atomic.load(&amp;Atomic&lt;T&gt; cell, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Relaxed, Acquire 또는 SeqCst를 수락하십시오; 상점 전용 주문을 거부하십시오.</td>
+</tr>
+<tr id="Atomic-store"><th scope="row"><code>Atomic.store(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;unit, AtomicError&gt;</code></td><td>Relaxed, Release 또는 SeqCst를 수락하십시오.로드 전용 주문을 거부하십시오.</td>
+</tr>
+<tr id="Atomic-swap"><th scope="row"><code>Atomic.swap(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Atomic 5개의 주문 중 하나를 사용하여 읽기-수정-쓰기; return 이전 값.</td>
+</tr>
+<tr id="Atomic-compare_exchange"><th scope="row"><code>Atomic.compare_exchange(&amp;Atomic&lt;T&gt; cell, T expected, T desired, MemoryOrder success, MemoryOrder failure)</code></th><td><code>Result&lt;CasOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>불일치는 changed=false 및 관찰된 값을 반환합니다; 실패 순서는 Relaxed, Acquire 또는 SeqCst여야 합니다.</td>
+</tr>
+<tr id="Atomic-compare_exchange_weak"><th scope="row"><code>Atomic.compare_exchange_weak(&amp;Atomic&lt;T&gt; cell, T expected, T desired, MemoryOrder success, MemoryOrder failure)</code></th><td><code>Result&lt;CasOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>May report changed=false even when equal; 올바른 재시도 프로토콜을 사용합니다.</td>
+</tr>
+<tr id="Atomic-fetch_add"><th scope="row"><code>Atomic.fetch_add(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer 전용 모듈러 추가; return 이전 값; 포장은이 명명 된 계약의 일부입니다.</td>
+</tr>
+<tr id="Atomic-fetch_sub"><th scope="row"><code>Atomic.fetch_sub(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer 전용 모듈 식 뺄셈; return 이전 값.</td>
+</tr>
+<tr id="Atomic-fetch_and"><th scope="row"><code>Atomic.fetch_and(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool 비트 단위 업데이트; return 이전 값입니다.</td>
+</tr>
+<tr id="Atomic-fetch_or"><th scope="row"><code>Atomic.fetch_or(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool 비트 단위 업데이트; return 이전 값입니다.</td>
+</tr>
+<tr id="Atomic-fetch_xor"><th scope="row"><code>Atomic.fetch_xor(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool 비트 단위 업데이트; return 이전 값입니다.</td>
+</tr>
+<tr id="Atomic-fetch_nand"><th scope="row"><code>Atomic.fetch_nand(&amp;Atomic&lt;T&gt; cell, T mask, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer/bool 보완 교차로; return 이전 값입니다.</td>
+</tr>
+<tr id="Atomic-fetch_min"><th scope="row"><code>Atomic.fetch_min(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer signedness는 비교를 결정합니다; return 오래된 가치.</td>
+</tr>
+<tr id="Atomic-fetch_max"><th scope="row"><code>Atomic.fetch_max(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer signedness는 비교를 결정합니다; return 오래된 가치.</td>
+</tr>
+<tr id="Atomic-checked_fetch_add"><th scope="row"><code>Atomic.checked_fetch_add(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer 전용 CAS 루프; 오버플로는 실패한 시도에서 셀을 변경하지 않고, 제한된 재시도 약속은 없습니다.</td>
+</tr>
+<tr id="Atomic-checked_fetch_sub"><th scope="row"><code>Atomic.checked_fetch_sub(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer 전용 checked 빼기 루프; 산술 실패는 이 호출에 의해 쓰기를 수행하지 않습니다.</td>
+</tr>
+<tr id="Atomic-saturating_fetch_add"><th scope="row"><code>Atomic.saturating_fetch_add(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer 전용 채도; 재시도 루프를 사용할 수 있음; return 성공 시 이전 값.</td>
+</tr>
+<tr id="Atomic-saturating_fetch_sub"><th scope="row"><code>Atomic.saturating_fetch_sub(&amp;Atomic&lt;T&gt; cell, T value, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>Integer-only 포화; 일반적인 대기 없는 보증 없음.</td>
+</tr>
+<tr id="Atomic-fetch_update"><th scope="row"><code>Atomic.fetch_update(&amp;Atomic&lt;T&gt; cell, MemoryOrder success, MemoryOrder failure, Update&lt;T&gt; update)</code></th><td><code>Result&lt;UpdateOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>콜백은 반복적으로 실행될 수 있습니다; 아무도 시도를 중단하지 않습니다; 외부 콜백 효과는 트랜잭션이 아닙니다.</td>
+</tr>
+<tr id="Atomic-get_mut"><th scope="row"><code>Atomic.get_mut(&amp;mut Atomic&lt;T&gt; cell)</code></th><td><code>&amp;mut T</code></td><td>비원자적 독점 접근은 경쟁적인 접근이나 살아있는 충돌하는 원자적 관점이 존재하지 않을 때만 가능하다.</td>
+</tr>
+<tr id="Atomic-into_inner"><th scope="row"><code>Atomic.into_inner(Atomic&lt;T&gt; cell)</code></th><td><code>T</code></td><td>고유한 소유권을 통해 추출; 동시 셀 참조는 남아 있지 않을 수 있습니다.</td>
+</tr>
+<tr id="Atomic-is_supported"><th scope="row"><code>Atomic.is_supported(T, Target target)</code></th><td><code>bool</code></td><td>이 셀 유형과 선택된 실행 대상에 대한 컴파일 시간 기능 쿼리.</td>
+</tr>
+<tr id="Atomic-is_lock_free"><th scope="row"><code>Atomic.is_lock_free(T, Target target)</code></th><td><code>bool</code></td><td>선택한 구현을 쿼리합니다. universal property 또는 wait-freedom promise가 아닙니다.</td>
+</tr>
+<tr id="Atomic-required_alignment"><th scope="row"><code>Atomic.required_alignment(T, Target target)</code></th><td><code>usize</code></td><td>타겟 원자-세포 정렬; 스칼라 정렬을 초과할 수 있음.</td>
+</tr>
+<tr id="Atomic-capabilities"><th scope="row"><code>Atomic.capabilities(T, Target target)</code></th><td><code>AtomicCapabilities</code></td><td>load/store, RMW, 대기, 부동 확장 및 메모리 범위를 별도로 설명합니다.</td>
+</tr>
+<tr id="Atomic-fence"><th scope="row"><code>Atomic.fence(MemoryOrder order)</code></th><td><code>Result&lt;unit, AtomicError&gt;</code></td><td>획득, 해제, AcqRel 또는 SeqCst만 가능; Relaxed는 유효하지 않습니다.</td>
+</tr>
+<tr id="Atomic-compiler_fence"><th scope="row"><code>Atomic.compiler_fence(MemoryOrder order)</code></th><td><code>Result&lt;unit, AtomicError&gt;</code></td><td>선언된 same-thread/interrupt 컴파일러 프로파일을 순서하십시오; 스레드 간 하드웨어 울타리가 아닙니다.</td>
+</tr>
+<tr id="Atomic-wait"><th scope="row"><code>Atomic.wait(&amp;Atomic&lt;T&gt; cell, T expected, MemoryOrder order)</code></th><td><code>Result&lt;T, AtomicError&gt;</code></td><td>호스트 능력만; 가짜로 깨울 수 있음; 발신자는 술어를 다시 확인해야합니다.</td>
+</tr>
+<tr id="Atomic-wait_timeout"><th scope="row"><code>Atomic.wait_timeout(&amp;Atomic&lt;T&gt; cell, T expected, Duration timeout, MemoryOrder order)</code></th><td><code>Result&lt;WaitOutcome&lt;T&gt;, AtomicError&gt;</code></td><td>호스트 대기 기능; 타임 아웃 및 가짜 깨우기는 명백한 결과입니다.</td>
+</tr>
+<tr id="Atomic-notify_one"><th scope="row"><code>Atomic.notify_one(&amp;Atomic&lt;T&gt; cell)</code></th><td><code>unit</code></td><td>지원되는 경우 적격 웨이터를 깨우십시오. 게시 상태를 대체하지 않습니다.</td>
+</tr>
+<tr id="Atomic-notify_all"><th scope="row"><code>Atomic.notify_all(&amp;Atomic&lt;T&gt; cell)</code></th><td><code>unit</code></td><td>자격을 갖춘 웨이터를 깨우십시오; 공정성이나 완성 보증이 없습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Lifetime" aria-labelledby="Lifetime-heading">
+<h2 id="Lifetime-heading">7입니다. 셀 수명 및 비 Atomic 액세스
+</h2>
+<p>원자로 대여은 세포를 살아있게 합니다. 소유권 추출 및 get_mut에는 count 스냅샷이나 다른 작업자가 완료했다는 추측이 아닌 진정한 배타성이 필요합니다. 겹치는 원자 너비를 혼합하거나, 외래 비원자 별칭을 통해 작성하거나, 대기 셀을 해제하는 것은 안전한 추상화를 위반합니다. Shared&lt;Atomic&lt;T&gt;&gt;는 저장소를 유지할 수 있지만, 그 refcount가 선택된 원자 순서 프로토콜이나 작업 조인을 대체하지 않습니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8입니다. 예제 및 관련 계약
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">u32 initial_count = 0;
+Atomic&lt;u32&gt; count = Atomic.new(initial_count);
+Result&lt;u32, AtomicError&gt; observed = Atomic.load(&amp;count, MemoryOrder.Relaxed);
+Atomic.is_supported(u64, Target.current());</code></pre>
+<p>Target 및 MemoryOrder는 초안 지원 설명자입니다. 예에는 암시적 float 변환 또는 숨겨진 힙 할당이 포함되어 있지 않습니다. 더 보기 <a href="Atomic_Capabilities.html">능력 프로파일</a>, <a href="../Shared/Shared_Threads.html">Shared 스레드</a>, 및 <a href="../Mutex/Mutex.html">Mutex</a>. 참조문헌은 이 독립적인 메모리-모델 제안에 정보를 제공하며; 컴파일러와 장치의 정확성은 나중에 구현 검증을 필요로 한다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/index.html" target="_blank" rel="noopener noreferrer">Rust 원자 메모리 모델 및 이식성</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html" target="_blank" rel="noopener noreferrer">Rust 메모리 주문</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/struct.Atomic.html" target="_blank" rel="noopener noreferrer">Rust 일반 Atomic — 개별 운영 도메인</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Memory_Order.html"><span>다음 레퍼런스</span>메모리 순서</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

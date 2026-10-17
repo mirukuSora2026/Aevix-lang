@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="시맨틱 이동성, 명시 적 낮추는 프로파일 및 안정적인 교환 선택.">
+  <title>휴대용 SIMD - Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Simd/Simd_Portable.html">
+<link rel="alternate" hreflang="ko" href="Simd_Portable.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Simd.html" aria-current="true">Simd</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Simd.html">Simd</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">휴대용 SIMD</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>휴대용 SIMD</h1><p class="doc-subtitle">시맨틱 이동성, 명시 적 낮추는 프로파일 및 안정적인 교환 선택.</p><div class="doc-meta"><span class="meta-chip">Simd&lt;T, N&gt; / SimdProfile</span><span class="meta-chip">Simd. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>10</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>한국어 (ko)</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>Portable은 행동 계약입니다.</span></a></li><li><a href="#lowering"><span class="toc-number">02</span><span>컴파일러 전문화 및 관찰</span></a></li><li><a href="#floats"><span class="toc-number">03</span><span>부동 소수점 이식성 제한</span></a></li><li><a href="#abi"><span class="toc-number">04</span><span>메모리, 정렬 및 FFI</span></a></li><li><a href="#bitcast"><span class="toc-number">05</span><span>표현 변환은 값입니다</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>능력은 질문이지 벤치마크가 아니다.</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>참조 범위</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Simd 페이지"><h2>Simd 참조</h2><div class="family-links"><a href="Simd.html">Simd</a><a href="Simd_Mask.html">SIMD 마스크</a><a href="Simd_Portable.html" aria-current="page">휴대용 SIMD</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="휴대용 SIMD 참조">
+<section id="implemented-02"><h2>0.2 CPU 프로파일 구현</h2><p><a href="Simd_02.html">구현된 SIMD 프로파일 읽기</a> 0.2에서 사용할 수 있는 정확한 가져오기, 지원되는 레인 카운트, checked 작업, 마스크 및 고정 어레이 액세스. 아래의 광범위한 API 카탈로그는 설계 초안으로 남아 있으며 컴파일러 지원 함수 목록이 아닙니다.</p></section>
+
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1입니다. Portable은 행동 계약입니다.
+</h2>
+<p>휴대용 프로파일은 지원되는 스칼라 유형, 레인 카운트 및 작업에 대해 정의된 결과를 보장합니다. 벡터가 하나의 하드웨어 레지스터와 동일하거나, 모든 레인이 동시에 실행되거나, 또는 특정 명령어 세트가 존재한다고 약속하지 않는다. 낮추는 것은 스칼라 코드 또는 여러 벡터를 사용할 수 있습니다. 더 엄격한 NativeRequired 프로파일은 요청된 네이티브 지원이 없는 대상을 거부할 수 있으며, 수치적 의미는 그대로 유지됩니다.
+</p>
+<p>CPU와 GPU 프로파일은 별도의 기능 세트입니다. Cpu 프로파일에 의해 허용되는 값은 선택된 GPU 커널 내에서 지원되지 않을 수 있습니다. 기능 보고서는 스칼라 유형 지원, width/lane 지원, 작동 지원 및 엄격한 부동 동작을 구분합니다. 런타임 디스패치는 이미 호환되는 구현 중에서 선택할 수 있으며, 엄격한 산술을 편안한 근사치로 자동으로 대체하지 않습니다.
+</p>
+</section>
+<section id="lowering" aria-labelledby="lowering-heading">
+<h2 id="lowering-heading">2입니다. 컴파일러 전문화 및 관찰
+</h2>
+<p>컴파일러는 N, 스칼라 타입, 알려진 정렬 및 타겟 피처를 전문으로 할 수 있다. 그렇게 할 때 중복 검사를 제거하여 관찰 가능한 오류를 보존하고 활성 메모리 액세스를 유지할 수 있습니다. AOT 및 JIT는 동일한 결과 및 오류 계약을 공유합니다. 디스패치 메타데이터와 컴파일 옵션은 호환되지 않는 숫자 프로파일을 사용하는 캐시 히트를 피하면서 컴파일된 ID의 일부입니다.
+</p>
+<p>감소 보고서는 네이티브 너비, 폴백 조각 및 기능 요구 사항을 설명 할 수 있습니다. 이러한 보고서는 안정적인 일정이나 타이밍 계약이 아닌 진단 데이터입니다. 벤더 컴파일러 버전은 프로그램 의미를 변경하지 않고 다른 명령 시퀀스를 선택할 수 있습니다. 성능 주장은 실제 목표 및 작업 부하에 대한 측정이 필요합니다.
+</p>
+</section>
+<section id="floats" aria-labelledby="floats-heading">
+<h2 id="floats-heading">3입니다. 부동 소수점 이식성 제한
+</h2>
+<p>엄격한 스칼라 플로팅 프로파일은 NaN 분류, 부호 있는 0, 무한대, 반올림 및 정상 이하 처리를 제어합니다. Float 벡터화는 자동으로 서브노멀을 플러시하거나 감소를 재연관할 수 없습니다. 명시적 FMA는 느린 구현 또는 지원되지 않는 기능 보고서가 필요한 대상에서도 융합된 의미론을 사용합니다. 대략적인 상호 및 수학 지침은 명명 된 선택적 프로파일에 속합니다.
+</p>
+<p>논리적 감소 순서는 선택된 벡터 너비와 분리됩니다. 컴파일러가 입력을 조각으로 나누더라도 왼쪽에서 오른쪽으로 누산기가 남아 있어야 합니다. 요청된 트리 순서는 그 정책이 그 변형을 명시적으로 허용하는 경우에만 타겟 의존 트리 구조를 가질 수 있다. 정확한 교차 타겟 NaN 페이로드 복제는 일반적인 숫자 연산에 의해 암시되지 않습니다.
+</p>
+</section>
+<section id="abi" aria-labelledby="abi-heading">
+<h2 id="abi-heading">4입니다. 메모리, 정렬 및 FFI
+</h2>
+<p>Simd 값에는 기본 안정 C 벡터 ABI가 없습니다. 네이티브 코드에 전달하려면 대상 ABI의 이름을 지정하고 너비, 정렬 및 기능 요구 사항을 확인하는 어댑터가 필요합니다. 휴대용 교환 경로는 명시적 Array 변환 또는 초기화된 Slice 버퍼입니다. repr 또는 레이아웃 주석은 레인 count에서 추론되지 않고 별도의 언어 결정입니다.
+</p>
+<p>일반 load/store는 숨겨진 기본 정렬 사전 조건 없이 요소 정렬 슬라이스를 허용합니다. 정렬된 빠른 경로는 할당 및 오프셋에 연결된 검증된 정렬 증인을 필요로 합니다. 외국 정렬 클레임은 checked이거나 명시적 안전하지 않은 경계 뒤에 있어야 합니다. 증인은 제한이나 독점 소유권을 증명하지 않습니다.
+</p>
+<p>AlignmentError는 유효하지 않은 정렬, 호환되지 않는 할당 ID 또는 checked 주소 오버플로에 대해 제안된 독립 실행형 라이브러리 오류입니다. 정렬 유효성 검사에는 관련 없는 SIMD 레인-count 매개 변수가 필요하지 않습니다.
+</p>
+</section>
+<section id="bitcast" aria-labelledby="bitcast-heading">
+<h2 id="bitcast-heading">5입니다. 표현 변환은 값입니다
+</h2>
+<p>bitcast는 대상에 독립적 인 논리적 비트 시퀀스에서 작동합니다 : 스칼라 레인 표현이 각 레인 내에서 가장 중요하지 않은 비트를 먼저 연결 한 다음 대상 레인으로 분할됩니다. 전체 비트 너비가 일치해야 합니다. 이것은 호스트 byte endianness와 독립적으로 값 변환을 정의한다; 바이트로의 직렬화는 여전히 명시적인 endian 형식을 필요로 한다.
+</p>
+<p>모든 소스 및 대상 스칼라 비트 패턴은 선택한 숫자 형식에 대해 유효해야 합니다. 마스크와 bool는 임의의 숫자 비트 문자열이 아니기 때문에 제외됩니다. 변환 never는 새로운 정렬 가정을 가진 별칭 참조 또는 포인터를 만듭니다. 외국 ABI 비트캐스트에는 별도로 지정된 대상 어댑터가 필요합니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 능력은 질문이지 벤치마크가 아니다.
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">CapabilityReport support = Simd.supports&lt;f32, 4&gt;(target, SimdOperation.Add, SimdProfile.Portable);
+Result&lt;SimdPlan, SimdCompileError&gt; plan = Simd.plan&lt;f32, 4&gt;(target, SimdProfile.Portable);</code></pre>
+<p>target 은 이미 검증된 target descriptor 입니다. 반환된 플랜은 가능한 저하 및 기능 요구 사항을 보고하며, 향후 런타임 리소스를 예약하거나 네이티브 실행을 보장하지 않습니다. 프로그램은 휴대용 프로파일을 유지하고 스칼라 폴백을 수락하거나 명시 적으로 기본 기능을 요구하고 기능 오류를 처리 할 수 있습니다.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-supports"><td><code>Simd.supports&lt;T, N&gt;(Target target, SimdOperation operation, SimdProfile profile)</code></td><td><code>CapabilityReport</code></td><td>시맨틱 지원을 기본 지원 및 성능 저하와 분리합니다.</td><td>Query 뿐입니다.</td>
+</tr>
+<tr id="Simd-plan"><td><code>Simd.plan&lt;T, N&gt;(Target target, SimdProfile profile)</code></td><td><code>Result&lt;SimdPlan, SimdCompileError&gt;</code></td><td>lane/type/profile 요구 사항을 검증하고 조각을 낮추는 것을 제안합니다.</td><td>Compilation/descriptor 할당이 실패할 수 있습니다.</td>
+</tr>
+<tr id="Simd-native_width"><td><code>Simd.native_width&lt;T&gt;(Target target)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>기본 레인 너비가 의미가 있을 때 선호함; 부재가 유효합니다.</td><td>query; 최대 법적 N.</td>
+</tr>
+<tr id="Simd-required_features"><td><code>Simd.required_features(&amp;SimdPlan plan)</code></td><td><code>FeatureSetView</code></td><td>선택된 감소에 대한 빌린 대상 기능 요구 사항.</td><td>O(1) 보기.</td>
+</tr>
+<tr id="Simd-lowering_kind"><td><code>Simd.lowering_kind(&amp;SimdPlan plan)</code></td><td><code>LoweringKind</code></td><td>네이티브, 스플릿 또는 스칼라 요약; 레지스터 할당 보증이 아닙니다.</td><td>O(1).</td>
+</tr>
+<tr id="Simd-validate_alignment"><td><code>Simd.validate_alignment(Slice&lt;T&gt; source, usize offset, usize alignment)</code></td><td><code>Result&lt;AlignmentWitness, AlignmentError&gt;</code></td><td>긍정적 인 Power-of-two 정렬 및 checked 주소 검증; 증인은 할당을 대여합니다.</td><td>O(1); N에 대한 범위를 증명하지 않습니다.</td>
+</tr>
+<tr id="Simd-load_aligned"><td><code>Simd.load_aligned&lt;T, N&gt;(Slice&lt;T&gt; source, usize start, AlignmentWitness alignment)</code></td><td><code>Result&lt;V, SimdError&lt;N&gt;&gt;</code></td><td>Witness는 allocation/start와 네이티브 정렬을 일치시킵니다. 전체 N-요소는 checked를 제한합니다.</td><td>O(N); 원시 포인터 탈출이 없습니다.</td>
+</tr>
+<tr id="Simd-store_aligned"><td><code>Simd.store_aligned(MutSlice&lt;T&gt; destination, usize start, AlignmentWitness alignment, V value)</code></td><td><code>Result&lt;unit, SimdError&lt;N&gt;&gt;</code></td><td>쓰기 전에 일치하는 증인과 독점적 인 전체 범위가 필요합니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-export_array"><td><code>Simd.export_array(V value)</code></td><td><code>Array&lt;T, N&gt;</code></td><td>일반적인 Array 요소 규칙을 통해 안정적인 논리 레인 교환.</td><td>O(N); 네이티브 벡터 ABI가 없습니다.</td>
+</tr>
+<tr id="Simd-import_array"><td><code>Simd.import_array&lt;T, N&gt;(Array&lt;T, N&gt; values)</code></td><td><code>V</code></td><td>외국 벡터 레지스터와 무관한 명백한 레인-값 가져오기.</td><td>O(N).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 참조 범위
+</h2>
+<p>모든 인터페이스는 제안서입니다. Rust 휴대용 SIMD 문서는 명시적으로 실험적이며 공식 비교 소스로만 사용됩니다. LLVM 벡터 IR은 어휘를 낮추는 것입니다; 그것의 독과 정의되지 않은 행동 전제 조건은 안전한 Aevix 계약이 아닙니다. 언어는 자체 관찰 가능한 의미론에 의해 요구되는 모든 조건을 검증해야 한다.
+</p>
+<p><a href="Simd.html">Simd 공통 참조</a> · <a href="Simd_Mask.html">마스크</a> · <a href="Simd_Portable.html">품질 관리</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Simd.html" target="_blank" rel="noopener noreferrer">Rust 실험 휴대용 SIMD</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Mask.html" target="_blank" rel="noopener noreferrer">Rust 실험용 SIMD 마스크</a>
+</li>
+<li><a href="https://llvm.org/docs/LangRef.html#vector-type" target="_blank" rel="noopener noreferrer">LLVM 벡터 유형 및 작업</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Simd_Mask.html"><span>이전 레퍼런스</span>SIMD 마스크</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

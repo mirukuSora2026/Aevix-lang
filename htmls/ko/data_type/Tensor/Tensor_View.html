@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="빌린 설명자, 활발한 접근 및 명시적인 구체화.">
+  <title>Tensor 보기 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Tensor/Tensor_View.html">
+<link rel="alternate" hreflang="ko" href="Tensor_View.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Tensor.html" aria-current="true">Tensor</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Tensor.html">Tensor</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tensor 조회수</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Tensor 조회수</h1><p class="doc-subtitle">빌린 설명자, 활발한 접근 및 명시적인 구체화.</p><div class="doc-meta"><span class="meta-chip">TensorView&lt;T, S, P&gt;</span><span class="meta-chip">Tensor. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>12</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[S]한국어</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>빌린 텐서 기술자</span></a></li><li><a href="#strides"><span class="toc-number">02</span><span>보폭, 원점 및 경계</span></a></li><li><a href="#mutation"><span class="toc-number">03</span><span>별명과 변이</span></a></li><li><a href="#copy"><span class="toc-number">04</span><span>재편성 및 복사</span></a></li><li><a href="#lifetime"><span class="toc-number">05</span><span>반복 및 비동기 리스</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>설명자 전용 작업</span></a></li><li><a href="#specialized-functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>디자인 경계 및 관련 페이지</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Tensor 페이지"><h2>Tensor 참조</h2><div class="family-links"><a href="Tensor.html">Tensor</a><a href="Tensor_Shape.html">Tensor 모양</a><a href="Tensor_View.html" aria-current="page">Tensor 조회수</a><a href="Tensor_Device.html">Tensor 장치</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tensor 조회 기준">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1입니다. 빌린 텐서 기술자
+</h2>
+<p>TensorView&lt;T, S, P&gt;는 검증 된 모양, 출처 및 스트라이드 설명자를 통해 요소에 대한 읽기 액세스 권한을 부여합니다. 그것은 요소 버퍼를 소유하지 않으며 스토리지 대여을 능가 할 수 없습니다. MutTensorView&lt;T, S, P&gt;는 각 논리적 위치가 고유한 초기화 요소를 식별할 때만 변경를 부여합니다. 이것들은 도서관 소유권 양식이지 핵심 대여 체커에서 벗어나는 것이 아닙니다.
+</p>
+<p>소유자는 뷰가 살아있는 동안 이동, 크기 조정, 이전, 해제 또는 충돌하는 변경 가능한 액세스를 노출할 수 없습니다. 여러 뷰가 공존할 수 있습니다. GPU 뷰는 장치 측 액세스 기능 및 메타데이터 핸들이며 호스트 역참조를 승인하지 않습니다. 뷰를 비동기 제출로 전달하면 대여이 중단될 때까지 운영 범위로 확장됩니다.
+</p>
+</section>
+<section id="strides" aria-labelledby="strides-heading">
+<h2 id="strides-heading">2입니다. 보폭, 원점 및 경계
+</h2>
+<p>스트라이드은이 초안의 요소로 측정됩니다. 부호 있는 스트라이드은 출처와 도달 가능한 범위가 동일한 할당 내에있을 때 반전 된 횡단을 허용합니다. 모든 오프셋 계산은 checked입니다. 빈 뷰는 요소 접근 권한이 없으며, 설명자는 여전히 유효한 할당 ID와 표준 인바운드 또는 한 과거 원본을 가지고 있습니다. Safe API는 나중에 마스킹될 레인에 대해서도 아웃 오브 바운드 포인터를 형성하지 않습니다.
+</p>
+<p>논리적 byte 길이는 스트라이드이 있는 뷰가 차지하는 물리적 범위와 다릅니다. 패딩, 반전 된 순서 및 건너 뛰는 요소는 그들을 갈라 만듭니다. 외국 기술자는 할당 크기, 요소 폭, 정렬 및 수명 증거를 제공해야합니다; 원시 스트라이드만으로는 메모리 안전성을 확립 할 수 없습니다. GPU 백엔드 제한은 작업이 해당 레이아웃을 낮출 수 없는 경우 유효한 추상 뷰를 거부할 수 있습니다.
+</p>
+</section>
+<section id="mutation" aria-labelledby="mutation-heading">
+<h2 id="mutation-heading">3입니다. 별명과 변이
+</h2>
+<p>반복된 주소, 중복된 슬라이딩 윈도우 및 임의 반복된 수집으로 방송은 읽기 전용입니다. 배타적 관점은 그것을 확립하는 주사성 또는 checked 구성의 증명을 필요로 한다. 경계 안전만으로는 두 가지 논리적 요소가 동일한 물리적 위치에서 경주하는 것을 막을 수 없습니다. 실패한 별칭 증명은 잠재적인 racy 커널을 선택하는 대신 LayoutError를 반환합니다.
+</p>
+<p>배타적 뷰를 분할하는 것은 반환된 뷰가 모두 해제된 경우에만 안전합니다. 부모 전용 대여은 자녀가 존재하는 동안 계속 사용됩니다. 뷰를 결합하는 것은 단순히 인접한 정수 주소가 아닌 공유 할당 관계와 호환 가능한 대여을 확인해야 합니다. 안전한 카탈로그는 의도적으로 검사되지 않은 from-pointer 생성자를 피합니다.
+</p>
+</section>
+<section id="copy" aria-labelledby="copy-heading">
+<h2 id="copy-heading">4입니다. 재편성 및 복사
+</h2>
+<p>뷰 재구성은 기존 횡단 순서가 요소를 이동하지 않고 대상을 나타낼 수 있는 경우에만 성공합니다. 트랜스포지션은 일반적으로 진행 상황을 변경하는 동안 스토리지를 보존하고 나중에 flatten_view를 방지할 수 있습니다. 요청된 구체화는 논리적 요소를 명명된 연속 순서로 새 소유자로 복사합니다. contiguous_copy는 입력이 이미 연속적인 경우에도 항상 독립 소유자를 생성합니다.
+</p>
+<p>어떤 함수도 런타임 레이아웃을 기반으로 별칭과 독립적인 소유자를 자동으로 반환하는 것을 선택하지 않습니다. 이것은 변경 행동과 할당을 보이게 한다. 컴파일러는 관측 등가를 증명할 때 복사본을 제거할 수 있지만 공공 소유권 결과와 실패 시맨틱은 요청된 작업의 복사본으로 남아 있습니다.
+</p>
+</section>
+<section id="lifetime" aria-labelledby="lifetime-heading">
+<h2 id="lifetime-heading">5입니다. 반복 및 비동기 리스
+</h2>
+<p>명시적인 순서 설명자가 달리 말하지 않는 한 Cpu 저장에 대한 요소 반복은 논리적 사전 편찬 순서를 따른다. 이터레이터가 뷰와 소유자를 대여합니다. 가변 반복자는 중복되지 않는 독점 요소 참조를 생성하고 return가 이미 대여된 요소에 대한 두 번째 참조를 제공할 수 없습니다. 일반 보기 반복자는 장치 전용 스토리지에서 CPU 로드를 실행할 수 없습니다.
+</p>
+<p>빌린 뷰가 있는 커널을 제출하면 장치에 액세스하기 전에 할당, 메타데이터 및 수명 임대가 등록됩니다. 사용자 Pending 핸들을 잃는 것은 임대를 종료하지 않습니다. 둘러싸는 장치 범위는 빌린 저장소가 범위를 떠날 수 있기 전에 휴면 상태를 설정해야합니다. quiescence를 알 수 없는 장치 손실은 버퍼를 즉시 해제하는 일반 오류로 다운그레이드될 수 없습니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 설명자 전용 작업
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">// Given a validated read-only Cpu tensor owner named image.
+Result&lt;TensorView&lt;f32, Shape&lt;3, 2&gt;, Cpu&gt;, ShapeError&gt; transposed = Tensor.transpose_view(&amp;image, 0, 1);
+Result&lt;TensorView&lt;f32, Shape&lt;6&gt;, Cpu&gt;, LayoutError&gt; flat = Tensor.flatten_view(&amp;image);
+// Given a separate initialized, injective owner named prepared_owner.
+mut Tensor&lt;f32, Shape&lt;2, 3&gt;, Cpu&gt; writable = prepared_owner;
+MutTensorView&lt;f32, Shape&lt;2, 3&gt;, Cpu&gt; editable = Tensor.view_mut(&amp;mut writable);</code></pre>
+<p>여기서 정적 유형은 2-by-3 입력을 보여줍니다. 컴파일러는 실행 전에 호환되지 않는 선언된 결과를 거부할 수 있습니다. 동적 입력은 동적 뷰 디스크립터를 사용하고 checked 결과를 유지합니다. 어느 문도 요소 저장소를 복사하거나 배치를 변환하지 않습니다.
+</p>
+</section>
+<section id="specialized-functions" aria-labelledby="specialized-functions-heading">
+<h2 id="specialized-functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-reverse_view"><td><code>Tensor.reverse_view(X value, usize axis)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>조정된 원점과 함께 부호 있는 보폭 반전 확인; 유효한 축.</td><td>O(rank); 요소 복사가 없습니다.</td>
+</tr>
+<tr id="Tensor-diagonal_view"><td><code>Tensor.diagonal_view(X value, usize axis_a, usize axis_b, isize offset)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>고유하고 유효한 도끼; checked origin/stride 합계; 기본적으로 읽기 전용.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-window_view"><td><code>Tensor.window_view(X value, usize axis, usize width, usize step)</code></td><td><code>Result&lt;V, TensorError&gt;</code></td><td>width 및 step positive; 겹치는 창은 읽기 전용; extent formula checked.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-split_view"><td><code>Tensor.split_view(X value, usize axis, usize at)</code></td><td><code>Result&lt;(V, V), TensorError&gt;</code></td><td>두 가지 견해 모두 동일한 소유자를 빌린다.</td><td>O(rank).</td>
+</tr>
+<tr id="Tensor-split_mut"><td><code>Tensor.split_mut(M value, usize axis, usize at)</code></td><td><code>Result&lt;(M, M), TensorError&gt;</code></td><td>배타적 인 부모 대여을 소비합니다. 그 결과 지역이 해체되었습니다.</td><td>O(rank); 요소의 할당이 없습니다.</td>
+</tr>
+<tr id="Tensor-is_injective"><td><code>Tensor.is_injective(X value)</code></td><td><code>Result&lt;bool, LayoutError&gt;</code></td><td>사운드 별칭 분류; 지원되지 않는 값 비싼 증명은 추측보다는 return 오류가 발생할 수 있습니다.</td><td>rank/layout 증거에 달려 있을지도 모릅니다.</td>
+</tr>
+<tr id="Tensor-is_same_storage"><td><code>Tensor.is_same_storage(X a, X b)</code></td><td><code>bool</code></td><td>논리적 평등이나 대여 호환성이 아닌 할당 ID를 비교합니다.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-overlap"><td><code>Tensor.overlap(X a, X b)</code></td><td><code>Result&lt;Overlap, LayoutError&gt;</code></td><td>Disjoint, Overlap 또는 Unknown을 반환합니다; Unknown은 동시 변이를 승인하지 않습니다.</td><td>레이아웃에 따른 checked 분석.</td>
+</tr>
+<tr id="Tensor-as_slice"><td><code>Tensor.as_slice(X value)</code></td><td><code>Result&lt;Slice&lt;T&gt;, LayoutError&gt;</code></td><td>CPU 만; 연속적인 논리적 순서와 정렬 필요; 대여 유지 읽기.</td><td>O(rank); 사본 없음.</td>
+</tr>
+<tr id="Tensor-as_mut_slice"><td><code>Tensor.as_mut_slice(M value)</code></td><td><code>Result&lt;MutSlice&lt;T&gt;, LayoutError&gt;</code></td><td>CPU 만; 연속 주사 전용보기가 필요합니다.</td><td>O(rank); 사본 없음.</td>
+</tr>
+<tr id="Tensor-iter"><td><code>Tensor.iter(X value)</code></td><td><code>TensorIter&lt;T&gt;</code></td><td>Cpu는 logical-order read iterator를 빌려왔다; 숨겨진 전송이 없다.</td><td>O(1) 반복기 플러스 O(rank) 인덱스 상태.</td>
+</tr>
+<tr id="Tensor-iter_mut"><td><code>Tensor.iter_mut(M value)</code></td><td><code>Result&lt;TensorMutIter&lt;T&gt;, LayoutError&gt;</code></td><td>Cpu 만; 독점 요소를 산출하기 전에 nonoverlap을 증명합니다.</td><td>증명 비용 플러스 횡단.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 디자인 경계 및 관련 페이지
+</h2>
+<p>모든 시그니처은 도서관 계약으로 제안됩니다. AOT 및 JIT는 동일한 유효성 검사, 수명 및 숫자 의미를 유지합니다. 최적화는 입증된 중복 작업을 제거할 수 있지만 관찰 가능한 오류 및 동기화 경계를 보존해야 합니다. 지원 설명자 유형 및 일반적인 모양 맞춤법은 디자인 후보자로 남아 있습니다; 매개 변수 전달은 승인 된 값, &amp;T 및 &amp;mut T 양식을 사용합니다. 반환 참조 수명 표기법은 개념적으로 남아 있습니다.
+</p>
+<p><a href="Tensor.html">Tensor 공통 참조</a> · <a href="Tensor_Shape.html">모양</a> · <a href="Tensor_View.html">보기</a> · <a href="Tensor_Device.html">장치 실행</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/TensorOps/" target="_blank" rel="noopener noreferrer">MLIR Tensor 방언</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/MemRef/" target="_blank" rel="noopener noreferrer">MLIR MemRef 사투리</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/ShapeDialect/" target="_blank" rel="noopener noreferrer">MLIR 모양 방언</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy 방송</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.copies.html" target="_blank" rel="noopener noreferrer">NumPy 복사 및 보기</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Tensor_Shape.html"><span>이전 레퍼런스</span>Tensor 모양</a><a href="Tensor_Device.html"><span>다음 레퍼런스</span>Tensor 장치</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

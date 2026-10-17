@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="명시적 터미널 중단과 암시적 실패가 없는 대소문자 기반 문 발송.">
+  <title>스위치 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/control_flow/Switch.html">
+<link rel="alternate" hreflang="ko" href="Switch.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html" aria-current="true">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">제어 흐름</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Switch</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">문법 레퍼런스</p><h1>Switch</h1><p class="doc-subtitle">명시적 터미널 중단과 암시적 실패가 없는 대소문자 기반 문 발송.</p><div class="doc-meta"><span class="meta-chip">case / default</span><span class="meta-chip">명시적 break 필요</span><span class="meta-chip">Enum 소유권 패턴</span><span>확정된 규칙과 미정 사항</span></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 문서</dd></div><div class="doc-stat"><dt>모형</dt><dd>문 제어 흐름</dd></div><div class="doc-stat"><dt>청소</dt><dd>소유권 / 역 초기화</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>스위치</strong><span>제어 흐름</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>switch 문 브랜치 선택</span></a></li><li><a href="#basic-form"><span class="toc-number">02</span><span>괄호형 셀렉터 및 케이스 라벨</span></a></li><li><a href="#selection"><span class="toc-number">03</span><span>셀렉터를 한 번 평가하고 선택한 브랜치를 실행</span></a></li><li><a href="#terminal-break"><span class="toc-number">04</span><span>모든 분기는 명시적으로 break로 끝납니다.</span></a></li><li><a href="#default"><span class="toc-number">05</span><span>기본값은 기록될 때 폴백을 처리합니다.</span></a></li><li><a href="#nested-breaks"><span class="toc-number">06</span><span>break는 가장 가까운 루프 또는 스위치를 타겟팅합니다.</span></a></li><li><a href="#continue-target"><span class="toc-number">07</span><span>닫힌 루프를 대상으로 계속합니다.</span></a></li><li><a href="#scope-and-ownership"><span class="toc-number">08</span><span>각 케이스에는 독립적인 어휘 범위가 있습니다</span></a></li><li><a href="#cleanup-and-results"><span class="toc-number">09</span><span>스위치 범위를 떠나 일반 소유권 정리를 수행합니다.</span></a></li><li><a href="#rejected-forms"><span class="toc-number">10</span><span>누락된 터미널 중단이 거부됨</span></a></li><li><a href="#open-decisions"><span class="toc-number">11</span><span>개방형 스위치 설계 결정</span></a></li></ol></details><nav class="family-nav" aria-label="흐름 페이지 제어"><h2>제어 흐름 참조</h2><div class="family-links"><a href="index.html">개요</a><a href="Conditionals.html">조건부</a><a href="Loops.html">반복문</a><a href="Switch.html" aria-current="page">Switch</a></div></nav><nav class="family-nav" aria-label="관련 레퍼런스"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/index.html">모든 자료형</a><a href="../enums/Enums.html">열거형</a><a href="../enums/Enum_Switch.html">Enum 스위치</a></div></nav></aside><article class="content" aria-label="참조 전환">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. switch 문 브랜치를 선택한다</h2><p>Aevix는 다중 방향 문 제어 흐름을 위해 스위치와 케이스를 사용합니다. 모든 written case branch와 모든 written default branch는 명시적인 것으로 끝나야 한다. <code>break;</code>. 터미널 break를 생략하는 것은 컴파일 타임 오류입니다; 자동 오류는 제외됩니다.</p><p>전환 그 자체는 진술이지 가치를 창출하는 표현이 아니다. 조건부 값 선택 및 명시적 return에 대한 삼항 연산자를 사용하여 함수 결과를 제공합니다. 여기서 예제는 선택한 케이스 안에 결과를 할당한 다음 스위치 후에 return를 할당합니다. Enum 페이로드 패턴, 소유권 모드 및 철저한 적용 범위가 지정됩니다. <a href="../enums/Enum_Switch.html">Enum Switch</a>.</p></section>
+<section id="basic-form" aria-labelledby="basic-form-heading"><h2 id="basic-form-heading">2입니다. 괄호형 셀렉터 및 케이스 라벨</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">int score_for_mode(int mode) {
+    mut int score = 0;
+    switch (mode) {
+        case 1:
+            score = 10;
+            break;
+
+        case 2:
+            score = 20;
+            break;
+
+        default:
+            score = 0;
+            break;
+    }
+    return score;
+}</code></pre><p>표시된 셀렉터는 정수 값이며 케이스 레이블은 정수 상수입니다. 콜론은 각 케이스 본체를 소개합니다. 스위치 컨테이너는 중괄호를 사용합니다. 분기 내용은 레이블과 필요한 터미널 break에 의해 구분됩니다. 이러한 레이블은 세미콜론이 필요한 식문이 아닌 구문 경계입니다.</p><p>이 형식은 숫자형 케이스 디스패치를 설정합니다. 또한 Enum 셀렉터는 명명된 페이로드 패턴과 명시적 읽기, 수정 또는 소모 모드를 지원합니다. <a href="../enums/Enum_Switch.html">Enum Switch</a>. 빈 및 페이로드 변형 선언은 한 부모 유형에 속합니다. <a href="../enums/Enums.html">열거형</a>.</p></section>
+<section id="selection" aria-labelledby="selection-heading"><h2 id="selection-heading">3입니다. 셀렉터를 한 번 평가하고 선택한 브랜치를 실행</h2><p>스위치 선택기는 실행이 스위치에 들어올 때 한 번 평가됩니다. 값이 일치하는 케이스를 선택합니다. 대소문자가 일치하지 않고 기본 분기가 작성되지 않으면 기본값이 실행됩니다. 선택된 브랜치 바디만 실행한다; 소스 순서는 조건들인 경우 일반적인 체인을 생성하지 않는다.</p><p>0.2에서 스칼라 스위치는 기본값을 생략할 수 있습니다. 대/소문자가 일치하지 않으면 분기를 입력하지 않고 스위치 후에 실행이 계속됩니다. 이러한 예제에는 명시적 폴백을 표시 하는 기본이 포함 됩니다. 열거형 디스패치의 경우, 모든 변형은 대신 케이스 또는 기본적으로 적용되어야 합니다; 누락된 커버리지는 컴파일 타임 오류입니다.</p><p>자동 숫자 프로모션, 중복 라벨 수락, 범위 라벨, 사용자 정의 평등 및 중복 패턴은 여기에 소개되지 않습니다. 케이스 상수 입력 및 중복 진단은 완전한 selector/type 계약이 필요합니다.</p></section>
+<section id="terminal-break" aria-labelledby="terminal-break-heading"><h2 id="terminal-break-heading">4입니다. 모든 분기는 명시적으로 break로 끝납니다.</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="분기 종료"><table><thead><tr><th scope="col">회사연혁</th><th scope="col">선택한 요구 사항</th></tr></thead><tbody><tr><td><code>case constant:</code></td><td>분기는 명시적인 것으로 끝납니다. <code>break;</code>.</td></tr><tr><td><code>default:</code></td><td>만약 작성된다면, 브랜치는 또한 명시적(explicit)으로 끝난다. <code>break;</code>.</td></tr><tr><td>취소된 break</td><td>컴파일 타임 오류; 암시적 오류 없음.</td></tr><tr><td>중첩된 구조물 내부 휴식</td><td>내부 적격 구조를 종료하고 외부 분기 터미널 break를 대체하지 않습니다.</td></tr><tr><td>return 또는 postfix로 끝나는 분기 ?</td><td>필요한 서면 break 이전에 허용됨; break는 도달 할 수없는 경우에도 필수 사항입니다.</td></tr></tbody></table></div></div><p>터미널 break는 스위치 브랜치에 속합니다. 이전 return, 동봉하는 루프, 발산 또는 Result를 계속 타겟팅 <code>?</code> 자신의 흐름 제어 계약을 유지합니다. 서면 터미널 break는 항상 필요합니다. 도달 할 수없는 경우, 그 사실만으로는 오류 나 경고가 발생하지 않습니다; 일반적인 도달 할 수없는 코드 정책이 따르지 않습니다. 성공하는 길 <code>?</code> 정상적으로 break 브랜치로 진행한다. 선택 된 fallthrough 마커, 계속 fallthrough 동작 또는 레이블이 지정된 경우 점프가 없습니다. 더 보기 <a href="../operators/Parsing_Rules.html#case-exits">case 종료의 파싱 규칙</a>.</p></section>
+<section id="default" aria-labelledby="default-heading"><h2 id="default-heading">5. 기본값은 기록될 때 폴백을 처리합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int small_category(int value) {
+    mut int category = 0;
+    switch (value) {
+        case 0:
+            category = 1;
+            break;
+        default:
+            category = 2;
+            break;
+    }
+    return category;
+}</code></pre><p>기본값은 대소문자를 구분하지 않습니다. 바디는 일반 케이스와 동일한 명시적 break 요구 사항을 따르고 자체 암시적 렉시컬 범위를 갖습니다. 0.2에서 기본값은 스칼라 스위치의 경우 선택 사항입니다. 열거형 스위치는 모든 변형이 명시적으로 커버되는 경우에만 기본값을 생략할 수 있습니다; 외부 코드는 숨겨진 개인 변형의 이름을 지정할 수 없는 경우 기본값을 필요로 합니다. 기본값은 향후 추가된 변형도 포함하므로 이러한 추가는 누락된 변형 진단을 생성하지 않습니다.</p><p>하나의 본체를 공유하는 데 사용되는 여러 개의 인접한 빈 케이스 레이블도 열려 있습니다. 자체 터미널 break가 없는 라벨은 이미 승인된 그룹화된 케이스로 취급되지 않습니다.</p></section>
+<section id="nested-breaks" aria-labelledby="nested-breaks-heading"><h2 id="nested-breaks-heading">6. break는 가장 가까운 루프 또는 스위치를 타겟팅합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int count_modes() {
+    mut int count = 0;
+    for (mut int mode = 0; mode &lt; 3; mode++) {
+        switch (mode) {
+            case 1:
+                count += 10;
+                break;
+            default:
+                count += 1;
+                break;
+        }
+        count += 100;
+    }
+    return count;
+}</code></pre><p>각 case의 break는 내부 switch를 종료하므로 count += 100은 계속 실행되고 바깥 반복문도 이어집니다. 내부 switch 밖에서 같은 키워드를 쓰면 가장 가까운 반복문이 대상입니다. 대상이 될 수 있는 구문의 어휘적 중첩 관계에 따라 종료할 구문이 정해집니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">int inner_loop_then_case_break(int mode) {
+    mut int total = 0;
+    switch (mode) {
+        case 1:
+            for (int index in 0..3) {
+                if (index == 1) break;
+                total += index;
+            }
+            total += 10;
+            break;
+        default:
+            total = 0;
+            break;
+    }
+    return total;
+}</code></pre><p>내부 break가 종료되면 선택된 케이스는 총 += 10와 자체 터미널 break로 계속됩니다. 내부 루프 break는 주변 케이스가 터미널 break 요구 사항을 충족한다는 증거로 사용할 수 없습니다.</p></section>
+<section id="continue-target" aria-labelledby="continue-target-heading"><h2 id="continue-target-heading">7. 여전히 동봉하는 루프를 대상으로 계속합니다.</h2><p>continue 는 루프 연산입니다. 만약 스위치가 루프 안에 중첩되어 있다면, continue는 스위치가 아닌 가장 가까운 엔클로징 루프를 타깃으로 합니다. C 스타일의 경우 다음 조건 테스트 전에 루프 업데이트를 수행합니다. for while it resumes the condition test.</p><p>필요한 서면 터미널 break 전에 유효한 케이스 내부 계속이 허용됩니다. 그것의 반복 이력서 활동 및 정리는 평소와 같이 일어난다; 지금 도달 할 수없는 터미널 break는 그 도달 할 수없는 것에 대해서만 진단없이 유지됩니다. return 또는 diverging 경로는 동일한 written-break 요구 사항을 따릅니다. 성공 사례 <code>?</code> Err 함수는 그 브랜치를 통해 계속된다. 어느 경로도 소스 수준 터미널 break 요구 사항을 제거하지 않습니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void invalid_switch_continue(int value) {
+    switch (value) {
+        case 1:
+            continue;
+            break;
+        default:
+            break;
+    }
+}</code></pre><p>비록 터미널 break가 보여지더라도, continue는 타겟팅할 enclosing loop가 없다. 단일 스위치는 루프가 아닙니다.</p></section>
+<section id="scope-and-ownership" aria-labelledby="scope-and-ownership-heading"><h2 id="scope-and-ownership-heading">8입니다. 각 케이스에는 독립적인 어휘 범위가 있습니다</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int branch_local_value(int mode) {
+    mut int selected = 0;
+    switch (mode) {
+        case 1:
+            int local = 12;
+            selected = local;
+            break;
+        default:
+            int local = 3;
+            selected = local;
+            break;
+    }
+    return selected;
+}</code></pre><p>모든 경우와 모든 기본 브랜치는 독립적인 암시적 렉시컬 스코프를 갖는다. 두 로컬 이름은 형제 브랜치 범위가 겹치지 않기 때문에 허용됩니다. 바인딩은 자체 분기 및 중첩 블록에서 사용할 수 있지만 다른 경우 또는 스위치 후에 사용할 수 없습니다. 어떤 바인딩도 이미 보이는 외부 로컬에 그림자를 드리울 수 없습니다.</p><p>명시적 중첩 블록은 여전히 더 깊은 일반 범위를 소개합니다. 열거형 패턴 바인딩은 해당 케이스 범위와 그 바디 로컬에 속합니다. 브랜치를 남겨두면 역초기화 순서로 여전히 소유하고 있는 자원을 정리할 수 있습니다.</p><p>이름 범위와 대여 기간은 분리되어 있습니다. 케이스를 탈출하는 참조는 여전히 소스 출처와 수명 규칙을 만족시켜야 한다; 더 오래 산 소스의 대여은 단순히 패턴 바인딩 이름이 범위를 벗어나기 때문에 자동적으로 유효하지 않다. 케이스-로컬 소유의 스토리지는 그 자체의 수명을 통해 빌릴 수 없습니다.</p><p>소유권은 나중에 사용하는 모든 경로에서 유효해야 합니다. 한 지점에서 소유자를 이동시키는 것은 소유자가 있다고 가정하는 스위치 후에 무조건적인 사용을 허용하지 않습니다. 더 보기 <a href="../enums/Enum_Switch.html#Case-Scopes">enum 케이스 범위</a> 페이로드 바인딩 예제.</p></section>
+<section id="cleanup-and-results" aria-labelledby="cleanup-and-results-heading"><h2 id="cleanup-and-results-heading">9입니다. 스위치 범위를 떠나 일반 소유권 정리를 수행합니다.</h2><p>break는 정확히 한 번 역초기화 순서로 남겨둔 범위에 의해 여전히 소유된 자원을 정리한다. break가 이미 남아있는 소유자를 정리하기 전에 끝나는 명시적 중첩 블록; break 스위치는 두 번 청소하지 않아야합니다.</p><p>루프 내부에 중첩된 스위치는 break 케이스가 스위치만 종료할 때 둘러싸이는 루프 제어 바인딩을 파괴하지 않습니다. 빌린보기 끝은 원래 소유자를 해제하지 않습니다. 이동된 페이로드는 대상 소유자를 따릅니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;int, IntegerError&gt; selected_checked_sum(int mode, int value) {
+    mut int increment = 0;
+    switch (mode) {
+        case 1:
+            increment = 1;
+            break;
+        default:
+            increment = 2;
+            break;
+    }
+    int result = checked(value + increment)?;
+    return Result.ok(result);
+}</code></pre><p>checked 계산 및 오류 전파는 스위치 후에 발생하므로 모든 분기는 터미널 break를 명확하게 유지합니다. 일반적인 return는 명시적으로 Ok를 구축합니다. ?로 인한 오류 전파는 이전 할당을 실행 취소하지 않고 함수 범위를 정리합니다.</p><p>강제 안전 정지 정리 및 persist 종료 순서은 별도로 유지됩니다. 일반 스위치 파견은 할당, GPU 동기화 또는 숨겨진 복사를 의미하지 않습니다.</p></section>
+<section id="rejected-forms" aria-labelledby="rejected-forms-heading"><h2 id="rejected-forms-heading">10입니다. 누락된 터미널 중단이 거부됨</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_case_break(int mode) {
+    mut int value = 0;
+    switch (mode) {
+        case 1:
+            value = 1;
+        default:
+            value = 2;
+            break;
+    }
+    return value;
+}</code></pre><p>case 1에는 터미널 break가 없습니다. 다음 레이블은 암시적 종료 또는 넘어질 초대장이 아닙니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_default_break(int mode) {
+    mut int value = 0;
+    switch (mode) {
+        case 1:
+            value = 1;
+            break;
+        default:
+            value = 2;
+    }
+    return value;
+}</code></pre><p>기본값은 존재하지만 터미널 break가 없습니다. 닫는 스위치 버팀대는 명시적인 필요조건을 만족시키지 않습니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_inner_break_only(int mode) {
+    mut int total = 0;
+    switch (mode) {
+        case 1:
+            for (int index in 0..3) {
+                total += index;
+                break;
+            }
+        default:
+            total = 0;
+            break;
+    }
+    return total;
+}</code></pre><p>표시된 break는 내부 대상에 속합니다. 케이스 1는 여전히 자체 터미널 break가 없습니다. 이것들은 의도적으로 잘못된 디자인 예제이며 관찰 된 컴파일러 출력이 아닙니다.</p></section>
+<section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">11입니다. 개방형 스위치 설계 결정</h2><ul><li>스칼라 스위치는 0.2에서 기본값을 생략할 수 있으며 스위치 후에 일치가 계속되지 않습니다. Enum 스위치는 철저한 variant/default 검사를 유지합니다.</li><li>0.2는 정수, bool, char 및 byte 선택기를 지원하며 호환 가능한 컴파일 타임 케이스 상수가 필요하며 동등한 중복 값을 거부합니다. 추가 셀렉터 패밀리 및 숫자 범위 레이블은 이 프로필 외부에 남아 있습니다.</li><li>특정 내장 Result/Optional 패턴은 문서화 된 열거 패턴 양식을 넘어 표기.</li><li>보호 패턴, 그룹화 된 레이블, 와일드 카드 표기 및 풍부한 중첩 패턴.</li><li>연결할 수 없는 일반 코드 정책은 열려 있습니다. 필요한 터미널 case/default break는 오류나 경고 없이 허용된다.</li><li>미래의 명시적 오류 기능(있는 경우), 현재 선택된 것이 없습니다.</li><li>자세한 임시 enum 선택기 수명, 빌린 소스 모드 추론, Copy 소비 세부 정보 및 부분 이동을 통한 사용자 지정 정리.</li></ul><p>허용된 열거형 모드, 명명된 필드 패턴, 생략된 필드 패턴, 태그 전용 케이스, 개인 정보 보호 확인 및 범위에 수집됩니다. <a href="../enums/Enum_Switch.html">Enum Switch</a>. 각 case/default 범위는 이미 독립적입니다. 선택한 규칙을 공개하지 않아야 합니다.</p><p>선택된 C++ 스타일의 종료 동작은 break의 가장 가까운 loop/switch 타겟이며, 가장 가까운 루프 타겟은 continue이다. 더 보기 <a href="Loops.html">반복문</a> 그들의 반복적 인 재개 단계를 위해. 이러한 계약은 구현된 컴파일러를 주장하거나 낮추는 디스패치 없이 언어 설계를 지정합니다.</p></section>
+<nav class="page-navigation" aria-label="관련 참조 페이지"><a href="../index.html"><span>문법 개요</span>언어 문법</a><a href="../../declaration/index.html"><span>바인딩 및 시그니처</span>선언</a></nav>
+</article></div><footer class="page-footer"><span>Aevix 언어 · 제어 흐름 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer></main>
+</body>
+</html>

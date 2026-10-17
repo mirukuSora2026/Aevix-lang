@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="소스 평가 순서를 변경하지 않고 후행 Copy 호환 상수 기본값과 name = 표현식 호출을 사용하십시오.">
+<title>인수와 기본값 — Aevix Docs</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/functions/Arguments_and_Defaults.html">
+<link rel="alternate" hreflang="ko" href="Arguments_and_Defaults.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">함수와 호출</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">인수와 기본값</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">기능 참고</p><h1>인수와 기본값</h1><p class="doc-subtitle">소스 평가 순서를 변경하지 않고 후행 Copy 호환 상수 기본값과 name = 표현식 호출을 사용하십시오.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙과 미정 사항</span><span class="meta-chip">명시적인 유형 및 비용</span><a href="../../declaration/Function_Declaration.html">기본 선언</a></div><dl class="doc-stats"><div class="doc-stat"><dt>기본값</dt><dd>일반적인 입력을 추적</dd></div><div class="doc-stat"><dt>기본값</dt><dd>Copy + 컴파일 타임</dd></div><div class="doc-stat"><dt>명명된 명령</dt><dd>첫 번째 위치</dd></div><div class="doc-stat"><dt>평가 방식</dt><dd>소스 왼쪽에서 오른쪽으로</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>이름 =</strong><span>함수</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>일반 매개 변수에 후행 기본값이 있을 수 있음</span></a></li><li><a href="#trailing"><span class="toc-number">02</span><span>첫 번째 기본값 후, 나중에 일반 매개 변수는 기본값이 필요합니다.</span></a></li><li><a href="#constant-copy"><span class="toc-number">03</span><span>기본값은 Copy 호환 컴파일 시간 상수여야 합니다.</span></a></li><li><a href="#runtime-default"><span class="toc-number">04</span><span>기본값을 얻기 위해 임의의 함수를 실행하지 마십시오.</span></a></li><li><a href="#named"><span class="toc-number">05</span><span>호출 사이트에서 parameter_name = 표현식 사용</span></a></li><li><a href="#evaluation"><span class="toc-number">06</span><span>작성된 원본 순서로 명시적 표현 평가</span></a></li><li><a href="#ownership"><span class="toc-number">07</span><span>인수 레이블이 값 전달을 변경하지 않음</span></a></li><li><a href="#diagnostics"><span class="toc-number">08</span><span>알 수 없는, 중복된, 잘못된 인자 거부</span></a></li><li><a href="#public-api"><span class="toc-number">09</span><span>공개 매개 변수 이름은 API의 일부입니다.</span></a></li><li><a href="#overload-ties"><span class="toc-number">10</span><span>기본값과 이름은 숨겨진 순위 점수를 추가하지 않습니다.</span></a></li><li><a href="#open-decisions"><span class="toc-number">11</span><span>기본 및 다양한 경계</span></a></li></ol></details><nav class="family-nav" aria-label="기능 페이지"><h2>함수와 호출</h2><div class="family-links"><a href="index.html">개요</a><a href="Generic_Functions.html">제네릭 함수</a><a href="Overloading.html">과부하</a><a href="Arguments_and_Defaults.html" aria-current="page">인수와 기본값</a><a href="Variadic_Parameters.html">Variadic 매개변수</a></div></nav><nav class="family-nav" aria-label="관련 언어 reference"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../../declaration/Function_Declaration.html">기본 함수 선언</a><a href="../generics/index.html">제네릭 타입</a><a href="../interfaces/index.html">인터페이스</a><a href="../modules/index.html">모듈과 import</a><a href="../persistent_storage/index.html">영속 저장소</a><a href="../../data_type/index.html">전체 자료형</a></div></nav></aside><article class="content" aria-label="인수 및 기본값 참조">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1입니다. 일반 매개 변수에 후행 기본값이 있을 수 있음</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 add_offset(i32 value, i32 offset = 1) {
+    return value + offset;
+}
+
+void use_default() {
+    i32 implicit_offset = add_offset(7);
+    i32 explicit_offset = add_offset(7, 3);
+    return;
+}</code></pre><p>Omitting offset은 선언된 상수 1를 사용하며, 공급은 제공된 값을 사용합니다. 첫 번째 매개 변수는 여전히 필요합니다. 기본값은 선언의 호출 계약의 일부이며 일반적인 인수를 Optional 값으로 만들지 않습니다.</p></section><section id="trailing" aria-labelledby="trailing-heading"><h2 id="trailing-heading">2입니다. 첫 번째 기본값 후, 나중에 일반 매개 변수는 기본값이 필요합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 encode(i32 first, i32 second = 0, i32 third = 0) {
+    return first * 100 + second * 10 + third;
+}
+
+void use_trailing_defaults() {
+    i32 first_only = encode(1);
+    i32 first_two = encode(1, 2);
+    i32 all_three = encode(1, 2, 3);
+    return;
+}</code></pre><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a required ordinary second parameter follows a default;
+i32 invalid_trailing_default(i32 first = 0, i32 second) {
+    return second;
+}</code></pre><p>이 규칙은 일반적인 매개 변수에 관한 것입니다. 초기 규칙에서 variadic 매개 변수 앞의 기본 일반 매개 변수가 지원되지 않습니다. 필수 일반 접두사는 허용됩니다. 명시적인 자체 수신기에는 기본값이 없을 수 있습니다. 기본 문법은 새로운 묵시적 수신기를 생성하지 않습니다.</p></section><section id="constant-copy" aria-labelledby="constant-copy-heading"><h2 id="constant-copy-heading">3입니다. 기본값은 Copy 호환 컴파일 시간 상수여야 합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">const i32 DEFAULT_OFFSET = 3;
+
+i32 configured_offset(i32 value, i32 offset = DEFAULT_OFFSET) {
+    return value + offset;
+}</code></pre><div class="table-wrap"><div class="table-scroll" role="region" tabindex="0" aria-label="기본값 요구 사항"><table><thead><tr><th scope="col">요구 사항</th><th scope="col">의미</th></tr></thead><tbody><tr><th scope="row">컴파일 시간 상수</th><td>이 값은 선택된 컴파일-시간 상수 요구사항을 만족해야 한다; 임의의 런타임 계산은 허용되지 않는다.</td></tr><tr><th scope="row">Copy 호환 값</th><td>생략된 인수를 제공하는 것은 하나의 공유 소유 기본 객체를 사용할 수 없습니다.</td></tr><tr><th scope="row">숨겨진 복제 또는 할당 없음</th><td>기본값은 string/container를 할당하거나 암시적 복제 함수를 호출하는 요청이 아닙니다.</td></tr><tr><th scope="row">정상적인 Copy 비용은 남아 있습니다</th><td>더 큰 허용된 값을 복사하는 것은 여전히 작업이 필요할 수 있습니다; 최적화는 행동을 보존해야 합니다.</td></tr><tr><th scope="row">완전 한 표현 문법</th><td>허용된 상수 표현식의 전체 집합은 열려 있습니다; 간단한 숫자와 명명된 const 예제는 const 함수 기능을 정의하지 않습니다.</td></tr></tbody></table></div></div><p>이 규칙은 Copy를 재정의할 수 있는 딥 클론 훅으로 만들지 않습니다. string 및 기타 비-Copy 리소스 값을 소유하는 것은 기본적으로 자동으로 생성되는 것이 아니라 명시적 소유권 API 하에 제공되어야 합니다.</p></section><section id="runtime-default" aria-labelledby="runtime-default-heading"><h2 id="runtime-default-heading">4입니다. 기본값을 얻기 위해 임의의 함수를 실행하지 마십시오.</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 compute_offset() {
+    return 1;
+}
+
+// Rejected: an ordinary function call is not an allowed default here;
+i32 invalid_runtime_default(i32 value, i32 offset = compute_offset()) {
+    return value + offset;
+}</code></pre><p>이 단순한 일반 함수 본문조차도 결과가 일정하게 보이기 때문에 컴파일 타임 호출 상태를 얻지 못합니다. 미래의 상수 기능 시설은 별도의 결정이 필요합니다. 기본 선택은 임의의 런타임 부작용이나 숨겨진 실패 생성 할당을 도입해서는 안 됩니다.</p></section><section id="named" aria-labelledby="named-heading"><h2 id="named-heading">5입니다. 호출 사이트에서 parameter_name = 표현식 사용</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">void use_named_arguments() {
+    i32 positional = encode(1, 2, 3);
+    i32 named = encode(first = 1, second = 2, third = 3);
+    i32 reordered = encode(third = 3, first = 1, second = 2);
+    i32 mixed = encode(1, third = 3, second = 2);
+    i32 skipped_default = encode(first = 1, third = 3);
+    return;
+}</code></pre><p>이것은 trailing-default 예제에서 인코딩을 사용합니다. 처음 네 개의 호출은 첫 번째 = 1, 두 번째 = 2 및 세 번째 = 3입니다. 마지막 호출은 두 번째 호출을 생략하므로 0를 사용합니다. 명명된 인수는 모든 매개 변수 순서에 나타날 수 있지만 모든 위치 인수는 첫 번째 명명된 인수 앞에 나타나야 합니다.</p><p>호출 사이트 이름은 로컬 할당이나 명명된 필드 구성이 아닌 매개변수 바인딩입니다. 로컬 변수를 선언하거나 매개 변수 가변성을 변경하거나 함수의 receiver/borrow 계약을 우회하지 않습니다.</p></section><section id="evaluation" aria-labelledby="evaluation-heading"><h2 id="evaluation-heading">6입니다. 작성된 원본 순서로 명시적 표현 평가</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 record_digit(&amp;mut i32 trace, i32 digit) {
+    *trace = *trace * 10 + digit;
+    return digit;
+}
+
+void demonstrate_source_order() {
+    mut i32 trace = 0;
+    i32 result = encode(
+        third = record_digit(&amp;mut trace, 3),
+        first = record_digit(&amp;mut trace, 1),
+        second = record_digit(&amp;mut trace, 2)
+    );
+    return;
+}</code></pre><p>작성된 표현식은 세 번째, 첫 번째, 두 번째 순서로 실행됩니다: trace는 312가 됩니다. 결과는 매개 변수 이름과 일치하므로 결과는 123입니다. 이 숫자는 지정된 동작을 나타내며, 관찰된 Aevix 실행 결과가 아닙니다.</p><p>각 표현식은 한 번 실행됩니다. 매핑은 컴파일 시간에 발생하며 부작용을 선언 순서로 재정렬하지 않습니다. 각 record_digit 호출은 다음 시작 전에 임시 배타적 대여을 완료합니다. 명명된 인수는 일반적인 중복-대여 검사를 약화시키지 않습니다.</p></section><section id="ownership" aria-labelledby="ownership-heading"><h2 id="ownership-heading">7입니다. 인수 레이블이 값 전달을 변경하지 않음</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">string relay(string value) {
+    return value;
+}
+
+string move_named_string(string original) {
+    string result = relay(value = original);
+    return result;
+}</code></pre><p>string 소유는 위치 또는 이름으로 전달 여부를 이동합니다. literal-to-owner 변환 또는 자동 복제는 발생하지 않습니다. 호환 가능한 대여 인수는 기존 reference/view 계약과 마찬가지로 전달됩니다.</p><p>이전 인수를 평가하면 효과가 있고 나중에 작업이 실패하면 인수 이름을 지정해도 롤백이 생성되지 않습니다. 확립 된 실패와 Result 전파 경계는 여전히 둘러싸는 표현을 지배합니다.</p></section><section id="diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">8입니다. 알 수 없는, 중복된, 잘못된 인자 거부</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: fourth is not a parameter of encode;
+void unknown_name() {
+    i32 result = encode(first = 1, fourth = 4);
+    return;
+}</code></pre><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: first is already supplied positionally;
+void positional_and_named_duplicate() {
+    i32 result = encode(1, first = 2);
+    return;
+}</code></pre><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a named argument is followed by a positional one;
+void positional_after_named() {
+    i32 result = encode(first = 1, 2);
+    return;
+}</code></pre><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: the same named parameter is supplied twice;
+void repeated_named_argument() {
+    i32 result = encode(first = 1, second = 2, second = 3);
+    return;
+}</code></pre><p>모든 필요한 일반 매개 변수도 제공되어야 합니다. 모든 맵핑과 타입 검사는 유효한 호출을 실행하기 전에 일어난다; 컴파일러는 형식이 잘못된 호출을 실행하지 않고 빠진 이름을 발견한다.</p></section><section id="public-api" aria-labelledby="public-api-heading"><h2 id="public-api-heading">9입니다. 공개 매개 변수 이름은 API의 일부입니다.</h2><p>호출자는 public 함수의 매개 변수 이름에 의존할 수 있습니다. 공개 파라미터의 이름을 변경하면 break가 호출자의 종류와 위치 순서가 변경되지 않더라도 호출자의 이름을 지정할 수 있습니다. 따라서 문서화 및 호환성 결정은 이러한 이름을 호출 가능한 API의 일부로 취급해야 합니다.</p><p>함수를 가져오는 것은 매개 변수 이름을 변경하지 않습니다. 이 언어는 현재 임포트 별칭을 제공하지 않습니다. 동일한 원래 함수를 다시 내보내면 기본 선언과 호출 계약이 유지됩니다. 일반 공개 매개변수 이름은 명명된 호출의 일부로 남아 있으며, variadic 팩 자체는 지원되는 명명된 인수가 아닙니다.</p></section><section id="overload-ties" aria-labelledby="overload-ties-heading"><h2 id="overload-ties-heading">10입니다. 기본값과 이름은 숨겨진 순위 점수를 추가하지 않습니다.</h2><p>기본값은 후보를 호출 가능하게 만들 수 있으며, 명명된 인수는 호환되지 않는 매개 변수 이름을 가진 후보를 배제할 수 있습니다. 그러나 생략 된 기본값의 수는 순위 기준이 아닙니다. 두 명의 똑같이 적합한 후보자는 더 적은 기본값을 사용하더라도 모호한 상태로 남아 있습니다.</p><p>반환 형식은 중복된 매개 변수 시그니처을 구분하지 않습니다. 다른 원래 모듈의 함수 세트는 인수가 일치하기 전에 별도의 상태로 유지됩니다. 더 보기 <a href="Overloading.html#defaults">기본값-count 모호함</a> 및 <a href="Overloading.html#module-origins">모듈-출처 경계</a> 완전한 Examples</p></section><section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">11입니다. 기본 및 다양한 경계</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: defaults before a variadic pack are unsupported;
+void invalid_default_then_pack(i32 prefix = 0, i32 values[]) {
+    return;
+}</code></pre><p>필요한 일반 접두사가 최종 팩 앞에 있을 수 있습니다. 반복된 인수는 위치 표현식을 사용합니다; 이름별로 팩을 공급하고 배열을 전파하는 것은 초기에 지원되지 않습니다. 일반 명명된 인수는 여전히 위치 우선 규칙을 따릅니다. 가변 가변 바인딩도 지원되지 않습니다. 수정을 위해 명시적 가변 배열 또는 MutSlice 매개 변수를 사용하십시오.</p><ul><li>완전한 상수 표현 문법과 가능한 컴파일 타임 함수 기능은 열려 있습니다.</li><li>일반적인 타입-파라미터 디폴트와 추가적인 필드-디폴트 정책은 일반 함수 파라미터 디폴트에 의해 도입되지 않는다.</li><li>Variadic storage/ownership와 fixed-versus-variadic ties가 이제 선택됩니다; 그들의 전용 참조를 공개로 취급하기보다는 참조하십시오.</li></ul><p><a href="Variadic_Parameters.html">Variadic 매개변수</a> · <a href="Overloading.html">과부하</a> · <a href="Generic_Functions.html">제네릭 함수</a></p></section>
+<nav class="page-navigation" aria-label="인접한 함수 참조 페이지"><a href="index.html"><span>관련 레퍼런스</span>개요</a><a href="Generic_Functions.html"><span>관련 레퍼런스</span>제네릭 함수</a><a href="Overloading.html"><span>관련 레퍼런스</span>과부하</a><a href="Variadic_Parameters.html"><span>관련 레퍼런스</span>Variadic 매개변수</a></nav></article></div>
+<footer class="page-footer"><span>Aevix 언어 · 기능 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

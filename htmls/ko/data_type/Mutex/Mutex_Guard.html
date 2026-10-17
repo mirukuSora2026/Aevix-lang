@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="참조, 매핑된 필드 및 명시적 릴리스를 파생합니다.">
+  <title>Mutex 가드 — Aevix 문서 도구</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Mutex/Mutex_Guard.html">
+<link rel="alternate" hreflang="ko" href="Mutex_Guard.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Mutex.html" aria-current="true">Mutex</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Mutex.html">Mutex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Mutex 감시</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Mutex 감시</h1><p class="doc-subtitle">참조, 매핑된 필드 및 명시적 릴리스를 파생합니다.</p><div class="doc-meta"><span class="meta-chip">MutexGuard&lt;T&gt;</span><span class="meta-chip">Mutex 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>8</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>잠금</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Capability"><span class="toc-number">01</span><span>가드는 접근 증명이다</span></a></li><li><a href="#Threads"><span class="toc-number">02</span><span>실 친화도와 중단</span></a></li><li><a href="#Projection"><span class="toc-number">03</span><span>필드 가드 Field Guards</span></a></li><li><a href="#Function-Reference"><span class="toc-number">04</span><span>개별적으로 정의된 Guard 작업</span></a></li><li><a href="#Release"><span class="toc-number">05</span><span>릴리스, 예외 및 누출</span></a></li><li><a href="#Read-Write"><span class="toc-number">06</span><span>Reader/Writer 경계</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>관련 일반 및 복구 계약</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Mutex 페이지"><h2>Mutex 참조</h2><div class="family-links"><a href="Mutex.html">Mutex</a><a href="Mutex_Guard.html" aria-current="page">Mutex 감시</a><a href="Mutex_Poisoning.html">Mutex 중독</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Mutex 감시 참고">
+<section id="Capability" aria-labelledby="Capability-heading">
+<h2 id="Capability-heading">1입니다. 가드는 접근 증명이다
+</h2>
+<p>가드는 T의 소유된 복사본이 아닌 획득된 잠금 능력을 나타냅니다. 필드를 빌리려면 해당 기능을 유지해야 하며 해당 기능을 삭제하거나 명시적으로 잠금을 해제하면 액세스가 종료됩니다. 파생된 참조를 다른 곳으로 이동하면 가드 수명과 분리할 수 없습니다. 잠금 소유자는 모든 관련 경비원과 웨이터가 끝날 때까지 빌린 상태로 유지됩니다. 안전 프로파일은 보호되지 않은 참조를 허용하는 원시 가드 잊어 버리는 탈출을 제공하지 않습니다.
+</p>
+</section>
+<section id="Threads" aria-labelledby="Threads-heading">
+<h2 id="Threads-heading">2입니다. 실 친화도와 중단
+</h2>
+<p>기본 가드는 전송되지 않으며 획득한 실행 컨텍스트에서 해제되어야 합니다. 안전한 비동기 프로파일에서 대기를 교차하거나 GPU 커널에 전달하거나 분리 된 작업으로 캡처 할 수 없습니다. 이 보수적인 규칙은 스레드 친화도가 있는 잠금 해제 작업이 있는 백엔드를 존중합니다. Shared 소유자는 스토리지만 보관하며, 가드 기능을 복사하거나 제작할 수 없습니다.
+</p>
+</section>
+<section id="Projection" aria-labelledby="Projection-heading">
+<h2 id="Projection-heading">3입니다. 필드 가드 Field Guards
+</h2>
+<p>매핑은 원래 가드를 소비하고 동일한 기본 잠금 임대를 유지합니다. 프로젝션 콜백은 관련 없는 임시 저장소에 대한 참조가 아닌 입력에 연결된 필드 대부를 반환합니다. 매핑된 가드는 노출된 투영만 제어하지만 기본 전체 잠금은 유지됩니다. 실패 가능한 mapping은 필드가 없을 경우 원래 가드를 반환합니다. 대여 변환을 위해 할당이 필요하지 않습니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">4입니다. 개별적으로 정의된 Guard 작업
+</h2>
+<div class="table-scroll" role="region" aria-label="개별적으로 정의된 Guard 작업 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">도메인, 오류 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Mutex-data"><th scope="row"><code>Mutex.data(&amp;MutexGuard&lt;T&gt; guard)</code></th><td><code>&amp;T</code></td><td>보안이 유지될 때만 데이터를 대여합니다.</td>
+</tr>
+<tr id="Mutex-data_mut"><th scope="row"><code>Mutex.data_mut(&amp;mut MutexGuard&lt;T&gt; guard)</code></th><td><code>&amp;mut T</code></td><td>경비 수명에 의해 바운스되는 독점적인 reborrow; 분리되는 자물쇠 취득 없음.</td>
+</tr>
+<tr id="Mutex-unlock"><th scope="row"><code>Mutex.unlock(MutexGuard&lt;T&gt; guard)</code></th><td><code>unit</code></td><td>정확히 이 가드를 해제하십시오; 파생된 모든 참조는 이미 사용할 수 없어야 합니다.</td>
+</tr>
+<tr id="Mutex-guard_map"><th scope="row"><code>Mutex.guard_map(MutexGuard&lt;T&gt; guard, FieldBorrow&lt;T, U&gt; project)</code></th><td><code>MappedMutexGuard&lt;U&gt;</code></td><td>동일한 잠금 기능을 프로젝션 필드 가드로 이동합니다. 할당 없음.</td>
+</tr>
+<tr id="Mutex-guard_try_map"><th scope="row"><code>Mutex.guard_try_map(MutexGuard&lt;T&gt; guard, OptionalFieldBorrow&lt;T, U&gt; project)</code></th><td><code>Result&lt;MappedMutexGuard&lt;U&gt;, MutexGuard&lt;T&gt;&gt;</code></td><td>어떤 필드도 원래의 유지 가드를 반환하지 않으며, 프로젝션은 관련없는 수명을 발명 할 수 없습니다.</td>
+</tr>
+<tr id="Mutex-mapped_data"><th scope="row"><code>Mutex.mapped_data(&amp;MappedMutexGuard&lt;U&gt; guard)</code></th><td><code>&amp;U</code></td><td>원래의 잠금 임대를 유지하면서 예상 필드를 읽습니다.</td>
+</tr>
+<tr id="Mutex-mapped_data_mut"><th scope="row"><code>Mutex.mapped_data_mut(&amp;mut MappedMutexGuard&lt;U&gt; guard)</code></th><td><code>&amp;mut U</code></td><td>독점 예상 리보로우; 다른 보호된 데이터는 사용할 수 없습니다.</td>
+</tr>
+<tr id="Mutex-unlock_mapped"><th scope="row"><code>Mutex.unlock_mapped(MappedMutexGuard&lt;U&gt; guard)</code></th><td><code>unit</code></td><td>매핑된 가드가 보유한 원래 잠금을 해제합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Release" aria-labelledby="Release-heading">
+<h2 id="Release-heading">5입니다. 릴리스, 예외 및 누출
+</h2>
+<p>일반 경비 파괴는 잠금을 해제합니다. 풀기는 방출 전에 선택된 독 정책을 따릅니다. 강제 프로세스 종료는 완결을 약속할 수 없으며, 보류된 기능을 유출하면 데이터에 안전하게 액세스할 수 있는 권한을 생성하지 않고도 진행 상황을 방지할 수 있습니다. 잠금 해제는 내구성이 뛰어난 디스크 플러시 또는 임의 GPU 울타리가 아닙니다. Pointee 참조는 릴리스 전에 사용할 수 없어야 합니다. 보호된 콜백에서 R을 반환하는 API는 이스케이프가 아닌 규칙을 적용합니다.
+</p>
+</section>
+<section id="Read-Write" aria-labelledby="Read-Write-heading">
+<h2 id="Read-Write-heading">6입니다. Reader/Writer 경계
+</h2>
+<p>독자는 업그레이드 할 수있는 미래 권리를 소유하지 않습니다. 읽기 기능을 유지하면서 전용 액세스를 다시 획득하면 특히 대기열 작성자 정책의 경우 교착 상태가 발생할 수 있습니다. 기본적으로 뮤텍스는 재귀가 아닙니다. 소멸자나 콜백에서 동일한 뮤텍스를 재귀적으로 가져 가면 교착 상태가 될 수 있습니다. 자동 글로벌 잠금 순서는 유추되지 않습니다.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7입니다. 관련 일반 및 복구 계약
+</h2>
+<p>현재 <a href="Mutex.html">Mutex 공통 카탈로그</a> 인수 및 소유자 액세스를 정의합니다. <a href="Mutex_Poisoning.html">독 회복</a> 왜 실수가 가드를 운반 할 수 있는지 설명합니다. 매핑된 가드 지원 레코드와 콜백 경계는 숨겨진 컴파일러 구문이 아닌 설명적인 제안입니다. lock-free 또는 deadlock-free 속성은 안전 가드 유형의 존재에 의해 암시되지 않습니다.
+</p>
+<p>성공적인 인수 및 독극물 오류 인수는 모두 잠금 해제 의무를 유지합니다. Result는 보호된 접근의 앞에 검열되어야 합니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Mutex&lt;i32&gt; gate = Mutex.new(0);
+Result&lt;MutexGuard&lt;i32&gt;, LockError&lt;MutexGuard&lt;i32&gt;&gt;&gt; acquired = Mutex.lock(&amp;gate);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html" target="_blank" rel="noopener noreferrer">Rust Mutex - 제외, 중독 및 복구 비교</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Mutex.html"><span>이전 레퍼런스</span>Mutex</a><a href="Mutex_Poisoning.html"><span>다음 레퍼런스</span>Mutex 중독</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

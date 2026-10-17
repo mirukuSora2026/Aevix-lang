@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="범위 검사와 겹치지 않는 독점 접근을 갖춘 대여 연속 뷰.">
+  <title>Slice — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Slice/Slice.html">
+<link rel="alternate" hreflang="ko" href="Slice.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Slice.html" aria-current="true">Slice</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="Slice.html" aria-current="true">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Slice.html">Slice</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Slice</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Slice</h1><p class="doc-subtitle">범위 검사와 겹치지 않는 독점 접근을 갖춘 대여 연속 뷰.</p><div class="doc-meta"><span class="meta-chip">Slice&lt;T&gt;</span><span class="meta-chip">Slice 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>66</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>&amp;[티</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>득표 의견</span></a></li><li><a href="#Lifetime"><span class="toc-number">02</span><span>소유자 수명 &amp; 무효화</span></a></li><li><a href="#Mutability-Splitting"><span class="toc-number">03</span><span>독점 액세스 및 연결 해제 지역</span></a></li><li><a href="#Ranges-Empty"><span class="toc-number">04</span><span>경계, 빈 뷰 &amp; 덩어리</span></a></li><li><a href="#Copy-Errors"><span class="toc-number">05</span><span>Copy, 복제 및 오류 원자성</span></a></li><li><a href="#Algorithms"><span class="toc-number">06</span><span>알고리즘 요구 사항 및 비용</span></a></li><li><a href="#Function-Reference"><span class="toc-number">07</span><span>전체 제안 Slice API</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>첫 번째 예</span></a></li><li><a href="#Parallelism-Devices"><span class="toc-number">09</span><span>병렬 처리, GPU 작업 및 FFI</span></a></li><li><a href="#Text-Related"><span class="toc-number">10</span><span>텍스트, 바이트 및 관련 컬렉션</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Slice 페이지"><h2>Slice 참조</h2><div class="family-links"><a href="Slice.html" aria-current="page">Slice</a><a href="Slice_Mutation.html">독점 Slice 보기</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="Slice.html" aria-current="true">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Slice 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 득표 의견
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> <code>Slice&lt;T&gt;</code>/<code>MutSlice&lt;T&gt;</code> import 할 필요가 없습니다. 상기 호출들은 The calls are <code>Slice.from_array</code>, <code>from_array_mut</code>, <code>from_vector</code>, <code>from_vector_mut</code>, <code>len</code>, <code>slice</code> 및 <code>slice_mut</code>인덱스를 더합니다. 슬라이싱 이름은 <code>slice</code>/<code>slice_mut</code>제안된 것이 아니라 <code>subslice</code> 별칭. 가변 슬라이싱 본질은 성공 또는 오류에 대한 입력 디스크립터를 소비합니다; 결과가 해당 저장소를 사용한 후 다른 뷰가 필요할 때 새로운 소유자 대여을 만듭니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<div class="callout draft-note"><strong>언어 설계 초안.</strong> <code>Slice&lt;T&gt;</code> 읽을 수 있는 view; <code>MutSlice&lt;T&gt;</code> 빌려온 글만 볼 수 있는 특별한 공간입니다. 이러한 설명자는 백업 요소를 소유하거나 할당하지 않습니다.
+</div>
+<p>슬라이스는 다른 곳에서 소유하는 초기화된 인접 요소 범위의 이름을 지정합니다. 범위와 길이를 식별할 수 있는 충분한 메타데이터를 저장하지만 이러한 요소를 소유하거나 해제하지 않습니다. 짧은 슬라이스는 보이는 것을 변경합니다; never는 Array 또는 Vector 길이를 변경합니다.
+</p>
+<p>읽기 뷰는 수명 규칙이 허용하는 경우 대여 메타데이터로 복제될 수 있습니다. 쓰기 가능한 기능을 중복된 작성자로 복제할 수 없습니다. MutSlice를 재차 대여하면 파생된 대여자의 수명 동안 원래 뷰의 상충되는 사용이 일시 중지됩니다.
+</p>
+</section>
+<section id="Lifetime" aria-labelledby="Lifetime-heading">
+<h2 id="Lifetime-heading">2입니다. 소유자 수명 &amp; 무효화
+</h2>
+<p>모든 견해는 원래 소유자 또는 명시 적 외국 수명과 관련이 있습니다. 로컬 소유자를 탈출하거나, 소유자 파괴에서 살아남거나, 무효한 재배치에서 Vector 버퍼를 유효하게 유지할 수 없습니다. 안전 코드는 충돌하는 소유자의 움직임과 구조 변경를 거부합니다.
+</p>
+<p>길이와 일관성은 소유권이 아닙니다. 임의의 주소에서 Slice를 구성하려면 출처, 정렬, 초기화된 요소, 범위 및 권한 증명이 필요합니다. 이 카탈로그는 원시 포인터 채택 대신 안전한 소유자 기반 건설을 의도적으로 노출합니다.
+</p>
+<p>고정된 배열에 대한 뷰는 Vector에 대한 것과 동일한 수명 규칙을 따릅니다. 고정 용량은 독점 액세스를 위반하는 별칭을 허용하지 않습니다. 대여 단축은 추론될 수 있지만, 그 길이 메타데이터가 여전히 존재하기 때문에 어떤 알고리즘도 댕글링 있는 뷰에 의존할 수 없습니다.
+</p>
+</section>
+<section id="Mutability-Splitting" aria-labelledby="Mutability-Splitting-heading">
+<h2 id="Mutability-Splitting-heading">3입니다. 독점 액세스 및 연결 해제 지역
+</h2>
+<p>쓰기 알고리즘은 독점적으로 쓸 수 있는 기능과 호출 사이트에서 명시적으로 허용되는 변경 가능한 액세스가 모두 필요합니다. 기본 불변 선언은 변경할 수 없습니다. 읽기 Slice never를 유지하면 쓰기 권한이 부여됩니다.
+</p>
+<p>확인된 분할 함수는 분할 지점을 확인한 다음 중복되지 않는 빌린 영역을 만듭니다. 두 개의 쓰기 반은 분리된 슬롯을 덮기 때문에 공존할 수 있으며, 원래의 겹치는 쓰기 기능은 일시 중단됩니다. 가변 반복자와 청크 반복자는 항복된 요소에 대해 동일한 분리를 적용합니다.
+</p>
+<p>겹치는 창은 이 카탈로그에서 읽기 전용입니다. 일반적으로 쓸 수 있는 겹치는 창은 무제한의 독립적인 MutSlice 결과가 아닌 lending/short-lived 액세스 프로토콜이 필요합니다. 내부 가변성 유형과 콜백 캡처는 여전히 자체 동시성 제약이 필요합니다.
+</p>
+</section>
+<section id="Ranges-Empty" aria-labelledby="Ranges-Empty-heading">
+<h2 id="Ranges-Empty-heading">4입니다. 경계, 빈 뷰 &amp; 덩어리
+</h2>
+<p>범위가 반쯤 열려 있고 usize 끝점인 0 &lt;= start &lt;= end &lt;= length를 사용합니다. 빈 접미사 길이를 포함하여 빈 범위가 유효합니다. 아웃 오브 바운드 액세스는 선택한 API에 따라 Optional 또는 Result를 반환합니다.
+</p>
+<p>청크와 창 너비는 양수여야 합니다. 길이보다 큰 너비는 지정된 작업에 따라 하나의 짧은 청크 또는 전체 창을 생성하지 않습니다. 정확한 청크 함수는 남은 꼬리에서 전체 청크를 분리합니다. Mutation never는 백킹 컬렉션의 요소 count를 변경합니다.
+</p>
+<p>0 크기의 T는 많은 논리 요소를 가질 수 있지만 byte_len은 0입니다. 경계, 대여 배타성, 콜백 카운트 및 요소 드롭 의무는 여전히 논리적 길이를 따릅니다. 0 길이의 뷰는 첫 번째 요소가 없으며 원시 FFI 주소가 있는 경우에도 역참조되어서는 안 됩니다.
+</p>
+</section>
+<section id="Copy-Errors" aria-labelledby="Copy-Errors-heading">
+<h2 id="Copy-Errors-heading">5입니다. Copy, 복제 및 오류 원자성
+</h2>
+<p>읽기 뷰를 복사하면 메타데이터만 복제되고 대여이 유지됩니다. 명시적 to_vector/to_array 함수는 소유된 값을 생성하고 이름에 따라 Copy 또는 Clone이 필요합니다. 소유된 리소스는 바이트를 재해석하여 딥 클로닝되지 않습니다.
+</p>
+<p>copy_from 과 clone_from 은 같은 길이를 필요로 하고, 호환되는 disjoint 는 빌려온다. copy_within 은 명시적 오버랩 허용 Copy 동작이다. 경계 검사는 변경 전에 발생합니다. 복제 기반 덮어쓰기는 오류에 대한 대체 접두사를 남길 수 있으며, 모든 슬롯은 초기화 상태로 유지됩니다.
+</p>
+<p>산출 건축에서 돌려보내진 배부 과실은 부분적인 산출을 청소하고 빌린 근원을 보존한다. In-place 콜백 부작용은 롤백되지 않습니다. 미래의 풀림 경로는 유효한 초기화를 유지해야 합니다; 프로세스 종료가 정리를 보장하지는 않습니다. 모든 에러와 반복자 프로토콜 이름은 여전히 제안된다.
+</p>
+</section>
+<section id="Algorithms" aria-labelledby="Algorithms-heading">
+<h2 id="Algorithms-heading">6입니다. 알고리즘 요구 사항 및 비용
+</h2>
+<p>검색 위치는 소유자의 전체 버퍼가 아니라 뷰의 시작에 상대적입니다. 제공된 총 비교기에서 이진 검색에 정렬된 입력이 필요합니다. partition_point 는 true 접두사가 필요하고 false 접미사가 필요합니다. 이러한 시맨틱 전제 조건은 위반 시 메모리 안전하지 않음을 허용하지 않습니다.
+</p>
+<p>부동 값을 정렬하려면 NaN 순서가 선택된 명시적 총 비교기가 필요합니다. 안정적인 정렬은 스크래치를 할당 할 수 있습니다. 불안정한 정렬은 힙 스크래치를 피합니다. 중단된 비교는 소유권을 유지하면서 순서를 변경할 수 있습니다. Eq 비교는 요소 의미론, never 초기화되지 않은 패딩을 사용합니다.
+</p>
+<p>뷰를 만들거나 분할하는 작업은 O(1) 메타데이터 작업입니다. 횡단, 복사, 복제, 역방향 및 회전은 영향을 받는 요소에 비례하여 유지됩니다. 요소 크기, 비교 작업, Clone 및 Drop은 자체 비용을 추가하며, 입력값이 뷰이므로 복사 또는 장치 전송은 무료가 아닙니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">7입니다. 전체 제안 Slice API
+</h2>
+<div class="callout draft-note"><strong>캐논 Slice 카탈로그입니다.</strong> 시그니처, 재대여 보장, 반환 오류, 비용은 이 문서에서 관리합니다. <a href="../Array/Slice.html">Array- 패밀리 Slice 가이드</a> 중복 계약을 유지하는 대신 이러한 행에 대한 링크.</div>
+<p>모든 rows 사용 <code>Slice.</code> MutSlice에서의 작업을 포함한 네임스페이스. 소유자 매개 변수는 &amp; T 또는 &amp; mut T 대여을 사용합니다. Slice&lt;T&gt; 및 MutSlice&lt;T&gt;보기 매개 변수는 직접 전달됩니다. 콜백 별칭, 빌린 반복자 유형 및 반환 참조 수명 설명은 제안된 라이브러리 계약으로 유지됩니다. 코어 액세스 및 오류 처리는 각 행에서 명시적입니다.
+</p>
+<h3 id="Parameter-Reborrowing">선언된 뷰 매개 변수 reborrow</h3>
+<p>현재 <a href="../../declaration/Function_Declaration.html#reborrowing">선택한 매개 변수 규칙</a> 알려진 빌린 매개 변수를 일반 값 매개 변수와 구별합니다. 형식적인 <code>MutSlice&lt;U&gt;</code> 또는 <code>&amp;mut U</code> 매개변수는 타입을 정규화한 뒤 호환되는 기존 배타적 접근 권한을 재대여합니다. U는 제네릭이어도 됩니다. 공유 참조와 읽기 Slice 디스크립터는 원본의 수명과 호환되는 읽기 권한을 유지합니다. 배타적 접근 권한이 Copy로 바뀌는 일은 없습니다.</p>
+<p>아래 제안된 MutSlice 알고리즘, split, chunk 및 iterator API는 대여 입력을 사용합니다. 구현된 The <code>Slice.slice_mut</code> intrinsic은 문서화 된 예외입니다 : Result가 Err 인 경우에도 입력 설명자를 소비합니다. 일반 알고리즘은 액세스가 완료되면 파생 대여을 종료합니다. 반환된 참조, 읽기 뷰, 쓰기 가능 뷰 또는 반복자는 Optional, Result 또는 튜플로 래핑된 경우를 포함하여 부모 관계를 유지합니다. 충돌하는 부모 액세스는 정리 중 참조 액세스를 포함하여 모든 파생 대여이 종료 될 때까지 일시 중지됩니다.</p>
+<p>일반 값 할당, 초기화 또는 return에 의해 설명자를 이동하는 것은 여전히 기능을 전송합니다. 일반 <code>T value</code> 파라미터는 또한 비-Copy 디스크립터를 이동하는데, 이는 T가 MutSlice 또는 배타적 참조로 인스턴스화되었더라도 마찬가지입니다. Optional.some 및 Result.ok과 같은 일반 컨테이너는 값 계약을 사용합니다. 구현된 The <code>Slice.slice_mut</code> call은 호출자의 원래 설명자를 전송하며, 그 설명자의 다른 사용으로 이어질 수 없다. 이것은 내재적 소유권 계약이지, 새로운 힘-움직임 인수 문법이 아니다. 다른 제안 된 Slice 행은 위에 언급 된 재 대여 계약을 유지합니다. 기존 쓰기 가능 뷰를 다시 빌리는 것은 mut 디스크립터 바인딩을 필요로 하지 않는 반면 디스크립터를 다시 바인딩하는 것은 필요하지 않습니다.</p>
+<h3>안전 뷰 구축
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-empty"><td><code>Slice.empty(T)</code></td><td><code>Slice&lt;T&gt;</code></td><td>참조 가능한 요소가 없는 읽기 모드가 비어 있습니다. 원시 포인터가 필요하지 않습니다.</td><td>O(1), 할당 없음</td>
+</tr>
+<tr id="Slice-from_array"><td><code>Slice.from_array(&amp;Array&lt;T, N&gt; values)</code></td><td><code>Slice&lt;T&gt;</code></td><td>모든 N개의 초기화된 요소를 대여합니다; 소유자보다 오래 살 수 없습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-from_array_mut"><td><code>Slice.from_array_mut(&amp;mut Array&lt;T, N&gt; values)</code></td><td><code>MutSlice&lt;T&gt;</code></td><td>독점보기; 소유자 사용은 대여 기간 동안 제한됩니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-from_vector"><td><code>Slice.from_vector(&amp;Vector&lt;T&gt; values)</code></td><td><code>Slice&lt;T&gt;</code></td><td>대여은 접두사, never 예비 용량을 초기화.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-from_vector_mut"><td><code>Slice.from_vector_mut(&amp;mut Vector&lt;T&gt; values)</code></td><td><code>MutSlice&lt;T&gt;</code></td><td>독점적 인보기; 구조적 mutation/growth는 살아있는 동안 차단됩니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-as_read"><td><code>Slice.as_read(MutSlice&lt;T&gt; view)</code></td><td><code>Slice&lt;T&gt;</code></td><td>읽기 재지갑; 원본 쓰기 기능은 충돌하는 읽기 뷰가 살아있는 동안 중단됩니다.</td><td>O(1)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>메타데이터 및 액세스
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-len"><td><code>Slice.len(Slice&lt;T&gt; view)</code></td><td><code>usize</code></td><td>논리 요소 count; 또한 MutSlice의 읽기 리보로우를 허용합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-is_empty"><td><code>Slice.is_empty(Slice&lt;T&gt; view)</code></td><td><code>bool</code></td><td>NULL에 대해 정확히 맞습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-byte_len"><td><code>Slice.byte_len(Slice&lt;T&gt; view)</code></td><td><code>usize</code></td><td>기본 요소 바이트; count 중첩된 할당 또는 UTF-8로 인코딩된 문자가 아닙니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-get"><td><code>Slice.get(Slice&lt;T&gt; view, usize index)</code></td><td><code>Optional&lt;&amp;T&gt;</code></td><td>읽기 요소 대여; 경계에서 제외 없음.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-get_mut"><td><code>Slice.get_mut(MutSlice&lt;T&gt; view, usize index)</code></td><td><code>Optional&lt;&amp;mut T&gt;</code></td><td>독점 요소 reborrow; 없음 범위.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-at"><td><code>Slice.at(Slice&lt;T&gt; view, usize index)</code></td><td><code>Result&lt;&amp;T, BoundsError&gt;</code></td><td>진단 checked는 접근을 읽었습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-at_mut"><td><code>Slice.at_mut(MutSlice&lt;T&gt; view, usize index)</code></td><td><code>Result&lt;&amp;mut T, BoundsError&gt;</code></td><td>진단 checked 독점 접근.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-first"><td><code>Slice.first(Slice&lt;T&gt; view)</code></td><td><code>Optional&lt;&amp;T&gt;</code></td><td>텅 비었을 때</td><td>O(1)</td>
+</tr>
+<tr id="Slice-last"><td><code>Slice.last(Slice&lt;T&gt; view)</code></td><td><code>Optional&lt;&amp;T&gt;</code></td><td>텅 비었을 때</td><td>O(1)</td>
+</tr>
+<tr id="Slice-first_mut"><td><code>Slice.first_mut(MutSlice&lt;T&gt; view)</code></td><td><code>Optional&lt;&amp;mut T&gt;</code></td><td>독점 첫 번째 요소 reborrow 또는 없음.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-last_mut"><td><code>Slice.last_mut(MutSlice&lt;T&gt; view)</code></td><td><code>Optional&lt;&amp;mut T&gt;</code></td><td>독점 마지막 요소 reborrow 또는 없음.</td><td>O(1)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>서브레인지와 디조인트 스플리트
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-slice"><td><code>Slice.slice(Slice&lt;T&gt; view, usize start, usize end)</code></td><td><code>Result&lt;Slice&lt;T&gt;, BoundsError&gt;</code></td><td>0.2를 구현했습니다. 반쯤 열린 읽기 뷰; 시작 &gt; 끝은 ReversedRange를 제공하고, 그렇지 않으면 길이를 초과하는 끝점은 OutOfBounds를 제공합니다. 빈 접미사가 유효합니다.</td><td>O(1)의 성분 사본 없음</td></tr>
+<tr id="Slice-slice_mut"><td><code>Slice.slice_mut(MutSlice&lt;T&gt; view, usize start, usize end)</code></td><td><code>Result&lt;MutSlice&lt;T&gt;, BoundsError&gt;</code></td><td>0.2를 구현했습니다. 같은 범위 검사; 성공과 실패 둘 다에 입력 기술자를 소모한다. 생산은 소유자 대여을 유지합니다.</td><td>O(1)의 성분 사본 없음</td></tr>
+<tr id="Slice-subslice"><td><code>Slice.subslice(Slice&lt;T&gt; view, usize start, usize end)</code></td><td><code>Result&lt;Slice&lt;T&gt;, BoundsError&gt;</code></td><td>제안된 별칭만; 0.2에서 구현된 Slice.slice를 사용하십시오. start&lt;=end&lt;=length가 필요합니다.</td><td>O(1)의 성분 사본 없음</td>
+</tr>
+<tr id="Slice-subslice_mut"><td><code>Slice.subslice_mut(MutSlice&lt;T&gt; view, usize start, usize end)</code></td><td><code>Result&lt;MutSlice&lt;T&gt;, BoundsError&gt;</code></td><td>제안된 대여 작업은 0.2 별칭이 아닙니다. 구현된 가변 슬라이싱에 Slice.slice_mut을 사용합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-split_at"><td><code>Slice.split_at(Slice&lt;T&gt; view, usize index)</code></td><td><code>Result&lt;(Slice&lt;T&gt;, Slice&lt;T&gt;), BoundsError&gt;</code></td><td>index&lt;=length; 2개의 반이 입력을 덮습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-split_at_mut"><td><code>Slice.split_at_mut(MutSlice&lt;T&gt; view, usize index)</code></td><td><code>Result&lt;(MutSlice&lt;T&gt;, MutSlice&lt;T&gt;), BoundsError&gt;</code></td><td>2개의 명백한 disjoint는 반을 씁니다; 입력 기능은 중단됩니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-split_first"><td><code>Slice.split_first(Slice&lt;T&gt; view)</code></td><td><code>Optional&lt;(&amp;T, Slice&lt;T&gt;)&gt;</code></td><td>첫 번째 요소와 나머지 읽기 뷰; 비어있는 경우 없음.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-split_first_mut"><td><code>Slice.split_first_mut(MutSlice&lt;T&gt; view)</code></td><td><code>Optional&lt;(&amp;mut T, MutSlice&lt;T&gt;)&gt;</code></td><td>첫번째 원소와 tail write borrow를 분리합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-split_last"><td><code>Slice.split_last(Slice&lt;T&gt; view)</code></td><td><code>Optional&lt;(&amp;T, Slice&lt;T&gt;)&gt;</code></td><td>마지막 요소, 그 다음 읽기 범위 앞; 비어 있음 없음.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-split_last_mut"><td><code>Slice.split_last_mut(MutSlice&lt;T&gt; view)</code></td><td><code>Optional&lt;(&amp;mut T, MutSlice&lt;T&gt;)&gt;</code></td><td>마지막 요소와 이전 쓰기 대여을 분리합니다.</td><td>O(1)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>청크와 창문
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-chunks"><td><code>Slice.chunks(Slice&lt;T&gt; view, usize width)</code></td><td><code>Result&lt;ReadChunkIterator&lt;T&gt;, BoundsError&gt;</code></td><td>너비&gt; 0; 겹치지 않는 청크, 최종 청크가 더 짧을 수 있습니다.</td><td>O(1) 생성; O(n) 횡단</td>
+</tr>
+<tr id="Slice-chunks_mut"><td><code>Slice.chunks_mut(MutSlice&lt;T&gt; view, usize width)</code></td><td><code>Result&lt;WriteChunkIterator&lt;T&gt;, BoundsError&gt;</code></td><td>Width&gt;0; 반복자는 비접촉식 쓰기 가능한 청크를 생성합니다.</td><td>O(1) 생성; O(n) 횡단</td>
+</tr>
+<tr id="Slice-chunks_exact"><td><code>Slice.chunks_exact(Slice&lt;T&gt; view, usize width)</code></td><td><code>Result&lt;(ReadChunkIterator&lt;T&gt;, Slice&lt;T&gt;), BoundsError&gt;</code></td><td>Width&gt;0; 반복자는 전체 청크를 커버하고, 별도의 꼬리는 나머지를 보유합니다.</td><td>O(1) 생성; O(n) 횡단</td>
+</tr>
+<tr id="Slice-chunks_exact_mut"><td><code>Slice.chunks_exact_mut(MutSlice&lt;T&gt; view, usize width)</code></td><td><code>Result&lt;(WriteChunkIterator&lt;T&gt;, MutSlice&lt;T&gt;), BoundsError&gt;</code></td><td>전체 쓰기 가능한 청크 및 나머지 분리; 중복 기능 중복 없음.</td><td>O(1) 생성; O(n) 횡단</td>
+</tr>
+<tr id="Slice-windows"><td><code>Slice.windows(Slice&lt;T&gt; view, usize width)</code></td><td><code>Result&lt;ReadWindowIterator&lt;T&gt;, BoundsError&gt;</code></td><td>Width&gt;0; 겹쳐 읽기 창; width&gt;length는 창을 생성하지 않습니다. 무제한 쓰기 창 변형이 없습니다.</td><td>O(1) 생성; O(n) 횡단</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>쓰기 가능한 알고리즘
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-copy_from"><td><code>Slice.copy_from(MutSlice&lt;T&gt; destination, Slice&lt;T&gt; source)</code></td><td><code>Result&lt;unit, BoundsError&gt;</code></td><td>T: Copy; 같은 길이와 부조화가 필요합니다; 길이 오류는 아무것도 변경하지 않습니다.</td><td>O(n) 사본</td>
+</tr>
+<tr id="Slice-clone_from"><td><code>Slice.clone_from(MutSlice&lt;T&gt; destination, Slice&lt;T&gt; source)</code></td><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>T: Clone; disjoint/equal-length 보기; clone 실패는 대체된 초기화된 접두사를 남길 수 있습니다.</td><td>O(n) 클론 및 드롭</td>
+</tr>
+<tr id="Slice-copy_within"><td><code>Slice.copy_within(MutSlice&lt;T&gt; view, usize start, usize end, usize destination)</code></td><td><code>Result&lt;unit, BoundsError&gt;</code></td><td>T: Copy; 겹쳐지는 source/destination는 memmove 의미론으로 허용했다; 경계가 미리 검사되었다.</td><td>O(range length) 사본</td>
+</tr>
+<tr id="Slice-swap"><td><code>Slice.swap(MutSlice&lt;T&gt; view, usize a, usize b)</code></td><td><code>Result&lt;unit, BoundsError&gt;</code></td><td>변경 전에 두 인덱스를 모두 검사합니다; 자체적으로 인덱스를 교환하는 것이 유효합니다.</td><td>O(1) 요소 스왑</td>
+</tr>
+<tr id="Slice-fill_copy"><td><code>Slice.fill_copy(MutSlice&lt;T&gt; view, &amp;T value)</code></td><td><code>unit</code></td><td>T: Copy; 모든 슬롯은 초기화된 상태로 유지됩니다; 이전 값은 정상적으로 해제됩니다.</td><td>O(n) copies/drops</td>
+</tr>
+<tr id="Slice-fill_clone"><td><code>Slice.fill_clone(MutSlice&lt;T&gt; view, &amp;T value)</code></td><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>T: Clone; 실패는 유효한 대체 접두사를 남길 수 있습니다; 롤백 약속이 없습니다.</td><td>O(n) clones/drops</td>
+</tr>
+<tr id="Slice-reverse"><td><code>Slice.reverse(MutSlice&lt;T&gt; view)</code></td><td><code>unit</code></td><td>장소에있는 요소를 반전; 소유자의 길이는 변경되지 않습니다.</td><td>O(n) 스왑</td>
+</tr>
+<tr id="Slice-rotate_left"><td><code>Slice.rotate_left(MutSlice&lt;T&gt; view, usize count)</code></td><td><code>Result&lt;unit, BoundsError&gt;</code></td><td>count&lt;=length; empty는 0만 허용합니다.</td><td>O(n) 이동</td>
+</tr>
+<tr id="Slice-rotate_right"><td><code>Slice.rotate_right(MutSlice&lt;T&gt; view, usize count)</code></td><td><code>Result&lt;unit, BoundsError&gt;</code></td><td>같은 count 계약 rotate_left.</td><td>O(n) 이동</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>검색 및 prefix/suffix 확인
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-contains"><td><code>Slice.contains(Slice&lt;T&gt; view, &amp;T needle)</code></td><td><code>bool</code></td><td>T : Eq; 논리적 요소 평등.</td><td>O(n) 등호 호출</td>
+</tr>
+<tr id="Slice-position"><td><code>Slice.position(Slice&lt;T&gt; view, Predicate&lt;T&gt; test)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>첫 번째 상대 인덱스입니다.</td><td>O(n) 호출</td>
+</tr>
+<tr id="Slice-rposition"><td><code>Slice.rposition(Slice&lt;T&gt; view, Predicate&lt;T&gt; test)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>마지막으로 일치하는 상대 인덱스; 뒤로 검색합니다.</td><td>O(n) 호출</td>
+</tr>
+<tr id="Slice-find"><td><code>Slice.find(Slice&lt;T&gt; view, Predicate&lt;T&gt; test)</code></td><td><code>Optional&lt;&amp;T&gt;</code></td><td>첫 번째 경기의 대여.</td><td>O(n) 호출</td>
+</tr>
+<tr id="Slice-binary_search"><td><code>Slice.binary_search(Slice&lt;T&gt; view, &amp;T needle, Compare&lt;T&gt; compare)</code></td><td><code>SearchResult</code></td><td>정렬된 입력 및 일치하는 총 비교기가 필요합니다. found/insertion 인덱스는 보기에 상대적입니다.</td><td>O(log n) 비교</td>
+</tr>
+<tr id="Slice-lower_bound"><td><code>Slice.lower_bound(Slice&lt;T&gt; view, &amp;T needle, Compare&lt;T&gt; compare)</code></td><td><code>usize</code></td><td>첫째, 기존 질서에 비해 덜한 위치입니다.</td><td>O(log n) 비교</td>
+</tr>
+<tr id="Slice-upper_bound"><td><code>Slice.upper_bound(Slice&lt;T&gt; view, &amp;T needle, Compare&lt;T&gt; compare)</code></td><td><code>usize</code></td><td>첫째, 기존 질서에 따라 더 큰 위치.</td><td>O(log n) 비교</td>
+</tr>
+<tr id="Slice-starts_with"><td><code>Slice.starts_with(Slice&lt;T&gt; view, Slice&lt;T&gt; prefix)</code></td><td><code>bool</code></td><td>T: 접두사가 더 긴 경우 Eq; false; 빈 접두사는 참입니다.</td><td>O(prefix length) 비교</td>
+</tr>
+<tr id="Slice-ends_with"><td><code>Slice.ends_with(Slice&lt;T&gt; view, Slice&lt;T&gt; suffix)</code></td><td><code>bool</code></td><td>T: Eq; 접미사가 더 길면 false; 빈 접미사는 참입니다.</td><td>O(suffix length) 비교</td>
+</tr>
+<tr id="Slice-partition_point"><td><code>Slice.partition_point(Slice&lt;T&gt; view, Predicate&lt;T&gt; test)</code></td><td><code>usize</code></td><td>true-prefix/false-suffix 파티션이 필요합니다. 경계가 반환됩니다.</td><td>O(log n) 호출</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>질서와 평등
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-sort"><td><code>Slice.sort(MutSlice&lt;T&gt; view, Compare&lt;T&gt; compare)</code></td><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>안정적인; 스크래치 할당 실패는 재순서화에 선행합니다.</td><td>O(n log n) 비교; 할당 가능</td>
+</tr>
+<tr id="Slice-sort_unstable"><td><code>Slice.sort_unstable(MutSlice&lt;T&gt; view, Compare&lt;T&gt; compare)</code></td><td><code>unit</code></td><td>불안정한 위치; 중단된 비교는 초기화된 요소를 재정렬할 수 있습니다.</td><td>O(n log n) 비교; 힙 스크래치 없음</td>
+</tr>
+<tr id="Slice-is_sorted"><td><code>Slice.is_sorted(Slice&lt;T&gt; view, Compare&lt;T&gt; compare)</code></td><td><code>bool</code></td><td>인접한 총 순서을 확인합니다. empty/singleton true.</td><td>O(n) 비교</td>
+</tr>
+<tr id="Slice-equal"><td><code>Slice.equal(Slice&lt;T&gt; left, Slice&lt;T&gt; right)</code></td><td><code>bool</code></td><td>T: Eq; 불균등한 길이 return false.</td><td>O(min lengths) 비교</td>
+</tr>
+<tr id="Slice-compare"><td><code>Slice.compare(Slice&lt;T&gt; left, Slice&lt;T&gt; right, Compare&lt;T&gt; compare)</code></td><td><code>Ordering</code></td><td>Lexicographic 비교, 그 후에 길이; 익지않는 패딩 비교 없음.</td><td>O(min lengths) 비교</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>반복 및 접힘
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-iter"><td><code>Slice.iter(Slice&lt;T&gt; view)</code></td><td><code>ReadIterator&lt;T&gt;</code></td><td>소유자 수명에 의해 바운스 된 읽기 대여.</td><td>O(1) 생성; O(n) 횡단</td>
+</tr>
+<tr id="Slice-iter_mut"><td><code>Slice.iter_mut(MutSlice&lt;T&gt; view)</code></td><td><code>WriteIterator&lt;T&gt;</code></td><td>배타적 요소 대여의 산출량; 원천 능력 정지.</td><td>O(1) 생성; O(n) 횡단</td>
+</tr>
+<tr id="Slice-fold"><td><code>Slice.fold(Slice&lt;T&gt; view, A initial, Fold&lt;A, T&gt; step)</code></td><td><code>A</code></td><td>연속 왼쪽 접기; 콜백은 arithmetic/error 정책을 결정합니다.</td><td>O(n) 호출</td>
+</tr>
+<tr id="Slice-try_fold"><td><code>Slice.try_fold(Slice&lt;T&gt; view, A initial, TryFold&lt;A, T, E&gt; step)</code></td><td><code>Result&lt;A, E&gt;</code></td><td>Err에 정지; 출처는 여전히 빌린, 외부 콜백 효과는 남아.</td><td>O(n) 호출</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>소유 사본 및 고정 빌린보기
+</h3>
+<div class="table-scroll" role="region" aria-label="제안된 Slice API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">대여, 도메인 및 실패 계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Slice-to_vector_copy"><td><code>Slice.to_vector_copy(Slice&lt;T&gt; view)</code></td><td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td><td>T : Copy; 독립적 인 소유 스토리지를 할당합니다.</td><td>O(n) 복사본과 할당</td>
+</tr>
+<tr id="Slice-to_vector_clone"><td><code>Slice.to_vector_clone(Slice&lt;T&gt; view)</code></td><td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td><td>T: 복제품; 실패에 청소되는 부분적인 산출.</td><td>O(n) 클론과 할당</td>
+</tr>
+<tr id="Slice-to_array_copy"><td><code>Slice.to_array_copy(const usize N, Slice&lt;T&gt; view)</code></td><td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td><td>T: Copy; 정확한 길이 N 필요; 보기에서 가져온 소유권 없음.</td><td>O(N) 사본</td>
+</tr>
+<tr id="Slice-to_array_clone"><td><code>Slice.to_array_clone(const usize N, Slice&lt;T&gt; view)</code></td><td><code>Result&lt;Array&lt;T, N&gt;, CollectionError&gt;</code></td><td>T: 복제품; 정확한 길이 체크, 그 후에 안전한 부분적인 건축.</td><td>O(N) 클론</td>
+</tr>
+<tr id="Slice-as_array"><td><code>Slice.as_array(const usize N, Slice&lt;T&gt; view)</code></td><td><code>Result&lt;&amp;Array&lt;T, N&gt;, BoundsError&gt;</code></td><td>정확한 길이를 확인한 다음 고정 확장 뷰를 빌리고 새 소유자를 만들지 않습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Slice-as_array_mut"><td><code>Slice.as_array_mut(const usize N, MutSlice&lt;T&gt; view)</code></td><td><code>Result&lt;&amp;mut Array&lt;T, N&gt;, BoundsError&gt;</code></td><td>정확한 길이 검증 후 독점적 인 고정 확장 리보로.</td><td>O(1)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8입니다. 첫 번째 예
+</h2>
+<p><strong>카탈로그 예제.</strong> 이 프래그먼트는 또한 스코프 노트에서 식별된 제안된 함수를 사용한다; 완전한 0.2 프로그램이 아니다.</p>
+<p>값이 존재한다고 가정합니다. <code>Array&lt;i32, 4&gt;</code> 소유자. 각 선언은 첫 번째 유형이며 모든 실행 가능한 문은 세미콜론으로 끝납니다. 이러한 읽기 뷰는 충돌하는 소유자 변경 또는 이동하기 전에 끝나야 합니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
+Slice&lt;i32&gt; view = Slice.from_array(&amp;values);
+usize count = Slice.len(view);
+Optional&lt;&amp;i32&gt; first = Slice.first(view);
+Result&lt;Slice&lt;i32&gt;, BoundsError&gt; middle = Slice.slice(view, 1, 3);
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; owned_copy = Slice.to_vector_copy(view);</code></pre>
+<p>Owned_copy의 Ok 값은 별도의 저장소를 가지고 있습니다. 보기와 중간은 여전히 빌린다; 그들의 서술자를 복사하는 것은 소유자의 수명을 연장하거나 소유된 요소를 생성하지 않는다.
+</p>
+</section>
+<section id="Parallelism-Devices" aria-labelledby="Parallelism-Devices-heading">
+<h2 id="Parallelism-Devices-heading">9입니다. 병렬 처리, GPU 작업 및 FFI
+</h2>
+<p>읽기 공유에는 안전한 공유 액세스를 지원하는 T가 필요합니다. Disjoint write range는 호환 가능한 요소 특성 및 콜백 캡처를 통해서만 병렬 처리를 지원할 수 있습니다. 분할은 임의의 내부 참조에 대한 보편적 인 인종 안전이 아닌 별칭 증거입니다.
+</p>
+<p>슬라이스는 장치 포인터가 아닙니다. CPU 스토리지를 빌리는 것은 업로드를 수행하거나 GPU 작업을 동기화하거나 해당 스토리지 커널에 액세스 할 수 없도록합니다. 명시적 전송 및 비동기 수명 규칙은 실행 및 Tensor 디자인에 속합니다.
+</p>
+<p>외국에서 빌린 버퍼는 지속 시간, 초기화 된 요소 count, 정렬, 액세스 권한 및 외부 변경 계약이 필요합니다. 소유자는 대여 기간 동안 자유롭게 또는 재배치해서는 안됩니다. 릴리스 콜백은 일반 Slice 소멸자가 아닌 소유 어댑터에 속합니다.
+</p>
+</section>
+<section id="Text-Related" aria-labelledby="Text-Related-heading">
+<h2 id="Text-Related-heading">10입니다. 텍스트, 바이트 및 관련 컬렉션
+</h2>
+<p><code>Slice&lt;char&gt;</code> Unicode 스칼라 값을 색인합니다. 그것은 UTF-8가 아닙니다. <code>string_view</code>숫자 또는 raw-byte 슬라이스는 유효한 텍스트가 아닙니다. 소문자 보기 <a href="../String/string.html">string 참조</a> 인코딩 경계입니다.
+</p>
+<p><a href="../Byte/Byte.html">byte</a> u8와는 구별된다; 슬라이스 캐스트는 한 요소를 다른 요소로 조용히 대체해서는 안 된다. Endianness, serialization 및 FFI 레이아웃도 명시적인 변환이 필요합니다.
+</p>
+<p>사용법: <a href="../Array/Array.html">Array</a> 일반적인 가족 규칙, <a href="../Array/Static_Array.html">정적 배열</a> 고정 소유권, 그리고 <a href="../Vector/Vector.html">Vector</a> 역동적인 소유권을 위해 주 소스는 이 제안을 알립니다; 컴파일러, 할당자, ABI 또는 장치 구현은 주장되지 않습니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank" rel="noopener noreferrer">Rust 고정 크기 배열 참조</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank" rel="noopener noreferrer">Rust Vec 소유권 및 용량 참조</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank" rel="noopener noreferrer">Rust 슬라이스 작업 및 대여 해제</a>
+</li>
+<li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ 작업 초안: 배열</a>
+</li>
+<li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ 작업 초안: 벡터</a>
+</li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md" target="_blank" rel="noopener noreferrer">Swift Evolution: 인라인 배열 설계 논의</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Slice_Mutation.html"><span>다음 레퍼런스</span>독점 Slice 보기</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

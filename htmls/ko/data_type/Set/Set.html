@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="해시 조회와 대표 값 정책을 명시하는 소유 고유 원소.">
+  <title>Set — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Set/Set.html">
+<link rel="alternate" hreflang="ko" href="Set.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Set.html" aria-current="true">Set</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Set.html">Set</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Set</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Set</h1><p class="doc-subtitle">해시 조회와 대표 값 정책을 명시하는 소유 고유 원소.</p><div class="doc-meta"><span class="meta-chip">Set&lt;T&gt;</span><span class="meta-chip">Set 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>25</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>한국어 (ko)</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>Hashed 세트</span></a></li><li><a href="#Member-Invariants"><span class="toc-number">02</span><span>안정적인 멤버십 의미</span></a></li><li><a href="#Representatives"><span class="toc-number">03</span><span>Canon 대표단</span></a></li><li><a href="#Errors-Ownership"><span class="toc-number">04</span><span>실수와 대여</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>Set 함수 참조</span></a></li><li><a href="#Algebra-Cost"><span class="toc-number">06</span><span>대수 및 복잡성</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>예제</span></a></li><li><a href="#Targets-Related"><span class="toc-number">08</span><span>목표 및 관련 컬렉션</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Set 문서"><h2>Set 참조 문서</h2><div class="family-links"><a href="Set.html" aria-current="page">Set</a><a href="Ordered_Set.html">순서설정</a><a href="Set_Algebra.html">Set 집합 연산</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="Set.html" aria-current="true">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Set 참조 문서">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. Hashed 세트
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> Set 및 OrderedSet은 기본 전주곡과 구현된 0.2 type/API 하위 집합을 제외한 전문 라이브러리 설계입니다. 최종 사용은 명시적인 가져오기가 필요하며, 이 카탈로그에서 내장된 0.2 모듈이 제공되지 않습니다. 이 디자인 페이지에서는 사용 가능한 0.2 백엔드 또는 패키지가 아닌 의도된 라이브러리 경계를 설명합니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>Set&lt;T&gt;는 등가 클래스 당 하나의 대표를 소유합니다. 그것은 별도의 가치를 연결하지 않고 회원권과 독창성을 제공합니다. 기본값은 지정되지 않은 반복 순서로 무작위 해싱입니다. OrderedSet 은 별도의 정렬된 컬렉션입니다. 세트 핸들은 각 요소를 복사하는 대신 할당과 멤버를 이동합니다. 빈 저장소는 허용되고 모든 저장된 멤버는 초기화된 상태로 유지됩니다.
+</p>
+<blockquote class="callout note">
+<p><strong>설계 초안.</strong> 함수 이름, 콜백, 반복자, 특성 및 오류 캐리어는 제안된 Aevix 계약을 정의합니다. 매개 변수 사용 <code>T value</code> 가치에 의하여, <code>&amp;T value</code> 공유 대여, 그리고 <code>&amp;mut T value</code> 단독 대여. 패스 소유자를 호출합니다 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code>; 복용 <code>&amp;mut owner</code> 에는 <code>mut</code> 바인딩. 기존 참조 및 빌린된 보기는 직접 전달 됩니다. 콜백 별칭, 오류 레코드 및 반환 참조 수명 표기는 설계 설명으로 남아 있습니다. mut를 선언하지 않는 한 바인딩은 변경할 수 없으며 unit는 값 형식입니다. 어떤 구현 또는 장치 지원 청구는이 카탈로그에서 다음과 같습니다.
+</p>
+</blockquote>
+</section>
+<section id="Member-Invariants" aria-labelledby="Member-Invariants-heading">
+<h2 id="Member-Invariants-heading">2입니다. 안정적인 멤버십 의미
+</h2>
+<p>평등은 동등한 관계여야 하며, 평등한 구성원은 선택된 정책 하에서 동등하게 해시되어야 한다. 이러한 의미는 멤버가 저장되는 동안 안정적으로 유지됩니다. Public APIs never yield &amp;mut T for a member: break 조회할 버킷을 결정하는 값을 편집합니다. 의도적인 변경의 경우 소유자를 데리고 집합 외부로 편집한 다음 명시적인 실패 처리를 통해 다시 삽입합니다. 내부 상태 및 사용자 정의 콜백은 동일한 규칙의 적용을받습니다.
+</p>
+</section>
+<section id="Representatives" aria-labelledby="Representatives-heading">
+<h2 id="Representatives-heading">3입니다. Canon 대표단
+</h2>
+<p>동일한 쿼리는 equality에 의해 제외된 메타데이터에 저장된 객체와 다를 수 있습니다. 저장된 representative를 빌리고 transfer를 가져옵니다. insert는 그것을 보존하고 성공적인 중복 입력을 파괴하는 반면, replace는 이전 소유자를 반환하고 들어오는 객체를 설치합니다. try_insert는 입력 복구로 중복을 거부합니다. 이러한 차이점은 의미있는 외부 자원 소유자의 우발적 인 파괴 또는 표준 데이터의 자동 교체를 방지합니다.
+</p>
+</section>
+<section id="Errors-Ownership" aria-labelledby="Errors-Ownership-heading">
+<h2 id="Errors-Ownership-heading">4입니다. 실수와 대여
+</h2>
+<p>InputError는 중복 거부 또는 성장 사전 비행 실패에 대해 사용되지 않은 수신 소유권을 유지합니다. CollectionError는 checked 크기, 할당, 시드 초기화 및 잘못된 클론 오류를 다룹니다. 빌린 건축은 그것의 근원을 본래대로 남겨둡니다; 부분적인 산출은 실패에 파괴됩니다. Rehash는 멤버 참조 또는 반복자가 살아있는 동안에는 발생할 수 없습니다. 콜백 풀림은 안전한 초기화를 유지하지만 이전 제거 또는 외부 효과를 실행 취소하지 않습니다. 깨진 사용자 equality/hash 로직은 잘못된 결과를 생성할 수 있지만, 안전한 구현은 아웃 오브 바운드 액세스 또는 별칭 가변 참조를 생성해서는 안 됩니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5. Set 함수 참조
+</h2>
+<div class="table-scroll" role="region" aria-label="Set 함수 참조 데이터 표">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">도메인, 소유권, 오류 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Set-new"><th scope="row"><code>Set.new(T)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>빈 무작위 해시 세트를 초기화합니다. 보고서 시드 초기화 실패. 빈 구조는 버킷을 할당 할 필요가 없습니다; 예상 O(1).</td>
+</tr>
+<tr id="Set-with_capacity"><th scope="row"><code>Set.with_capacity(T, usize minimum)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>최소한도 명백한 일원을 비축하십시오; checked 크기와 배부 실패 return 과실; O(capacity) 초기화.</td>
+</tr>
+<tr id="Set-with_hasher"><th scope="row"><code>Set.with_hasher(T, HashPolicy policy)</code></th><td><code>Result&lt;Set&lt;T&gt;, InputError&lt;HashPolicy&gt;&gt;</code></td><td>명시적 정책을 사용하고 초기화 실패 시 이를 복구합니다. 충돌 저항과 결정론적 행동은 그 정책에 달려 있습니다.</td>
+</tr>
+<tr id="Set-from_values"><th scope="row"><code>Set.from_values(Slice&lt;T&gt; values)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>명시적으로 빌린 값을 복제하여 동일한 입력의 첫 번째 대표를 유지합니다. 복제 복제본과 실패 시 부분 출력을 파괴합니다. 원본은 그대로 유지됩니다.</td>
+</tr>
+<tr id="Set-len"><th scope="row"><code>Set.len(&amp;Set&lt;T&gt; set)</code></th><td><code>usize</code></td><td>다른 저장된 멤버 count; O(1)를 반환합니다.</td>
+</tr>
+<tr id="Set-capacity"><th scope="row"><code>Set.capacity(&amp;Set&lt;T&gt; set)</code></th><td><code>usize</code></td><td>양동이 성장없이 저장 가능한 총 회원의 하한; O(1), byte count가 아닙니다.</td>
+</tr>
+<tr id="Set-is_empty"><th scope="row"><code>Set.is_empty(&amp;Set&lt;T&gt; set)</code></th><td><code>bool</code></td><td>count 0를 시험하십시오; O(1).</td>
+</tr>
+<tr id="Set-reserve"><th scope="row"><code>Set.reserve(&amp;mut Set&lt;T&gt; set, usize additional)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>len + addition을 확인한 다음 commit 전에 예약하십시오. Allocation/size 실패는 일원을 보존합니다; rehash는 O(capacity)를 가지고 갈지도 모릅니다.</td>
+</tr>
+<tr id="Set-shrink_to"><th scope="row"><code>Set.shrink_to(&amp;mut Set&lt;T&gt; set, usize minimum)</code></th><td><code>Result&lt;unit, CollectionError&gt;</code></td><td>회원을 제거하지 않고 초과 용량을 줄이려고; 요청보다 더 유지할 수 있습니다. 오류가 콘텐츠를 보존합니다. O(capacity) rehash.</td>
+</tr>
+<tr id="Set-clear"><th scope="row"><code>Set.clear(&amp;mut Set&lt;T&gt; set)</code></th><td><code>unit</code></td><td>모든 멤버를 파괴하고 버킷 용량을 유지합니다. O(capacity) plus destructors; bytes are not promised scrubed.</td>
+</tr>
+<tr id="Set-contains"><th scope="row"><code>Set.contains(&amp;Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>bool</code></td><td>equality/hash-compatible 빌린 쿼리를 확인; 예상 O(1), 최악의 O(n), 플러스 쿼리 작업.</td>
+</tr>
+<tr id="Set-get"><th scope="row"><code>Set.get(&amp;Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>Optional&lt;&amp;T&gt;</code></td><td>정식 저장된 담당자를 빌려; 아니 클론 또는 소유권 이전.</td>
+</tr>
+<tr id="Set-insert"><th scope="row"><code>Set.insert(&amp;mut Set&lt;T&gt; set, T value)</code></th><td><code>Result&lt;bool, InputError&lt;T&gt;&gt;</code></td><td>새 멤버에 대한 true 를 반환합니다. 동일한 기존 멤버가 유지됩니다; 성공 false는 사용되지 않는 수신 값을 파괴합니다. 비행 전 성장 실패는 들어오는 소유자를 반환합니다.</td>
+</tr>
+<tr id="Set-try_insert"><th scope="row"><code>Set.try_insert(&amp;mut Set&lt;T&gt; set, T value)</code></th><td><code>Result&lt;&amp;T, InputError&lt;T&gt;&gt;</code></td><td>부재 시에만 삽입하고 삽입된 멤버를 대여합니다. 중복 또는 성장 실패는 들어오는 가치를 돌려보냅니다; 중복 과실은 또한 저장된 대표자를 빌릴지도 모릅니다.</td>
+</tr>
+<tr id="Set-replace"><th scope="row"><code>Set.replace(&amp;mut Set&lt;T&gt; set, T value)</code></th><td><code>Result&lt;Optional&lt;T&gt;, InputError&lt;T&gt;&gt;</code></td><td>동일한 저장된 담당자와 이전 소유자 return를 삽입하거나 교체하십시오. 사전 비행 실패는 들어오는 값을 유지하고 변경되지 않은 상태로 유지됩니다.</td>
+</tr>
+<tr id="Set-remove"><th scope="row"><code>Set.remove(&amp;mut Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>bool</code></td><td>동등한 멤버를 제거하고 그것을 파괴; return 여부 존재. 예상 O(1), 최악의 O(n), 플러스 파괴.</td>
+</tr>
+<tr id="Set-take"><th scope="row"><code>Set.take(&amp;mut Set&lt;T&gt; set, &amp;Q value)</code></th><td><code>Optional&lt;T&gt;</code></td><td>복제하지 않고 저장된 담당자를 제거하고 전송하십시오. 부재시 없음.</td>
+</tr>
+<tr id="Set-iter"><th scope="row"><code>Set.iter(&amp;Set&lt;T&gt; set)</code></th><td><code>Iterator&lt;&amp;T&gt;</code></td><td>불명확 한 순서로 회원을 대여. 전체 횡단은 O(capacity)를 스캔 할 수 있습니다. 변경는 임대를 위해 제외됩니다.</td>
+</tr>
+<tr id="Set-drain"><th scope="row"><code>Set.drain(&amp;mut Set&lt;T&gt; set)</code></th><td><code>Drain&lt;T&gt;</code></td><td>단독 소유 반복자를 통해 모든 멤버를 제거합니다. 드롭은 unyielded 멤버를 파괴하고 버킷 용량을 유지합니다; O(capacity) 합계.</td>
+</tr>
+<tr id="Set-retain"><th scope="row"><code>Set.retain(&amp;mut Set&lt;T&gt; set, Predicate&lt;&amp;T&gt; keep)</code></th><td><code>unit</code></td><td>허용된 멤버를 유지하며, predicate는 공유된 멤버만 액세스할 수 있습니다. 풀림은 초기화 된 소유자를 유지하지만 이전 제거는 유지하지 않습니다. O(capacity)와 callback/drop 작업.</td>
+</tr>
+<tr id="Set-extract_if"><th scope="row"><code>Set.extract_if(&amp;mut Set&lt;T&gt; set, Predicate&lt;&amp;T&gt; remove)</code></th><td><code>ExtractIterator&lt;T&gt;</code></td><td>Lazily 방문 일치 하는 회원을 제거 합니다. 반복자를 삭제하면 방문한 멤버가 저장되지 않습니다. 공유 멤버 액세스는 해시 의미를 변경할 수 없습니다.</td>
+</tr>
+<tr id="Set-into_iter"><th scope="row"><code>Set.into_iter(Set&lt;T&gt; set)</code></th><td><code>OwningIterator&lt;T&gt;</code></td><td>지정되지 않은 순서로 멤버를 이동시킵니다; 이터레이터는 파괴될 때까지 남은 멤버와 버킷을 소유합니다.</td>
+</tr>
+<tr id="Set-clone"><th scope="row"><code>Set.clone(&amp;Set&lt;T&gt; set)</code></th><td><code>Result&lt;Set&lt;T&gt;, CollectionError&gt;</code></td><td>명시 적으로 구성원과 정책을 복제; clone/allocation 오류는 부분 출력을 청소합니다. O(capacity) 플러스 복제; 소스는 라이브 남아있다.</td>
+</tr>
+<tr id="Set-equal"><th scope="row"><code>Set.equal(&amp;Set&lt;T&gt; a, &amp;Set&lt;T&gt; b)</code></th><td><code>bool</code></td><td>버킷 순서와 무관한 멤버십 비교; 예상 O(n), 최악의 O(n squared) 및 equality/hash 작업.</td>
+</tr>
+<tr id="Set-hasher"><th scope="row"><code>Set.hasher(&amp;Set&lt;T&gt; set)</code></th><td><code>&amp;HashPolicy</code></td><td>검사에 대한 대여 정책; 이 참조를 통해 멤버 해시 의미를 변경할 수 없습니다; O(1).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Algebra-Cost" aria-labelledby="Algebra-Cost-heading">
+<h2 id="Algebra-Cost-heading">6입니다. 대수 및 복잡성
+</h2>
+<p>관계와 게으른 union/intersection/difference는에 살고 <a href="Set_Algebra.html">algebra 페이지 설정</a>. 게으른 뷰는 결과를 할당하지 않고 입력을 대여합니다; 소유된 출력은 명시적으로 명명된 복사 또는 복제 작업과 Result를 사용합니다. 예상 일정 시간 멤버십은 충돌 방지 최악의 경우 보장이 아닙니다. 전체 반복은 용량을 스캔 할 수 있으며 해싱, 평등, 복제 및 최종 처리기는 버킷 작업 이상의 비용을 추가합니다. 고정된 해시 알고리즘, 재현 가능한 시드 또는 암호화 보증은 함축되어 있지 않습니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7입니다. 예제
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Set&lt;i32&gt;, CollectionError&gt; identifiers = Set.with_capacity(i32, 64);
+Array&lt;i32, 4&gt; repeated = [3, 1, 3, 2];
+Result&lt;Set&lt;i32&gt;, CollectionError&gt; unique = Set.from_values(Slice.from_array(&amp;repeated));</code></pre>
+<p>Construction은 Result를 반환하므로 발신자는 멤버십 작업을 적용하기 전에 실패를 처리해야 합니다. 중복된 소스 값은 집합을 멀티셋으로 변환하지 않습니다. 배열은 원래의 네 정수의 소유자로 남아 있습니다.
+</p>
+</section>
+<section id="Targets-Related" aria-labelledby="Targets-Related-heading">
+<h2 id="Targets-Related-heading">8입니다. 목표 및 관련 컬렉션
+</h2>
+<p>집합은 호스트 소유 컬렉션입니다. Shared 스레드 액세스에는 적절한 동기화 및 페이로드 경계가 필요합니다. 해싱은 동시성 기본이 아닙니다. GPU 코드에는 명시적인 장치 호환 스토리지 또는 지원되는 특수 컬렉션이 필요합니다. 호스트 버킷 포인터, 용량 및 임의 시드는 휴대용 byte 인코딩을 정의하지 않습니다. 더 보기 <a href="Ordered_Set.html">순서설정</a>, <a href="../Map/Map.html">Map</a>, <a href="../Vector/Vector.html">Vector</a>, <a href="../Array/Array.html">Array</a>, 및 <a href="../String/string.html">string</a>.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.HashSet.html" target="_blank" rel="noopener noreferrer">Rust HashSet 참조: 멤버쉽, 대표, 반복 및 작업 설정</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/collections/struct.BTreeSet.html" target="_blank" rel="noopener noreferrer">Rust BTreeSet 참조: 주문 회원 및 범위</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Ordered_Set.html"><span>다음 레퍼런스</span>순서설정</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Publication, read-modify-write 반쪽, 유효한 순서 도메인.">
+  <title>메모리 순서 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Atomic/Memory_Order.html">
+<link rel="alternate" hreflang="ko" href="Memory_Order.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Atomic.html" aria-current="true">Atomic</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Atomic.html">Atomic</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">메모리 순서</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>메모리 순서</h1><p class="doc-subtitle">Publication, read-modify-write 반쪽, 유효한 순서 도메인.</p><div class="doc-meta"><span class="meta-chip">메모리 순서</span><span class="meta-chip">Atomic 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>4</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>원자</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Scope"><span class="toc-number">01</span><span>원자 와 이전 의 일 들 은 다르다</span></a></li><li><a href="#Relaxed"><span class="toc-number">02</span><span>편안한 Atomic 작업</span></a></li><li><a href="#Acquire-Release"><span class="toc-number">03</span><span>릴리스, 획득 및 그들의 RMW 반쪽</span></a></li><li><a href="#SeqCst"><span class="toc-number">04</span><span>연속 일관성은 글로벌 잠금이 아닙니다.</span></a></li><li><a href="#Domains"><span class="toc-number">05</span><span>잘못된 주문 및 유효성 검사</span></a></li><li><a href="#Fences"><span class="toc-number">06</span><span>울타리 및 메모리 스코프</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>루프, ABA 및 매립 재시도</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Atomic 페이지"><h2>Atomic 참조</h2><div class="family-links"><a href="Atomic.html">Atomic</a><a href="Memory_Order.html" aria-current="page">메모리 순서</a><a href="Atomic_Capabilities.html">Atomic 기능</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="Atomic.html" aria-current="true">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="메모리 순서 참조">
+<section id="Scope" aria-labelledby="Scope-heading">
+<h2 id="Scope-heading">1입니다. 원자 와 이전 의 일 들 은 다르다
+</h2>
+<p>원자 세포는 위치 변경 순서가 있습니다. 값 중 하나를 관찰해도 다른 모든 메모리 위치에 대한 가시성이 자동으로 설정되지는 않습니다. release/acquire 프로토콜은 적절한 read-from 또는 release-sequence 동기화 관계가 필요하다. 일반적인 공유 원자가 아닌 변경는 유효한 발생 전과 소유권 능력없이 금지됩니다. 프로세서의 강한 행동은 언어 계약을 대체 할 수있는 것이 아닙니다.
+</p>
+</section>
+<section id="Relaxed" aria-labelledby="Relaxed-heading">
+<h2 id="Relaxed-heading">2입니다. 편안한 Atomic 작업
+</h2>
+<p>이완된 접근은 원자성과 세포 변형-순서 규칙을 유지한다. 필요한 결과 만 대략적인 진단 count와 같은 독립적 인 세포와 관련이있을 때 유용합니다. 새로 초기화된 객체를 게시하거나 관련 없는 플래그 및 데이터 프로토콜을 스스로 수정하지 않습니다. 변경된 이완된 플래그를 관찰하는 루프는 이전의 모든 비원자적 기록이 보인다고 추론할 수 없다.
+</p>
+</section>
+<section id="Acquire-Release" aria-labelledby="Acquire-Release-heading">
+<h2 id="Acquire-Release-heading">3입니다. 릴리스, 획득 및 그들의 RMW 반쪽
+</h2>
+<p>릴리스 쓰기는 이전 작업을 올바르게 구성된 프로토콜에서 해당 획득 관측값에 게시할 수 있습니다. 인수 RMW는 부하 반에 의미론을 획득하고 매장 반에 편안한 행동을 가지고; 릴리스는 반대 분할을 가지고있다. AcqRel은 두 가지 역할을 모두 제공합니다. 이러한 관계는 모든 애플리케이션 경쟁을 막거나 임의의 다중 객체 불변 트랜잭션을 만들지는 않습니다.
+</p>
+</section>
+<section id="SeqCst" aria-labelledby="SeqCst-heading">
+<h2 id="SeqCst-heading">4입니다. 연속 일관성은 글로벌 잠금이 아닙니다.
+</h2>
+<p>SeqCst는 각 작업에 적합한 일반 acquire/release 관계를 유지하면서 순차적으로 일관된 작업에 대해 지정된 총계차 제약 조건을 추가합니다. 동기화되지 않은 비원자 필드를 안전하게 만들거나, 객체 수명을 예약하거나, OS 뮤텍스를 획득하는 메커니즘이 아닙니다. 알고리즘의 모든 작업을 SeqCst로 교체하면 유효하지 않은 참조, 누락된 복구 또는 깨진 비교 및 교환 루프를 복구할 수 없습니다.
+</p>
+</section>
+<section id="Domains" aria-labelledby="Domains-heading">
+<h2 id="Domains-heading">5입니다. 잘못된 주문 및 유효성 검사
+</h2>
+<p>로드는 릴리스 저장소를 수행할 수 없으며, 저장소는 읽지 않는 값을 취득할 수 없습니다. 실패한 CAS는 로드이며 Release 또는 AcqRel을 사용할 수 없습니다. 일반적인 작업 시그니처은 스토리지를 터치하기 전에 동적 잘못된 선택 및 알려진 잘못된 상수에 대한 진단을 위한 오류를 정의합니다. 아래의 도우미는 구성 빌더에 대한 유효성 검사를 노출하며, 원자 액세스를 실행하거나 더 큰 프로토콜이 올바르다는 것을 증명하지 않습니다.
+</p>
+<div class="table-scroll" role="region" aria-label="잘못된 주문 및 유효성 검사 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">도메인, 오류 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Atomic-valid_load_order"><th scope="row"><code>Atomic.valid_load_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Relaxed, Acquire, SeqCst를 수락하십시오. 순수한 유효성 검사, 메모리 작동 없음.</td>
+</tr>
+<tr id="Atomic-valid_store_order"><th scope="row"><code>Atomic.valid_store_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Relaxed, Release, SeqCst; 순수 검증을 수락합니다.</td>
+</tr>
+<tr id="Atomic-valid_failure_order"><th scope="row"><code>Atomic.valid_failure_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Accept Relaxed, Acquire, SeqCst; 릴리스 및 AcqRel이 유효하지 않습니다.</td>
+</tr>
+<tr id="Atomic-valid_fence_order"><th scope="row"><code>Atomic.valid_fence_order(MemoryOrder order)</code></th><td><code>bool</code></td><td>Relaxed를 제외한 모든 명명된 명령을 수락합니다; 펜스는 실행되지 않습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Fences" aria-labelledby="Fences-heading">
+<h2 id="Fences-heading">6입니다. 울타리 및 메모리 스코프
+</h2>
+<p>울타리는 지정된 주변의 원자 액세스를 통해서만 동기화에 참여합니다. 이는 담요 플러시 명령이 아닙니다. 컴파일러 펜스는 선택한 compiler/same-thread 중단 프로파일을 처리하고 하드웨어 스레드 간 펜스를 대체하지 않습니다. 호스트, 장치, 작업 그룹 및 시스템 범위는 서로 다른 기능입니다. 순서 이름만으로는 GPU 전송 또는 외부 메모리 매핑에 대한 가시성을 확보할 수 없습니다.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7입니다. 루프, ABA 및 매립 재시도
+</h2>
+<p>CAS는 값이 변한 후에 동일한 비트 패턴을 관찰 할 수 있으며, ID를 사용하는 프로토콜에 대한 ABA 문제입니다. 메모리 순서는 복구된 노드를 유지하지 않습니다. 형식이 지정되지 않은 원자 주소가 아닌 명시적으로 설계된 개간 메커니즘과 유효한 소유권을 사용합니다. <a href="Atomic.html">Atomic</a> 호출 가능한 작업을 정의합니다. <a href="Atomic_Capabilities.html">기능</a> 타겟 지원을 분리합니다. 이 초안에는 잠금 해제 포인터 컨테이너가 자동으로 포함되지 않습니다.
+</p>
+<p>유효성 검사는 원자 액세스를 수행하거나 관계로부터의 읽기를 설정하지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">bool load_ok = Atomic.valid_load_order(MemoryOrder.Acquire);
+bool store_ok = Atomic.valid_store_order(MemoryOrder.Release);
+bool failure_ok = Atomic.valid_failure_order(MemoryOrder.Relaxed);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/index.html" target="_blank" rel="noopener noreferrer">Rust 원자 메모리 모델 및 이식성</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html" target="_blank" rel="noopener noreferrer">Rust 메모리 주문</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/atomic/struct.Atomic.html" target="_blank" rel="noopener noreferrer">Rust 일반 Atomic — 개별 운영 도메인</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Atomic.html"><span>이전 레퍼런스</span>Atomic</a><a href="Atomic_Capabilities.html"><span>다음 레퍼런스</span>Atomic 기능</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

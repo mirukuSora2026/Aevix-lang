@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="8비트, 다중 인코딩. FP8은 포맷 패밀리이지, 교환 가능한 스칼라 정의가 아니다.">
+  <title>Aevix 문서도구</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Float/Float_8.html">
+<link rel="alternate" hreflang="ko" href="Float_8.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Float.html" aria-current="true">Float</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Float.html">Float</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">플로트8</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>플로트8</h1><p class="doc-subtitle">8비트, 다중 인코딩. FP8은 포맷 패밀리이지, 교환 가능한 스칼라 정의가 아니다.</p><div class="doc-meta"><span class="meta-chip">FP8에서</span><span class="meta-chip">Float. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>저장 방식</dt><dd>1 byte</dd></div><div class="doc-stat"><dt>형식</dt><dd>E4M3FN / E5M2</dd></div><div class="doc-stat"><dt>상태</dt><dd>확장 기능 초안</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>FP8에서</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>기본 정보</span></a></li><li><a href="#Formats"><span class="toc-number">02</span><span>인코딩 비교</span></a></li><li><a href="#Bit-Representation"><span class="toc-number">03</span><span>비트 표현</span></a></li><li><a href="#Precision"><span class="toc-number">04</span><span>정밀 &amp; 반올림</span></a></li><li><a href="#Conversion"><span class="toc-number">05</span><span>변환 및 특별 값</span></a></li><li><a href="#Arithmetic"><span class="toc-number">06</span><span>산술 &amp; 축적</span></a></li><li><a href="#Common-Functions"><span class="toc-number">07</span><span>일반적인 Float 기능 바인딩</span></a></li><li><a href="#String-Byte"><span class="toc-number">08</span><span>string, 바이트 및 상호 운용성</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">09</span><span>CPU 및 GPU 지원</span></a></li><li><a href="#Type-Functions"><span class="toc-number">10</span><span>Float8-특정 기능</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Float 페이지"><h2>Float 참조</h2><div class="family-links"><a href="Float.html">Float</a><a href="Float_8.html" aria-current="page">플로트8</a><a href="Float_16.html">플로트16</a><a href="BFloat_16.html">BFloat16에는</a><a href="Float_32.html">플로트32</a><a href="Float_64.html">플로트64</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Float8 참조">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. 기본 정보
+</h2>
+<p>기존 Float8 페이지는 확장 제안을 문서화합니다. Aevix가 인증되지 않은 항목을 할당하지 않았습니다. <code>f8</code> 별칭. 후보 코드 이름 <code>f8_e4m3fn</code> 및 <code>f8_e5m2</code> 구별되는 인코딩을 식별하십시오; 그들의 최종 철자는 검토 중에 남아 있습니다.
+</p>
+<blockquote class="callout warning">8비트 너비만으로는 지수 편향, NaN 인코딩, 무한대 지원 또는 부호 있는 0 동작을 결정하지 않습니다. 항상 인코딩을 텐서 및 FFI 메타데이터로 기록합니다.
+</blockquote>
+</section>
+<section id="Formats" aria-labelledby="Formats-heading">
+<h2 id="Formats-heading">2입니다. 인코딩 비교
+</h2>
+<div class="table-scroll" role="region" aria-label="인코딩 비교 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">속성</th><th scope="col">E4M3FN에는</th><th scope="col">E5M2에는</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Sign / exponent / fraction</td><td>1 / 4 / 3 비트</td><td>1 / 5 / 2 비트</td>
+</tr>
+<tr><td>일반 정밀도</td><td>4 뜻 깊은 비트</td><td>3 뜻 깊은 비트</td>
+</tr>
+<tr><td>지수 편향</td><td>7</td><td>15</td>
+</tr>
+<tr><td>최대 유한 크기</td><td>448</td><td>57344</td>
+</tr>
+<tr><td>최소 양성 정상</td><td>2^-6</td><td>2^-14</td>
+</tr>
+<tr><td>최소 양수 정상 이하</td><td>2^-9</td><td>2^-16</td>
+</tr>
+<tr><td>1의 위 간격</td><td>2^-3</td><td>2^-2</td>
+</tr>
+<tr><td>모든 연속 정수 보장됨</td><td>−16를 통해 +16</td><td>−8를 통해 +8</td>
+</tr>
+<tr><td>무한대</td><td>인코딩되지 않음</td><td>긍정과 부정 무한대</td>
+</tr>
+<tr><td>Zero / NaN</td><td>0 또는 NaN</td><td>0 또는 NaN</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>FN은 무한대가 없는 유한 인코딩 + NaN을 의미합니다. FNUZ 변형은 다른 인코딩이며이 페이지의 형식에 별칭이 아닙니다.
+</p>
+</section>
+<section id="Bit-Representation" aria-labelledby="Bit-Representation-heading">
+<h2 id="Bit-Representation-heading">3입니다. 비트 표현
+</h2>
+<p>E4M3FN은 종래의 IEEE와 같은 해석이 무한대로 보존할 인코딩을 용도 변경한다. f16/f32/f64에서 일반 지수-올-원 규칙을 적용하지 마십시오. E5M2는 친숙한 올원 지수 특수 값 구조를 사용합니다.
+</p>
+<p>두 형식 모두 자신의 숫자 비트 단어를 통해 노출 <code>u8</code> 에서 <code>Float.to_bits</code> / <code>Float.from_bits</code>byte 직렬화가 사용되는 동안 <code>Array&lt;byte, 1&gt;</code>. 이들은 별개의 API 및 유형입니다. 2개의 FP8 체재 사이 비트 캐스팅은 수 해석을 바꾼다, 그래서 serialized 바이트는 체재 꼬리표를 동반되어야 한다. implicit 없습니다. <code>byte</code>/<code>u8</code> 변환; 사용 <a href="../Byte/Byte.html">Byte</a> 변수명명명</p>
+</section>
+<section id="Precision" aria-labelledby="Precision-heading">
+<h2 id="Precision-heading">4입니다. 정밀 &amp; 반올림
+</h2>
+<p>FP8은 몇 개의 중요한 비트를 가지고 있다. 대부분의 실제 값 입력은 변환 시 반올림되며 간격은 크기와 함께 빠르게 증가합니다. 명시적 반올림 및 명시적 오버플로우 정책을 사용합니다. E4M3FN은 대상 인코딩으로는 무한대를 생성할 수 없습니다. checked 변환은 범위 밖의 값을 보고해야 하며, 지정된 채도 정책을 선택해야 합니다.
+</p>
+<p>Round-to-Nearest, ties-to-even은 후보 기준선입니다. 정확한 변환은 선택한 인코딩이 나타낼 수 있는 값에 대해서만 사용할 수 있습니다.
+</p>
+</section>
+<section id="Conversion" aria-labelledby="Conversion-heading">
+<h2 id="Conversion-heading">5입니다. 변환 및 특별 값
+</h2>
+<p>유한 FP8 값은 f32에서 정확히 나타낼 수 있습니다. 다시 FP8로 변환하는 것은 정밀도를 잃을 수 있습니다. 부호 있는 0, NaN 페이로드, 비유한 입력 및 유한 범위 오버플로는 별도의 규칙이 필요합니다.
+</p>
+<p>사용중인 API <code>Float.convert_exact</code>, <code>Float.convert</code>, <code>Float.to_bits</code>, 및 <code>Float.from_bits</code>. 다른 FP8 인코딩 간의 암묵적인 변환은 허용되지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Float.convert&lt;f8_e4m3fn&gt;(source);
+Float.convert_exact&lt;f32&gt;(fp8_value);
+Float.to_bits(fp8_value);
+// FP8 types and these instantiations are proposals; 0.2 rejects FP8 types.</code></pre>
+</section>
+<section id="Arithmetic" aria-labelledby="Arithmetic-heading">
+<h2 id="Arithmetic-heading">6입니다. 산술 &amp; 축적
+</h2>
+<p>스토리지 지원은 네이티브 스칼라 산술, 초월 함수, 또는 원자를 의미하지 않는다. 백엔드는 명시적으로 선택된 더 넓은 포맷으로 계산하고 선언된 경계에서 FP8으로 반올림할 수 있다.
+</p>
+<p>도트 제품의 경우 반복 FP8 라운딩을 이에 상응하는 것으로 취급하는 대신 f32 또는 지원되는 다른 누산기를 지정합니다. 프로모션, 전송, 구체화 및 에뮬레이션 비용은 계속 표시됩니다.
+</p>
+</section>
+<section id="Common-Functions" aria-labelledby="Common-Functions-heading">
+<h2 id="Common-Functions-heading">7입니다. 일반적인 Float 기능 바인딩
+</h2>
+<div class="table-scroll" role="region" aria-label="일반적인 Float 기능 바인딩 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">기능 가족</th><th scope="col">FP8 바인딩</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>분류 / 기호 술어</td><td>bool, 형식별 무한대 지원 존중</td>
+</tr>
+<tr><td>to_bits / from_bits</td><td>u8  선택된 FP8 인코딩</td>
+</tr>
+<tr><td>to_le_bytes / to_be_bytes</td><td>Array&lt;byte, 1&gt;</td>
+</tr>
+<tr><td>checked 변환 계산기</td><td>범위, 정밀도 또는 특수값 오류가 있는 Result</td>
+</tr>
+<tr><td>next_up / next_down / next_after</td><td>E5M2는 무한대 가능한 계약을 따른다; 유한한 E4M3FN은 이러한 체크되지 않은 함수를 인스턴스화하지 않는다.</td>
+</tr>
+<tr><td>checked_next_up / checked_next_down / checked_next_after</td><td>Result: 유한 피연산자; 유한 인접 결과가 없는 경우 오류 발생</td>
+</tr>
+<tr><td>수학-도서관 운영</td><td>대상 기능 및 명시적 계산 형식에 따라</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>E4M3FN 경계에서, <code>Float.checked_next_up(448)</code> 및 <code>Float.checked_next_down(-448)</code> return 범위 오류입니다. 그들은 무한대 또는 조용히 클램프를 제조하지 않습니다. 내부 이웃은 선택한 인코딩의 그리드를 따릅니다. E5M2 체크되지 않은 이웃은 무한대에 도달 할 수 있으며 checked 이웃은 비 유한 결과를보고합니다.
+</p>
+<p>전체 정의는 다음과 같습니다. <a href="Float.html#Function-Reference">Float</a>. 지원되지 않는 인스턴스는 다른 인코딩을 자동으로 선택하는 대신 거부됩니다.
+</p>
+</section>
+<section id="String-Byte" aria-labelledby="String-Byte-heading">
+<h2 id="String-Byte-heading">8. string, 바이트 및 상호 운용성
+</h2>
+<p>Little-endian 및 big-endian byte 배열은 1-byte 값과 동일합니다. byte 스트림은 여전히 정확한 FP8 형식 ID가 필요합니다. 숫자 텍스트와 원시 비트 전송은 다른 작업입니다; 가장 짧은 왕복 포맷은 선택한 인코딩으로 반올림해야합니다.
+</p>
+<p>모델 가져오기 변환은 존재하는 경우 dtype, 스케일 메타데이터, 라운딩, 텐서 레이아웃 및 스토리지 소유권을 확인합니다. FP8 혼자 정수 quantization 유형이 아니고 가늠자 또는 영 점을 함축하지 않습니다.
+</p>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">9입니다. CPU 및 GPU 지원
+</h2>
+<p>FP8은 확장 기능 제안서이다. 저장, 변환, 행렬 연산, 스칼라 산술, 특수 함수는 별도의 지원 플래그가 있습니다. 명시적인 에뮬레이션 경로가 제공될 수 있습니다; 이 페이지에서는 네이티브 성능을 보장하지 않습니다.
+</p>
+<p>엄격하고 편안한 실행 프로파일은 flush-to-zero, saturation, NaN 처리 및 누산기 정밀도를 문서화해야 합니다. AOT 및 JIT는 동일한 요청된 프로필에 대해 다른 의미 체계를 선택할 수 없습니다.
+</p>
+</section>
+<section id="Type-Functions" aria-labelledby="Type-Functions-heading">
+<h2 id="Type-Functions-heading">10입니다. Float8-특정 기능
+</h2>
+<p>독립된 Float8 함수 네임스페이스가 도입되지 않았습니다. 인코딩 관련 메타데이터는 일반적인 Float API를 전문으로 합니다. 자격이 없는 f8 기본값, 추가 FNUZ 인코딩 및 기본 백엔드 커버리지는 명확한 설계 결정으로 남아 있습니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 API 이름과 계약은 독립적으로 제안했습니다.
+</p>
+<ul class="source-list">
+<li><a href="https://onnx.ai/onnx/technical/float8.html" target="_blank" rel="noopener noreferrer">ONNX Float8 인코딩 및 변환 동작</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/Builtin/" target="_blank" rel="noopener noreferrer">MLIR 저정밀 부동 소수점 유형</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Float.html"><span>이전 레퍼런스</span>Float</a><a href="Float_16.html"><span>다음 레퍼런스</span>플로트16</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

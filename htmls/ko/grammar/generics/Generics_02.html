@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="일반 범위, 후행 유형 및 값 기본값, 투명 별칭 및 Aevix 0.2의 봉인된 숫자 기능 등을 포함합니다.">
+  <title>0.2의 제네릭 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/generics/Generics_02.html">
+<link rel="alternate" hreflang="ko" href="Generics_02.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="일반 참조"><a href="Generic_Types.html">설계 문서</a><a href="Generics_02.html" aria-current="page">0.2 프로필</a><a href="../../errors/index.html">오류</a></nav>
+    <span class="draft-badge">0.2 프로파일</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Generic_Types.html">제네릭</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">0.2 프로필</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">구현된 언어 범위</p><h1>모델 번호:0.2</h1><p class="doc-subtitle">추적 기본값, 상수 범위, 투명한 별칭 및 명시적 숫자 계약.</p><div class="doc-meta"><span class="meta-chip">Buffer&lt;T, const usize N&gt;</span><span class="meta-chip">유형 ID = u64</span><span class="meta-chip">정적 전문화 · AOT / JIT</span></div></div></header>
+    <div class="docs-layout">
+      <aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#defaults">기본값과 추론</a></li><li><a href="#constants">Const 일반적인 넓이</a></li><li><a href="#aliases">투명한 별칭</a></li><li><a href="#floating">밀봉된 뜨 계약</a></li><li><a href="#scope">컴파일러 범위</a></li></ol></details><nav class="family-nav"><h2>관련 레퍼런스</h2><div class="family-links"><a href="Generic_Types.html">일반적인 형식 규칙</a><a href="Type_Constraints.html">인터페이스 제약 조건</a><a href="../../data_type/Complex/Complex_02.html">Complex 라이브러리</a></div></nav></aside>
+      <article class="content" aria-label="제네릭 레퍼런스 구현">
+<section id="defaults"><h2>추적 기본값 및 추론</h2>
+<p>struct·enum·interface·함수의 제네릭 매개변수 목록에는 뒤쪽 타입·상수 매개변수의 기본값을 지정할 수 있습니다. 기본값은 앞선 매개변수를 사용할 수 있습니다. 기본값이 있는 매개변수 뒤에는 필수 매개변수를 둘 수 없으며, 기본값은 자기 자신이나 뒤쪽 매개변수를 참조할 수 없습니다.</p>
+<pre><code id="Aevix" class="language-aevix" data-language="aevix">struct Pair&lt;T = i32, U = T&gt; {
+    public T first;
+    public U second;
+};
+
+T identity&lt;T = i32&gt;(T value) {
+    return value;
+}
+
+i32 main() {
+    Pair value = Pair { first = 20, second = 22 };
+    i32 result = identity(value.first + value.second);
+    return result;
+}</code></pre>
+<p>함수 인수는 추론에 사용됩니다. 명시적 함수 타입 인자는 제네릭 목록의 앞부분만 지정할 수 있으며, 나머지는 추론이나 뒤쪽 기본값으로 완성합니다. 인자를 생략한 제네릭 타입 이름은 기본값을 사용합니다. 컴파일러는 필드 초기식의 값으로 임의의 제네릭 struct 타입을 추론하지 않습니다.</p>
+</section>
+<section id="constants"><h2>컴파일 시간 상수 범위</h2>
+<p>값 매개변수는 다음 구문을 사용합니다: <code>const usize N</code>. 현재 컴파일러는 usize 상수 매개변수를 허용합니다. 인자는 usize에 들어가는 음이 아닌 컴파일 타임 값이어야 합니다. 런타임 변수, 음수, usize의 범위를 넘는 부호 없는 값은 거부합니다.</p>
+<pre><code class="language-aevix" data-language="aevix">struct Buffer&lt;T = i32, const usize N = 4&gt; {
+    public Array&lt;T, N&gt; values;
+    public usize len(&amp;Self self) {
+        return N;
+    }
+};
+
+usize width&lt;T, const usize N&gt;(&amp;Array&lt;T, N&gt; values) {
+    return N;
+}
+
+i32 main() {
+    i32 items[4] = [1, 2, 3, 4];
+    usize count = width(&amp;items);
+    Buffer buffer = Buffer { values = items };
+    return buffer.len() == count ? 42 : 1;
+}</code></pre>
+<p>같은 크기를 정수 리터럴이나 접근 가능한 const 이름으로 적을 수 있습니다. 컴파일러는 값을 정규화하므로 4와 2 * 2로 계산되는 상수는 같은 특수화를 가리킵니다. 길이가 0인 고정 배열도 허용합니다. 기본값에는 상수식을 사용할 수 있습니다. 보다 큼 또는 시프트 연산자를 포함한 식은 닫는 꺾쇠괄호와 구별되도록 괄호로 감싸세요.</p>
+<p>배열 크기는 Array 타입, 고정 배열 선언자, 대여, 제네릭 컨테이너 필드를 통해 추론할 수 있습니다. 상수 매개변수는 정적 타입이나 컴파일 타임 값을 제어하며, 실행 중 차원이 변하는 타입을 만들지는 않습니다.</p>
+</section>
+<section id="aliases"><h2>투명 타입 별칭</h2>
+<pre><code class="language-aevix" data-language="aevix">public type UserId = u64;
+type Samples = Array&lt;f32, 4&gt;;
+
+UserId identity(UserId value) {
+    return value;
+}</code></pre>
+<p>별칭은 같은 타입의 다른 표기입니다. 새로운 명목 타입을 만들거나 소유권·표현·오버로드 식별·인터페이스 충족·변환 규칙을 바꾸지 않습니다. 별칭 순환은 컴파일 오류입니다. 가져온 별칭에도 일반 public/private 접근 규칙이 적용됩니다. 제네릭 별칭 선언은 이 프로필에 포함되지 않습니다.</p>
+</section>
+<section id="floating"><h2>플로팅 계약 Floating Contract</h2>
+<pre><code class="language-aevix" data-language="aevix">import numeric { Floating };
+
+T twice&lt;T&gt;(T value) where T implements Floating {
+    return value + value;
+}
+
+i32 main() {
+    f32 result = twice(21.0f32);
+    return result == 42.0f32 ? 42 : 1;
+}</code></pre>
+<p>실제 numeric 모듈은 다음 계약을 공개합니다: <code>Floating</code>. 이는 컴파일러가 인식하는 스칼라 형식 계약이며 내장 f16·bf16·f32·f64만 구현합니다. 해당 형식의 투명한 별칭도 이를 충족합니다. Floating은 Copy 동작, 산술 +·-·*·/, 비교, 단항 부호를 보장합니다. 정확한 산술, NaN이 있을 때의 전순서, 비트 연산, 새로운 사용자 정의 연산자 오버로드를 보장하지는 않습니다.</p>
+<p>사용자는 struct나 enum에 이 봉인된 계약을 구현할 수 없습니다. Floating이라는 이름의 사용자 정의 인터페이스는 일반 인터페이스이며 내장 수치 연산 권한을 얻지 않습니다. 컴파일러는 표기뿐 아니라 가져온 계약의 원래 정체성을 검사합니다. Copy만으로 산술이 허용되지는 않으며, 제약 없는 T에는 여전히 +를 사용할 수 없습니다.</p>
+</section>
+<section id="scope"><h2>컴파일러 범위</h2>
+<p>구체 타입·상수 인자는 정적 특수화를 결정합니다. AOT와 JIT는 하나의 컴파일 안에서 정규화된 식별을 재사용합니다. 추론 오류와 지원되지 않는 기능 사용은 기계어 생성 전에 진단합니다.</p>
+<p>Shape 매개변수, 임의 타입의 상수 매개변수, 연관 타입, 수명 매개변수 구문, 공변성·반공변성, 사용자 정의 연산자 계약은 이 구현 프로필에 포함되지 않습니다. CPU SIMD와 Complex는 명시적 import와 각 문서의 제약을 사용합니다.</p>
+</section>
+      </article>
+    </div>
+    <footer class="page-footer"><span>Aevix 0.2 · 제네릭</span><span>언어 프로파일 구현</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="빈 및 명명된 페이로드 변형을 정의하고 명시 적으로 초기화하며 하나의 소유권 및 인터페이스 계약을 공유합니다.">
+  <title>이뉴머스 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/enums/Enums.html">
+<link rel="alternate" hreflang="ko" href="Enums.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body><a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html" aria-current="true">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell"><nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">열거형</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">열거형</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">사용자 정의 형식 참조User-DEFINED TYPE Reference</p><h1>열거형</h1><p class="doc-subtitle">빈 및 명명된 페이로드 변형을 정의하고 명시 적으로 초기화하며 하나의 소유권 및 인터페이스 계약을 공유합니다.</p><div class="doc-meta"><span class="meta-chip">기본적으로 이동</span><span class="meta-chip">Copy 모든 변종을 확인</span><span class="meta-chip">유형 기능 + 각자</span><span>확정된 규칙과 미정 사항</span></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 문서</dd></div><div class="doc-stat"><dt>변형</dt><dd>Empty / named 페이로드</dd></div><div class="doc-stat"><dt>소유권</dt><dd>기본적으로 이동</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>에넘 T</strong><span>enum 참조</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>통합 변형은 한 부모 유형에 속합니다.</span></a></li><li><a href="#Declaration"><span class="toc-number">02</span><span>빈 및 이름있는 페이로드 변형 선언</span></a></li><li><a href="#Construction"><span class="toc-number">03</span><span>필요한 모든 페이로드 필드 초기화</span></a></li><li><a href="#Visibility"><span class="toc-number">04</span><span>다양한 액세스 및 페이로드 액세스는 별도입니다.</span></a></li><li><a href="#Factories"><span class="toc-number">05</span><span>유형 함수를 사용하여 개인 페이로드 구성</span></a></li><li><a href="#Ownership"><span class="toc-number">06</span><span>열거형 이동은 활성 페이로드 이동</span></a></li><li><a href="#Copy"><span class="toc-number">07</span><span>구현 Copy 가능한 모든 변형을 검증</span></a></li><li><a href="#Methods"><span class="toc-number">08</span><span>열거형 재사용 유형 함수 및 자체 수신기</span></a></li><li><a href="#Interfaces"><span class="toc-number">09</span><span>인터페이스 구현은 전체 열거형을 포함합니다.</span></a></li><li><a href="#Diagnostics"><span class="toc-number">10</span><span>거부된 초기화 및 가시성 예제</span></a></li><li><a href="#Open-Decisions"><span class="toc-number">11</span><span>열린 열거된 결정</span></a></li></ol></details><nav class="family-nav" aria-label="Enum 페이지"><h2>열거형 참조</h2><div class="family-links"><a href="index.html">개요</a><a href="Enums.html" aria-current="page">열거형</a><a href="Enum_Switch.html">Enum 스위치</a></div></nav><nav class="family-nav" aria-label="관련 문법"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../user_defined_types/index.html">사용자 정의 타입</a><a href="../user_defined_types/Copy.html">Copy</a><a href="../interfaces/Interfaces.html">인터페이스</a><a href="../generics/Generic_Types.html">제네릭 타입</a><a href="../control_flow/Switch.html">기본 전환</a><a href="../scope_and_comments/Resource_Cleanup.html">자원 정리</a></div></nav></aside><article class="content" aria-label="열거형 참조">
+<section id="Overview" aria-labelledby="Overview-heading"><h2 id="Overview-heading">1입니다. 통합 변형은 한 부모 유형에 속합니다.</h2><p>열거형 선언은 하나의 명명된 형식을 도입합니다. 빈 변형은 데이터 없는 경우를 나타내며 페이로드 변형은 명명된 형식 필드를 전달합니다. 두 폼의 값에는 부모 열거형 형식이 있습니다. Aevix는 빈 열거형과 데이터 열거형을 별도의 선언 메커니즘으로 분리하지 않습니다.</p><p>일반 열거형 값은 기본값으로 이동합니다. 가시성, 페이로드 초기화, Copy 자격 및 인터페이스 구현은 전체 선언에 대해 checked입니다. 이러한 요구 사항은 구현 된 컴파일러의 결과가 아닌 언어 디자인 계약입니다.</p></section>
+<section id="Declaration" aria-labelledby="Declaration-heading"><h2 id="Declaration-heading">2입니다. 빈 및 이름있는 페이로드 변형 선언</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">public enum Event {
+    Quit;
+    Move {
+        public i32 x;
+        public i32 y;
+    };
+    Message {
+        public string text;
+    };
+};</code></pre><p>quit가 비어있습니다. 이동은 두 개의 i32 필드를 전달합니다. 메시지에는 string 소유가 포함되어 있습니다. 필드는 일반적인 type-first 선언 형식을 사용합니다. 각 빈 변형은 세미콜론으로 끝나고, 각 페이로드 변형은 };로 닫히며, 전체 열거형도 };로 닫힙니다.</p><p>이 선언은 기본적으로 변형 이름을 공개합니다. 페이로드 필드는 여기에서 명시적으로 공개되므로 Event 외부의 코드가 다음 예제에서 초기화하고 바인딩할 수 있습니다. public이 없는 필드는 private입니다.</p></section>
+<section id="Construction" aria-labelledby="Construction-heading"><h2 id="Construction-heading">3입니다. 필요한 모든 페이로드 필드 초기화</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Event make_quit() {
+    Event event = Event.Quit;
+    return event;
+}
+
+Event make_move(i32 initial_x, i32 initial_y) {
+    Event event = Event.Move { x = initial_x, y = initial_y };
+    return event;
+}
+
+Event make_message(string initial_text) {
+    return Event.Message { text = initial_text };
+}</code></pre><p>Event.Quit는 빈 변형 값입니다. Event.Move { ... } 및 Event.Message { ... }는 named-payload 이니셜라이저입니다. 필요한 모든 필드가 있어야 하며 이니셜라이저 위치에서 액세스할 수 있어야 합니다. 기본 페이로드 값은 가정되지 않습니다.</p><p>initial_text 를 Message 로 옮기면 소유권이 이전됩니다. 이 구문에서만 깊은 string 복제 또는 숨겨진 할당이 요청되지 않습니다. 반환되는 각 값에는 여전히 Event 유형이 있습니다. Event.Move는 별도로 선언된 유형이 아닙니다.</p><p>Event.Message와 같은 페이로드 변형 이름만으로는 완전히 구성된 값이 아닙니다. 태그 전용 케이스 라벨은 다음과 같이 문서화된 다른 패턴 작업입니다. <a href="Enum_Switch.html#Subset-And-Tag">Enum Switch</a>.</p></section>
+<section id="Visibility" aria-labelledby="Visibility-heading"><h2 id="Visibility-heading">4입니다. 다양한 액세스 및 페이로드 액세스는 별도입니다.</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Enum 가시성 규칙"><table><thead><tr><th scope="col">선언 부분</th><th scope="col">기본</th><th scope="col">명시적 선택</th><th scope="col">의미</th></tr></thead><tbody><tr><td>지금 연락</td><td>module/type 가시성 계약을 따릅니다.</td><td>public / private</td><td>형식 이름에 대한 액세스를 제어합니다.Controls access to the type name.</td></tr><tr><td>변형 이름</td><td>인기 있는</td><td>개인 변형;</td><td>구성 또는 일치에 대한 변형 이름을 지정하는 컨트롤입니다.</td></tr><tr><td>페이로드 필드</td><td>사생활 보호</td><td>공공 T 필드;</td><td>필드 초기화 및 페이로드 바인딩을 제어합니다.</td></tr><tr><td>유형 기능 / 방법</td><td>공유된 멤버 계약을 따릅니다.</td><td>public / private</td><td>기능이나 방법에 대한 액세스를 제어합니다. 필드 가시성을 변경하지 않습니다.</td></tr></tbody></table></div></div><p>개인 페이로드 필드가 있는 공용 변형은 해당 유형 외부의 태그 전용 케이스에서 이름을 지정할 수 있습니다. 그 변형을 명명하는 것은 액세스 할 수없는 필드의 건설 또는 그 내용을 바인딩 권한을 부여하지 않습니다. 개인 변형은 외부 코드에 의해 명시적으로 명명될 수 없습니다.</p><p>가시성 never는 열거형 값 또는 빌린 필드의 수명을 연장합니다. 로컬 바인딩은 여전히 어휘적 범위에 속하며, 중첩된 로컬은 보이는 외부 이름을 숨길 수 없습니다.</p></section>
+<section id="Factories" aria-labelledby="Factories-heading"><h2 id="Factories-heading">5입니다. 유형 함수를 사용하여 개인 페이로드 구성</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">public enum Credential {
+    Token {
+        string secret;
+    };
+    private Internal;
+
+    private Credential from_secret(string initial_secret) {
+        return Credential.Token { secret = initial_secret };
+    }
+
+    public Credential issue(string initial_secret) {
+        return Credential.from_secret(initial_secret);
+    }
+};
+
+Credential issue_credential(string initial_secret) {
+    return Credential.issue(initial_secret);
+}</code></pre><p>from_secret 은 개인 리시버리스 타입 함수입니다. issue 는 그것을 사용하는 공개 타입 함수입니다. 둘 다 Credential 내부에 있으며 private secret 필드를 초기화할 수 있습니다. 외부 코드는 Credential.issue를 통해 자격 증명을 구성하지만 필드에는 액세스 할 수 없습니다.</p><p>팩토리 이름은 일반적인 함수 이름입니다. 생성자 전용 키워드, 정적 저장소 수정자 또는 암시적 페이로드 기본값이 도입되지 않았습니다. persist는 저장소 기간을 제어합니다.</p></section>
+<section id="Ownership" aria-labelledby="Ownership-heading"><h2 id="Ownership-heading">6입니다. 열거형 이동은 활성 페이로드 이동</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Event relay_event(Event source) {
+    Event transferred = source;
+    return transferred;
+}</code></pre><p>Copy를 구현하지 않는 열거는 일반 값 할당, by-value 매개 변수 및 반환을 통해 이동합니다. 활성 페이로드는 전송된 값을 따릅니다. 불변 바인딩은 이동할 수 있다; 불변성은 소유권 이전보다는 일반적인 변경를 금지한다.</p><p>원본 바인딩은 이동 후 사용할 수 없습니다. 비활성 변형은 복제하거나 정리할 라이브 페이로드가 없습니다. 공유 읽기 대여 또는 열거형 읽기 스위치는 소유자를 전송하지 않고 활성 값을 관찰 할 수 있습니다.</p><p>Normal scope exits는 정확히 한 번 역 초기화 순서로 여전히 로컬로 소유한 리소스를 정리합니다. 이동한 열거형을 반환하면 발신자에게 소유자가 되며 로컬로도 파괴되어서는 안 됩니다. 메모리 레이아웃과 사용자 지정 enum 정리 후크는 열려 있습니다.</p></section>
+<section id="Copy" aria-labelledby="Copy-heading"><h2 id="Copy-heading">7. 모든 가능한 변형을 검증하는 Copy 구현</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">enum Axis implements Copy {
+    X;
+    Y;
+    Offset {
+        public i32 amount;
+    };
+};
+
+Axis copy_axis(Axis source) {
+    Axis duplicate = source;
+    return duplicate;
+}</code></pre><p>Copy는 내장형 checked 기능입니다. 모든 변형의 모든 페이로드 필드는 개인 변형 및 개인 필드를 포함한 Copy 요구 사항을 충족해야합니다. 빈 변형은 페이로드 필드를 제공하지 않습니다. 이 검사는 현재 활성화된 변형뿐만 아니라 전체 열거형 유형에 적용됩니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">enum InvalidEvent implements Copy {
+    Quit;
+    private Message {
+        string text;
+    };
+};</code></pre><p>string 소유가 Copy가 아니므로 InvalidEvent는 외부 코드가 메시지의 이름을 지정할 수 없는 경우에도 Copy를 구현할 수 없습니다. 컴파일러는 런타임에 어떤 변형이 저장되는지에 대한 이 결정을 기초로 해서는 안됩니다.</p><p>참고: <a href="../user_defined_types/Copy.html">Copy</a> 공유된 능력의 계약 Copy는 깊은 클론, 사용자 정의 클론 방법, 안정적인 ABI 또는 운영자 과부하를 약속하지 않습니다.</p></section>
+<section id="Methods" aria-labelledby="Methods-heading"><h2 id="Methods-heading">8입니다. 열거형 재사용 유형 함수 및 자체 수신기</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">enum Signal {
+    Stop;
+    Value {
+        public i32 amount;
+    };
+
+    public Signal value(i32 initial_amount) {
+        return Signal.Value { amount = initial_amount };
+    }
+
+    public Signal into_signal(Signal self) {
+        return self;
+    }
+};
+
+Signal relay_signal(i32 amount) {
+    Signal signal = Signal.value(amount);
+    return signal.into_signal();
+}</code></pre><p>value 는 self 매개 변수가 없으므로 type 에 호출됩니다. into_signal 에는 by-value self 매개 변수가 있으므로 호출은 비 Copy 신호의 소유권을받습니다. 그런 다음 반환된 소유자가 호출자로 이동합니다.</p><p>공유 메서드 형태는 값 수신기 T self, 읽기 수신기 &amp;T self 및 수정 수신기 &amp;mut T self입니다. Public/private 액세스 및 명시적 수신기 기능은 구조체와 동일한 규칙을 따릅니다. 적절한 활성 페이로드는 모든 변형이 동일한 필드를 갖는 척하기보다는 스위치 패턴을 통해 액세스됩니다.</p><p>비-void 메서드는 일반 완성에 대한 값을 명시적으로 return 합니다. enum 메소드 스위치의 모든 case/default는 여전히 명시 적으로 끝납니다. <code>break;</code>허용된 return 이후를 포함하여, enclosing-loop continue, divergence 또는 Result ? 필요한 터미널 break는 단순히 이전 종료로 인해 연결할 수 없기 때문에 오류나 경고를 생성하지 않습니다. 성공 ? break를 향해 계속; Err는 함수를 종료합니다. 일반 출구는 정확히 한 번만 떠나는 지역만 정리합니다. 일반적인 도달할 수 없는 코드 정책 및 안전 정지 정리는 별도의 열린 주제입니다. 더 보기 <a href="../operators/Parsing_Rules.html#case-exits">case 종료</a>.</p></section>
+<section id="Interfaces" aria-labelledby="Interfaces-heading"><h2 id="Interfaces-heading">9입니다. 인터페이스 구현은 전체 열거형을 포함합니다.</h2><p>일반적인 구현 인터페이스 선언은 전체 열거형 형식에 속합니다. 인터페이스에서 Self는 부모 열거형을 의미합니다. 개별 변형을 의미하지 않으며, 각 변형은 독립적 인 구현자가되지 않습니다.</p><p>열거형은 선택한 인터페이스 디스패치, 기본 메서드 및 재정의 계약을 재사용합니다. 메서드는 활성 변형에서 스위치를 통해 동작을 결정할 수 있지만 시그니처은 여전히 하나의 enum 구현을 충족합니다. 변형 가시성은이 의무에서 개인 변형을 제거하지 않습니다.</p><p>참고: <a href="../interfaces/Interfaces.html">인터페이스</a> 표준 선언 및 방법 요구 사항, 그리고 <a href="../generics/Generic_Types.html">일반 유형</a> 형식 매개 변수 제약 조건. Copy와 같은 내장 기능은 전체 열거형에도 적용되며 추가 컴파일러 유효성 검사가 제공됩니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">interface Leveled {
+    public i32 get_level(&amp;Self self);
+};
+
+enum LevelState implements Leveled {
+    Beginner;
+    Experienced;
+
+    public i32 get_level(&amp;LevelState self) {
+        mut i32 level = 0;
+        switch (*self) {
+            case LevelState.Beginner:
+                level = 1;
+                break;
+            case LevelState.Experienced:
+                level = 2;
+                break;
+        }
+        return level;
+    }
+};</code></pre><p>Leveled의 Self가 LevelState에 매핑되므로 구현이 &amp;LevelState self를 수신합니다. 필요한 메서드는 일반 공개 선언입니다. 재정의는 상속된 기본 구현을 대체하기 위해 예약되어 있습니다. 스위치는 읽기 대여을 위해 *self를 통해 열거형 참조 장소를 명시적으로 선택합니다. 그것은 공유 참조에서 열거를 이동하지 않습니다.</p></section>
+<section id="Diagnostics" aria-labelledby="Diagnostics-heading"><h2 id="Diagnostics-heading">10입니다. 거부된 초기화 및 가시성 예제</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Event incomplete_move(i32 initial_x) {
+    return Event.Move { x = initial_x };
+}</code></pre><p>이동은 x와 y 모두를 필요로 합니다. 누락된 필드에는 암시적 기본값이 없습니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Credential inaccessible_payload(string initial_secret) {
+    return Credential.Token { secret = initial_secret };
+}</code></pre><p>이 함수는 Credential 외부에 있으므로 private secret을 초기화할 수 없습니다. 공공 팩토리을 이용하십시오. 공개 토큰 변형의 태그 전용 일치는 비밀을 밝히지 않고 여전히 허용됩니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Event invalid_payload_value() {
+    return Event.Message;
+}</code></pre><p>메시지에 페이로드 이니셜라이저가 필요합니다. 태그 전용 표기은 생성자 값이 아닌 케이스 레이블로 허용됩니다. 이러한 예제는 실제 컴파일러 진단이 아닌 의도된 거부를 정의합니다.</p></section>
+<section id="Open-Decisions" aria-labelledby="Open-Decisions-heading"><h2 id="Open-Decisions-heading">11입니다. 열린 열거된 결정</h2><ul><li>수치 판별, 명시적 변형 번호, 메모리 레이아웃, 태그 크기, 틈새 최적화 및 안정적인 외국 ABI.</li><li>자동 equality/ordering, 오퍼레이터 파생, 자동 클론 생성 및 사용자 정의 클론 컨벤션.</li><li>사용자 정의 열거형 정리 및 부분 페이로드 이동과의 상호 작용.</li><li>전체 파서 문법, 초기화 기본값, 오버로드 해상도 및 추가 생성자 속기.</li><li>enum 스위치 외부의 일반 이동 식과 Copy 열거형에 대한 명시적 스위치(move ...)의 특수 처리.</li><li>확장 패턴 기능, 참조 소스 모드 추론 및 임시 선택기 수명 세부 정보; Enum Switch를 참조하십시오.</li></ul><p>이 페이지에서 허용된 선택은 이러한 공개 결정과는 독립적입니다. 계속하기 <a href="Enum_Switch.html">Enum Switch</a> 소유권 인식 파견 및 철저한 패턴 범위.</p></section>
+<nav class="page-navigation" aria-label="관련된 enum 참조"><a href="Enums.html"><span>형식 정의</span>열거형</a><a href="Enum_Switch.html"><span>소유권 및 패턴</span>Enum Switch</a><a href="../index.html"><span>언어 문법</span>문법 개요</a></nav>
+</article></div><footer class="page-footer"><span>Aevix 언어 · 열거된 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer></main></body>
+</html>

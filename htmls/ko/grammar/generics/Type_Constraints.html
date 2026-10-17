@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="컨테이너 복사를 암시하지 않고 일반 선언 헤드 후 T가 Copy 또는 다른 인터페이스를 구현하는 곳에 씁니다.">
+<title>유형 제약 — Aevix 문서</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/generics/Type_Constraints.html">
+<link rel="alternate" hreflang="ko" href="Type_Constraints.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">0.2 구현 문서</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">제네릭</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">유형 제약</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">문법 레퍼런스</p><h1>유형 제약</h1><p class="doc-subtitle">컨테이너 복사를 암시하지 않고 일반 선언 헤드 후 T가 Copy 또는 다른 인터페이스를 구현하는 곳에 씁니다.</p><div class="doc-meta"><span class="meta-chip">0.2 구현 프로필</span><span class="meta-chip">정적 계약</span><a href="../../declaration/Function_Declaration.html">함수 선언</a></div><dl class="doc-stats"><div class="doc-stat"><dt>선택한 표기</dt><dd>상기 구현하는 단계는 Wherein the implements</dd></div><div class="doc-stat"><dt>위치</dt><dd>유형 머리 후에</dd></div><div class="doc-stat"><dt>컨테이너 Copy</dt><dd>별도의 옵트인</dd></div><div class="doc-stat"><dt>기능 범위</dt><dd>쉼표로 구분</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>어디서</strong><span>문법</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>요구 사항과 형식 매개 변수 분리</span></a></li><li><a href="#instantiation"><span class="toc-number">02</span><span>구체적인 인수에 대한 요구 사항 확인</span></a></li><li><a href="#container-copy"><span class="toc-number">03</span><span>Copy 요구 사항이 컨테이너 Copy를 표시하지 않음</span></a></li><li><a href="#behavior"><span class="toc-number">04</span><span>요구 사항은 일반 인터페이스의 이름을 지정할 수 있습니다.</span></a></li><li><a href="#families"><span class="toc-number">05</span><span>일반 열거형과 인터페이스에서 선택한 절 사용</span></a></li><li><a href="#permissions"><span class="toc-number">06</span><span>요구 사항은 액세스 또는 대여을 우회하지 않습니다.</span></a></li><li><a href="#diagnostics"><span class="toc-number">07</span><span>런타임 폴백 없이 누락된 기능 거부</span></a></li><li><a href="#open-decisions"><span class="toc-number">08</span><span>오픈 제약 문법 및 관련 참조</span></a></li></ol></details><nav class="family-nav" aria-label="제네릭 페이지"><h2>제네릭</h2><div class="family-links"><a href="index.html">개요</a><a href="Generic_Types.html">제네릭 타입</a><a href="Type_Constraints.html" aria-current="page">형식 제약 조건</a></div></nav><nav class="family-nav" aria-label="관련 언어 reference"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../user_defined_types/Structs.html">구조체</a><a href="../enums/Enums.html">열거형</a><a href="../interfaces/index.html">인터페이스</a><a href="index.html">제네릭</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/index.html">자료형</a></div></nav></aside><article class="content" aria-label="유형 제약 조건 참조">
+<p class="callout"><strong>0.2 구현 현황.</strong> <a href="Generics_02.html">상수 제네릭 크기, 뒤쪽 매개변수의 기본값, 투명한 타입 별칭, numeric.Floating</a> 은 구현되어 있습니다. 아래 절에서는 구현된 기능과 남아 있는 설계 제한을 구분합니다.</p>
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1입니다. 요구 사항과 형식 매개 변수 분리</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct Pair&lt;T&gt; where T implements Copy {
+    public T first;
+    public T second;
+};</code></pre><p>선택된 표기에서는 <code>where T implements Copy</code> 를 <code>struct Pair&lt;T&gt;</code> 뒤, 본문 앞에 둡니다. 꺾쇠괄호는 T를 도입하고 where 절은 T가 제공해야 할 기능을 명시합니다. 인라인 <code>T: Copy</code> 제약 표기를 사용하지 않고 요구 사항을 선택합니다.</p><p>승인된 제네릭 타입 선언 종류에도 같은 절 형식을 적용합니다. 여러 요구 사항은 주어를 반복하고 쉼표로 구분합니다. 예: <code>where T implements Copy, T implements Leveled</code>. 모든 요구 사항을 충족해야 하며, 타입과 함수에 같은 형식을 적용합니다.</p></section><section id="instantiation" aria-labelledby="instantiation-heading"><h2 id="instantiation-heading">2입니다. 구체적인 인수에 대한 요구 사항 확인</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Pair&lt;i32&gt; numbers = Pair&lt;i32&gt; {
+    first = 10,
+    second = 20
+};</code></pre><p>i32는 확정된 Copy 기능을 충족하므로 이 구체 사용은 제약을 만족합니다. 컴파일러는 필드 값이 작거나 현재 사용되지 않는다는 이유로 허용하는 대신 지정한 타입의 실제 기능을 검사합니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: owning string does not implement Copy;
+Pair&lt;string&gt; invalid_words(string initial_first, string initial_second) {
+    return Pair&lt;string&gt; {
+        first = initial_first,
+        second = initial_second
+    };
+}</code></pre><p>소유 string은 이동 기반이며 이 요구 사항을 충족할 수 없습니다. 거부 예제의 함수는 이미 소유 중인 string을 받으므로, 의도한 오류는 암묵적 리터럴→소유 값 변환이 아니라 Copy 제약 미충족입니다. 참조는 원본 추적을 유지하면서 자신의 Copy 규칙을 충족할 수 있습니다. 기능 일치는 참조 대상의 수명을 늘리지 않습니다.</p></section><section id="container-copy" aria-labelledby="container-copy-heading"><h2 id="container-copy-heading">3입니다. Copy 요구 사항이 컨테이너 Copy를 표시하지 않음</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Copy 요구 사항 대 구현"><table><thead><tr><th scope="col">선언 속성</th><th scope="col">의미</th></tr></thead><tbody><tr><th scope="row"><code>where T implements Copy</code></th><td>허용된 모든 T는 Copy여야 합니다.</td></tr><tr><th scope="row">유형 T의 분야</th><td>구체적인 필드는 T의 checked 값 전달 동작을 갖는다.</td></tr><tr><th scope="row">동봉하는 구조체 또는 enum</th><td>별도로 Copy를 선택하지 않는 한 여전히 기본값으로 이동합니다.</td></tr><tr><th scope="row">전체 유형 Copy</th><td>컴파일러는 별도의 옵트인 하에서 모든 필드 또는 모든 열거형 페이로드를 검증합니다.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">Pair&lt;i32&gt; original = Pair&lt;i32&gt; {
+    first = 1,
+    second = 2
+};
+Pair&lt;i32&gt; moved = original;</code></pre><p>제약이 있는 이 Pair도 대입하면 이동합니다. 제약은 T에 관한 사실을 나타낼 뿐 Pair의 공개 값 의미를 선언하지 않습니다. 컨테이너에 명시적으로 적용하려면 다음 구문을 사용합니다: <code>struct CopyPair&lt;T&gt; implements Copy where T implements Copy</code>. 타입의 implements 목록은 where 절보다 앞에 옵니다.</p><p>Copy는 컴파일러가 검사하는 내장 기능이며, 개발자가 할당이나 깊은 복사를 수행하도록 재정의하는 기본 본문이 아닙니다. 소유 컬렉션·Box·독점 참조를 제약이 있는 제네릭 타입으로 감싼다고 해서 Copy로 만들 수는 없습니다.</p></section><section id="behavior" aria-labelledby="behavior-heading"><h2 id="behavior-heading">4입니다. 요구 사항은 일반 인터페이스의 이름을 지정할 수 있습니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">interface Leveled {
+    public i32 get_level(&amp;Self self);
+};
+
+struct LevelHolder&lt;T&gt; where T implements Leveled {
+    T item;
+};</code></pre><p>이 요구 사항은 지정한 타입이 선택된 Leveled 계약을 구현할 때만 허용합니다. 동작은 인터페이스에 선언된 수신자 타입과 반환 계약에서 정해집니다. private인 item 필드는 일반 struct 접근 규칙을 따르며, 제약이 필드를 public으로 만들지는 않습니다.</p><p>일반 인터페이스 요구 사항은 제네릭 검사에서 사용할 수 있는 동작을 명시합니다. 임의의 필드 접근, 암묵적 깊은 복사, Copy 상태, 힙 저장, 동적 메서드 선택 권한을 부여하지 않습니다. 제네릭 함수 본문은 선언된 요구 사항을 기준으로 검사합니다. 자세한 내용은 다음 문서를 참조하세요: <a href="../functions/Generic_Functions.html">제네릭 함수</a>. 제네릭 메서드는 메서드 이름 뒤에 자체 매개변수를 선언하며 정적으로 특수화됩니다.</p></section><section id="families" aria-labelledby="families-heading"><h2 id="families-heading">5입니다. 일반 열거형과 인터페이스에서 선택한 절 사용</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">enum Snapshot&lt;T&gt; where T implements Copy {
+    Empty;
+    Present {
+        public T value;
+    };
+};
+
+interface Inspector&lt;T&gt; where T implements Copy {
+    public T sample(&amp;Self self);
+};</code></pre><p>enum의 요구 사항은 페이로드 매개변수를 제한합니다. Snapshot 자체는 별도의 Copy 구현이 없으면 여전히 이동 기반입니다. Inspector에서 T는 제약이 있는 타입 인자이고 Self는 구현 수신자 타입이므로, 이름과 역할이 서로 다릅니다.</p><p>제약이 enum의 모든 항목 처리 검사나 동적 인터페이스 메서드 제한을 없애지는 않습니다. 여러 매개변수는 다음 형태로 선언할 수 있습니다: <code>&lt;T, E&gt;</code>; 요구 사항은 다음처럼 쉼표로 구분합니다: <code>where T implements Copy, E implements Copy</code>.</p></section><section id="permissions" aria-labelledby="permissions-heading"><h2 id="permissions-heading">6입니다. 요구 사항은 액세스 또는 대여을 우회하지 않습니다.</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="기존 안전 규칙을 보존하는 요구 사항"><table><thead><tr><th scope="col">상황</th><th scope="col">Result</th></tr></thead><tbody><tr><th scope="row">T 인터페이스 구현</th><td>선언 된 계약 만 약속되며 구체적인 개인 필드는 비공개로 유지됩니다.</td></tr><tr><th scope="row">모델 번호:Copy</th><td>복사본은 T의 의미 체계를 따르며, 복사된 공유 참조는 여전히 동일한 저장소를 대상으로 합니다.</td></tr><tr><th scope="row">T는 자원을 소유</th><td>일반 이동과 정리는 그대로 유지되며 인터페이스 바인딩은 이를 복제하지 않습니다.</td></tr><tr><th scope="row">값을 변경할 수 없음Name</th><td>여기서 절은 일반적인 변경를 승인하지 않습니다.</td></tr><tr><th scope="row">값 포함 대여</th><td>원본 수명 및 충돌 액세스 검사는 활성 상태로 유지됩니다.</td></tr></tbody></table></div></div><p>인터페이스 제약과 명시적 dyn은 서로 다른 필요를 해결합니다. 전자는 타입 인자의 정적 요구 사항을 명시하고, 후자는 타입이 지워진 뷰를 통해 실행 중 호출 가능한 구현을 선택합니다. 이 구문으로 둘 사이의 변환을 추론하지는 않습니다.</p></section><section id="diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">7입니다. 런타임 폴백 없이 누락된 기능 거부</h2><p>선택된 요구 사항을 충족하지 않는 구체 인스턴스화는 정적 검사에서 거부합니다. Copy를 위한 자동 clone 대체 동작, 인터페이스가 없을 때의 런타임 메서드 이름 조회, 암묵적 어댑터 구현은 없습니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">struct Token {
+    public i32 value;
+};
+
+// Rejected: Token has not opted into Copy;
+Pair&lt;Token&gt; tokens = Pair&lt;Token&gt; {
+    first = Token { value = 1 },
+    second = Token { value = 2 }
+};</code></pre><p>이 예제는 첫 절의 Pair를 사용합니다. 원시 타입 Copy 필드가 있다고 해서 사용자 정의 Token이 자동으로 Copy가 되지는 않습니다. 정확한 오류 문구와 진단 식별자는 컴파일러 작업이며, 이 페이지는 거부되는 의미상의 이유를 기록합니다.</p></section><section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">8입니다. 오픈 제약 문법 및 관련 참조</h2><ul><li>함수 요구 사항은 다음 표기를 사용합니다: <code>where T implements Copy, T implements Leveled</code>: 주어를 반복하고 쉼표로 구분하며 모든 제약을 충족해야 합니다. 별도의 인라인 제약 구문은 선택하지 않았습니다.</li><li>순서는 다음과 같습니다: <code>struct Name&lt;T&gt; implements Interface where T implements Requirement</code>.</li><li>조건부 구현, 부정 제약, 연관 타입의 동등성 제약, 구조적 제약은 미정입니다.</li><li>제네릭 함수의 위치와 호출 추론은 다음 문서에서 정합니다: <a href="../functions/Generic_Functions.html">함수 문서</a>; 메서드도 같은 제네릭 목록 위치와 정적 특수화 규칙을 사용합니다.</li><li><code>const usize</code> 인자와 뒤쪽 기본값은 구현되어 있습니다. 임의의 상수 타입, Shape 매개변수, 수명 매개변수 구문, 부정 제약, 연관 타입 제약은 이 프로필에 포함되지 않습니다.</li></ul><p><a href="../user_defined_types/Structs.html">구조체</a> · <a href="../enums/Enums.html">열거형</a> · <a href="../../declaration/Function_Declaration.html">함수 선언</a> · <a href="../../data_type/Box/Box.html">Box APIs에 오신 것을 환영합니다</a> · <a href="../scope_and_comments/Resource_Cleanup.html">자원 정리</a></p><p><a href="Generic_Types.html">제네릭 타입</a> · <a href="../interfaces/Interfaces.html">인터페이스 계약</a></p></section>
+<nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="index.html"><span>관련 레퍼런스</span>개요</a><a href="Generic_Types.html"><span>관련 레퍼런스</span>제네릭 타입</a></nav></article></div>
+<footer class="page-footer"><span>Aevix 언어 · 제네릭 참조</span><span>Aevix 0.2 · 남은 설계 제한을 명시</span></footer>
+</main>
+</body>
+</html>

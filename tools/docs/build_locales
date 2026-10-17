@@ -1,0 +1,266 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : build_locales
+#
+# Description :
+#     코드와 앵커를 보존하며 정적 한국어 문서와 언어 탐색 링크를 생성한다.
+#     Build static Korean documentation and language links while preserving code and anchors.
+#
+# ========================
+
+import argparse
+import hashlib
+import html
+import json
+import posixpath
+import re
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+
+ROOT = Path(__file__).resolve().parents[2]
+SITE = ROOT / 'htmls'
+CATALOG = ROOT / 'docs/Language/i18n/ko.json'
+VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'}
+SKIP = {'code', 'pre', 'script', 'style', 'svg'}
+ATTRIBUTES = {'aria-label', 'title', 'alt', 'placeholder'}
+ATTRIBUTE = re.compile(r'''([\w:-]+)(\s*=\s*)(["'])(.*?)\3''', re.S)
+NORMALIZE = re.compile(r'\s+')
+LITERALS = re.compile(r'<(pre|code|script|style|svg)\b[^>]*>.*?</\1>', re.S)
+PICKER = '<label class="language-switch" translate="no"><span class="sr-only">Documentation language</span><select id="docs-language" class="language-select"><option value="en" lang="en" selected>English</option><option value="ko" lang="ko">한국어</option></select></label>'
+
+
+def key(text):
+    return NORMALIZE.sub(' ', html.unescape(text)).strip()
+
+
+def relative(target, page):
+    return posixpath.relpath(target, posixpath.dirname(page) or '.')
+
+
+class Scanner(HTMLParser):
+    def __init__(self, source):
+        super().__init__(convert_charrefs=False)
+        self.source = source
+        self.lines = [0]
+        self.lines.extend(match.end() for match in re.finditer('\n', source))
+        self.stack = []
+        self.text = []
+        self.attributes = []
+        self.tags = []
+        self.header_end = None
+        self.head_end = None
+        self.pending = None
+        self.articles = set()
+        self.feed(source)
+        self.flush()
+
+    def position(self):
+        line, column = self.getpos()
+        return self.lines[line - 1] + column
+
+    def flush(self):
+        if self.pending is not None:
+            start, end = self.pending
+            raw = self.source[start:end]
+            normalized = key(raw)
+            if re.search('[A-Za-z]', normalized):
+                self.text.append((start, end, normalized, raw))
+                # 로고 A는 유지하고, 코드 앞 문장 첫머리의 영문 관사만 생략한다.
+                # Keep the logo A; omit only a leading English article before inline code.
+                if (normalized == 'A' and self.stack and self.stack[-1]['tag'] == 'p'
+                        and any(item['tag'] == 'article' for item in self.stack)
+                        and not self.source[self.stack[-1]['end']:start].strip()
+                        and re.match(r'\s*<code(?:\s|>)', self.source[end:])):
+                    self.articles.add(start)
+        self.pending = None
+
+    def append(self, length):
+        if self.stack and not self.stack[-1]['skip']:
+            start = self.position()
+            if self.pending is None:
+                self.pending = [start, start + length]
+            elif self.pending[1] == start:
+                self.pending[1] = start + length
+            else:
+                self.flush()
+                self.pending = [start, start + length]
+
+    def handle_data(self, value):
+        self.append(len(value))
+
+    def handle_entityref(self, name):
+        self.append(len(name) + 2)
+
+    def handle_charref(self, name):
+        self.append(len(name) + 3)
+
+    def handle_starttag(self, tag, attrs):
+        self.flush()
+        attrs = dict(attrs)
+        skipped = bool(self.stack and self.stack[-1]['skip']) or tag in SKIP or attrs.get('translate') == 'no'
+        start = self.position()
+        raw = self.get_starttag_text()
+        self.tags.append((start, start + len(raw), tag, attrs, raw))
+        if not skipped:
+            for match in ATTRIBUTE.finditer(raw):
+                name, _, _, value = match.groups()
+                if name in ATTRIBUTES or (tag == 'meta' and attrs.get('name') == 'description' and name == 'content'):
+                    normalized = key(value)
+                    if re.search('[A-Za-z]', normalized):
+                        self.attributes.append((start + match.start(4), start + match.end(4), normalized, value))
+        if tag not in VOID:
+            self.stack.append({'tag': tag, 'skip': skipped, 'end': start + len(raw), 'header': tag == 'div' and 'header' in attrs.get('class', '').split()})
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in VOID:
+            self.stack.pop()
+
+    def handle_endtag(self, tag):
+        self.flush()
+        if tag == 'head':
+            self.head_end = self.position()
+        if self.stack and self.stack[-1]['tag'] == tag:
+            item = self.stack.pop()
+            if item['header']:
+                self.header_end = self.position()
+
+    def handle_comment(self, _):
+        self.flush()
+
+
+def apply(source, changes):
+    for start, end, value in sorted(changes, reverse=True):
+        source = source[:start] + value + source[end:]
+    return source
+
+
+def clean_layout_whitespace(source):
+    # 공백뿐인 원문 줄은 정리하되 예제와 인라인 코드의 원문은 보존한다.
+    # Clean layout whitespace without changing literal blocks or inline code.
+    parts = []
+    end = 0
+    for match in LITERALS.finditer(source):
+        parts.append(re.sub(r'[ \t]+(?=\n)', '', source[end:match.start()]))
+        parts.append(match.group())
+        end = match.end()
+    parts.append(re.sub(r'[ \t]+(?=\n|\Z)', '', source[end:]))
+    return ''.join(parts)
+
+
+def prepare(source, page):
+    source = source.replace('css/root.css?v=6', 'css/root.css?v=7').replace('js/docs.js?v=4', 'js/docs.js?v=5')
+    parsed = Scanner(source)
+    changes = []
+    if 'id="docs-language"' not in source:
+        if parsed.header_end is None:
+            raise ValueError(f'Missing site header: {page}')
+        changes.append((parsed.header_end, parsed.header_end, PICKER))
+    if 'js/language.js?' not in source:
+        script = f'<script src="{relative("js/language.js", page)}?v=1" defer></script>\n'
+        changes.append((parsed.head_end, parsed.head_end, script))
+    if 'hreflang="ko"' not in source:
+        links = f'<link rel="alternate" hreflang="en" href="{relative(page, page)}">\n<link rel="alternate" hreflang="ko" href="{relative("ko/" + page, page)}">\n'
+        changes.append((parsed.head_end, parsed.head_end, links))
+    return apply(source, changes)
+
+
+def korean(source, page, translations):
+    parsed = Scanner(source)
+    changes = []
+    missing = set()
+    for start, end, normalized, raw in parsed.text + parsed.attributes:
+        if normalized not in translations:
+            missing.add(normalized)
+            continue
+        leading = re.match(r'\s*', raw).group()
+        trailing = re.search(r'\s*$', raw).group()
+        value = '' if start in parsed.articles else translations[normalized]
+        changes.append((start, end, leading + html.escape(value, quote=True) + trailing))
+    ko_page = 'ko/' + page
+    for start, end, tag, attrs, raw in parsed.tags:
+        replacements = []
+        for match in ATTRIBUTE.finditer(raw):
+            name, _, quote, value = match.groups()
+            if name not in {'href', 'src'}:
+                continue
+            url = urlsplit(html.unescape(value))
+            if url.scheme or url.netloc or not url.path or url.path.startswith('/'):
+                continue
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(page), url.path))
+            if attrs.get('rel') == 'alternate':
+                destination = target
+            elif target.endswith('.html'):
+                destination = 'ko/' + target
+            else:
+                destination = target
+            changed = urlunsplit(('', '', relative(destination, ko_page), url.query, url.fragment))
+            replacements.append((match.start(4), match.end(4), html.escape(changed, quote=True)))
+        if replacements:
+            # 아래 속성만 덮어써 번역된 title/aria-label과 겹치지 않게 한다.
+            # Replace only URL attribute spans to avoid overlapping translated title/aria-label spans.
+            changes.extend((start + a, start + b, v) for a, b, v in replacements)
+    result = apply(source, changes)
+    result = result.replace('<html lang="en">', '<html lang="ko">', 1)
+    result = result.replace('<option value="en" lang="en" selected>', '<option value="en" lang="en">', 1)
+    result = result.replace('<option value="ko" lang="ko">', '<option value="ko" lang="ko" selected>', 1)
+    result = result.replace('>Documentation language</span>', '>문서 언어</span>', 1)
+    return clean_layout_whitespace(result), missing
+
+
+def pages():
+    return sorted(path for path in SITE.rglob('*.html') if path.relative_to(SITE).parts[0] != 'ko')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--export', type=Path)
+    parser.add_argument('--catalog', type=Path, default=CATALOG)
+    parser.add_argument('--prepare', action='store_true')
+    args = parser.parse_args()
+    source_pages = {}
+    strings = set()
+    digest = hashlib.sha256()
+    for path in pages():
+        page = path.relative_to(SITE).as_posix()
+        source = prepare(path.read_text(encoding='utf-8'), page)
+        source_pages[page] = source
+        digest.update(page.encode() + b'\0' + source.encode())
+        parsed = Scanner(source)
+        strings.update(item[2] for item in parsed.text + parsed.attributes)
+    if args.export:
+        args.export.write_text(json.dumps({'source_sha256': digest.hexdigest(), 'strings': sorted(strings)}, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        print(f'Exported {len(strings)} strings from {len(source_pages)} pages.')
+    if args.prepare:
+        for page, source in source_pages.items():
+            (SITE / page).write_text(source, encoding='utf-8')
+    if args.export:
+        return
+    data = json.loads(args.catalog.read_text(encoding='utf-8'))
+    translations = data.get('translations', data)
+    output = {}
+    missing = set()
+    for page, source in source_pages.items():
+        output[page], absent = korean(source, page, translations)
+        missing.update(absent)
+    if missing:
+        examples = '\n'.join('  ' + value for value in sorted(missing)[:12])
+        raise SystemExit(f'Missing {len(missing)} Korean strings. Export and update the translation catalog before building.\n{examples}')
+    expected = {SITE / 'ko' / page for page in output}
+    stale = sorted(set((SITE / 'ko').rglob('*.html')) - expected)
+    if stale:
+        names = '\n'.join('  ' + path.relative_to(SITE).as_posix() for path in stale)
+        raise SystemExit(f'Orphaned Korean pages have no English source. Remove or archive these files before rebuilding:\n{names}')
+    for page, source in output.items():
+        destination = SITE / 'ko' / page
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(source, encoding='utf-8')
+    print(f'Built {len(output)} Korean pages; {len(missing)} untranslated strings.')
+
+
+if __name__ == '__main__':
+    main()

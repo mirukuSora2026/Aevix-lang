@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : locale_tests
+#
+# Description :
+#     번역 생성 시 코드, 앵커, 배포 경로와 완전성 검사를 검증한다.
+#     Verify code preservation, anchors, deployment paths, and translation completeness.
+#
+# ========================
+
+import html
+import posixpath
+import re
+import runpy
+import unittest
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+ROOT = Path(__file__).resolve().parents[2]
+SITE = ROOT / 'htmls'
+builder = runpy.run_path(str(ROOT / 'tools/docs/build_locales'))
+
+
+class Page(HTMLParser):
+    def __init__(self, source):
+        super().__init__(convert_charrefs=True)
+        self.ids = []
+        self.links = []
+        self.assets = []
+        self.alternates = {}
+        self.codes = []
+        self.preformatted = []
+        self.pre_depth = 0
+        self.pre = ''
+        self.code_depth = 0
+        self.code = ''
+        self.lang = None
+        self.selected = []
+        self.feed(source)
+
+    def handle_starttag(self, tag, pairs):
+        attrs = dict(pairs)
+        if 'id' in attrs:
+            self.ids.append(attrs['id'])
+        if tag == 'html':
+            self.lang = attrs.get('lang')
+        if tag == 'option' and 'selected' in attrs:
+            self.selected.append(attrs.get('value'))
+        if tag == 'a' and 'href' in attrs:
+            self.links.append(attrs['href'])
+        if tag in {'img', 'script', 'link'}:
+            value = attrs.get('src', attrs.get('href'))
+            if value:
+                self.assets.append(value)
+        if tag == 'link' and attrs.get('rel') == 'alternate':
+            self.alternates[attrs['hreflang']] = attrs.get('href')
+        if tag == 'code':
+            self.code_depth += 1
+            if self.code_depth == 1:
+                self.code = ''
+        if tag == 'pre':
+            self.pre_depth += 1
+            if self.pre_depth == 1:
+                self.pre = ''
+
+    def handle_endtag(self, tag):
+        if tag == 'code':
+            self.code_depth -= 1
+            if self.code_depth == 0:
+                self.codes.append(self.code)
+        if tag == 'pre':
+            self.pre_depth -= 1
+            if self.pre_depth == 0:
+                self.preformatted.append(self.pre)
+
+    def handle_data(self, text):
+        if self.code_depth:
+            self.code += text
+        if self.pre_depth:
+            self.pre += text
+
+
+class BuilderTests(unittest.TestCase):
+    def test_preserves_escaped_code_and_resolves_localized_assets(self):
+        source = '''<html lang="en"><head><title>Guide</title></head><body><div class="header"><div>Guide</div></div><h1 id="intro">Guide</h1><pre><code>i32 n = 1 &lt; 2;\n</code></pre><p>Safe &amp; fast <code>Result&lt;T, E&gt;</code>.</p><a title="Guide" href="../../index.html?q=1#start">Guide</a><script src="../../js/docs.js?v=4"></script></body></html>'''
+        prepared = builder['prepare'](source, 'grammar/modules/Guide.html')
+        self.assertEqual(prepared, builder['prepare'](prepared, 'grammar/modules/Guide.html'))
+        translated, missing = builder['korean'](prepared, 'grammar/modules/Guide.html', {'Guide': '안내', 'Safe & fast': '안전하고 빠름'})
+        self.assertFalse(missing)
+        english, korean = Page(prepared), Page(translated)
+        self.assertEqual(english.codes, korean.codes)
+        self.assertEqual(english.ids, korean.ids)
+        self.assertEqual(korean.lang, 'ko')
+        self.assertEqual(korean.selected, ['ko'])
+        self.assertIn('../../index.html?q=1#start', korean.links)
+        self.assertIn('../../../js/docs.js?v=5', korean.assets)
+        self.assertEqual(korean.alternates, {'en': '../../../grammar/modules/Guide.html', 'ko': 'Guide.html'})
+
+    def test_missing_translation_is_reported_without_changing_code(self):
+        source = '<html lang="en"><head><title>Missing</title></head><body><code>string text = "Example";</code><p>Missing</p></body></html>'
+        translated, missing = builder['korean'](source, 'index.html', {})
+        self.assertEqual(missing, {'Missing'})
+        self.assertEqual(Page(source).codes, Page(translated).codes)
+
+    def test_source_entities_and_explicit_translation_exclusions(self):
+        source = '<html lang="en"><head><title>Safe &amp; fast</title></head><body><label translate="no" title="Do not translate">English</label><p title="Safe &amp; fast">Safe &amp; fast</p><pre>command --flag &lt;input&gt;</pre></body></html>'
+        translated, missing = builder['korean'](source, 'index.html', {'Safe & fast': '안전하고 빠름'})
+        self.assertFalse(missing)
+        self.assertIn('<label translate="no" title="Do not translate">English</label>', translated)
+        self.assertIn('<p title="안전하고 빠름">안전하고 빠름</p>', translated)
+        self.assertEqual(Page(source).preformatted, Page(translated).preformatted)
+
+    def test_omits_a_leading_article_without_erasing_the_brand(self):
+        source = '<html lang="en"><body><span class="brand-mark">A</span><article><p>A <code>char</code> value.</p></article></body></html>'
+        translated, missing = builder['korean'](source, 'index.html', {'A': 'A', 'value.': '값입니다.'})
+        self.assertFalse(missing)
+        self.assertIn('<span class="brand-mark">A</span>', translated)
+        self.assertIn('<p> <code>char</code> 값입니다.</p>', translated)
+        self.assertEqual(Page(source).codes, Page(translated).codes)
+
+    def test_layout_cleanup_preserves_spaces_next_to_inline_code(self):
+        source = '<p>Text <code>value  </code> ends.  \n</p>\n   \n<pre><code>i32 n = 1;  \n</code></pre>'
+        clean = builder['clean_layout_whitespace'](source)
+        self.assertIn('Text <code>value  </code> ends.\n', clean)
+        self.assertIn('</p>\n\n<pre>', clean)
+        self.assertEqual(Page(source).preformatted, Page(clean).preformatted)
+        self.assertEqual(Page(source).codes, Page(clean).codes)
+
+    @unittest.skipUnless((SITE / 'ko/index.html').exists(), 'Build the Korean site to run the full-tree audit.')
+    def test_complete_published_tree(self):
+        parsed = {path.relative_to(SITE).as_posix(): Page(path.read_text(encoding='utf-8')) for path in SITE.rglob('*.html')}
+        originals = [name for name in parsed if not name.startswith('ko/')]
+        self.assertEqual(len(parsed), len(originals) * 2)
+        checked = 0
+        for name in originals:
+            en, ko = parsed[name], parsed['ko/' + name]
+            en_source = (SITE / name).read_text(encoding='utf-8')
+            ko_source = (SITE / 'ko' / name).read_text(encoding='utf-8')
+            for tag in ['pre', 'code']:
+                pattern = rf'<{tag}\b[^>]*>.*?</{tag}>'
+                self.assertEqual(re.findall(pattern, en_source, re.S), re.findall(pattern, ko_source, re.S), name + ': changed raw ' + tag)
+            self.assertEqual(en.codes, ko.codes, name + ': translated code')
+            self.assertEqual(en.preformatted, ko.preformatted, name + ': translated preformatted text')
+            self.assertEqual(en.ids, ko.ids, name + ': changed anchors')
+            self.assertEqual(en.lang, 'en', name)
+            self.assertEqual(ko.lang, 'ko', name)
+            self.assertEqual(en.selected, ['en'], name)
+            self.assertEqual(ko.selected, ['ko'], name)
+        for name, page in parsed.items():
+            self.assertEqual(len(page.ids), len(set(page.ids)), name + ': duplicate IDs')
+            self.assertEqual(page.ids.count('docs-language'), 1, name + ': selector count')
+            self.assertEqual(set(page.alternates), {'en', 'ko'}, name)
+            for locale, value in page.alternates.items():
+                target = posixpath.normpath(posixpath.join(posixpath.dirname(name), value))
+                expected = name.removeprefix('ko/')
+                if locale == 'ko':
+                    expected = 'ko/' + expected
+                self.assertEqual(target, expected, name + ': alternate')
+            for value in page.links + page.assets:
+                url = urlsplit(html.unescape(value))
+                if url.scheme or url.netloc:
+                    continue
+                self.assertFalse(url.path.startswith('/'), name + ': deployment-prefix escape')
+                target = posixpath.normpath(posixpath.join(posixpath.dirname(name), unquote(url.path))) if url.path else name
+                self.assertFalse(target.startswith('../'), name + ': outside published root')
+                self.assertTrue((SITE / target).exists(), name + ': missing ' + value)
+                if target.endswith('.html'):
+                    self.assertIn(target, parsed, name + ': incorrect filename case ' + value)
+                if target in parsed and url.fragment:
+                    self.assertIn(unquote(url.fragment), parsed[target].ids, name + ': missing anchor ' + value)
+                checked += 1
+        print(f'\nAudited {len(parsed)} pages, {len(originals)} code/anchor pairs, and {checked} internal references.')
+
+
+if __name__ == '__main__':
+    unittest.main()

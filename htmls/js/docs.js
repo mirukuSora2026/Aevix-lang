@@ -1,6 +1,14 @@
 /* 점진적인 문서 기능만 추가하며 코드는 이후 토큰화를 위해 이스케이프된 텍스트로 유지한다. */
 /* Apply progressive enhancements only; keep code as escaped text for a future tokenizer. */
 (() => {
+  const korean = document.documentElement.lang === 'ko';
+  const labels = korean ? {
+    example: 'Aevix · 예제 문법', plainText: '일반 텍스트', copy: '복사',
+    copyExample: '코드 예제 복사', copied: '복사됨', selected: '선택됨 — 직접 복사하세요', unavailable: '복사할 수 없음',
+  } : {
+    example: 'Aevix · example syntax', plainText: 'Plain text', copy: 'Copy',
+    copyExample: 'Copy code example', copied: 'Copied', selected: 'Selected — copy manually', unavailable: 'Copy unavailable',
+  };
   const typeMenu = document.querySelector('.type-menu');
   if (typeMenu) {
     document.addEventListener('click', (event) => {
@@ -23,7 +31,7 @@
     if (pre.querySelector('.code-toolbar')) return;
     const languageClass = [...code.classList, ...pre.classList].find((name) => name.startsWith('language-'));
     const languageName = (code.dataset.language || pre.dataset.language || languageClass?.slice(9) || 'aevix').toLowerCase();
-    const languageLabels = { aevix: 'Aevix · example syntax', sh: 'Shell', shell: 'Shell', bash: 'Bash', powershell: 'PowerShell', json: 'JSON', cpp: 'C++', text: 'Plain text' };
+    const languageLabels = { aevix: labels.example, sh: 'Shell', shell: 'Shell', bash: 'Bash', powershell: 'PowerShell', json: 'JSON', cpp: 'C++', text: labels.plainText };
     code.classList.add(`language-${languageName}`);
     code.dataset.language = languageName;
     const toolbar = document.createElement('div');
@@ -33,8 +41,8 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'copy-code';
-    button.textContent = 'Copy';
-    button.setAttribute('aria-label', 'Copy code example');
+    button.textContent = labels.copy;
+    button.setAttribute('aria-label', labels.copyExample);
     button.setAttribute('aria-live', 'polite');
     let resetTimer;
     button.addEventListener('click', async () => {
@@ -42,7 +50,7 @@
       button.disabled = true;
       try {
         await navigator.clipboard.writeText(code.textContent);
-        button.textContent = 'Copied';
+        button.textContent = labels.copied;
       } catch {
         // 로컬 파일이나 권한 거부로 복사에 실패하면 코드 자체를 선택한다.
         // Select the code itself when local-file restrictions or denied permissions prevent copying.
@@ -52,14 +60,14 @@
           range.selectNodeContents(code);
           selection.removeAllRanges();
           selection.addRange(range);
-          button.textContent = 'Selected — copy manually';
+          button.textContent = labels.selected;
         } else {
-          button.textContent = 'Copy unavailable';
+          button.textContent = labels.unavailable;
         }
       } finally {
         button.disabled = false;
       }
-      resetTimer = window.setTimeout(() => { button.textContent = 'Copy'; }, 1800);
+      resetTimer = window.setTimeout(() => { button.textContent = labels.copy; }, 1800);
     });
     toolbar.append(language, button);
     pre.prepend(toolbar);
@@ -85,16 +93,19 @@
   }
   if (search) {
     const cards = [...document.querySelectorAll('[data-type-card]')];
+    const searchText = new Map(cards.map((card) => [card,
+      `${card.dataset.typeCard} ${card.textContent}`.normalize('NFC').toLocaleLowerCase('en'),
+    ]));
     const status = document.getElementById('type-search-status');
     const empty = document.getElementById('type-search-empty');
     const updateSearch = () => {
-      const query = search.value.trim().toLocaleLowerCase('en');
+      const query = search.value.trim().normalize('NFC').toLocaleLowerCase('en');
       let count = 0;
       cards.forEach((card) => {
-        card.hidden = !card.dataset.typeCard.includes(query);
+        card.hidden = !searchText.get(card).includes(query);
         if (!card.hidden) count += 1;
       });
-      if (status) status.textContent = `${count} ${count === 1 ? 'family' : 'families'}`;
+      if (status) status.textContent = korean ? `${count}개 자료형 계열` : `${count} ${count === 1 ? 'family' : 'families'}`;
       if (empty) empty.hidden = count !== 0;
     };
     search.addEventListener('input', updateSearch);

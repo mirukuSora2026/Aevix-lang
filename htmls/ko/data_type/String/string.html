@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="소유 UTF-8 텍스트, 명시적 대여, 안전한 경계와 제안된 전체 소문자 string 네임스페이스입니다.">
+  <title>string — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/String/string.html">
+<link rel="alternate" hreflang="ko" href="string.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="string.html" aria-current="true">string</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="string.html">string</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">string</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>string</h1><p class="doc-subtitle">소유 UTF-8 텍스트, 명시적 대여, 안전한 경계와 제안된 전체 소문자 string 네임스페이스입니다.</p><div class="doc-meta"><span class="meta-chip">string</span><span class="meta-chip">string. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>저장 방식</dt><dd>소유 UTF-8</dd></div><div class="doc-stat"><dt>핵심 기능</dt><dd>100</dd></div><div class="doc-stat"><dt>기본</dt><dd>불변</dd></div><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>스트링</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>UTF-8 텍스트 소유</span></a></li><li><a href="#Ownership-Errors"><span class="toc-number">02</span><span>소유권, 실패 및 명백한 비용</span></a></li><li><a href="#Indices-Semantics"><span class="toc-number">03</span><span>지표, 매칭 및 실행 목표</span></a></li><li><a href="#Construction"><span class="toc-number">04</span><span>건설 및 소유권 이전</span></a></li><li><a href="#Storage"><span class="toc-number">05</span><span>저장 &amp; 수용량</span></a></li><li><a href="#Traversal"><span class="toc-number">06</span><span>스칼라 탐색 및 경계 쿼리</span></a></li><li><a href="#Slicing"><span class="toc-number">07</span><span>빌린 조각, 트리밍 및 접두사</span></a></li><li><a href="#Search"><span class="toc-number">08</span><span>문자 검색 및 계산</span></a></li><li><a href="#Split"><span class="toc-number">09</span><span>분할, 라인 및 매치 반복</span></a></li><li><a href="#Transforms"><span class="toc-number">10</span><span>소유 변환</span></a></li><li><a href="#Mutation"><span class="toc-number">11</span><span>명시적 소유자 변형</span></a></li><li><a href="#Comparison-Formatting"><span class="toc-number">12</span><span>비교 및 포맷팅</span></a></li><li><a href="#Examples"><span class="toc-number">13</span><span>예제 및 디자인 경계</span></a></li><li><a href="#Sources"><span class="toc-number">14</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="string 페이지"><h2>string 참조</h2><div class="family-links"><a href="string.html" aria-current="page">string</a><a href="string_view.html">string_view</a><a href="unicode.html">Unicode 텍스트 서비스</a><a href="encoding.html">텍스트 인코딩</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="string 참조">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1입니다. UTF-8 텍스트 소유
+</h2>
+<blockquote class="callout note">
+<p><strong>언어 설계 초안.</strong> 아래 계약·보조 타입·함수 표기는 제안입니다. 컴파일러 구현, 확정된 문법이나 검증된 런타임을 주장하지 않습니다. 예제는 타입 우선 선언, 기본 불변성과 세미콜론으로 끝나는 문장을 사용합니다.
+</p>
+</blockquote>
+<p><strong>구현된 0.2 부분집합.</strong> 현재 <a href="../../releases/0_2.html#values">0.2 프로필</a> 에는 byte_len, scalar_count, is_empty, view, as_bytes, equals, from_view, from_utf8, slice_bytes, append, push_char, clear가 나열되어 있습니다. 핵심 실패 가능 텍스트 연산은 TextError를 반환합니다. 바이트 소유권 인수와 고급 알고리즘을 비롯한 나머지 행은 아직 제안입니다. 텍스트 입력 s는 string_view 또는 소유 string의 명시적 대여를 뜻합니다.</p>
+<p><code>string</code> 은 연속적이고 올바르게 인코딩된 UTF-8 버퍼를 소유합니다. 이동은 소유권을 이전하며 내용 복제에는 명시적이고 실패 가능한 복사를 사용합니다. 값은 기본적으로 변경할 수 없습니다. 변경 연산에는 배타적 쓰기 대여가 필요합니다. 빈 텍스트는 유효한 값이며 값 없음은 <code>Optional&lt;string&gt;</code>로 나타냅니다. 텍스트 안의 U+0000도 유효하며 버퍼를 끝내지 않습니다.
+</p>
+<p> <code>char</code> 는 유니코드 스칼라 하나이며 화면에 보이는 문자 하나와 같지 않습니다. <code>byte</code> 는 불투명한 8비트 저장 단위로, 수치 타입 <code>u8</code> 와 구분됩니다. UTF-8 텍스트는 읽기 전용 바이트를 제공하지만 임의의 바이트 오프셋을 텍스트 인덱스로 바꾸지는 않습니다. 기본 소유권은 메모리 모델을 따르며 자동 참조 카운트나 copy-on-write를 암시하지 않습니다.
+</p>
+<p>관련 참조 문서: <a href="../Char/Char.html">char</a>, <a href="../Byte/Byte.html">byte</a>, 및 <a href="../Array/Array.html">배열</a>.
+</p>
+<div class="table-scroll" role="region" aria-label="소유 UTF-8 텍스트 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">개념</th><th scope="col">unit</th><th scope="col">기본 동작</th>
+</tr>
+</thead>
+<tbody>
+<tr><th scope="row">저장 길이</th><td>UTF-8 바이트</td><td>byte_len 은 일정한 시간입니다.</td>
+</tr>
+<tr><th scope="row">스칼라 count</th><td>Unicode 스칼라 값</td><td>스캔 필요</td>
+</tr>
+<tr><th scope="row">사용자 인식 그룹화</th><td>확장 된 자소 클러스터 클러스터</td><td>고정 프로파일이 있는 Optional Unicode 모듈</td>
+</tr>
+<tr><th scope="row">수용 인원</th><td>할당된 byte 용량</td><td>현재 byte 길이와 분리</td>
+</tr>
+</tbody>
+</table>
+</div><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+string.byte_len(text); // 5 bytes;
+string.scalar_count(text); // 4 scalar values;
+Result&lt;string, TextError&gt; owned = string.from_view(text);</code></pre>
+</section>
+<section id="Ownership-Errors" aria-labelledby="Ownership-Errors-heading">
+<h2 id="Ownership-Errors-heading">2입니다. 소유권, 실패 및 명백한 비용
+</h2>
+<p><code>s</code>, <code>needle</code>와 카탈로그의 다른 텍스트 입력은 소유자의 읽기 대여 또는 <code>string_view</code>를 받습니다. 뷰는 원본 수명을 유지하므로 소유자보다 오래 살거나 충돌하는 변경 뒤까지 유지될 수 없습니다. 검색 결과 오프셋은 변경되지 않은 원본을 가리킵니다. 재할당·삭제·대체·변경은 저장한 위치의 정숫값이 여전히 범위 안이어도 해당 위치를 무효화할 수 있습니다.
+</p>
+<p><code>dst</code> 은 소유자의 배타적 변경 대여를 뜻합니다. 읽기 뷰가 살아 있으면 겹치는 저장소에 쓸 수 없습니다. 별도로 명세된 별칭 안전 연산이 아니라면 자기 자신 덧붙이기와 겹치는 대체에는 명시적 임시 복사가 필요합니다. 모든 변경 연산은 확정 전에 범위를 검증하고 필요한 용량을 확보합니다. 오류를 보고하면 원래 내용은 바뀌지 않습니다. 성공한 연산 뒤에도 용량이 절대 바뀌지 않는다는 뜻은 아닙니다.
+</p>
+<p><code>TextError</code>, <code>BoundaryError</code>, <code>PatternError</code>, <code>OwnedUtf8Error</code>, <code>FormatArgs</code>, 및 <code>Iterator&lt;T&gt;</code> 는 제안된 라이브러리 보조 타입이며 새 기본 타입이 아닙니다. 오류는 잘못된 인코딩, 경계·범위 오류, 금지된 빈 패턴, 용량 오버플로, 할당 실패와 포매팅 실패를 다룹니다. 소유권을 받는 UTF-8 검증이 실패하면 거절한 바이트 버퍼를 다음 타입에 담아 반환합니다: <code>OwnedUtf8Error</code>. 할당할 수 있는 모든 연산의 반환 타입은 <code>Result</code>.
+</p>
+<p>제안하는 상위 수준 비용 모델: <code>n</code> 는 원본 바이트 수, <code>k</code> 는 출력 바이트 수, <code>p</code> 패턴 크기에 따라 달라집니다. “순회”라는 표기는 모든 검색이 선형 시간이라는 보장이 아닙니다. 콜백 실행과 패턴 준비 비용은 별도입니다. 반복자는 원본과 저장해 둔 패턴을 대여합니다. 텍스트를 비우거나 용량을 줄이는 작업은 보안 목적의 메모리 삭제가 아닙니다.
+</p>
+</section>
+<section id="Indices-Semantics" aria-labelledby="Indices-Semantics-heading">
+<h2 id="Indices-Semantics-heading">3입니다. 지표, 매칭 및 실행 목표
+</h2>
+<p>범위는 끝을 포함하지 않는 바이트 범위입니다. 안전한 바이트 슬라이싱은 범위와 UTF-8 스칼라 경계를 모두 검사합니다. 스칼라 순번에는 순회가 필요하며 자소 군집 순번에는 분할도 필요합니다. 문자를 반환하는 기본 <code>s[i]</code> 연산은 없습니다. 바이트를 살펴볼 때는 <code>as_bytes</code>를 사용하며 다른 텍스트 뷰를 만들려면 검증이 필요합니다. 스칼라 경계를 맞춰도 자소 군집을 나눌 수 있습니다.
+</p>
+<p>기본 동등성·순서 비교는 정규화·로캘 조정·대소문자 접기 없이 UTF-8 바이트를 비교합니다. 리터럴 텍스트 검색에 성공하면 스칼라 경계에 맞는 바이트 오프셋을 반환합니다. 다음 연산은 빈 검색어를 허용합니다: <code>contains</code>, <code>find</code>, 및 <code>rfind</code>. 앞의 두 연산은 0에서, 역방향 검색은 바이트 길이에서 일치합니다. 개수 세기·일치 반복·대체·구분자 분할은 진행을 명확히 하기 위해 빈 패턴을 거절합니다. 구분자 없음과 빈 필드의 의미는 아래 각 함수가 정합니다.
+</p>
+<p>ASCII 대소문자·공백 보조 함수는 의도적으로 범위를 제한합니다. 유니코드 정규화, 자소 군집 분할, 로캘 대소문자 처리와 정렬은 선택적 <a href="unicode.html">Unicode 모듈</a>의 기능입니다. 인코딩 입출력의 담당 기능: <a href="encoding.html">Encoding</a>. CPU 라이브러리 지원이 네이티브 GPU 지원을 뜻하지는 않습니다. AOT와 JIT는 검증·수명 규칙을 보존합니다. 장치 텍스트 연산에는 선언된 기능과 명시적 데이터 전송이 필요합니다.
+</p>
+<p>비교 레퍼런스 포함 <a href="https://doc.rust-lang.org/std/primitive.str.html">Rust UTF-8보기</a>, <a href="https://pkg.go.dev/strings">텍스트 작업 이동</a>, 및 <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html">Java의 대조 텍스트 API</a>. 그들의 인덱싱 및 할당 정책은 자동으로 채택되지 않습니다.
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">4입니다. 건설 및 소유권 이전
+</h2>
+<p>생성자는 대여, 복사, 유효성 검사 및 이동을 구분합니다. 읽기를 할 때 숨겨진 깊은 사본이 없습니다.
+</p>
+<div class="table-scroll" role="region" aria-label="건설 및 소유권 데이터 테이블 전송">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-new"><th scope="row"><code>string.new()</code></th><td><code>string</code></td><td>필요한 할당이 없는 빈 소유자입니다.</td><td>O(1); 힙 할당 없음</td>
+</tr>
+<tr id="string-with_capacity"><th scope="row"><code>string.with_capacity(usize bytes)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>최소한 요청한 byte 용량을 예약하십시오.</td><td>할당할 수 있음; 크기 checked</td>
+</tr>
+<tr id="string-from_view"><th scope="row"><code>string.from_view(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy 새 소유자에 유효한 UTF-8.</td><td>O(n); 할당할 수 있음</td>
+</tr>
+<tr id="string-from_char"><th scope="row"><code>string.from_char(char value)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>하나의 스칼라를 소유 UTF-8로 인코딩합니다.</td><td>최대 4 바이트; 할당 가능</td>
+</tr>
+<tr id="string-from_chars"><th scope="row"><code>string.from_chars(Slice&lt;char&gt; values)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>유효한 스칼라 값의 시퀀스를 인코딩합니다.</td><td>스캔; 할당 할 수 있음</td>
+</tr>
+<tr id="string-from_utf8"><th scope="row"><code>string.from_utf8(Slice&lt;byte&gt; bytes)</code><br><code>string.from_utf8(Vector&lt;byte&gt; owned)</code> 제안된 overload</th><td>빌린 입력을 구현: <code>Result&lt;string, TextError&gt;</code>.<br>입력을 소유하는 제안: <code>Result&lt;string, OwnedUtf8Error&gt;</code>.</td><td>구현된 Slice 오버로드는 소스를 소비하지 않고 바이트를 검증하고 복사합니다. 제안된 Vector 오버로드는 호환 가능한 스토리지를 채택하고 return는 실패 시 원래 바이트를 채택하며 0.2에서는 허용되지 않습니다.</td><td>빌린 입력 : O(n) 유효성 검사 및 복사; 할당 할 수 있습니다. 제안 된 채택 : 페이로드 사본없이 O(n) 검증.</td>
+</tr>
+<tr id="string-from_utf8_lossy"><th scope="row"><code>string.from_utf8_lossy(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>잘못된 최대 서브 파트를 U + FFFD로 명시적으로 대체합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="string-from_utf16"><th scope="row"><code>string.from_utf16(Slice&lt;u16&gt; units)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>코드 단위 디코딩; 페어링되지 않은 대리모를 거부합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="string-from_utf32"><th scope="row"><code>string.from_utf32(Slice&lt;u32&gt; units)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>서로게이트 및 범위 밖의 스칼라 값을 거부합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="string-clone"><th scope="row"><code>string.clone(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>독립적으로 소유 된 사본을 만드십시오.</td><td>O(n); 할당할 수 있음</td>
+</tr>
+<tr id="string-into_bytes"><th scope="row"><code>string.into_bytes(string owned)</code></th><td><code>Vector&lt;byte&gt;</code></td><td>소유자를 사용하고 UTF-8 버퍼를 전송합니다.</td><td>O(1); 페이로드 사본 없음</td>
+</tr>
+<tr id="string-view"><th scope="row"><code>string.view(s)</code></th><td><code>string_view</code></td><td>변경되지 않은 UTF-8 범위 전체를 대여합니다.</td><td>O(1); 할당 없음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Storage" aria-labelledby="Storage-heading">
+<h2 id="Storage-heading">5입니다. 저장 &amp; 수용량
+</h2>
+<p>용량은 바이트 단위로 측정됩니다. 예약은 소유자를 수정하기 전에 산술 및 할당자 제한을 모두 검사합니다.
+</p>
+<div class="table-scroll" role="region" aria-label="스토리지 및 용량 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-byte_len"><th scope="row"><code>string.byte_len(s)</code></th><td><code>usize</code></td><td>현재 초기화된 UTF-8 byte count입니다.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="string-capacity"><th scope="row"><code>string.capacity(&amp;string s)</code></th><td><code>usize</code></td><td>소유자 byte 용량; 베어보기에 사용할 수 없습니다.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="string-is_empty"><th scope="row"><code>string.is_empty(s)</code></th><td><code>bool</code></td><td>byte 길이가 0인지 여부.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="string-scalar_count"><th scope="row"><code>string.scalar_count(s)</code></th><td><code>usize</code></td><td>Unicode 스칼라 값을 계산합니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="string-is_ascii"><th scope="row"><code>string.is_ascii(s)</code></th><td><code>bool</code></td><td>인코딩된 모든 byte가 ASCII인지 여부입니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="string-as_bytes"><th scope="row"><code>string.as_bytes(s)</code></th><td><code>Slice&lt;byte&gt;</code></td><td>인코딩된 모든 바이트를 읽기 전용으로 대여합니다.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="string-reserve"><th scope="row"><code>string.reserve(&amp;mut string dst, usize additional)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>길이 플러스 추가 용량을 보장; 내용은 변경되지 않습니다.</td><td>n 바이트를 재할당하고 복사할 수 있음</td>
+</tr>
+<tr id="string-reserve_exact"><th scope="row"><code>string.reserve_exact(&amp;mut string dst, usize additional)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>최소한의 성장을 요청; 할당자는 추가 용량을 제공 할 수 있습니다.</td><td>n 바이트를 재할당하고 복사할 수 있음</td>
+</tr>
+<tr id="string-shrink_to_fit"><th scope="row"><code>string.shrink_to_fit(&amp;mut string dst)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>예비 용량 감소 요청; 정확한 할당자 크기 보장은 없습니다.</td><td>n 바이트를 재할당하고 복사할 수 있음</td>
+</tr>
+<tr id="string-shrink_to"><th scope="row"><code>string.shrink_to(&amp;mut string dst, usize minimum)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>요청 용량은 최소 max(길이, 최소)입니다.</td><td>재할당 가능; 내용 변경 없음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Traversal" aria-labelledby="Traversal-heading">
+<h2 id="Traversal-heading">6입니다. 스칼라 탐색 및 경계 쿼리
+</h2>
+<p>스칼라 액세스 never는 UTF-8 연속 byte를 독립 스칼라로 해석합니다. 반복자 구성은 일정한 시간이며, 모든 요소를 소비하여 소스를 스캔합니다.
+</p>
+<div class="table-scroll" role="region" aria-label="스칼라 탐색 및 경계 쿼리 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-bytes"><th scope="row"><code>string.bytes(s)</code></th><td><code>Iterator&lt;byte&gt;</code></td><td>인코딩된 바이트를 읽습니다. 반복은 텍스트 조각을 만들지 않습니다.</td><td>O(1) 설정; O(n) 횡단</td>
+</tr>
+<tr id="string-chars"><th scope="row"><code>string.chars(s)</code></th><td><code>Iterator&lt;char&gt;</code></td><td>스칼라 값을 순서대로 디코딩합니다.</td><td>O(1) 설정; O(n) 횡단</td>
+</tr>
+<tr id="string-char_indices"><th scope="row"><code>string.char_indices(s)</code></th><td><code>Iterator&lt;(usize, char)&gt;</code></td><td>각 스칼라의 시작 byte 오프셋을 생성합니다.</td><td>O(1) 설정; O(n) 횡단</td>
+</tr>
+<tr id="string-first_char"><th scope="row"><code>string.first_char(s)</code></th><td><code>Optional&lt;char&gt;</code></td><td>첫 번째 스칼라, 또는 빈 텍스트에 대한 부재.</td><td>O(1); 최대 4 바이트 디코딩</td>
+</tr>
+<tr id="string-last_char"><th scope="row"><code>string.last_char(s)</code></th><td><code>Optional&lt;char&gt;</code></td><td>마지막 스칼라, 또는 빈 텍스트에 대한 부재.</td><td>O(1); 최대 4 바이트 검사</td>
+</tr>
+<tr id="string-char_at"><th scope="row"><code>string.char_at(s, usize ordinal)</code></th><td><code>Optional&lt;char&gt;</code></td><td>0 기반 스칼라 서수의 스칼라입니다.</td><td>O(n) 최악의 경우; 할당 없음</td>
+</tr>
+<tr id="string-byte_offset_of_char"><th scope="row"><code>string.byte_offset_of_char(s, usize ordinal)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>스칼라 순번을 바이트 오프셋으로 변환합니다. 끝 순번도 허용합니다.</td><td>O(n) 최악의 경우</td>
+</tr>
+<tr id="string-char_index_of_byte"><th scope="row"><code>string.char_index_of_byte(s, usize offset)</code></th><td><code>Result&lt;usize, BoundaryError&gt;</code></td><td>인바운드 스칼라 경계가 필요합니다. 끝은 허용됩니다.</td><td>O(n) 최악의 경우</td>
+</tr>
+<tr id="string-is_char_boundary"><th scope="row"><code>string.is_char_boundary(s, usize offset)</code></th><td><code>bool</code></td><td>시작과 끝은 거짓(False)이고 끝은 거짓(False)이다.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="string-floor_char_boundary"><th scope="row"><code>string.floor_char_boundary(s, usize offset)</code></th><td><code>Result&lt;usize, BoundaryError&gt;</code></td><td>오프셋과 같거나 그 앞에 있는 가장 가까운 경계를 반환합니다. 끝을 넘어선 오프셋은 거부합니다.</td><td>O(1); 경계 UTF-8 검사</td>
+</tr>
+<tr id="string-ceil_char_boundary"><th scope="row"><code>string.ceil_char_boundary(s, usize offset)</code></th><td><code>Result&lt;usize, BoundaryError&gt;</code></td><td>가장 가까운 경계에서 또는 오프셋 후; 끝 이외의 오프셋을 거부합니다.</td><td>O(1); 경계 UTF-8 검사</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Slicing" aria-labelledby="Slicing-heading">
+<h2 id="Slicing-heading">7입니다. 빌린 조각, 트리밍 및 접두사
+</h2>
+<p>모든 결과는 출처를 빌려줍니다. predicate-based trimming tests scalar values, not encoded bytes; predicates는 제안된 비활성 콜백 계약을 만족해야 한다.
+</p>
+<div class="table-scroll" role="region" aria-label="빌린 슬라이스, 트리밍 및 접두사 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-slice_bytes"><th scope="row"><code>string.slice_bytes(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, TextError&gt;</code></td><td>시작 ≤ 끝 ≤ byte 길이 및 스칼라 일치한 종점을 요구하십시오.</td><td>O(1); 사본 없음</td>
+</tr>
+<tr id="string-slice_chars"><th scope="row"><code>string.slice_chars(s, usize start, usize end)</code></th><td><code>Result&lt;string_view, BoundaryError&gt;</code></td><td>Slice checked 반 개방 스칼라 서수 범위.</td><td>O(n); 사본 없음</td>
+</tr>
+<tr id="string-split_at"><th scope="row"><code>string.split_at(s, usize offset)</code></th><td><code>Result&lt;(string_view, string_view), BoundaryError&gt;</code></td><td>checked 스칼라 정렬 byte 위치에서 분할합니다.</td><td>O(1); 사본 없음</td>
+</tr>
+<tr id="string-strip_prefix"><th scope="row"><code>string.strip_prefix(s, prefix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>일치하는 문자 접두사를 정확히 제거합니다.</td><td>O(p); 사본 없음</td>
+</tr>
+<tr id="string-strip_suffix"><th scope="row"><code>string.strip_suffix(s, suffix)</code></th><td><code>Optional&lt;string_view&gt;</code></td><td>정확히 일치하는 접미사를 하나 제거합니다.</td><td>O(p); 사본 없음</td>
+</tr>
+<tr id="string-trim_ascii"><th scope="row"><code>string.trim_ascii(s)</code></th><td><code>string_view</code></td><td>양쪽 끝에서 ASCII HT, LF, FF, CR 및 공간(VT 제외)을 트림합니다.</td><td>검사 끝; 배부 없음</td>
+</tr>
+<tr id="string-trim_ascii_start"><th scope="row"><code>string.trim_ascii_start(s)</code></th><td><code>string_view</code></td><td>주요 ASCII 공백 세트만 트림합니다.</td><td>스캔 접두사; 할당 없음</td>
+</tr>
+<tr id="string-trim_ascii_end"><th scope="row"><code>string.trim_ascii_end(s)</code></th><td><code>string_view</code></td><td>후행 ASCII 공백 세트만 트리밍합니다.</td><td>스캔 접미사; 할당 없음</td>
+</tr>
+<tr id="string-trim_matches"><th scope="row"><code>string.trim_matches(s, predicate)</code></th><td><code>string_view</code></td><td>양쪽 끝에 일치하는 스칼라 값을 트리밍합니다.</td><td>스캔 종료 및 콜백 비용</td>
+</tr>
+<tr id="string-trim_start_matches"><th scope="row"><code>string.trim_start_matches(s, predicate)</code></th><td><code>string_view</code></td><td>최고의 스칼라와 일치하는 트림.</td><td>스캔 접두사 및 콜백 비용</td>
+</tr>
+<tr id="string-trim_end_matches"><th scope="row"><code>string.trim_end_matches(s, predicate)</code></th><td><code>string_view</code></td><td>후행 스칼라와 일치하는 트림.</td><td>스캔 접미사 및 콜백 비용</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Search" aria-labelledby="Search-heading">
+<h2 id="Search-heading">8입니다. 문자 검색 및 계산
+</h2>
+<p>모든 위치는 이 변경되지 않은 소스에 대한 byte 오프셋입니다. 검색은 리터럴이고 대소문자를 구별하지만, 달리 명시적으로 명명되지는 않는다; 정규 표현식은 별도의 모듈이다.
+</p>
+<div class="table-scroll" role="region" aria-label="문자 검색 및 계산 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-contains"><th scope="row"><code>string.contains(s, needle)</code></th><td><code>bool</code></td><td>문자 그대로의 텍스트가 나타날 지 여부입니다.</td><td>스캔; 출력 할당 없음</td>
+</tr>
+<tr id="string-contains_char"><th scope="row"><code>string.contains_char(s, char value)</code></th><td><code>bool</code></td><td>스칼라가 발생하는 경우.</td><td>스캔; 할당 없음</td>
+</tr>
+<tr id="string-contains_any"><th scope="row"><code>string.contains_any(s, scalar_set)</code></th><td><code>bool</code></td><td>제공된 텍스트에서 스칼라가 발생할 지 여부입니다.</td><td>스캔과 세트 룩업 비용</td>
+</tr>
+<tr id="string-starts_with"><th scope="row"><code>string.starts_with(s, prefix)</code></th><td><code>bool</code></td><td>정확한 UTF-8 접두사 비교.</td><td>O(p); 할당 없음</td>
+</tr>
+<tr id="string-ends_with"><th scope="row"><code>string.ends_with(s, suffix)</code></th><td><code>bool</code></td><td>정확한 UTF-8 접미사 비교.</td><td>O(p); 할당 없음</td>
+</tr>
+<tr id="string-find"><th scope="row"><code>string.find(s, needle)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>첫 번째 매치의 byte 오프셋; 빈 바늘은 0을 반환합니다.</td><td>스캔; 출력 할당 없음</td>
+</tr>
+<tr id="string-rfind"><th scope="row"><code>string.rfind(s, needle)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>마지막 매치의 byte 오프셋; 빈 바늘은 byte 길이를 반환합니다.</td><td>역방향 검색; 출력 할당 없음</td>
+</tr>
+<tr id="string-find_char"><th scope="row"><code>string.find_char(s, char value)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>첫 번째 일치하는 스칼라의 시작 byte 오프셋.</td><td>스캔; 할당 없음</td>
+</tr>
+<tr id="string-rfind_char"><th scope="row"><code>string.rfind_char(s, char value)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>마지막으로 일치하는 스칼라의 시작 byte 오프셋.</td><td>역방향 검사; 할당 없음</td>
+</tr>
+<tr id="string-find_any"><th scope="row"><code>string.find_any(s, scalar_set)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>공급된 세트에 속하는 첫 번째 스칼라.</td><td>스캔과 세트 룩업 비용</td>
+</tr>
+<tr id="string-rfind_any"><th scope="row"><code>string.rfind_any(s, scalar_set)</code></th><td><code>Optional&lt;usize&gt;</code></td><td>공급된 세트에 속하는 마지막 스칼라.</td><td>역스캔과 세트 룩업 비용</td>
+</tr>
+<tr id="string-count_matches"><th scope="row"><code>string.count_matches(s, needle)</code></th><td><code>Result&lt;usize, PatternError&gt;</code></td><td>겹치지 않는 문자 일치를 계산합니다. 빈 바늘을 거부합니다.</td><td>검사; checked count; 산출 배부 없음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Split" aria-labelledby="Split-heading">
+<h2 id="Split-heading">9입니다. 분할, 라인 및 매치 반복
+</h2>
+<p>구분자 반복자는 빈 구분자를 거부합니다. 일반 분할은 선행 및 후행 필드를 포함하여 빈 필드를 보존합니다. 빈 텍스트를 비어 있지 않은 구분 기호로 분할하면 하나의 빈 필드가 생성됩니다. Count-Limited Forms 사용하기 <code>max_parts</code>0은 필드를 생성하지 않습니다.0 produces no fields. Iterator는 source와 stored delimiter를 모두 사용합니다.
+</p>
+<div class="table-scroll" role="region" aria-label="분할, 줄 및 일치 반복 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-split"><th scope="row"><code>string.split(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>구분선을 제외한 전방 필드; 비워두기.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-rsplit"><th scope="row"><code>string.rsplit(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>구분 기호를 제외한 필드 반전.</td><td>게으른 반전 검사; 사본 없음</td>
+</tr>
+<tr id="string-split_n"><th scope="row"><code>string.split_n(s, delimiter, usize max_parts)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>대부분의 max_parts; 마지막 필드는 나머지를 포함한다.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-rsplit_n"><th scope="row"><code>string.rsplit_n(s, delimiter, usize max_parts)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>count 제한 분할 반전; 접두사를 분리하지 마십시오.</td><td>게으른 반전 검사; 사본 없음</td>
+</tr>
+<tr id="string-split_once"><th scope="row"><code>string.split_once(s, delimiter)</code></th><td><code>Result&lt;Optional&lt;(string_view, string_view)&gt;, PatternError&gt;</code></td><td>첫번째 구분자는 접두사와 접미사를 나눕니다; 부재는 None입니다.</td><td>검색; 페이로드 복사본 없음</td>
+</tr>
+<tr id="string-rsplit_once"><th scope="row"><code>string.rsplit_once(s, delimiter)</code></th><td><code>Result&lt;Optional&lt;(string_view, string_view)&gt;, PatternError&gt;</code></td><td>마지막 구분자가 접두사와 접미사를 나눕니다.</td><td>역 검색; 사본 없음</td>
+</tr>
+<tr id="string-split_inclusive"><th scope="row"><code>string.split_inclusive(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>이전 필드에 발견 된 각 구분 기호를 포함합니다.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-split_terminator"><th scope="row"><code>string.split_terminator(s, delimiter)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>일반적으로 분할, 후행 구분 기호에 의한 하나의 마지막 빈 필드를 생략.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-split_ascii_whitespace"><th scope="row"><code>string.split_ascii_whitespace(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>명시적 ASCII 공백 세트의 실행을 건너니다.</td><td>지연 스캔; 빈 필드 없음</td>
+</tr>
+<tr id="string-lines"><th scope="row"><code>string.lines(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>분할 LF 및 CRLF; 스트립 종료기; 베어 CR은 텍스트로 남아 있습니다.</td><td>게으른 스캔; 최종 종료자가 생성하지 않은 빈 줄</td>
+</tr>
+<tr id="string-lines_inclusive"><th scope="row"><code>string.lines_inclusive(s)</code></th><td><code>Iterator&lt;string_view&gt;</code></td><td>LF 또는 CRLF 터미네이터를 항복 라인에 유지하십시오.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-matches"><th scope="row"><code>string.matches(s, needle)</code></th><td><code>Result&lt;Iterator&lt;string_view&gt;, PatternError&gt;</code></td><td>겹치지 않는 문자 일치; 빈 바늘을 거부합니다.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+<tr id="string-match_indices"><th scope="row"><code>string.match_indices(s, needle)</code></th><td><code>Result&lt;Iterator&lt;(usize, string_view)&gt;, PatternError&gt;</code></td><td>byte 오프셋 및 대여 범위를 일치시킵니다.</td><td>지연 스캔; 페이로드 사본 없음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Transforms" aria-labelledby="Transforms-heading">
+<h2 id="Transforms-heading">10입니다. 소유 변환
+</h2>
+<p>모든 결과는 결과를 소유하고 할당 할 수 있습니다. 치환은 원래 입력에서 겹치지 않는 일치 항목을 평가하므로 치환 텍스트는 never가 재귀적으로 검색한 것입니다.
+</p>
+<div class="table-scroll" role="region" aria-label="소유 변환 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-concat"><th scope="row"><code>string.concat(left, right)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>Copy는 둘 다 하나의 소유된 결과에 입력됩니다.</td><td>O(k); checked 할당</td>
+</tr>
+<tr id="string-join"><th scope="row"><code>string.join(Slice&lt;string_view&gt; parts, separator)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>부품 사이의 구분자를 삽입, never 양쪽 끝에.</td><td>O(k); checked 전체 크기; 할당 가능</td>
+</tr>
+<tr id="string-repeat"><th scope="row"><code>string.repeat(s, usize count)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>정확한 바이트를 반복합니다. count는 빈 텍스트를 생성합니다.</td><td>O(k); checked 곱셈; 할당 가능</td>
+</tr>
+<tr id="string-replace"><th scope="row"><code>string.replace(s, needle, replacement)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>모든 중복되지 않는 일치를 대체; 빈 바늘을 거부합니다.</td><td>검색 + O(k); 할당 가능</td>
+</tr>
+<tr id="string-replace_n"><th scope="row"><code>string.replace_n(s, needle, replacement, usize maximum)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>최대로 앞으로 게임을 교체합니다.</td><td>검색 + O(k); 할당 가능</td>
+</tr>
+<tr id="string-to_ascii_lowercase"><th scope="row"><code>string.to_ascii_lowercase(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>ASCII A–Z 만 매핑하는 동안 Copy.</td><td>O(n); 할당할 수 있음</td>
+</tr>
+<tr id="string-to_ascii_uppercase"><th scope="row"><code>string.to_ascii_uppercase(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>ASCII a–z 만 매핑하는 동안 Copy.</td><td>O(n); 할당할 수 있음</td>
+</tr>
+<tr id="string-escape_debug"><th scope="row"><code>string.escape_debug(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>문서화된 진단 디스플레이를 위한 이스케이프 컨트롤 및 구분자.</td><td>스캔 + O(k); 할당 가능</td>
+</tr>
+<tr id="string-escape_unicode"><th scope="row"><code>string.escape_unicode(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>모든 스칼라를 문서화된 Unicode 이스케이프로 렌더링합니다.</td><td>O(k); 할당할 수 있음</td>
+</tr>
+<tr id="string-escape_default"><th scope="row"><code>string.escape_default(s)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>ASCII 안전한 진단 탈출; 하지 일반적인 소독제.</td><td>O(k); 할당할 수 있음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Mutation" aria-labelledby="Mutation-heading">
+<h2 id="Mutation-heading">11입니다. 명시적 소유자 변형
+</h2>
+<p>변경 연산에는 쓰기 대여가 필요합니다. 위치는 검사된 UTF-8 바이트 오프셋입니다. 안전한 연산은 인코딩 바이트에 대한 무제한 쓰기 접근을 제공하지 않습니다. 용량 변경 호출은 주소를 무효화할 수 있습니다. 별도 계약으로 입증하지 않는 한 텍스트 편집은 앞서 얻은 모든 오프셋을 무효화합니다.
+</p>
+<div class="table-scroll" role="region" aria-label="명시적 소유자 변경 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-push_char"><th scope="row"><code>string.push_char(&amp;mut string dst, char value)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>유효한 스칼라를 추가합니다.</td><td>상환 된 작은 추가; 재배치 가능</td>
+</tr>
+<tr id="string-push_view"><th scope="row"><span id="string-append"></span><code>string.append(&amp;mut string dst, s)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>겹치지 않는 읽기 뷰를 추가합니다.</td><td>O(input bytes); 재할당 가능</td>
+</tr>
+<tr id="string-insert_char"><th scope="row"><code>string.insert_char(&amp;mut string dst, usize offset, char value)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>유효한 byte 경계에 삽입합니다.</td><td>Shift 접미사; 재할당 가능</td>
+</tr>
+<tr id="string-insert_view"><th scope="row"><code>string.insert_view(&amp;mut string dst, usize offset, s)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>겹치지 않는 UTF-8를 유효한 경계에 삽입합니다.</td><td>Copy 입력 및 시프트 접미사; 할당 가능</td>
+</tr>
+<tr id="string-pop_char"><th scope="row"><code>string.pop_char(&amp;mut string dst)</code></th><td><code>Optional&lt;char&gt;</code></td><td>마지막 스칼라를 제거합니다; 빈 텍스트는 None을 반환합니다.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="string-remove_char"><th scope="row"><code>string.remove_char(&amp;mut string dst, usize offset)</code></th><td><code>Result&lt;char, BoundaryError&gt;</code></td><td>offset에서 스칼라 시작을 제거합니다; end가 유효하지 않습니다.</td><td>나머지 접미사 쉬프트; 할당 없음</td>
+</tr>
+<tr id="string-truncate_bytes"><th scope="row"><code>string.truncate_bytes(&amp;mut string dst, usize length)</code></th><td><code>Result&lt;unit, BoundaryError&gt;</code></td><td>길이 ≤ 전류 길이와 스칼라 경계가 필요합니다.</td><td>O(1); 용량 유지</td>
+</tr>
+<tr id="string-clear"><th scope="row"><code>string.clear(&amp;mut string dst)</code></th><td><code>unit</code></td><td>길이를 0으로 설정하고 용량을 유지합니다.</td><td>O(1); 저장소를 지우지 않음</td>
+</tr>
+<tr id="string-replace_range"><th scope="row"><code>string.replace_range(&amp;mut string dst, usize start, usize end, replacement)</code></th><td><code>Result&lt;unit, TextError&gt;</code></td><td>checked 반 개방 byte 범위를 트랜잭션 방식으로 교체합니다.</td><td>이동 및 복사; 할당 할 수 있음</td>
+</tr>
+<tr id="string-split_off"><th scope="row"><code>string.split_off(&amp;mut string dst, usize offset)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>소유자에 있는 접두사를 지키십시오; return는 자주적으로 접미사를 소유했습니다.</td><td>Copy 접미사; 할당할지도 모릅니다</td>
+</tr>
+<tr id="string-retain"><th scope="row"><code>string.retain(&amp;mut string dst, predicate)</code></th><td><code>unit</code></td><td>선택된 스칼라를 순서대로 유지하십시오; 술어를 사용하지 마십시오.</td><td>O(n) plus 콜백; 할당 없음</td>
+</tr>
+<tr id="string-make_ascii_lowercase"><th scope="row"><code>string.make_ascii_lowercase(&amp;mut string dst)</code></th><td><code>unit</code></td><td>ASCII 대문자 바이트만 변경합니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="string-make_ascii_uppercase"><th scope="row"><code>string.make_ascii_uppercase(&amp;mut string dst)</code></th><td><code>unit</code></td><td>ASCII 소문자 바이트만 변경합니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="string-swap"><th scope="row"><code>string.swap(&amp;mut string dst, other)</code></th><td><code>unit</code></td><td>독립적으로 빌린 두 명의 소유자를 교환하십시오.</td><td>O(1); 페이로드 사본 없음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Comparison-Formatting" aria-labelledby="Comparison-Formatting-heading">
+<h2 id="Comparison-Formatting-heading">12입니다. 비교 및 포맷팅
+</h2>
+<p>기본 비교는 사전 순서가 아닌 결정론적 byte 순서입니다. 해시 기반 컨테이너는 동일한 평등 계약을 사용 해야 합니다. 서식 지정은 라이브러리 제안이며 형식 사양 및 임시 저장 비용은 명시 적으로 유지됩니다.
+</p>
+<div class="table-scroll" role="region" aria-label="데이터 테이블 비교 및 포맷팅">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="string-equal"><th scope="row"><span id="string-equals"></span><code>string.equals(left, right)</code></th><td><code>bool</code></td><td>정확한 UTF-8 byte 같음; 정상화 없음.</td><td>O(n) 최악의 경우; 할당 없음</td>
+</tr>
+<tr id="string-compare"><th scope="row"><code>string.compare(left, right)</code></th><td><code>Ordering</code></td><td>Lexicographic 부호 없는-byte 순서.</td><td>첫 번째 차이까지 비교; 할당 없음</td>
+</tr>
+<tr id="string-equal_ignore_ascii_case"><th scope="row"><code>string.equal_ignore_ascii_case(left, right)</code></th><td><code>bool</code></td><td>비교하는 동안 ASCII 문자 만 접습니다.</td><td>O(n) 최악의 경우; 할당 없음</td>
+</tr>
+<tr id="string-common_prefix"><th scope="row"><code>string.common_prefix(left, right)</code></th><td><code>string_view</code></td><td>왼쪽에서 빌린 가장 긴 동일한 스칼라 정렬 접두사.</td><td>공유 접두사 검사; 할당 없음</td>
+</tr>
+<tr id="string-common_suffix"><th scope="row"><code>string.common_suffix(left, right)</code></th><td><code>string_view</code></td><td>왼쪽에서 빌린 가장 긴 동일한 스칼라 정렬 접미사.</td><td>역방향 검사; 할당 없음</td>
+</tr>
+<tr id="string-format"><th scope="row"><code>string.format(template, FormatArgs values)</code></th><td><code>Result&lt;string, TextError&gt;</code></td><td>템플릿의 유효성을 검사하고 서식이 지정된 텍스트를 생성합니다.</td><td>작업을 포맷; 할당 할 수 있습니다</td>
+</tr>
+<tr id="string-format_into"><th scope="row"><code>string.format_into(out, template, FormatArgs values)</code></th><td><code>Result&lt;usize, TextError&gt;</code></td><td>유효한 UTF-8를 발신자 byte 버퍼에 씁니다.</td><td>출력 할당 없음; 커밋하기 전에 검증</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">13입니다. 예제 및 디자인 경계
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+Result&lt;string_view, TextError&gt; word = string.slice_bytes(text, 0, 5);
+Result&lt;string_view, TextError&gt; invalid = string.slice_bytes(text, 4, 5); // Err(TextError.InvalidBoundary);
+bool same = string.equals(text, &quot;café&quot;);</code></pre>
+<p><strong>미래 카탈로그 예제.</strong> 아래의 검색, 반복 및 반복기 호출은 0.2 구현의 일부가 아닌 제안된 API입니다.</p>
+<pre class="code-block" data-status="design-proposal"><code class="language-aevix" data-language="aevix">Optional&lt;usize&gt; hit = string.find(text, &quot;fé&quot;); // Byte offset 2;
+Result&lt;string, TextError&gt; repeated = string.repeat(text, 2);
+Result&lt;Iterator&lt;string_view&gt;, PatternError&gt; fields = string.split(&quot;a,,b&quot;, &quot;,&quot;);</code></pre>
+<p>이 초안에서 텍스트 리터럴은 변경할 수 없는 정적 UTF-8 저장소를 다음 타입으로 대여하며 <code>string_view</code> 할당하지 않습니다. 리터럴 텍스트에서 소유 <code>string</code> 을 만들려면 명시적이고 실패 가능한 소유 생성자가 필요합니다. 전체 문법을 설계 중이더라도 이 초안의 할당 규칙은 일관되게 유지합니다. 언어 표기와 네임스페이스는 항상 소문자 <code>string</code>.
+</p>
+<p><strong>계획된 0.3 문법:</strong> <a href="../../roadmap/System_IO_0_3.html#composition">print/println의 + 출력 조합</a> 은 중간 소유 string 없이 대여한 텍스트와 출력 가능한 값을 결합합니다. 인식된 출력 호출에 적용되며 일반 string 값 식에는 적용되지 않습니다. 소유 문자열 연결은 명시적이고 실패 가능한 연산으로 유지합니다. 위 카탈로그만으로 구현을 주장하지는 않습니다. <a href="../../roadmap/Convenience_0_3.html#raw-strings">원시 문자열 리터럴 계획</a> 도 string_view를 만들며 암시적인 string 할당을 추가하지 않습니다.</p>
+<p>생성·비교·연결에서 정규화를 수행하지 않습니다. C 호환 NUL 종료는 명시적 인코딩 연산입니다. 정규식 엔진·파서·파일 경로·로캘 자원 로딩·안전한 삭제는 별도 API입니다. 일반 텍스트 이스케이프로 HTML·SQL·셸·JSON 각각에 필요한 처리를 대신할 수는 없습니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">14입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/string/struct.String.html" target="_blank" rel="noopener noreferrer">Rust 소유 UTF-8 텍스트 — 용량, 유효성 검사, 소유권 이전</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.str.html" target="_blank" rel="noopener noreferrer">Rust UTF-8 슬라이스 - 경계, 스칼라 횡단, 빌린 작업</a>
+</li>
+<li><a href="https://pkg.go.dev/strings" target="_blank" rel="noopener noreferrer">Go strings 패키지 — 검색, 분할, 결합 및 명시적 복사</a>
+</li>
+<li><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" target="_blank" rel="noopener noreferrer">Java text API — 코드 단위와 변환 함수의 비교점</a>
+</li>
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank" rel="noopener noreferrer">Unicode 코어 사양 — 스칼라 값과 잘 구성된 인코딩</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="string_view.html"><span>다음 레퍼런스</span>string_view</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

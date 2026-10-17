@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="두 논리 값, 명시적 변환, 예측 가능한 즉시·지연 평가.">
+  <title>Boolean — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Boolean/Boolean.html">
+<link rel="alternate" hreflang="ko" href="Boolean.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Boolean.html" aria-current="true">Boolean</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="Boolean.html" aria-current="true">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Boolean.html">Boolean</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Boolean</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Boolean</h1><p class="doc-subtitle">두 논리 값, 명시적 변환, 예측 가능한 즉시·지연 평가.</p><div class="doc-meta"><span class="meta-chip">bool</span><span class="meta-chip">Boolean. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>디자인 초안</dd></div><div class="doc-stat"><dt>값</dt><dd>거짓 · 참</dd></div><div class="doc-stat"><dt>Copy</dt><dd>스칼라 값</dd></div><div class="doc-stat"><dt>API 함수</dt><dd>20</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>bool</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>개요</span></a></li><li><a href="#Declaration"><span class="toc-number">02</span><span>선언과 리터럴</span></a></li><li><a href="#Evaluation"><span class="toc-number">03</span><span>열망하는 외침 및 단락</span></a></li><li><a href="#Representation"><span class="toc-number">04</span><span>표현 및 유효한 값</span></a></li><li><a href="#Conversions"><span class="toc-number">05</span><span>숫자 및 텍스트 변환</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>함수 참조</span></a></li><li><a href="#Errors"><span class="toc-number">07</span><span>오류 및 버퍼 원자성</span></a></li><li><a href="#Parallel-Device"><span class="toc-number">08</span><span>병렬 및 장치 사용</span></a></li><li><a href="#Interop"><span class="toc-number">09</span><span>외부 인터페이스</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>예제 및 경계 사례</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Boolean 페이지"><h2>Boolean 참조</h2><div class="family-links"><a href="Boolean.html" aria-current="page">Boolean</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="Boolean.html" aria-current="true">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Boolean 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 개요
+</h2>
+<p><strong>설계 초안.</strong> 이들은 제안된 Aevix API이며, 컴파일러나 표준 라이브러리가 이를 구현한다고 주장하는 것은 아니다. 매개 변수 모드가 선택됩니다. <code>T value</code>, <code>&amp;T value</code>, 및 <code>&amp;mut T value</code>. 타입 팩·호출 가능 타입·반환 참조의 명시적 수명 표기·오류 enum은 표시된 곳에서 설명용으로 남습니다. 모든 연산은 네임스페이스 함수를 사용하며 값 메서드 별칭은 없습니다.
+</p>
+<p><code>bool</code> 이것은 정확히 false와 true를 나타냅니다. 그것은 조건과 예언의 유형입니다. 정수, 문자열, 포인터 및 Optional 값은 암시적으로 조건이 되지 않습니다. 존재 확인 사용 <code>Optional.is_some(value)</code>정수 진리 변환은 그 정책을 명시적으로 이름짓는다.
+</p>
+</section>
+<section id="Declaration" aria-labelledby="Declaration-heading">
+<h2 id="Declaration-heading">2입니다. 선언과 리터럴
+</h2>
+<p>선언은 형식을 먼저 놓고 기본적으로 변경할 수 없습니다.Declarations put the type first and are immutable by default. 토큰 <code>true</code> 및 <code>false</code> 기본 정수 별칭과 독립적으로 bool를 입력합니다. bool 스칼라는 Copy입니다. 복사하면 가변 상태가 할당되거나 공유되지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">bool ready = true;
+bool blocked = false;
+bool allowed = Boolean.and(ready, Boolean.not(blocked));</code></pre>
+</section>
+<section id="Evaluation" aria-labelledby="Evaluation-heading">
+<h2 id="Evaluation-heading">3입니다. 열망하는 외침 및 단락
+</h2>
+<p>일반 함수 인수는 함수 호출 전에 평가됩니다. <code>Boolean.and(expensive_a(), expensive_b())</code> 따라서 두 호출을 모두 평가합니다. 선택된 언어 운영자 <code>&amp;&amp;</code> 및 <code>||</code> bool 피연산자를 가져 와서 필요한 경우에만 올바른 피연산자를 평가하십시오. 트리너리 <code>condition ? a : b</code> 마찬가지로 선택된 브랜치만 평가합니다. 더 보기 <a href="../../grammar/operators/Operators.html">연산자와 표현식</a>.</p>
+<p><code>Boolean.then</code> 호출을 수락하고 조건적으로 호출합니다.Accept a callable and invokes it conditionally. <code>Boolean.select</code> 이미 만들어진 두 개의 값입니다. 어느 이름도 하드웨어 브랜치, 상수 시간 실행, 또는 보안 타이밍 보장을 의미하지 않는다.
+</p>
+</section>
+<section id="Representation" aria-labelledby="Representation-heading">
+<h2 id="Representation-heading">4입니다. 표현 및 유효한 값
+</h2>
+<p>시맨틱 도메인은 두 가지 값을 가집니다. 이 초안은 대상 ABI 정의에 따라 저장된 독립 실행형 bool에 대해 하나의 주소 지정 가능한 byte를 제안합니다. 벡터, 텐서 마스크, 포장된 레코드 또는 외국 불리언에 대해 동일한 레이아웃을 약속하지 않습니다. 임의 byte 패턴은 안전 코드에서 유효한 bool 값으로 재해석할 수 없습니다.
+</p>
+<p>packed-bit 컨테이너는 proxy 및 concurrency 비용을 가진 별도로 지정된 표현이 될 것입니다. <code>Vector&lt;bool&gt;</code> 고유한 포장 유형을 도입하지 않는 한 일반 인접 요소 모델을 따릅니다.
+</p>
+</section>
+<section id="Conversions" aria-labelledby="Conversions-heading">
+<h2 id="Conversions-heading">5입니다. 숫자 및 텍스트 변환
+</h2>
+<p>현재 0.2 프로파일에는 암시적 bool-to-integer 또는 정수-to-bool 변환이 없습니다. <code>Boolean.from_integer</code> 인코딩된 논리 값을 검증합니다. <code>Boolean.from_nonzero</code> 다른 정책을 요구한다. 이 구별은 2와 같은 손상된 플래그 값이 자동으로 엄격한 디코딩을 통과하는 것을 방지합니다.
+</p>
+<p><strong>계획된 0.3 추가 기능:</strong> <a href="../../roadmap/Convenience_0_3.html#boolean-return">스칼라 정수형에 대한 명시적 반환</a> 0에 false를 적용하고 1에 true를 적용할 수 있습니다. 이 좁은 규칙은 초기화, 인수, 산술 또는 bool 전용 조건을 변경하지 않습니다. 동일한 계획 일정 <a href="#Boolean-to_integer">Boolean.to_integer&lt;T&gt;</a> 다른 곳에서 명시적 변환을 위해; 이 카탈로그의 나머지는 설계 제안서로 남아 있습니다.</p>
+<p>포맷은 소문자 ASCII를 사용하고 로케일을 사용하지 않습니다. 파싱은 공백을 트리밍하지 않습니다. 발신자 제어 트리밍은 입력 형식이 허용하는 경우 구문 분석하기 전에 발생해야 합니다. UTF-8 텍스트 및 원시 byte 스토리지는 별개의 상태로 유지됩니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6입니다. 함수 참조
+</h2>
+<p><code>T value</code> 는 값을 전달합니다. Copy 타입은 복사하며 소유 non-Copy 값은 깊은 clone 없이 이동합니다. <code>&amp;T value</code> 는 공유 읽기 대여이고 <code>&amp;mut T value</code> 는 배타적 변경 대여입니다. 호출 시 각각 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code> 를 사용합니다. 이미 대여한 참조·뷰 값은 직접 전달하며 &amp;를 하나 더 붙이면 타입이 바뀝니다. <code>*ref</code> 는 참조 대상을 읽고 씁니다. 일반적인 <code>&amp;mut x</code> 에는 <code>mut</code> 소유자가 필요합니다. <code>mut T value</code> 만으로는 값 매개변수가 함수 안에서 변경 가능해질 뿐 호출자의 값을 변경하지 않습니다. 겹치는 활성 대여는 마지막 사용까지 검사합니다. 서로 겹치지 않는 영역은 안전하게 나눌 수 있으며 대여는 원본보다 오래 살 수 없습니다. 동기화된 내부 변경은 해당 타입의 계약을 따릅니다. <code>Fn(A) -&gt; B</code> 는 호출 가능한 값을 설명하며 반환 참조의 수명 관계는 본문으로 문서화합니다.
+</p>
+<h3>논리 및 조건부 값
+</h3>
+<div class="table-scroll" role="region" aria-label="함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">제안된 시그니처</th><th scope="col">반환</th><th scope="col">계약 및 제약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Boolean-not"><td><code>Boolean.not(bool value)</code></td><td><code>bool</code></td><td>논리적 보완.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-and"><td><code>Boolean.and(bool left, bool right)</code></td><td><code>bool</code></td><td>두 인자는 호출 전에 평가됩니다; 둘 다 참일 때 정확히 참입니다.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-or"><td><code>Boolean.or(bool left, bool right)</code></td><td><code>bool</code></td><td>두 인자는 호출 전에 평가됩니다; 적어도 하나가 참일 때 true.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-xor"><td><code>Boolean.xor(bool left, bool right)</code></td><td><code>bool</code></td><td>두 주장이 다를 때의 진실.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-equal"><td><code>Boolean.equal(bool left, bool right)</code></td><td><code>bool</code></td><td>두 가지 논리적 가치의 평등.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-compare"><td><code>Boolean.compare(bool left, bool right)</code></td><td><code>Ordering</code></td><td>false precedes true : 거짓이 사실보다 앞서다. 이것은 강제적 인 것이 아닙니다.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-select"><td><code>Boolean.select(bool condition, T yes, T no)</code></td><td><code>T</code></td><td>열심히 구성된 대안; 선택한 값을 이동하고 선택되지 않은 값을 한 번 파괴합니다.</td><td>O(1) 선택 + 하락 비용</td>
+</tr>
+<tr id="Boolean-then"><td><code>Boolean.then(bool condition, Fn() -&gt; T make)</code></td><td><code>Optional&lt;T&gt;</code></td><td>호출은 true일 때만 한 번 호출하며, 그렇지 않으면 None을 반환합니다. 관찰 가능한 콜백 평가가 없습니다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Boolean-then_some"><td><code>Boolean.then_some(bool condition, T value)</code></td><td><code>Optional&lt;T&gt;</code></td><td>값은 열망적입니다; false는 그것을 파괴하고 None을 반환합니다.</td><td>O(1) + 가능한 드롭</td>
+</tr>
+<tr id="Boolean-ok_or"><td><code>Boolean.ok_or(bool condition, E error)</code></td><td><code>Result&lt;unit, E&gt;</code></td><td>True는 Ok(Unit.value())를 반환합니다. false는 오류를 이동시킵니다. 사용하지 않은 오류가 발생합니다.</td><td>O(1) + 가능한 드롭</td>
+</tr>
+<tr id="Boolean-ok_or_else"><td><code>Boolean.ok_or_else(bool condition, Fn() -&gt; E make_error)</code></td><td><code>Result&lt;unit, E&gt;</code></td><td>False일 때만 오류를 생성합니다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>변환, 텍스트 및 슬라이스 감소
+</h3>
+<div class="table-scroll" role="region" aria-label="함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">제안된 시그니처</th><th scope="col">반환</th><th scope="col">계약 및 제약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Boolean-to_integer"><td><code>Boolean.to_integer&lt;T&gt;(bool value)</code></td><td><code>T</code></td><td>T는 정수 형식이어야 합니다; 거짓 맵은 0에, true는 1에 정확히 맞습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-from_integer"><td><code>Boolean.from_integer&lt;T&gt;(T value)</code></td><td><code>Result&lt;bool, BooleanError&gt;</code></td><td>정수 0 및 1만 허용됩니다. 다른 모든 값은 InvalidRepresentation입니다.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-from_nonzero"><td><code>Boolean.from_nonzero&lt;T&gt;(T value)</code></td><td><code>bool</code></td><td>명백한 정수 진실 변환: 0은 거짓이고 모든 0이 아닌 정수는 참입니다.</td><td>O(1)</td>
+</tr>
+<tr id="Boolean-parse"><td><code>Boolean.parse(string_view text)</code></td><td><code>Result&lt;bool, BooleanError&gt;</code></td><td>전체 소문자 토큰 true 및 false 만 허용합니다. 트리밍, 숫자 별칭 또는 로케일 규칙이 없습니다.</td><td>O(length), 할당 없음</td>
+</tr>
+<tr id="Boolean-format"><td><code>Boolean.format(bool value)</code></td><td><code>Result&lt;string, AllocError&gt;</code></td><td>소문자 true 또는 false를 소유 UTF-8 string로 반환합니다.</td><td>O(1) 바이트; 명시적 할당</td>
+</tr>
+<tr id="Boolean-format_into"><td><code>Boolean.format_into(bool value, MutSlice&lt;byte&gt; output)</code></td><td><code>Result&lt;usize, BufferError&gt;</code></td><td>4 또는 5 ASCII 바이트를 씁니다. 종료자는 없습니다. 먼저 용량을 확인하고 부족한 공간에서 출력을 변경하지 않습니다.</td><td>O(1), 할당 없음</td>
+</tr>
+<tr id="Boolean-all"><td><code>Boolean.all(Slice&lt;bool&gt; values)</code></td><td><code>bool</code></td><td>빈 슬라이스에 대해 true; 순서대로 읽고 첫 번째 false에서 멈 춥니 다.</td><td>O(n) 최악의 경우</td>
+</tr>
+<tr id="Boolean-any"><td><code>Boolean.any(Slice&lt;bool&gt; values)</code></td><td><code>bool</code></td><td>빈 조각에 대해 거짓; 순서대로 읽고 첫 번째 true에서 멈 춥니 다.</td><td>O(n) 최악의 경우</td>
+</tr>
+<tr id="Boolean-count_true"><td><code>Boolean.count_true(Slice&lt;bool&gt; values)</code></td><td><code>usize</code></td><td>true 요소를 계산합니다. 결과는 유효한 슬라이스 길이를 초과할 수 없습니다.</td><td>O(n)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Errors" aria-labelledby="Errors-heading">
+<h2 id="Errors-heading">7입니다. 오류 및 버퍼 원자성
+</h2>
+<p><code>BooleanError</code> InvalidRepresentation 및 InvalidText를 포함하는 제안된 오류 열거형입니다. <code>BufferError</code> 필수 및 사용 가능한 byte 카운트를 포함합니다. 용량 유효성 검사에 실패하면 포맷 버퍼가 변경되지 않습니다. 부분적으로 인코딩된 논리적 토큰이 성공으로 노출되지 않습니다.
+</p>
+<p>순수한 스칼라 연산은 오버플로우할 수 없습니다. 콜백 실패는 콜백 계약에 의해 제어됩니다. Boolean 도우미가 할당 실패를 false로 바꿉니다.
+</p>
+</section>
+<section id="Parallel-Device" aria-labelledby="Parallel-Device-heading">
+<h2 id="Parallel-Device-heading">8입니다. 병렬 및 장치 사용
+</h2>
+<p>불변의 bool 값을 독립적인 작업으로 복사할 수 있습니다. Concurrent는 동일한 bool에 여전히 독점적 인 대여, 잠금 또는 지원을 필요로합니다. <code>Atomic&lt;bool&gt;</code> 가동. Copy는 동기화되지 않은 공유 쓰기를 안전하게 만들지 않습니다.
+</p>
+<p>CPU bool는 자동으로 SIMD 레인 마스크 또는 GPU 술어 레지스터가 아닙니다. 이러한 표현으로의 변환은 해당 API에서 명시적입니다. bool 값을 이동하면 장치 전송 시맨틱이 없습니다.
+</p>
+</section>
+<section id="Interop" aria-labelledby="Interop-heading">
+<h2 id="Interop-heading">9입니다. 외부 인터페이스
+</h2>
+<p>C _Bool, C++ bool, Python bool 및 외국 정수 플래그는 바인딩 규칙이 다릅니다. 바인딩은 외국 ABI를 사용하여 값을 검증하고 변환합니다; 원시 주소는 표현 계약을 설정하지 않습니다. Python 개체 참조 관리는 Boolean 스칼라 저장소가 아닌 Python 경계에 속합니다.
+</p>
+<p>참고: <code>byte</code> <a href="../Byte/Byte.html">스토리지 규칙</a> 및 <a href="../Atomic/Atomic.html">원자 능력</a> 변색된 국기를 노출하기 전에.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10입니다. 예제 및 경계 사례
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;bool, BooleanError&gt; valid = Boolean.from_integer(1);
+Result&lt;bool, BooleanError&gt; invalid = Boolean.from_integer(2);
+Result&lt;bool, BooleanError&gt; token = Boolean.parse(&quot;true&quot;);
+bool nonzero = Boolean.from_nonzero(-3);
+i32 encoded = Boolean.to_integer&lt;i32&gt;(ready);</code></pre>
+<p>이러한 예는 엄격한 유효성 검증과 의도적인 0이 아닌 변환을 구별합니다. 잘못된 입력은 오류 값을 반환합니다; 이미 평가된 인수는 never 소급적으로 게으르게 만들어졌습니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.bool.html" target="_blank" rel="noopener noreferrer">Rust bool 참조: 논리 값 및 eager/lazy 도우미</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

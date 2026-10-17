@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="자소 클러스터 혼란없이 엄격한 스칼라 구조 및 UTF 디코딩.">
+  <title>Unicode 스칼라 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Char/Unicode_Scalar.html">
+<link rel="alternate" hreflang="ko" href="Unicode_Scalar.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Char.html" aria-current="true">Char</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="Char.html" aria-current="true">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Char.html">Char</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Unicode 스칼라</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Unicode 스칼라</h1><p class="doc-subtitle">자소 클러스터 혼란없이 엄격한 스칼라 구조 및 UTF 디코딩.</p><div class="doc-meta"><span class="meta-chip">char</span><span class="meta-chip">Char. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>char</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>스칼라로 계산되는 것 What Counts as a Scalar</span></a></li><li><a href="#Surrogates"><span class="toc-number">02</span><span>대리 및 숫자 입력</span></a></li><li><a href="#Encoding-Widths"><span class="toc-number">03</span><span>인코딩 너비가 스칼라 너비가 아님</span></a></li><li><a href="#Strict-Decoding"><span class="toc-number">04</span><span>엄격한 디코딩 및 오류 위치</span></a></li><li><a href="#Buffer-Encoding"><span class="toc-number">05</span><span>버퍼 인코딩 및 대여</span></a></li><li><a href="#Segmentation"><span class="toc-number">06</span><span>정규화 및 Grapheme 경계</span></a></li><li><a href="#Version-Policy"><span class="toc-number">07</span><span>고정 속성 및 독립적 인 유효성</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>경계 의 예</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Char 페이지"><h2>Char 참조</h2><div class="family-links"><a href="Char.html">Char</a><a href="Unicode_Scalar.html" aria-current="page">Unicode 스칼라</a><a href="ASCII.html">아스키</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="Char.html" aria-current="true">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Unicode 스칼라 참조">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1입니다. 스칼라로 계산되는 것 What Counts as a Scalar
+</h2>
+<p>Unicode 스칼라는 U+0000...U+D7FF 또는 U+E000...U+10FFFF에 있습니다. 대리 간격 U+D800...U+DFFF는 제외됩니다. 할당된 값과 할당되지 않은 값을 포함하여 1,112,064 가능한 스칼라 값이 있습니다. 유효성은 프로토콜에서 글꼴, 보이는 글리프, 이름 또는 권한을 필요로 하지 않습니다. 이 페이지는 전문 <a href="Char.html">Char 계약 체결</a> 생성자 또는 속성 카탈로그를 복제하지 않고.
+
+</p>
+
+<blockquote class="callout note">
+
+<p><strong>설계 초안.</strong> 이름, 지원 레코드 및 개념 구문은 제안된 Aevix 계약을 설명합니다. 그들은 실행을 주장하거나 성과를 측정하지 않습니다. 선언은 형식을 먼저 놓고 바인딩은 기본적으로 변경할 수 없습니다. MutSlice&lt;T&gt;는 독점적인 쓰기 가능 뷰를 나타냅니다. <code>mut</code>, <code>&amp;T</code>, 및 <code>&amp;mut T</code> 선택한 선언을 따르고 규칙을 대여하십시오. 카탈로그 관련 지원 기록 및 시그니처은 제안으로 남아 있습니다.
+
+</p>
+
+</blockquote>
+</section>
+<section id="Surrogates" aria-labelledby="Surrogates-heading">
+<h2 id="Surrogates-heading">2입니다. 대리 및 숫자 입력
+</h2>
+<p>UTF-16 높은 대리자는 D800 ... DBFF에있다; 낮은 대리자는 DC00 ... DFFF에있다. 어느 코드 unit는
+                    <code>char</code> 혼자. 유효한 쌍은 하나의 보충 스칼라를 나타냅니다. <code>u8</code>, <code>u16</code>, 및 <code>u32</code> 숫자 또는 인코딩된 unit 저장소 유형으로 유지되며 대체 문자 기본 형식은 아닙니다. 임의의 정수를 재해석하는 대신 경계에서 유효성을 검사합니다. NUL 및 비문자는 여전히 유효한 스칼라일 수 있습니다.
+
+</p>
+</section>
+<section id="Encoding-Widths" aria-labelledby="Encoding-Widths-heading">
+<h2 id="Encoding-Widths-heading">3입니다. 인코딩 너비가 스칼라 너비가 아님
+</h2>
+<p>UTF-8는 스칼라를 위해 1개에서 4개의 byte 유닛이 필요하고, UTF-16는 1개 또는 2개의 u16 유닛이 필요하며, UTF-32는 검증된 u32 unit 유닛이 필요합니다. 이러한 카운트는 char 변수에 대한 ABI 약속이 아닙니다. UTF-16 및 UTF-32 byte 스트림은 또한 byte 순서을 선언해야합니다. 숫자 코드 unit 슬라이스에서 이미 byte 표현이 해결되었습니다. 스트림 코덱은 스칼라에서 전체 프로토콜을 추론하는 대신 BOM 정책을 명시해야 합니다.
+
+</p>
+</section>
+<section id="Strict-Decoding" aria-labelledby="Strict-Decoding-heading">
+<h2 id="Strict-Decoding-heading">4입니다. 엄격한 디코딩 및 오류 위치
+</h2>
+<p>엄격한 디코더는 긴 UTF-8, 유효하지 않은 연속 바이트, 인코딩 된 대리, U + 10FFFF 이상의 값, 잘린 시퀀스 및 페어링되지 않은 UTF-16 대리를 거부합니다. 오류는 불완전한 입력과 유효하지 않은 입력 및 보고서 오프셋을 문서화된 unit에서 구별합니다. 정확한 1 디코더는 남은 것을 거부합니다. 접두어와 상쇄 함수는 소비를 보고하고 접미사가 유효하다는 주장을 하지 않습니다. never는 자동으로 잘못된 입력을 대체하거나 다음 유효한 시퀀스를 건너 니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="엄격한 디코딩 및 오류 위치 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">시그니처</th>
+                            <th scope="col">반환</th>
+                            <th scope="col">계약 및 비용</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Char-parse_scalar">
+                            <th scope="row"><code>Char.parse_scalar(string_view text)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>유효한 UTF-8에서 정확히 하나의 스칼라가 필요합니다. 빈 스칼라 또는 여러 스칼라를 거부합니다.</td>
+
+</tr>
+
+<tr id="Char-parse_uplus">
+                            <th scope="row"><code>Char.parse_uplus(string_view text)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>완전한 U+ 16진수 표기법을 분석하고 스칼라의 유효성을 검사합니다.</td>
+
+</tr>
+
+<tr id="Char-parse_escape">
+                            <th scope="row"><code>Char.parse_escape(string_view text)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>정확히 하나의 완전한 초안 스칼라 탈출을 디코딩; 후행 입력을 거부.</td>
+
+</tr>
+
+<tr id="Char-from_utf8">
+                            <th scope="row"><code>Char.from_utf8(Slice&lt;byte&gt; units)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>가장 짧은 형태의 유효한 UTF-8 시퀀스가 필요하며 전체 슬라이스를 소비합니다.</td>
+
+</tr>
+
+<tr id="Char-from_utf16">
+                            <th scope="row"><code>Char.from_utf16(Slice&lt;u16&gt; units)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>비호환 unit 하나 또는 유효한 쌍이 필요합니다. 남은 것을 거부합니다.</td>
+
+</tr>
+
+<tr id="Char-from_utf32">
+                            <th scope="row"><code>Char.from_utf32(u32 unit)</code></th>
+                            <td><code>Result&lt;char, CharError&gt;</code></td>
+                            <td>UTF-32 코드 unit를 스칼라로 검증합니다. byte 순서 추론은 없습니다.</td>
+
+</tr>
+
+<tr id="Char-decode_utf8_at">
+                            <th scope="row"><code>Char.decode_utf8_at(Slice&lt;byte&gt; units, usize offset)</code></th>
+                            <td><code>Result&lt;(char, usize), CharError&gt;</code></td>
+                            <td>byte 경계에서 디코딩; return 스칼라 및 byte count 소비.</td>
+
+</tr>
+
+<tr id="Char-decode_utf16_at">
+                            <th scope="row"><code>Char.decode_utf16_at(Slice&lt;u16&gt; units, usize offset)</code></th>
+                            <td><code>Result&lt;(char, usize), CharError&gt;</code></td>
+                            <td>코드 unit 오프셋에서 디코딩; return 스칼라 및 소비 단위.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Buffer-Encoding" aria-labelledby="Buffer-Encoding-heading">
+<h2 id="Buffer-Encoding-heading">5입니다. 버퍼 인코딩 및 대여
+</h2>
+<p>대상 엔코더는 독점이 필요합니다. <code>MutSlice&lt;T&gt;</code> 대여 및 초기 능력. 그들은 출력을 수정하기 전에 전체 고정 크기 쓰기를 검증합니다. 뷰는 소유자보다 오래 살 수 없으며 라이브 뷰가 무효화되는 동안 스토리지를 다시 할당할 수 없습니다. 인코딩은 정규화를 수행하지 않으며 할당되지 않습니다. U+0000는 합법적으로 zero unit를 기록한다; 명시적으로 선택된 외부 프로토콜이 그렇게 말할 때에만 종료자가 된다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="버퍼 인코딩 및 대여 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">시그니처</th>
+                            <th scope="col">반환</th>
+                            <th scope="col">계약 및 비용</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Char-encode_utf8_into">
+                            <th scope="row"><code>Char.encode_utf8_into(char c, MutSlice&lt;byte&gt; output)</code></th>
+                            <td><code>Result&lt;usize, CharError&gt;</code></td>
+                            <td>1 ~ 4 바이트를 기록하기 전에 용량 확인; 할당 없음.</td>
+
+</tr>
+
+<tr id="Char-encode_utf16_into">
+                            <th scope="row"><code>Char.encode_utf16_into(char c, MutSlice&lt;u16&gt; output)</code></th>
+                            <td><code>Result&lt;usize, CharError&gt;</code></td>
+                            <td>하나 또는 두 개의 단위를 쓰기 전에 배타적 인 용량을 확인합니다.</td>
+
+</tr>
+
+<tr id="Char-validate_utf8_prefix">
+                            <th scope="row"><code>Char.validate_utf8_prefix(Slice&lt;byte&gt; units)</code></th>
+                            <td><code>Result&lt;usize, CharError&gt;</code></td>
+                            <td>하나의 완전한 선행 스칼라 및 return의 byte count를 검증합니다.</td>
+
+</tr>
+
+<tr id="Char-validate_utf16_prefix">
+                            <th scope="row"><code>Char.validate_utf16_prefix(Slice&lt;u16&gt; units)</code></th>
+                            <td><code>Result&lt;usize, CharError&gt;</code></td>
+                            <td>하나의 완전한 선행 스칼라 및 return의 unit count를 검증합니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Segmentation" aria-labelledby="Segmentation-heading">
+<h2 id="Segmentation-heading">6입니다. 정규화 및 Grapheme 경계
+</h2>
+<p>유효한 스칼라는 자소 클러스터 cluster의 일부만을 형성할 수 있다. 캐노니컬 등가는 시퀀스들을 관련시킨다; 그것은 그들의 스칼라 카운트들 또는 바이트들을 동일하게 만들지 않는다. 유효성 검사, 속성 조회, 정규화 및 분할은 별도의 작업입니다. 성공적인 UTF 디코딩은 NFC, 단일 자소 클러스터, 식별자 또는 안전 디스플레이를 설정하지 않습니다. 전체 시퀀스 알고리즘은 다음과 같습니다. <a
+                            href="../String/string.html">string</a>; 결합 마크는 단순히 인덱싱을 단순화하기 위해 폐기되어서는 안됩니다.
+
+</p>
+</section>
+<section id="Version-Policy" aria-labelledby="Version-Policy-heading">
+<h2 id="Version-Policy-heading">7입니다. 고정 속성 및 독립적 인 유효성
+</h2>
+<p>스칼라 범위와 대리 제외는 선택된 Unicode 데이터베이스가 값을 할당하는지 여부에 의존하지 않습니다. 속성 기반 동작은 컴파일러 아티팩트의 정확한 버전과 지문을 기록합니다. 이후 툴체인은 기존 스칼라의 UTF 인코딩을 변경하지 않고 새로운 이름을 인식할 수 있다. 인용 된 Unicode 릴리스는 새로 선택한 Aevix 버전이 아닌 비교 소스입니다. AOT 및 JIT는 유효성 검사 계약을 공유하며, 운영 체제 업데이트가 자동으로 테이블을 대체해서는 안 됩니다.
+
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8입니다. 경계 의 예
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Char.from_u32(0x10ffff); // valid noncharacter scalar
+Char.from_u32(0xd800); // surrogate error
+Char.from_u32(0x110000); // out-of-range error
+char zero = &#x27;\0&#x27;;
+Char.utf16_length(&#x27;😀&#x27;); // 2 units
+Char.utf8_length(&#x27;😀&#x27;); // 4 bytes</code></pre>
+
+<p>참고: <a href="../Byte/Byte_Buffer.html">Byte 버퍼</a> 원시 저장소 및 명시적 대체 디코딩, 및 <a href="../Byte/Byte_Order.html">Byte 순서</a> 넓은 필드를 위해. 손실 결과는 원본 바이트가 유효하거나 보존되었다는 증거가 아닙니다. 오류 기록 이름과 구문 분석 문법은 기존 Aevix 디코더에 대한 주장이 아닌 초안 결정으로 남아 있습니다.
+
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+
+</p>
+
+<ul class="source-list">
+
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank"
+                           rel="noopener noreferrer">Unicode 코어 사양 — 스칼라 값, 인코딩 및 케이싱</a>
+
+</li>
+
+<li><a href="https://www.unicode.org/reports/tr29/" target="_blank" rel="noopener noreferrer">Unicode 텍스트 분할 — 자소 클러스터 경계</a>
+
+</li>
+
+<li><a href="https://doc.rust-lang.org/std/primitive.char.html" target="_blank"
+                           rel="noopener noreferrer">Rust char — 스칼라 및 매핑 API 비교</a>
+
+</li>
+
+<li><a href="https://docs.python.org/3/library/codecs.html" target="_blank"
+                           rel="noopener noreferrer">Python 코덱 — 명시적 인코딩-오류 처리</a>
+
+</li>
+
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Char.html"><span>이전 레퍼런스</span>Char</a><a href="ASCII.html"><span>다음 레퍼런스</span>아스키</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

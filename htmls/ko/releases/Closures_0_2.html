@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="명시적 캡처, 대여한 환경과 정적으로 검사하는 제네릭 콜백입니다.">
+  <title>클로저와 호출 계약 — Aevix 0.2</title>
+  <link rel="stylesheet" href="../../css/root.css?v=7">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../releases/Closures_0_2.html">
+<link rel="alternate" hreflang="ko" href="Closures_0_2.html">
+<script src="../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header">
+  <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+  <nav class="header-nav" aria-label="문서"><a href="0_2.html">0.2 프로필</a><a href="../data_type/index.html">자료형</a><a href="../grammar/index.html">문법</a><a href="../errors/index.html">오류</a></nav>
+  <span class="draft-badge">0.2V 프리뷰</span>
+<label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+  <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">문서</a><span class="separator" aria-hidden="true">/</span><a href="0_2.html">0.2</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">클로저와 호출 계약</span></nav>
+  <header class="doc-intro"><div><p class="eyebrow">구현된 언어 범위</p><h1>클로저와 호출 계약</h1><p class="doc-subtitle">명시적 캡처, 대여한 환경과 정적으로 검사하는 제네릭 콜백입니다.</p><div class="doc-meta"><span class="meta-chip">0.2 미리보기</span><span class="meta-chip">AOT / ORC JIT</span><a href="0_2.html#limits">릴리스의 한계</a></div></div><div class="type-mark" aria-hidden="true"><strong>Fn</strong><span>0.2 참조</span></div></header>
+  <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#start"><span class="toc-number">01</span><span>클로저는 값입니다</span></a></li><li><a href="#captures"><span class="toc-number">02</span><span>각 값을 캡처하는 방식 선택하기</span></a></li><li><a href="#modes"><span class="toc-number">03</span><span>Fn, FnMut과 FnOnce</span></a></li><li><a href="#generic"><span class="toc-number">04</span><span>제네릭 함수에 클로저 전달하기</span></a></li><li><a href="#cost"><span class="toc-number">05</span><span>저장소, 호출과 현재 한계</span></a></li><li><a href="#checks"><span class="toc-number">06</span><span>검사한 동작</span></a></li></ol></details><nav class="family-nav" aria-label="0.2 참조"><h2>0.2 참조</h2><div class="family-links"><a href="0_2.html">0.2 구현 프로필</a><a href="Closures_0_2.html" aria-current="page">클로저와 호출 계약</a><a href="Parallel_0_2.html">CPU 병렬 순회</a><a href="Bench_0_2.html">함수 측정</a></div></nav></aside><article class="content">
+<section id="start" aria-labelledby="start-heading"><h2 id="start-heading">클로저는 값입니다</h2>
+<p>클로저는 함수 본문과 명시적으로 캡처한 값을 결합합니다. 매개변수는 일반적인 타입 우선 문법을 사용하고, 화살표 뒤에는 반환 타입을 명시합니다. 클로저마다 고유한 구체 타입을 추론하려면 <code>rsn</code> 를 사용하세요.</p>
+<pre class="code-block"><code id="Aevix">i32 main() {
+    i32 factor = 3;
+    rsn multiply = [factor](i32 value) -&gt; i32 {
+        return value * factor;
+    };
+    return multiply(14) == 42 ? 0 : 1;
+}</code></pre><p>빈 캡처 목록의 표기는 <code>[]</code>입니다. 바깥 지역 변수는 캡처 목록에 적어야 본문에서 사용할 수 있습니다. 클로저 식으로 변수를 초기화하므로 클로저 선언은 세미콜론으로 끝납니다.</p>
+<div class="callout"><strong>구현된 범위.</strong> 이 예제는 0.2 컴파일러가 지원하는 동작을 설명합니다. 더 큰 컬렉션 API 카탈로그에는 추가로 제안된 콜백과 알고리즘이 포함됩니다.</div>
+</section>
+<section id="captures" aria-labelledby="captures-heading"><h2 id="captures-heading">각 값을 캡처하는 방식 선택하기</h2>
+<div class="table-scroll" role="region" aria-label="참조 표"><table><thead><tr><th>캡처</th><th>의미</th><th>원본에 미치는 영향</th></tr></thead><tbody><tr><td><code>[value]</code></td><td>값으로 캡처합니다. Copy 값은 복사하고 다른 값은 이동합니다.</td><td>이동한 소유자는 이전 바인딩으로 사용할 수 없습니다.</td></tr><tr><td><code>[&amp;read]</code></td><td>공유 대여를 캡처합니다.</td><td>대여가 살아 있는 동안 충돌하는 변경은 거절합니다.</td></tr><tr><td><code>[&amp;mut write]</code></td><td>배타적 대여를 캡처합니다.</td><td>변경 가능한 원본 저장소가 필요하며 충돌하는 접근을 배제합니다.</td></tr><tr><td><code>[value, &amp;read, &amp;mut write]</code></td><td>명시적 캡처 방식을 조합합니다.</td><td>캡처한 각 값의 이동·대여 규칙은 그대로 유지됩니다.</td></tr></tbody></table></div><p>본문에서는 대여한 캡처도 원래 이름으로 사용합니다. 저장된 참조를 통한 접근은 컴파일러가 처리하므로 캡처했다는 이유만으로 추가 역참조가 필요하지 않습니다.</p><pre class="code-block"><code class="language-aevix">i32 main() {
+    i32 base = 10;
+    rsn add_base = [&amp;base](i32 value) -&gt; i32 {
+        return value + base;
+    };
+    return add_base(2) == 12 ? 0 : 1;
+}</code></pre><p>캡처한 참조는 원본 저장소보다 오래 살 수 없습니다. 호출로 소비되는 환경 내부의 참조를 반환하는 것도 거절합니다. 환경을 이동해도 캡처 필드가 지닌 수명 제한은 유지됩니다.</p>
+</section>
+<section id="modes" aria-labelledby="modes-heading"><h2 id="modes-heading">Fn, FnMut과 FnOnce</h2>
+<div class="table-scroll" role="region" aria-label="참조 표"><table><thead><tr><th>계약</th><th>호출 수신자</th><th>0.2 분류</th></tr></thead><tbody><tr><td><code>Fn&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td>공유 대여: <code>&amp;F</code>.</td><td>Copy 값 캡처나 공유 대여 캡처만 사용하는 읽기 전용 클로저입니다.</td></tr><tr><td><code>FnMut&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td>배타적 대여: <code>&amp;mut F</code>.</td><td>명시적 배타적 캡처를 포함하여 캡처 값을 변경할 접근 권한이 필요한 클로저입니다.</td></tr><tr><td><code>FnOnce&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td>값: <code>F</code>.</td><td>non-Copy 값을 캡처하여 소유하는 클로저입니다. 호출하면 환경을 소비합니다.</td></tr></tbody></table></div><p>다음 <code>Fn</code> 클로저는 FnMut과 FnOnce 요구를 충족합니다. FnMut은 FnOnce 요구를 충족합니다. 반대 방향은 거절합니다. 인수와 결과 타입은 계약과 일치해야 합니다.</p>
+<p>0.2의 분류는 보수적입니다. 본문에서 읽기만 하더라도 non-Copy 값을 하나라도 값으로 캡처하면 FnOnce가 됩니다. 캡처한 객체의 메서드 호출에도 환경을 변경할 접근 권한이 필요할 수 있습니다. 다른 언어에서 재사용할 수 있는 모든 클로저를 이 구현이 추론하지는 않습니다.</p><pre class="code-block"><code class="language-aevix">i32 main() {
+    mut i32 total = 1;
+    mut rsn change = [&amp;mut total](i32 delta) -&gt; i32 {
+        total += delta;
+        return total;
+    };
+    i32 first = change(2);
+    i32 second = change(4);
+    return first == 3 &amp;&amp; second == 7 ? 0 : 1;
+}</code></pre><p>변경 가능한 클로저를 직접 호출하려면 <code>mut</code> 바인딩이 필요합니다. 원본 값이 변경 가능하다는 사실만으로 클로저 바인딩도 변경 가능해지지는 않습니다.</p>
+</section>
+<section id="generic" aria-labelledby="generic-heading"><h2 id="generic-heading">제네릭 함수에 클로저 전달하기</h2>
+<p>이 계약들은 기본 타입 환경에서 사용할 수 있습니다. 인수 튜플은 콜백 시그니처를 나타내며, 호출자는 런타임 튜플을 만들지 않고 일반 인수를 전달합니다.</p>
+<pre class="code-block"><code class="language-aevix">T map&lt;T, F&gt;(T value, &amp;F callback)
+    where F implements Fn&lt;Tuple&lt;T&gt;, T&gt; {
+    return callback(value);
+}
+
+i32 update&lt;F&gt;(&amp;mut F callback, i32 value)
+    where F implements FnMut&lt;Tuple&lt;i32&gt;, i32&gt; {
+    return callback(value);
+}
+
+i32 main() {
+    i32 factor = 3;
+    rsn multiply = [factor](i32 value) -&gt; i32 {
+        return value * factor;
+    };
+    return map(4, &amp;multiply) == 12 ? 0 : 1;
+}</code></pre><p>제네릭 본문은 선언된 계약에 따라 검사합니다. FnOnce 제약 아래에서 <code>F callback</code> 를 받는 함수는 한 번만 호출할 수 있으며 두 번째 호출은 이동 오류입니다. 재사용 가능한 콜백을 소비하지 않고 호출하려면 <code>&amp;F</code> 또는 <code>&amp;mut F</code> 를 해당 계약과 함께 사용하세요.</p><pre class="code-block"><code class="language-aevix">usize consume&lt;F&gt;(F callback, usize extra)
+    where F implements FnOnce&lt;Tuple&lt;usize&gt;, usize&gt; {
+    return callback(extra);
+}
+
+Result&lt;usize, TextError&gt; owned_example() {
+    string text = string.from_view(&quot;abc&quot;)?;
+    rsn once = [text](usize extra) -&gt; usize {
+        return string.byte_len(&amp;text) + extra;
+    };
+    return Result.ok(consume(once, 2));
+}</code></pre>
+</section>
+<section id="cost" aria-labelledby="cost-heading"><h2 id="cost-heading">저장소, 호출과 현재 한계</h2>
+<p>컴파일러는 캡처 목록으로 구체적인 환경 레코드를 만들고 정적으로 선택되는 호출 함수를 생성합니다. 환경은 일반적인 값 저장소를 사용하므로 클로저를 만드는 것만으로 숨은 힙 객체를 할당하지는 않습니다. 캡처한 string이나 vector는 별도 버퍼를 소유할 수 있으며, 큰 Copy 값을 캡처하여 복사할 때는 일반적인 값 복사 비용이 듭니다.</p>
+<p>특수화와 일반 LLVM 최적화가 환경 필드를 제거하거나 호출을 인라인화할 수 있습니다. 이러한 변환은 프로그램과 최적화 수준에 따라 달라집니다. 모든 클로저가 기계어에서 사라진다고 언어가 보장하지는 않습니다.</p>
+<ul><li>캡처 목록과 매개변수 타입은 명시해야 합니다. <code>-&gt;</code> 뒤에는 반환 타입을 반드시 적어야 합니다.</li><li>현재 호출 계약은 구체적인 제네릭 콜백을 설명합니다. 소유형 동적 호출 래퍼와 <code>dyn Fn</code> 디스패치는 이 범위에 포함되지 않습니다.</li><li>클로저 매개변수 목록은 인수 개수가 고정되어 있습니다. <code>self</code> 는 생성되는 수신자를 위한 예약 이름입니다.</li><li><a href="Parallel_0_2.html">CPU 병렬 worker</a> 에는 검증된 이름 있는 함수가 필요합니다. 0.2의 parallel.for_each는 클로저를 받지 않습니다.</li></ul>
+</section>
+<section id="checks" aria-labelledby="checks-heading"><h2 id="checks-heading">검사한 동작</h2>
+<p>클로저 통합 검사는 AOT·ORC JIT 호출, 실제 제네릭 Fn/FnMut/FnOnce 특수화, 공유·배타적 캡처와 소유 string 캡처를 검사합니다. 거절 검사는 암시적 지역 변수 캡처, 공유 캡처를 통한 쓰기, 변경 불가능한 FnMut 바인딩 호출, 충돌하는 원본 변경, FnOnce 재사용, 환경 참조의 수명 이탈과 병렬 worker로 전달한 클로저를 거절하는지 확인합니다.</p><p>이 컴파일러 검사와 각 릴리스 플랫폼의 최종 네이티브 검증은 별개입니다. <a href="0_2.html#limits">구현 범위</a> 에 플랫폼별 현황을 기록합니다.</p>
+</section>
+<nav class="page-navigation" aria-label="관련 문서"><a href="0_2.html"><span>릴리스 참조</span>0.2 구현 범위로 돌아가기</a></nav>
+  </article></div>
+  <footer class="page-footer"><span>Aevix · 0.2 미리보기</span><span>구현 참조 · 플랫폼 지원 범위는 0.2 구현 범위에 명시</span></footer>
+</main>
+</body>
+</html>

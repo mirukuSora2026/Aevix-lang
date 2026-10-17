@@ -5,8 +5,8 @@
 # File name : static.yml
 #
 # Description :
-#     문서 폴더를 GitHub Pages에 배포하고 시작 페이지를 준비한다.
-#     Deploy the documentation directory to GitHub Pages and prepare its entry page.
+#     언어별 문서의 일관성을 검사하고 GitHub Pages에 배포한다.
+#     Check localized documentation consistency and deploy it to GitHub Pages.
 #
 # ========================
 
@@ -17,6 +17,9 @@ on:
     branches: [main]
     paths:
       - "htmls/**"
+      - "docs/Language/i18n/**"
+      - "tools/docs/build_locales"
+      - "tests/docs/**"
       - ".github/workflows/static.yml"
   workflow_dispatch:
 
@@ -39,6 +42,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Check documentation languages
+        run: |
+          python3 tools/docs/build_locales
+          python3 tests/docs/locale_tests
+          node --test tests/docs/language_tests.cjs
+          node --check htmls/js/docs.js
+          node --check htmls/js/language.js
+          git diff --exit-code -- htmls/ko
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

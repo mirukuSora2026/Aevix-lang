@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="숨겨진 소유권없이 쓰기 가능한 범위, 콜백 및 수명을 분리하십시오.">
+  <title>독점 Slice 보기 — Aevix 문서 도구</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Slice/Slice_Mutation.html">
+<link rel="alternate" hreflang="ko" href="Slice_Mutation.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Slice.html" aria-current="true">Slice</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="Slice.html" aria-current="true">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Slice.html">Slice</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">독점 Slice 보기</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>독점 Slice 보기</h1><p class="doc-subtitle">숨겨진 소유권없이 쓰기 가능한 범위, 콜백 및 수명을 분리하십시오.</p><div class="doc-meta"><span class="meta-chip">MutSlice&lt;T&gt;</span><span class="meta-chip">Slice 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>0</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>&amp;[티</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Exclusive-View"><span class="toc-number">01</span><span>1개의 독점적인 뷰, 새로운 소유자 없음</span></a></li><li><a href="#Disjoint-Ranges"><span class="toc-number">02</span><span>부조화는 실제 Range 증거입니다</span></a></li><li><a href="#Overlap"><span class="toc-number">03</span><span>복사, 이동 및 겹침</span></a></li><li><a href="#Algorithms"><span class="toc-number">04</span><span>콜백 및 부분 실패</span></a></li><li><a href="#Lifetimes"><span class="toc-number">05</span><span>빌린 결과 및 탈출 핸들</span></a></li><li><a href="#Parallelism"><span class="toc-number">06</span><span>평행한 disjointness 및 중단</span></a></li><li><a href="#Examples"><span class="toc-number">07</span><span>예제 및 관련 계약 읽기</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Slice 페이지"><h2>Slice 참조</h2><div class="family-links"><a href="Slice.html">Slice</a><a href="Slice_Mutation.html" aria-current="page">독점 Slice 보기</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="Slice.html" aria-current="true">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="독점 Slice 조회 수 참조">
+<section id="Exclusive-View" aria-labelledby="Exclusive-View-heading">
+<h2 id="Exclusive-View-heading">1입니다. 1개의 독점적인 뷰, 새로운 소유자 없음
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 가변 뷰 구성, 인덱싱 및 checked <code>Slice.slice_mut</code> 구현된다. 아래의 대여 알고리즘과는 달리, <code>Slice.slice_mut(view, start, end)</code> 는 Result의 성공·실패 양쪽에서 원래 뷰 디스크립터를 소비합니다. 성공으로 얻은 뷰는 계속 같은 소유자를 대여합니다. 역순, 분할, 청크, 반복자 함수는 카탈로그의 제안입니다. 다음 문서를 참고하세요: <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>MutSlice&lt;T&gt;는 초기화 된 연속 값의 독점적 인 쓰기 가능한 대여을 설명합니다. 그것은 할당을 소유하지 않으며 기술자가 끝날 때 소스를 해방하지 않는다. 그것을 만드는 것은 소유자 또는 소스보기에 대한 기존의 독점적 인 능력이 필요합니다. 능력을 빌리는 설명자 전송을 이동한다; 임의의 가변 설명자를 복사하는 것은 허용되지 않는다. 일반 읽기 Slice&lt;T&gt; 설명자는 상속된 수명이 유효한 경우에만 복사할 수 있습니다.
+</p>
+<p>기존 뷰를 알려진 뷰로 직접 전달 <code>MutSlice&lt;U&gt;</code> 또는 <code>&amp;mut U</code> 매개 변수는 아래 임시 reborrow를 형성 <a href="../../declaration/Function_Declaration.html#reborrowing">선택한 함수 규칙</a>. 파생 참조, 뷰 또는 반복기는 Optional 또는 Result 내부의 대여 및 참조에 액세스 할 수있는 정리를 포함하여 라이브로 유지되는 동안 소스 기능이 일시 중지됩니다. 이 대여은 대여로만 끝나는 것이 아니다. 리보로잉은 기존 전용 기능을 사용하며 설명자 자체에 mut 바인딩이 필요하지 않습니다.</p>
+<p>일반 할당, 초기화, return 및 일반 <code>T value</code> 인자는 여전히 non-Copy 기술자를 이동시킨다. MutSlice로 인스턴스화되는 T는 일반 값 매개 변수 차입을 만들지 않습니다. 제안 된 가변 Slice 알고리즘 입력은 입력을 대여하고 있습니다. 구현 <code>Slice.slice_mut</code> intrinsic은 Result 브랜치 중 하나에서 원래 디스크립터를 사용합니다. <a href="Slice.html#Parameter-Reborrowing">공통 매개 변수 모드</a> 구별을 위하여 일반적인 이동 표현이나 암시적 능력 사본은 추가되지 않습니다.</p>
+</section>
+<section id="Disjoint-Ranges" aria-labelledby="Disjoint-Ranges-heading">
+<h2 id="Disjoint-Ranges-heading">2입니다. 부조화는 실제 Range 증거입니다
+</h2>
+<p>배타적 뷰를 분할하면 겹치지 않는 자식 범위가 생성됩니다. 자식이 살아 있는 동안 부모 기능이 일시 중지되므로 중복된 요소에 동시에 액세스할 수 없습니다. 빈 범위는 공유 요소를 지정하지 않고 경계를 공유할 수 있습니다. 구현은 참조를 생성하기 전에 인덱스의 유효성을 검사합니다; 그 후에 유효하지 않은 참조와 테스트 범위를 생성해서는 안됩니다. 스칼라 count 산술 및 대상 요소 레이아웃 제한은 여전히 적용됩니다.
+</p>
+</section>
+<section id="Overlap" aria-labelledby="Overlap-heading">
+<h2 id="Overlap-heading">3입니다. 복사, 이동 및 겹침
+</h2>
+<p>별도의 읽기 소스 및 쓰기 가능한 대상은 일반적인 별칭 규칙을 충족해야 합니다. 겹치는 범위는 두 개의 독립적인 가변 설명자를 구성하여 밀수할 수 없습니다. 공통 카탈로그가 오버랩-안전한 내부-시야 작업을 제공하는 경우, 하나의 독점적인 부모 기능이 증거를 제공하고 알고리즘은 이동 또는 복사 요구 사항을 명시합니다. Byte 움직임은 임의의 자원 소유 T 값을 복제하는 것을 허가하지 않는다.
+</p>
+</section>
+<section id="Algorithms" aria-labelledby="Algorithms-heading">
+<h2 id="Algorithms-heading">4입니다. 콜백 및 부분 실패
+</h2>
+<p>정렬, 변경 콜백, 오류 수정은 콜백이 실패하거나 선택한 런타임 프로필에서 풀리더라도 초기화된 스토리지를 유지합니다. 기본 보증은 순열 또는 완성된 요소 업데이트를 남길 수 있으며 외부 부작용은 롤백되지 않습니다. 정렬된 알고리즘에 대해 일관된 전체 비교기가 필요합니다. 부동 소수점 입력은 일반적인 부분 비교가 아닌 명시적인 NaN 순서가 필요합니다. 할당 베어링 안정 정렬 스크래치 및 실패 동작을 게시합니다.
+</p>
+</section>
+<section id="Lifetimes" aria-labelledby="Lifetimes-heading">
+<h2 id="Lifetimes-heading">5입니다. 빌린 결과 및 탈출 핸들
+</h2>
+<p>슬라이스, 참조, 반복자 또는 매핑된 뷰를 반환하면 원래 소유자의 수명 종속성이 유지됩니다. 설명자를 Shared로 압축하면 해당 종속성이 길어지거나 빌린 데이터를 소유 저장소로 전환하지 않습니다. 안전 FFI 어댑터는 외부 소유자, 초기화된 count, 정렬, 액세스 권한 및 변경 제외를 검증해야 합니다. 릴리스 콜백은 일반 슬라이스 소멸자가 아닌 별도의 소유 어댑터에 속합니다.
+</p>
+</section>
+<section id="Parallelism" aria-labelledby="Parallelism-heading">
+<h2 id="Parallelism-heading">6입니다. 평행한 disjointness 및 중단
+</h2>
+<p>Disjoint 엘리먼트 범위는 엘리먼트와 capture bounds가 전송을 허용하는 경우에만 호스트 병렬 처리에 유용합니다. T의 내부 참조는 여전히 공유 리소스에 연결할 수 있습니다; 인덱스를 분할하는 것은 모든 내부 데이터 경쟁에 대한 증거가 아닙니다. 대여 기간이 만료되기 전에 작업이 종료됩니다. 장치 액세스에는 명시적인 배치와 Pending 수명 관리가 필요합니다. 독점적인 호스트 뷰를 보유한다고 해서 그 메모리가 kernel-addressable 또는 synchronized 되는 것은 아니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">7입니다. 예제 및 관련 계약 읽기
+</h2>
+<p><strong>카탈로그 예제.</strong> 이 프래그먼트는 또한 스코프 노트에서 식별된 제안된 함수를 사용한다; 완전한 0.2 프로그램이 아니다.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">mut Array&lt;i32, 4&gt; values = [1, 2, 3, 4];
+MutSlice&lt;i32&gt; writable = Slice.from_array_mut(&amp;mut values);
+Slice.reverse(writable);
+Slice&lt;i32&gt; view = Slice.from_array(&amp;values);
+Result&lt;Slice&lt;i32&gt;, BoundsError&gt; middle = Slice.slice(view, 1, 3);
+Optional&lt;&amp;i32&gt; first = Slice.first(view);</code></pre>
+<p>소유자는 mut 단독 대여이 이루어지기 전에 쓰기 가능한 뷰는 직접 전달되며, 최종 사용은 나중에 공유 소유자가 빌리기 전에 끝납니다. 더 보기 <a href="Slice.html#Function-Reference">기존 완전한 Slice 카탈로그</a> 개별 가변 기능 및 <a href="../Vector/Vector_Growth.html">Vector 성장</a> 소유자 invalidation. 숫자 슬라이스는 UTF-8 텍스트의 유효성을 검사하지 않습니다. 원시 byte 및 Unicode 경계는 명시적입니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.array.html" target="_blank" rel="noopener noreferrer">Rust 고정 크기 배열 참조</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/vec/struct.Vec.html" target="_blank" rel="noopener noreferrer">Rust Vec 소유권 및 용량 참조</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.slice.html" target="_blank" rel="noopener noreferrer">Rust 슬라이스 작업 및 대여 해제</a>
+</li>
+<li><a href="https://eel.is/c++draft/array" target="_blank" rel="noopener noreferrer">C++ 작업 초안: 배열</a>
+</li>
+<li><a href="https://eel.is/c++draft/vector" target="_blank" rel="noopener noreferrer">C++ 작업 초안: 벡터</a>
+</li>
+<li><a href="https://github.com/swiftlang/swift-evolution/blob/main/proposals/0483-inline-array-sugar.md" target="_blank" rel="noopener noreferrer">Swift Evolution: 인라인 배열 설계 논의</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Slice.html"><span>이전 레퍼런스</span>Slice</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

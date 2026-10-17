@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="원본 보존, 대상 독점성 및 눈에 보이는 준비 비용.">
+  <title>Pending 전송 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Pending/Pending_Transfer.html">
+<link rel="alternate" hreflang="ko" href="Pending_Transfer.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Pending.html" aria-current="true">Pending</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="Pending.html" aria-current="true">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Pending.html">Pending</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Pending 전송</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Pending 전송</h1><p class="doc-subtitle">원본 보존, 대상 독점성 및 눈에 보이는 준비 비용.</p><div class="doc-meta"><span class="meta-chip">Pending&lt;TransferOutput&gt;</span><span class="meta-chip">Pending. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>10</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>…</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>전송은 메모리 의무 작업</span></a></li><li><a href="#size"><span class="toc-number">02</span><span>길이, 레이아웃 및 초기화된 요소</span></a></li><li><a href="#staging"><span class="toc-number">03</span><span>고정된 메모리 및 명시적 스테이징</span></a></li><li><a href="#borrow"><span class="toc-number">04</span><span>빌린 호스트 스토리지 및 범위 제출</span></a></li><li><a href="#download"><span class="toc-number">05</span><span>다운로드 완료 및 호스트 액세스</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>전송 경로 계획 및 이름 지정</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>백엔드 경계</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Pending 페이지"><h2>Pending 참조</h2><div class="family-links"><a href="Pending.html">Pending</a><a href="Pending_Transfer.html" aria-current="page">Pending 전송</a><a href="Pending_Visibility.html">Pending 가시성</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="Pending.html" aria-current="true">Pending</a></div></nav></aside><article class="content" aria-label="Pending 전송 참조">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1입니다. 전송은 메모리 의무 작업
+</h2>
+<p>비동기 전송은 소스, 대상, 논리적 byte 또는 요소 count, 장치 ID 및 정책을 명시적으로 지정합니다. 그것의 Pending 핸들 트랙은 이미 제출 허용. 업로드, 다운로드 및 장치 간 복사는 일반 전송 작업을 공유하는 경우에도 별개의 경로입니다. 통합 주소 지정은 일관된 액세스, 동등한 장치 또는 제로 전송 비용을 설정하지 않습니다.
+</p>
+<p>이전 레지스트리는 백엔드가 액세스하기 전에 할당 소유자 또는 범위 대여을 유지합니다. 소스 읽기 대여은 충돌 쓰기를 방지; 대상 전용 대여은 전송이 완료하고 필요한 가시성이 설립 될 때까지 읽기 및 중복 쓰기를 방지. 관찰 핸들을 삭제해도 DMA 수명 요구 사항이 종료될 수 없습니다.
+</p>
+</section>
+<section id="size" aria-labelledby="size-heading">
+<h2 id="size-heading">2입니다. 길이, 레이아웃 및 초기화된 요소
+</h2>
+<p>요소 전송은 명시 적으로 명명 된 변환이 요청되지 않는 한 동일한 논리적 모양과 호환 가능한 요소 표현이 필요합니다. Byte 전송은 checked 산술을 사용하여 byte 카운트, 할당 범위, 정렬 제한 및 오버랩 정책을 검증합니다. Tensor 논리 byte 길이는 스트라이드이 큰 스토리지 범위와 다를 수 있습니다. 간단한 연속 복사본은 맹목적으로 다른 복사본을 사용할 수 없습니다.
+</p>
+<p>스트라이드 전송은 지원되는 gather/scatter 경로를 사용하거나 명시적인 materialization/staging 작업이 필요합니다. 어떤 어댑터도 패딩 바이트를 초기화된 값으로 자동으로 노출할 수 없습니다. 빈 전송은 어떠한 요소 액세스도 수행하지 않지만 ID, 설명자 및 완료 토큰 시맨틱을 여전히 검증합니다. 발신자가 제공하는 목적지는 늦은 백엔드 실패에 대해 부분적으로 작성될 수 있습니다.
+</p>
+</section>
+<section id="staging" aria-labelledby="staging-heading">
+<h2 id="staging-heading">3입니다. 고정된 메모리 및 명시적 스테이징
+</h2>
+<p>일부 백엔드는 진정한 비동기 DMA를 위해 고정되거나 등록된 호스트 메모리를 필요로 합니다. 일반적인 페이지화 가능한 슬라이스에는 스테이징 복사본 또는 동기 단계가 필요할 수 있습니다. TransferPolicy는 스테이징이 허용되는지, 필요한지 또는 금지되는지를 명시합니다; 계획은 제출 전에 의도된 경로와 예상 바이트를 보고합니다. 플랜은 예약 또는 실제 중복의 증거가 아닙니다.
+</p>
+<p><a href="#Pending-pin_copy"><code>Pending.pin_copy</code></a> 명시적인 할당 및 복사본을 가진 초기화된 고정 된 준비 소유자를 만듭니다. 백엔드가 더 이상 읽지 않을 때까지 유지됩니다. 기존 호스트 버퍼를 등록하는 것은 수명 및 백엔드 등록 보증이 필요하며 명백한 오류입니다. 등록은 임의의 스택 메모리를 독립적으로 소유 된 저장소로 전환하지 않습니다.
+</p>
+</section>
+<section id="borrow" aria-labelledby="borrow-heading">
+<h2 id="borrow-heading">4입니다. 빌린 호스트 스토리지 및 범위 제출
+</h2>
+<p>빌린 호스트 버퍼는 DeviceScope가 전송 중지까지 저장소가 유효한 것으로 입증한 경우에만 참여할 수 있습니다. 장치가 충돌하는 방식으로 글을 쓰거나 읽는 동안에는 전용 호스트 액세스를 사용할 수 없습니다. 작업 정지 또는 취소 요청은 이 간격을 단축하지 않습니다. 레지스트리는 안전을 위해 사용자 정의 파괴자에만 의존할 수 없습니다.
+</p>
+<p>분리 된 전송에는 메타데이터 및 고정 된 등록 소유자를 포함한 소유 리소스가 필요합니다. 실패한 detach가 원래 작업 핸들을 반환합니다. 제출이 부분적으로 성공하면 오류는 복구 영수증을 유지하며 수락된 모든 작업은 계속 등록됩니다. 일반적인 실패는 그 출처가 즉시 해제 될 수 있다는 증거가 아닙니다.
+</p>
+</section>
+<section id="download" aria-labelledby="download-heading">
+<h2 id="download-heading">5입니다. 다운로드 완료 및 호스트 액세스
+</h2>
+<p>새로운 Cpu 소유자로 다운로드 하는 것은 성공적인 초기화 및 필요한 호스트 가시성 후에만 소유자를 노출 합니다. 발신자 저장소에 다운로드 독점 대여을 유지 하 고 실패에 출력 유효성을 보고 합니다. 장치 커널만을 기다리는 것은 다운로드가 아니며 호스트 매핑을 획득하는 것은 실제로 호스트 액세스를 지원하는 스토리지에만 유효합니다.
+</p>
+<p>매핑 기능은 대량 복사본을 피하면서 invalidate/acquire 작업 및 소유권 전송을 요구할 수 있습니다. 응집성 호스트 메모리는 어댑터에 필요한 성능 증명이 있는 경우에만 캐시 작업을 제거할 수 있습니다. 완료 순서이나 충돌하는 액세스 제한을 제거할 수 없습니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 전송 경로 계획 및 이름 지정
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">// source/destination and host_source/device_source are already borrowed transfer-buffer views.
+Result&lt;TransferPlan, DeviceError&gt; plan = Pending.plan_transfer(source, destination, transfer_policy);
+Result&lt;Pending&lt;TransferOutput&gt;, SubmitError&gt; upload = Pending.upload(&amp;scope, &amp;queue, host_source, transfer_policy);
+Result&lt;Pending&lt;HostBuffer&lt;f32&gt;&gt;, SubmitError&gt; download = Pending.download&lt;f32&gt;(&amp;scope, &amp;queue, device_source, host_policy);</code></pre>
+<p>source, destination, scope 및 queue는 검증 된 기존 값입니다. 예제는 결과를 언래핑하지 않으며, 네이티브 포인터 ABI를 가정하거나 빌린 버퍼가 둘러싸는 범위를 벗어날 수 있도록 허용합니다.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Pending-plan_transfer"><td><code>Pending.plan_transfer(TransferSource source, TransferDestination destination, TransferPolicy policy)</code></td><td><code>Result&lt;TransferPlan, DeviceError&gt;</code></td><td>지원되는 경로, byte count 및 스테이징 인텐트를 제출하지 않고 확인합니다.</td><td>Descriptor/query 할당이 실패할 수 있습니다.</td>
+</tr>
+<tr id="Pending-upload"><td><code>Pending.upload(&amp;DeviceScope scope, &amp;Queue queue, HostReadBuffer source, TransferPolicy policy)</code></td><td><code>Result&lt;Pending&lt;TransferOutput&gt;, SubmitError&gt;</code></td><td>source/staging가 Cpu-to-device 전송 전에 리스를 등록합니다.</td><td>명시적 O(bytes) 전송.</td>
+</tr>
+<tr id="Pending-download"><td><code>Pending.download&lt;T&gt;(&amp;DeviceScope scope, &amp;Queue queue, DeviceReadBuffer source, HostAllocationPolicy policy)</code></td><td><code>Result&lt;Pending&lt;HostBuffer&lt;T&gt;&gt;, SubmitError&gt;</code></td><td>초기 성공 호스트 출력을 할당하고 추출 전에 가시성을 설정합니다.</td><td>O(bytes); 할당이 실패할 수 있습니다.</td>
+</tr>
+<tr id="Pending-copy_device"><td><code>Pending.copy_device(&amp;DeviceScope scope, &amp;Queue queue, DeviceWriteBuffer destination, DeviceReadBuffer source)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>구체적인 장치, 스팬 및 금지 중복 검증; 피어 경로 명시적.</td><td>복사 대기; CPU 폴백 없음.</td>
+</tr>
+<tr id="Pending-copy_host_into"><td><code>Pending.copy_host_into(&amp;DeviceScope scope, &amp;Queue queue, HostWriteBuffer destination, DeviceReadBuffer source)</code></td><td><code>Result&lt;Pending&lt;unit&gt;, SubmitError&gt;</code></td><td>완료 및 호스트가 획득할 때까지 유지되는 전용 호스트 대상입니다.</td><td>O(bytes); 숨겨진 소유자 복사본이 없습니다.</td>
+</tr>
+<tr id="Pending-pin_copy"><td><code>Pending.pin_copy&lt;T&gt;(Slice&lt;T&gt; source)</code></td><td><code>Result&lt;PinnedBuffer&lt;T&gt;, AllocationError&gt;</code></td><td>초기 고정 된 저장소에 깊은 복사본을 명시; T 표현 전송 안전.</td><td>O(bytes); 고정 된 할당.</td>
+</tr>
+<tr id="Pending-register_host"><td><code>Pending.register_host&lt;T&gt;(OwnedHostBuffer&lt;T&gt; owner, RegistrationPolicy policy)</code></td><td><code>Result&lt;RegisteredHostBuffer&lt;T&gt;, RegistrationError&lt;OwnedHostBuffer&lt;T&gt;&gt;&gt;</code></td><td>성공에 소유자를 소모합니다; 실패는 소유자를 돌려보냅니다; 등록은 배부 수명을 유지합니다.</td><td>백엔드 등록이 실패할 수 있습니다.</td>
+</tr>
+<tr id="Pending-transfer_bytes"><td><code>Pending.transfer_bytes(&amp;Pending&lt;T&gt; operation)</code></td><td><code>Result&lt;usize, DeviceError&gt;</code></td><td>별도로 보고된 준비 복사본을 제외한 보고서 검증 논리 전송 byte count.</td><td>O(1) 메타데이터.</td>
+</tr>
+<tr id="Pending-staging_report"><td><code>Pending.staging_report(&amp;Pending&lt;T&gt; operation)</code></td><td><code>StagingReport</code></td><td>owners/copy 바이트의 스테이징을 선택한 리포트; 원시 변경 가능한 스테이징 포인터를 노출하지 않습니다.</td><td>진단 쿼리.</td>
+</tr>
+<tr id="Pending-transfer_output_validity"><td><code>Pending.transfer_output_validity(&amp;Pending&lt;T&gt; operation)</code></td><td><code>OutputValidity</code></td><td>partial/invalid 대 초기 성공이 실패한 대상을 추적합니다.</td><td>스냅샷; 읽기 권한이 없습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 백엔드 경계
+</h2>
+<p>장치 어댑터는 제안된 계약을 실제 큐, 이벤트, 캐시 및 할당 규칙에 매핑해야 합니다. CUDA 및 Vulkan 소스는 비동기 명명, 이벤트 완료 및 메모리 가시성이 하나의 보편적 보증으로 처리 될 수없는 이유를 보여줍니다. 이 문서는 필요한 동작을 지정합니다; 어떤 장치에서도 작동 구현을 증명하지 않습니다.
+</p>
+<p><a href="Pending.html">Pending 공통 참조</a> · <a href="Pending_Transfer.html">전송</a> · <a href="Pending_Visibility.html">접근 권한</a> · <a href="../Tensor/Tensor_Device.html">Tensor 장치 작동</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__EVENT.html" target="_blank" rel="noopener noreferrer">CUDA 런타임 이벤트 관리</a>
+</li>
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html" target="_blank" rel="noopener noreferrer">CUDA API 동기화 동작</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/chapters/synchronization.html" target="_blank" rel="noopener noreferrer">Vulkan 동기화 및 메모리 종속성</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/appendices/memorymodel.html" target="_blank" rel="noopener noreferrer">Vulkan 메모리 모델</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Pending.html"><span>이전 레퍼런스</span>Pending</a><a href="Pending_Visibility.html"><span>다음 레퍼런스</span>Pending 가시성</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

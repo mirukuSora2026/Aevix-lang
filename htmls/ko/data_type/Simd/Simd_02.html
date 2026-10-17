@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="구현된 Aevix 0.2 CPU SIMD 프로필, checked 레인 작업, 마스크 및 고정 배열 액세스.">
+  <title>0.2에서의 CPU SIMD — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Simd/Simd_02.html">
+<link rel="alternate" hreflang="ko" href="Simd_02.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="SIMD 참조"><a href="Simd.html">설계 문서</a><a href="Simd_02.html" aria-current="page">0.2 CPU 프로파일</a><a href="../../errors/index.html">오류</a></nav>
+    <span class="draft-badge">0.2 CPU 프로파일</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Simd.html">Simd</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">0.2 CPU 프로파일</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">구현된 언어 범위</p><h1>0.2에 있는 CPU SIMD</h1><p class="doc-subtitle">고정 숫자 레인, 명시적 가져오기 및 checked 메모리 액세스.</p><div class="doc-meta"><span class="meta-chip">Simd&lt;T, N&gt;</span><span class="meta-chip">SimdMask&lt;N&gt;</span><span class="meta-chip">CPU 전용 · AOT / JIT</span></div></div></header>
+    <div class="docs-layout">
+      <aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol>
+        <li><a href="#start">가져오기 및 첫 사용</a></li><li><a href="#types">지원되는 레인 유형</a></li><li><a href="#operations">구현된 작업</a></li><li><a href="#memory">빌린 배열 액세스</a></li><li><a href="#numeric">숫자 행동</a></li><li><a href="#scope">휴대성 및 범위</a></li>
+      </ol></details><nav class="family-nav" aria-label="관련 페이지"><h2>SIMD 참조</h2><div class="family-links"><a href="Simd_02.html" aria-current="page">0.2 CPU 프로파일</a><a href="Simd.html">전체 디자인 초안</a><a href="Simd_Mask.html">마스크 디자인 초안</a><a href="Simd_Portable.html">Portability 디자인 초안</a></div></nav></aside>
+      <article class="content" aria-label="SIMD 참조 구현">
+<section id="start"><h2>가져오기 및 첫 사용</h2>
+<p>이 페이지에서는 구현된 0.2 컴파일러 프로파일에 대해 설명합니다. 디자인 참조에서 더 큰 카탈로그는 미래의 API를 포함; 거기에 나열된 기능은이 프로필에서 자동으로 사용할 수 없습니다.</p>
+<p>SIMD 형식은 명시적인 가져오기가 필요합니다. 선택 항목 가져오기는 선택한 이름을 직접 노출합니다. 다음으로 <code>import simd;</code>, 쓰기 <code>simd.Simd</code> 및 <code>simd.SimdMask</code>.</p>
+<pre><code id="Aevix">import simd { Simd, SimdMask };
+
+i32 main() {
+    i32 values[4] = [1, 2, 3, 4];
+    Simd&lt;i32, 4&gt; a = Simd.from_array(&amp;values);
+    Simd&lt;i32, 4&gt; b = Simd.splat&lt;i32, 4&gt;(8);
+    return Simd.sum(Simd.add(a, b));
+}</code></pre>
+<p>이 예제는 42를 반환합니다. SIMD 값과 마스크는 복사 시맨틱을 구현하고 힙 버퍼를 할당하지 않습니다. 배열 간 전송은 레인 값을 명시적으로 복사합니다.</p>
+</section>
+<section id="types"><h2>지원되는 레인 유형</h2>
+<p>count 레인은 컴파일 타임 상수이다. 허용되는 개수는 2, 4, 8 및 16이며 숫자형 벡터에 최대 128 비트가 있습니다.</p>
+<table><thead><tr><th>요소 종류</th><th>허용된 레인 수</th></tr></thead><tbody>
+<tr><td><code>i8</code>, <code>u8</code></td><td>2, 4, 8, 16</td></tr>
+<tr><td><code>i16</code>, <code>u16</code></td><td>2, 4, 8</td></tr>
+<tr><td><code>i32</code>, <code>u32</code>, <code>f32</code></td><td>2, 4</td></tr>
+<tr><td><code>i64</code>, <code>u64</code>, <code>isize</code>, <code>usize</code>, <code>f64</code></td><td>2</td></tr>
+</tbody></table>
+<p><code>SimdMask&lt;N&gt;</code> 레인당 하나의 논리적 불린을 갖는다. 그것의 포장 된 대표는 <code>Array&lt;bool, N&gt;</code> 레이아웃. 비교는 마스크를 생산; 선택은 마스크와 두 가지 대안에 동일한 레인 count가 필요합니다.</p>
+<p><code>f16</code>, <code>bf16</code>, <code>char</code>, <code>byte</code>, 및 <code>bool</code> 이 프로필의 숫자형 SIMD 요소가 아닙니다. 더 넓은 벡터는 조용히 스토리지 또는 할당 요구 사항을 변경하기보다는 거부됩니다.</p>
+</section>
+<section id="operations"><h2>구현된 작업</h2>
+<p>모든 연산은 positional arguments를 사용한다. <code>V</code> 아래는 1 <code>Simd&lt;T, N&gt;</code> 유형 및 <code>M</code> 있습니다. <code>SimdMask&lt;N&gt;</code>. 산술 함수와 마스크 함수에 제공된 값에는 일치하는 유형이 있습니다.</p>
+<table><thead><tr><th>호출</th><th>Result 및 동작</th></tr></thead><tbody>
+<tr><td><code>Simd.splat&lt;T, N&gt;(value)</code></td><td>하나의 T 값을 반복하여 V를 구축합니다. 형식 인수는 V 대상이 형식을 제공할 때 생략될 수 있습니다.</td></tr>
+<tr><td><code>Simd.from_array(&amp;array)</code></td><td>Copy V로 Array&lt;T, N&gt;합니다.</td></tr>
+<tr><td><code>Simd.to_array(vector)</code></td><td>Array&lt;T, N&gt;에 Copy V입니다.</td></tr>
+<tr><td><code>Simd.load&lt;T, N&gt;(&amp;array, offset)</code></td><td>빌린 고정 배열에서 N 개의 인접 요소를 읽습니다.</td></tr>
+<tr><td><code>Simd.store(&amp;mut array, offset, vector)</code></td><td>모든 N 레인을 가변 고정 배열에 씁니다; return unit.</td></tr>
+<tr><td><code>Simd.add(a, b)</code>, <code>sub</code>, <code>mul</code>, <code>div</code></td><td>레인 와이즈 산술 생성 V.</td></tr>
+<tr><td><code>Simd.eq(a, b)</code>, <code>ne</code>, <code>lt</code>, <code>le</code>, <code>gt</code>, <code>ge</code></td><td>M을 생성하는 Lane-wise 비교</td></tr>
+<tr><td><code>Simd.select(mask, yes, no)</code></td><td>M을 사용하여 각 V 레인을 선택하십시오.</td></tr>
+<tr><td><code>Simd.sum(vector)</code></td><td>0에서 시작, 왼쪽에서 오른쪽으로 차선을 접어; return T.</td></tr>
+<tr><td><code>Simd.sqrt(vector)</code></td><td>각 레인의 부동 소수점 제곱근입니다.</td></tr>
+<tr><td><code>Simd.extract(vector, index)</code></td><td>usize 인덱스를 확인한 후 하나의 T 레인을 반환합니다.</td></tr>
+<tr><td><code>Simd.lanes(vector)</code></td><td>차선 count를 usize로 반환합니다.</td></tr>
+<tr><td><code>SimdMask.any(mask)</code>, <code>all</code></td><td>마스크를 bool로 줄입니다.</td></tr>
+<tr><td><code>SimdMask.and(a, b)</code>, <code>or</code>, <code>xor</code>, <code>not(mask)</code></td><td>M을 생성하는 논리 연산.</td></tr>
+<tr><td><code>SimdMask.lanes(mask)</code></td><td>차선 count를 usize로 반환합니다.</td></tr>
+</tbody></table>
+</section>
+<section id="memory"><h2>빌린 배열 액세스</h2>
+<p>로드 및 저장은 고정된 배열과 요소에서 측정된 오프셋을 수용합니다. 둘 다 메모리에 액세스하기 전에 전체 레인 범위가 맞는지 확인합니다. 대형 대여은 독점 변동 대여이 필요합니다. 배열은 이미 초기화되어야하며 일반 소유권 및 차입 규칙이 여전히 적용됩니다.</p>
+<pre><code class="language-aevix">import simd { Simd };
+
+i32 main() {
+    mut i32 buffer[5] = [0, 0, 0, 0, 0];
+    Simd&lt;i32, 4&gt; value = Simd.splat&lt;i32, 4&gt;(7);
+    Simd.store(&amp;mut buffer, 1, value);
+    Simd&lt;i32, 4&gt; loaded = Simd.load&lt;i32, 4&gt;(&amp;buffer, 1);
+    return Simd.sum(loaded);
+}</code></pre>
+<p>정렬되지 않은 요소 오프셋이 지원됩니다. 실패한 경계 검사는 안전하게 실행을 중지합니다. Slice 기반, gather/scatter, 마스킹된 메모리 및 오류가 있는 Result 반환 전송은 이 초기 프로필 외부에 남아 있습니다.</p>
+</section>
+<section id="numeric"><h2>숫자 행동</h2>
+<p>Integer 추가, 뺄셈 및 곱셈 오버플로 모든 차선을 확인합니다. Integer 나누기는 모든 약수를 0으로 확인하고 부호 있는 최소값을 -1로 나누는 것을 거부합니다. 실패한 레인은 유효하지 않은 값이 노출되기 전에 실행을 멈춥니다. Integer sum은 중간 오버플로우를 포함하여 주문한 폴드의 각 덧셈을 검사합니다.</p>
+<p>플로팅 작업은 재연동이나 fast-math 플래그 없이 f32/f64 동작을 따릅니다. 나셈은 무한대 또는 NaN을 생성할 수 있다; 음의 레인의 제곱근은 NaN을 생산한다. 평등과 질서 비교는 NaN에 대해 거짓이며 불평등은 사실입니다. Sum은 문서화된 차선 순서를 사용하며 재연관된 감소와 다를 수 있습니다.</p>
+<p>Select는 일반적인 열망하는 기능입니다: 두 가지 대안은 차선 선택 전에 평가됩니다. 거짓 마스크는 대안을 계산하는 동안 발생하는 오버플로우, 분할 또는 기타 효과를 억제하지 않습니다.</p>
+</section>
+<section id="scope"><h2>휴대성 및 범위</h2>
+<p>컴파일러는 CPU 실행을 위해 LLVM 고정 벡터 연산을 방출한다. 백엔드는 네이티브 벡터를 선택하거나 여러 명령으로 작업을 낮출 수 있습니다. 소스 타입은 특정 명령어 count가 아닌 lane semantics를 약속하거나, ABI 또는 speedup을 등록한다.</p>
+<p>128-bit 천장은 프로파일을 현재 휴대용 할당 정렬 계약 내에 유지합니다. AOT는 프로젝트의 ARM64 및 x86-64 백엔드 대상을 지원하며, JIT는 실행 중인 호스트에서만 실행됩니다. Cross-target 객체 생성은 네이티브 실행 테스트의 대용품이 아닙니다.</p>
+<p>GPU 실행, 256/512-bit 값, 명시적 타겟 기능 디스패치, 포화 또는 래핑 벡터 산술, 그리고 더 큰 디자인 카탈로그의 나머지 부분은 이 프로파일에 의해 구현되지 않는다.</p>
+</section>
+      </article>
+    </div>
+  </main>
+</body>
+</html>

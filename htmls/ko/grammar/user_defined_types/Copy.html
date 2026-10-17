@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Move-default 사용자 정의 값, 명시적 구현 Copy, 완전한 컴파일러 검사 및 변경되지 않은 소스 수명.">
+<title>Copy 및 이동 — Aevix 문서</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/user_defined_types/Copy.html">
+<link rel="alternate" hreflang="ko" href="Copy.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">사용자 정의 타입</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Copy 및 이동</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">언어 디자인 참고</p><h1>Copy 및 이동</h1><p class="doc-subtitle">Move-default 사용자 정의 값, 명시적 구현 Copy, 완전한 컴파일러 검사 및 변경되지 않은 소스 수명.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙 + 공개 결정</span><span class="meta-chip">영어 원문 문서</span></div><dl class="doc-stats"><div class="doc-stat"><dt>기본</dt><dd>이동</dd></div><div class="doc-stat"><dt>옵트인</dt><dd>implements Copy</dd></div><div class="doc-stat"><dt>체크</dt><dd>모든 필드 / 변형</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>Copy</strong><span>checked 기능</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="레퍼런스 탐색">
+<details class="toc" open><summary>이 페이지의 내용</summary><ol>
+<li><a href="#default-movement"><span class="toc-number">01</span><span>기본적으로 사용자 정의 값 이동</span></a></li>
+<li><a href="#explicit-opt-in"><span class="toc-number">02</span><span>구현 Copy로 선택</span></a></li>
+<li><a href="#complete-check"><span class="toc-number">03</span><span>개인 필드를 포함한 모든 필드 확인</span></a></li>
+<li><a href="#type-categories"><span class="toc-number">04</span><span>값 복사를 소유자 복제와 구분합니다.</span></a></li>
+<li><a href="#shared-references"><span class="toc-number">05</span><span>Shared 참고 사본은 본래 수명을 유지합니다</span></a></li>
+<li><a href="#methods"><span class="toc-number">06</span><span>수신자 표기이 호출 모드를 결정합니다.</span></a></li>
+<li><a href="#enums"><span class="toc-number">07</span><span>열거형은 모든 변형을 검사합니다.</span></a></li>
+<li><a href="#generic-bounds"><span class="toc-number">08</span><span>T에 바인딩된 Copy가 컨테이너에서 선택되지 않음</span></a></li>
+<li><a href="#cost-and-cleanup"><span class="toc-number">09</span><span>Copy는 기계 명령 약속이 아닌 시맨틱 기능입니다.</span></a></li>
+<li><a href="#diagnostics-and-open"><span class="toc-number">10</span><span>필요한 거부 및 개방형 기능 정책</span></a></li>
+<li><a href="#related"><span class="toc-number">11</span><span>관련 소유권 참조</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="사용자 정의 타입 페이지"><h2>사용자 정의 타입</h2><div class="family-links">
+<a href="index.html">개요</a>
+<a href="Structs.html">구조체</a>
+<a href="Methods_and_Factories.html">방법 및 팩토리</a>
+<a href="Copy.html" aria-current="page">Copy 및 이동</a>
+</div></nav>
+<nav class="family-nav" aria-label="관련 언어 섹션"><h2>언어 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="../foundations/index.html">기반</a><a href="index.html">사용자 정의 타입</a><a href="../enums/Enums.html">열거형</a><a href="../generics/Generic_Types.html">제네릭 타입</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/index.html">자료형</a></div></nav>
+</aside>
+<article class="content" aria-label="Copy 및 이동 참조">
+<section id="default-movement" aria-labelledby="default-movement-heading">
+<h2 id="default-movement-heading">1입니다. 기본적으로 사용자 정의 값 이동</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct Point {
+    public i32 x;
+    public i32 y;
+};
+
+Point original = Point { x = 1, y = 2 };
+Point destination = original;</code></pre><p>포인트에는 Copy 선언이 없으므로 대상은 소유자를 수신하고 원본을 다시 사용할 수 없습니다. 이 기본값은 모든 필드가 Copy 스칼라일 경우에도 적용됩니다. 컴파일러 최적화는 이전 바인딩의 소스 수준 유효성을 변경할 수 없습니다.</p><p>동일한 기본값이 열거형에도 적용됩니다. 원시적인 Copy values 는 설정된 스칼라 동작을 유지합니다. 집계는 자동으로 상속되지 않습니다. Copy 왜냐하면 그것은 단지 그것들을 포함하고 있기 때문입니다.</p>
+</section>
+
+<section id="explicit-opt-in" aria-labelledby="explicit-opt-in-heading">
+<h2 id="explicit-opt-in-heading">2입니다. 구현 Copy로 선택</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct Coordinates implements Copy {
+    public i32 x;
+    public i32 y;
+};
+
+Coordinates first = Coordinates { x = 1, y = 2 };
+Coordinates second = first;
+i32 first_x = first.x;
+i32 second_x = second.x;</code></pre><p>Copy가 선택된 집계 옵트인입니다. 두 바인딩 모두 값 복사 후에도 사용할 수 있습니다. 선언은 임의의 사용자 정의 복제 함수가 아닌 컴파일러-checked 내장 기능을 요청합니다.</p><p>Copy는 선언된 모드에 따라 일반 값 초기화, 값 인수, 값 수신기 호출 및 값 반환에 적용됩니다. 읽기 및 쓰기 대여 매개 변수는 여전히 대여; Copy는 값 인수로 변환하지 않습니다.</p>
+</section>
+
+<section id="complete-check" aria-labelledby="complete-check-heading">
+<h2 id="complete-check-heading">3입니다. 개인 필드를 포함한 모든 필드 확인</h2>
+<div class="table-scroll" role="region" aria-label="Copy 자격 요건">
+<table>
+<thead><tr>
+<th scope="col">요구 사항</th>
+<th scope="col">이유</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">모든 struct 필드는 Copy입니다.</th>
+<td>전체 값은 독점적 인 자원 소유자를 복제하지 않고 복제 할 수 있습니다.</td>
+</tr>
+<tr>
+<th scope="row">모든 열거형 변형의 모든 필드는 Copy입니다.</th>
+<td>Copy는 활성 태그를 기반으로 한 런타임 결정이 아닌 정적 유형 기능입니다.</td>
+</tr>
+<tr>
+<th scope="row">개인 필드와 변형이 포함되어 있습니다.</th>
+<td>가시성은 컴파일러에서 안전하지 않은 중복 의무를 숨길 수 없습니다.</td>
+</tr>
+<tr>
+<th scope="row">중첩 집계는 자체 Copy 계약을 충족합니다.</th>
+<td>포함된 형식은 다른 형식의 이동 기본값을 우회할 수 없습니다.</td>
+</tr>
+<tr>
+<th scope="row">Shared-참조 사본은 소스 대여 수명을 보존합니다.</th>
+<td>참조를 복사해도 새 백업 소유자가 생성되지 않습니다.</td>
+</tr>
+</tbody>
+</table>
+</div><blockquote class="callout warning"><p><strong>거절된 선언들</strong> 개인 소유의 string 또는 독점 참조는 전체 유형을 비 Copy로 만듭니다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">struct BadOwnerCopy implements Copy {
+    public i32 id;
+    string name; // Invalid Copy requirement: string owns its data.
+};
+
+struct BadLoanCopy implements Copy {
+    &amp;mut i32 target; // Invalid Copy requirement: exclusive loans are not Copy.
+};</code></pre><p>동일한 철자를 가진 빈 일반 인터페이스는 컴파일러 기능을 대체할 수 없습니다. 수동으로 작성된 딥 카피 기능도 Copy를 인증할 수 없습니다. 추가 Non-Copy field to an 명시적인 Copy 형식 계약이 변경 될 때까지 형식이 거부 되어야 합니다.</p>
+</section>
+
+<section id="type-categories" aria-labelledby="type-categories-heading">
+<h2 id="type-categories-heading">4입니다. 값 복사를 소유자 복제와 구분합니다.</h2>
+<div class="table-scroll" role="region" aria-label="Copy 및 소유권 범주">
+<table>
+<thead><tr>
+<th scope="col">가치 카테고리</th>
+<th scope="col">Copy 처리</th>
+<th scope="col">경계</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">원시 Copy 스칼라 설립</th>
+<td>일반적인 값 복사.</td>
+<td>관련 기본 유형 계약을 참조하십시오.</td>
+</tr>
+<tr>
+<th scope="row"><code>&amp;T</code></th>
+<td>Shared 기준은 Copy일 수 있습니다.</td>
+<td>사본은 동일한 참조를 가리키고 대여 제약을 유지합니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>&amp;mut T</code></th>
+<td>Copy가 아닙니다.</td>
+<td>제한 없는 별칭으로 독점 액세스를 복제할 수 없습니다.</td>
+</tr>
+<tr>
+<th scope="row">struct / enum 없이 구현 Copy</th>
+<td>기본값으로 이동합니다.</td>
+<td>모든 스케일 콘텐츠가 자동으로 집계를 선택하지 않습니다.</td>
+</tr>
+<tr>
+<th scope="row">유효한 구현을 가진 struct / enum Copy</th>
+<td>일반적인 값 복사가 허용됩니다.</td>
+<td>컴파일러는 모든 필드와 열거형의 모든 변형을 검사합니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>string</code></th>
+<td>Copy가 아닙니다.</td>
+<td>문자를 소유하는 것은 조용히 깊이 클로닝되지 않습니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>Vector&lt;T&gt;</code></th>
+<td>Copy가 아닙니다.</td>
+<td>growable 버퍼 소유자는 암시적으로 중복되지 않습니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>Box&lt;T&gt;</code></th>
+<td>Copy가 아닙니다.</td>
+<td>고유한 힙 소유자는 T가 Copy이더라도 암시적으로 중복되지 않습니다.</td>
+</tr>
+</tbody>
+</table>
+</div><p>명시적 중복 API에는 자체 작업 및 실패 계약이 있습니다. 예를 들어 명시적 Box 복제는 일반 값 Copy와 동일한 작업을 할당할 수 없습니다. 이 페이지는 범용 클론 인터페이스나 마지막 클론 메서드 문법을 소개하지 않습니다.</p>
+</section>
+
+<section id="shared-references" aria-labelledby="shared-references-heading">
+<h2 id="shared-references-heading">5입니다. Shared 참고 사본은 본래 수명을 유지합니다</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct CounterView implements Copy {
+    public &amp;i32 target;
+};
+
+i32 source = 7;
+CounterView first_view = CounterView { target = &amp;source };
+CounterView second_view = first_view;
+i32 observed = *(second_view.target);</code></pre><p>두 의견은 출처에 관한 것입니다. 둘 다 소스를 소유하거나, 소스를 독립 저장소로 복사하거나, 수명을 연장하지 않습니다. 두 복사본 모두 동일한 소스 유효성 및 충돌 액세스 검사의 적용을 받습니다.</p><blockquote class="callout warning"><p><strong>거절당한 탈출구</strong> Copy 뷰는 죽은 로컬에 대한 참조를 return 할 수 없습니다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">CounterView invalid_view() {
+    i32 local = 7;
+    return CounterView { target = &amp;local }; // Invalid: local cannot outlive this call.
+}</code></pre><p>참조 필드는 나중에 형식 삭제 또는 소유권 래퍼가 콘크리트 유형을 숨기는 경우에도 숨겨진 소스-대여 제약을 전달할 수 있습니다. 전체 작성된 수명 파라미터 및 반환 참조 주석 구문은 열려 있습니다.</p>
+</section>
+
+<section id="methods" aria-labelledby="methods-heading">
+<h2 id="methods-heading">6입니다. 수신자 표기이 호출 모드를 결정합니다.</h2>
+<div class="table-scroll" role="region" aria-label="Copy 및 수신기 상호 작용">
+<table>
+<thead><tr>
+<th scope="col">receiver</th>
+<th scope="col">가치 능력 효과</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row"><code>&amp;Coordinates self</code></th>
+<td>호출은 좌표가 Copy인지에 관계없이 대여을 통해 읽습니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>&amp;mut Coordinates self</code></th>
+<td>이 호출은 전용 쓰기 권한이 필요합니다; Copy는 별칭을 승인하지 않습니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>Coordinates self</code></th>
+<td>일반 값 호출은 Coordinates가 Copy를 명시적으로 구현하기 때문에 복사할 수 있습니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>User self</code> 비 Copy 사용자</th>
+<td>일반 값 호출은 사용자 소유자를 이동시킵니다.</td>
+</tr>
+</tbody>
+</table>
+</div><p>자동 메서드 대차 편의는 선언된 참조 수신기를 따릅니다. 값을 복사할 수 있는지에 따라 다른 수신기 모드를 선택하지 않습니다. 대여된 dyn 뷰는 단순히 하나의 가능한 구현이 Copy이기 때문에 값 수신자 지원을 얻지 못합니다.</p>
+</section>
+
+<section id="enums" aria-labelledby="enums-heading">
+<h2 id="enums-heading">7입니다. 열거형은 모든 변형을 검사합니다.</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">enum Direction implements Copy {
+    North;
+    East;
+    South;
+    West;
+};
+
+Direction first_direction = Direction.North;
+Direction second_direction = first_direction;</code></pre><p>Copy 선언은 전체적으로 방향에 적용됩니다. 페이로드 열거형은 개인 변형을 포함한 모든 변형 필드를 확인해야 합니다. 비-Copy 페이로드는 현재 값이 빈 변형인 경우에도 Copy를 방지합니다.</p><p>별도로 선택된 소모 enum 스위치는 비 Copy 소유의 enum을 이동시킵니다: switch (move value)는 원래 바인딩을 사용할 수 없게 만듭니다. Copy 열거형 피연산자의 정확한 명시적 소비 처리는 열려 있습니다. 이 페이지는 강제 무효화 또는 일반 복사를 선택하지 않습니다. 소스 수준 이동 시맨틱은 특정 물리적 byte 복사 명령을 약속하지 않습니다. 읽기 <a href="../enums/Enums.html">열거형</a> 모든 스위치 모드 및 페이로드 바인딩.</p>
+</section>
+
+<section id="generic-bounds" aria-labelledby="generic-bounds-heading">
+<h2 id="generic-bounds-heading">8입니다. T에 바인딩된 Copy가 컨테이너에서 선택되지 않음</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct Pair&lt;T&gt; where T implements Copy {
+    public T first;
+    public T second;
+};
+
+Pair&lt;i32&gt; numbers = Pair&lt;i32&gt; { first = 10, second = 20 };
+Pair&lt;i32&gt; destination = numbers;</code></pre><p>여기서 절은 Copy 형식 인수를 필요로 합니다. 그것은 선언하지 않습니다 <code>Pair&lt;T&gt;</code> Copy 자체, 그래서이 <code>Pair&lt;i32&gt;</code> 주인이 움직인다. 별도로 선언 된 구현 Copy 옵트 인은 유효한 전체 필드 검사에서 복사 할 일반 집계가 필요합니다.</p><p><code>Pair&lt;string&gt;</code> string를 소유하는 것이 Copy가 아니기 때문에 경계를 위반합니다. 일반적인 기능 요구 사항은 선택한 기능을 사용합니다. <a href="../functions/Generic_Functions.html">name-follow 타입 파라미터와 파라미터-list-following where</a>; 여러 함수 요구 사항이 주제를 반복하고 쉼표로 구분됩니다. 상기 헤더 순서는 The header order <code>struct CopyPair&lt;T&gt; implements Copy where T implements Copy</code>: type의 자체 implements 리스트는 제약 조건이 있는 곳에 선행한다. 읽기 <a href="../generics/Generic_Types.html">일반 유형</a> 선택된 type-parameter 문법에 대해.</p>
+</section>
+
+<section id="cost-and-cleanup" aria-labelledby="cost-and-cleanup-heading">
+<h2 id="cost-and-cleanup-heading">9입니다. Copy는 기계 명령 약속이 아닌 시맨틱 기능입니다.</h2>
+<p>Copy는 숨겨진 딥 복제, 할당 또는 CPU/GPU 전송 없이 값 복제를 허용합니다. 컴파일러는 입증된 중복 복사본을 제거하거나 관찰 가능한 값과 소유권 유효성을 유지하면서 효율적인 표현을 선택할 수 있습니다. 큰 Copy 값은 여전히 실제 데이터 이동을 요구할 수 있습니다.</p><p>이동은 또한 시맨틱 소유권 이전입니다; 물리적 바이트는 이동하거나 최적화 될 수 있습니다. 단어 Copy에서 성능을 추론하고 혼자 이동하지 마십시오. Scope cleanup은 현재 해당 범위에 소유한 값만 해제하고 이전 후에는 소유자를 다시 해제하지 않습니다.</p><p>사용자 지정 정리 선언과 Copy와의 호환성은 해결되지 않았습니다. 사용자 정의 소멸자 본문, 중복 완성 프로토콜 또는 대여 수표 면제는이 내장 기능에 의해 암시되지 않습니다.</p>
+</section>
+
+<section id="diagnostics-and-open" aria-labelledby="diagnostics-and-open-heading">
+<h2 id="diagnostics-and-open-heading">10입니다. 필요한 거부 및 개방형 기능 정책</h2>
+<div class="table-scroll" role="region" aria-label="Copy 거부 범주">
+<table>
+<thead><tr>
+<th scope="col">조건</th>
+<th scope="col">선택한 결과</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">Copy 선언에는 Copy가 아닌 필드가 포함됩니다.</th>
+<td>필드가 비공개일 때를 포함하여 선언을 거부합니다.</td>
+</tr>
+<tr>
+<th scope="row">Copy 열거형은 모든 변형에서 비 Copy 페이로드를 포함합니다.</th>
+<td>선언을 거부하십시오; 활성 태그 테스트는 그것을 구출 할 수 없습니다.</td>
+</tr>
+<tr>
+<th scope="row">이동되지 않은 Copy 소유자가 다시 사용됩니다.</th>
+<td>다음 사용을 거부합니다.</td>
+</tr>
+<tr>
+<th scope="row">복사된 공유 참조는 유효한 소스 수명을 이스케이프합니다.</th>
+<td>[중고] 거절을 버려라</td>
+</tr>
+<tr>
+<th scope="row">Copy 일반 인수 바인딩이 충족되지 않습니다.</th>
+<td>타입 인스턴스화를 거부합니다.</td>
+</tr>
+</tbody>
+</table>
+</div><ul>
+<li>사용자 정의 정리 및 부분 이동 호환성이 열려 있습니다.</li>
+<li>일반 Clone 인터페이스, 사용자 연산자 파생, 비교 파생 및 딥 카피 표기법은 열려 있습니다.</li>
+<li>안정적인 공공 layout/FFI 보장 및 복사 비용 진단은 열려 있습니다. 0.2 컴파일러는 일반 계약을 확인하고 구체적인 전문화를 만듭니다.</li>
+<li>이들은 소스 레벨의 거부 카테고리이며, 컴파일러 진단 코드로 구현되지는 않는다.</li>
+</ul>
+</section>
+
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">11입니다. 관련 소유권 참조</h2>
+<nav class="page-navigation" aria-label="관련 Copy 참조">
+<a href="Structs.html"><span>값</span><strong>구조체</strong><p>건설, 필드 및 소유자 가변성.</p></a>
+<a href="Methods_and_Factories.html"><span>통화</span><strong>방법 및 팩토리</strong><p>선언 된 수신기 모드는 전송 및 대여을 제어합니다.</p></a>
+<a href="../enums/Enums.html"><span>태그가 지정된 값</span><strong>열거형</strong><p>정적 Copy는 모든 변형 및 명시적 스위치 소유권 모드를 검사합니다.</p></a>
+<a href="../scope_and_comments/Resource_Cleanup.html"><span>출시</span><strong>자원 정리</strong><p>현재 소유한 초기화 값에 대해서만 정리합니다.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix 언어 · 사용자 정의 유형</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

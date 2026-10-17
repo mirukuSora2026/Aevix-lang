@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="명시적인 parallel 모듈로 서로 겹치지 않는 스칼라 요소를 정해진 호출 범위 안에서 변경합니다.">
+  <title>CPU 병렬 순회 — Aevix 0.2</title>
+  <link rel="stylesheet" href="../../css/root.css?v=7">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../releases/Parallel_0_2.html">
+<link rel="alternate" hreflang="ko" href="Parallel_0_2.html">
+<script src="../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header">
+  <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+  <nav class="header-nav" aria-label="문서"><a href="0_2.html">0.2 프로필</a><a href="../data_type/index.html">자료형</a><a href="../grammar/index.html">문법</a><a href="../errors/index.html">오류</a></nav>
+  <span class="draft-badge">0.2V 프리뷰</span>
+<label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+  <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">문서</a><span class="separator" aria-hidden="true">/</span><a href="0_2.html">0.2</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">CPU 병렬 순회</span></nav>
+  <header class="doc-intro"><div><p class="eyebrow">구현된 언어 범위</p><h1>CPU 병렬 순회</h1><p class="doc-subtitle">명시적인 parallel 모듈로 서로 겹치지 않는 스칼라 요소를 정해진 호출 범위 안에서 변경합니다.</p><div class="doc-meta"><span class="meta-chip">0.2 미리보기</span><span class="meta-chip">AOT / ORC JIT</span><a href="0_2.html#limits">릴리스의 한계</a></div></div><div class="type-mark" aria-hidden="true"><strong>CPU</strong><span>0.2 참조</span></div></header>
+  <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#start"><span class="toc-number">01</span><span>변경 가능한 슬라이스로 시작하기</span></a></li><li><a href="#api"><span class="toc-number">02</span><span>구현된 API</span></a></li><li><a href="#worker"><span class="toc-number">03</span><span>worker 안전성을 전이적으로 검사합니다</span></a></li><li><a href="#lifecycle"><span class="toc-number">04</span><span>서로 겹치지 않는 작업과 호출 범위 내 완료</span></a></li><li><a href="#failure"><span class="toc-number">05</span><span>스레드 생성 실패와 비용</span></a></li><li><a href="#checks"><span class="toc-number">06</span><span>검사한 동작</span></a></li></ol></details><nav class="family-nav" aria-label="0.2 참조"><h2>0.2 참조</h2><div class="family-links"><a href="0_2.html">0.2 구현 프로필</a><a href="Closures_0_2.html">클로저와 호출 계약</a><a href="Parallel_0_2.html" aria-current="page">CPU 병렬 순회</a><a href="Bench_0_2.html">함수 측정</a></div></nav></aside><article class="content">
+<section id="start" aria-labelledby="start-heading"><h2 id="start-heading">변경 가능한 슬라이스로 시작하기</h2>
+<p>다음 모듈을 import하세요: <code>parallel</code> . 이름 있는 worker와 배타적 슬라이스를 전달하면 모든 요소 처리를 마친 뒤 호출자에게 반환합니다.</p><pre class="code-block"><code id="Aevix">import parallel;
+
+void transform(&amp;mut i32 item) {
+    *item += 3;
+    return;
+}
+
+i32 main() {
+    mut i32 values[1025] = [1; 1025];
+    parallel.for_each(Slice.from_array_mut(&amp;mut values), transform);
+    for (i32 value : values) {
+        if (value != 4) return 1;
+    }
+    return 0;
+}</code></pre><p><code>Slice.from_vector_mut(&amp;mut owner)</code> 로도 vector의 같은 종류 뷰를 만들 수 있습니다. 병렬 작업이 저장소를 사용하는 동안 소유자는 배타적 대여로 보호됩니다.</p>
+</section>
+<section id="api" aria-labelledby="api-heading"><h2 id="api-heading">구현된 API</h2>
+<div class="table-scroll" role="region" aria-label="참조 표"><table><thead><tr><th>호출</th><th>Result</th><th>계약</th></tr></thead><tbody><tr><td><code>parallel.for_each(MutSlice&lt;T&gt; items, worker)</code></td><td><code>unit</code></td><td>정상 완료 시 각 요소를 정확히 한 번 처리합니다. 검증할 worker 시그니처: <code>void worker(&amp;mut T item)</code>.</td></tr><tr><td><code>parallel.worker_count()</code></td><td><code>usize</code></td><td>사용 가능한 논리 CPU 수를 바탕으로 1~32 범위의 런타임 worker 한계를 반환합니다.</td></tr></tbody></table></div><p><code>T</code> 는 지원하는 스칼라 수치 타입, bool, char, byte로 제한됩니다. MutSlice가 필요한 곳에 공유 Slice를 전달할 수는 없습니다. 쓰기 가능한 뷰는 직접 전달하며, 호출자가 뷰의 주소를 한 번 더 취하지 않습니다.</p><p>보고된 worker 수는 상한입니다. 실제 worker 수는 슬라이스 길이로도 제한되고 스레드 생성에 실패하면 더 줄어들 수 있습니다. 비어 있지 않은 호출에서는 호출 스레드도 작업을 수행합니다.</p>
+</section>
+<section id="worker" aria-labelledby="worker-heading"><h2 id="worker-heading">worker 안전성을 전이적으로 검사합니다</h2>
+<p>worker는 이름이 있는 모듈 수준의 non-generic 함수여야 하며, 정확히 하나의 배타적 스칼라 참조 매개변수와 void 반환 타입을 가져야 합니다. 이 범위에서는 오버로드된 함수나 캡처된 호출 가능 값을 worker로 사용할 수 없습니다.</p><p>검사기는 worker가 호출하는 함수를 따라갑니다. 도달 가능한 모든 보조 함수는 검사할 수 있는 Aevix 본문이 있어야 하며 같은 제한을 지켜야 합니다.</p><ul><li>전역 값 읽기를 포함하여 모듈 변수, persist 저장소와 캡처 저장소에 접근할 수 없습니다.</li><li>외부 C 함수, 동적 호출, 중첩 병렬 작업과 검증되지 않은 컴파일러 intrinsic을 사용할 수 없습니다.</li><li>지역 변수와 매개변수는 스칼라와 스칼라 대여로 제한됩니다.</li><li>보조 함수의 반환값은 스칼라, 스칼라 대여, unit, void 또는 never로 제한됩니다.</li></ul><p>이 제한은 한정된 0.2 안전 모델을 제공합니다. 임의의 사용자 정의 소유자나 외부 코드에 대한 일반 Send/Sync 검사를 의미하지는 않습니다.</p><pre class="code-block"><code class="language-aevix">import parallel;
+
+void add_three(&amp;mut i32 item) {
+    *item += 3;
+    return;
+}
+
+void transform(&amp;mut i32 item) {
+    add_three(&amp;mut *item);
+    *item *= 2;
+    return;
+}</code></pre>
+</section>
+<section id="lifecycle" aria-labelledby="lifecycle-heading"><h2 id="lifecycle-heading">서로 겹치지 않는 작업과 호출 범위 내 완료</h2>
+<p>런타임은 슬라이스를 연속적이고 서로 겹치지 않는 구간으로 나눕니다. 각 worker는 자기 구간의 요소만 받으므로 안전한 worker 코드에서 다른 worker의 요소를 가리키는 두 번째 별칭을 얻을 수 없습니다.</p><p>요소 실행 순서는 정해져 있지 않습니다. 호출자는 특정 스레드 식별자나 인덱스별 완료 순서에 의존해서는 안 됩니다. 빈 슬라이스에서는 worker를 호출하지 않습니다.</p><p>정상 반환 전에 시작한 모든 worker 스레드를 join합니다. 분리 실행 작업이 없으며 슬라이스 대여가 백그라운드 작업으로 이어지지 않습니다. 대여가 더 이상 살아 있지 않으면 소유자에 대한 일반 접근을 재개할 수 있습니다.</p><div class="callout warning"><strong>완료는 되돌리기가 아닙니다.</strong> worker가 반환하지 않으면 호출도 완료되지 않습니다. 산술 안전 검사 트랩이나 다른 치명적인 런타임 실패는 프로세스를 종료하며, 이미 변경한 요소를 되돌리지 않습니다.</div>
+</section>
+<section id="failure" aria-labelledby="failure-heading"><h2 id="failure-heading">스레드 생성 실패와 비용</h2>
+<p>운영체제가 새 worker 스레드 생성을 거절하면 호출 스레드가 아직 시작하지 않은 구간만 처리합니다. 이미 시작한 스레드는 계속 실행한 뒤 join합니다. 이 대체 동작은 같은 요소의 중복 호출을 피하며 ParallelError 결과를 요구하지 않습니다.</p><p>런타임은 작업 컬렉션을 할당하는 대신 크기가 제한된 스택 관리 데이터를 사용합니다. 스레드 자원은 여전히 운영체제가 제공합니다. 호출마다 스레드를 만들고 join하는 비용이 있으므로 작거나 저렴한 작업은 순차 루프보다 느릴 수 있습니다.</p><p>이 API는 속도 향상, 재사용 가능한 작업 풀, 사용자 선택 스케줄링 정책이나 GPU 디스패치를 보장하지 않습니다. SIMD는 별도로 명시적으로 가져오는 모듈입니다. 자세한 내용: <a href="../data_type/Simd/Simd_02.html">구현된 SIMD 참조</a>.</p>
+</section>
+<section id="checks" aria-labelledby="checks-heading"><h2 id="checks-heading">검사한 동작</h2>
+<p>네이티브 런타임 검사는 정확히 한 번의 처리, 여러 worker의 참여, 스칼라 요소 간 간격, 빈 슬라이스와 단일 요소 슬라이스, 강제로 스레드 생성을 실패시킨 대체 동작을 확인합니다. 컴파일러 통합 검사는 두 최적화 수준의 AOT와 ORC JIT에서 같은 요소 변환을 실행합니다.</p><p>잘못된 코드를 거절하는 컴파일러 검사는 import 누락, 공유 슬라이스, 잘못된 worker 시그니처, 직간접 전역 접근, persist 접근과 외부 호출을 다룹니다. 각 릴리스 플랫폼의 최종 네이티브 검증 현황: <a href="0_2.html#limits">0.2 구현 프로필</a>.</p>
+</section>
+<nav class="page-navigation" aria-label="관련 문서"><a href="0_2.html"><span>릴리스 참조</span>0.2 구현 범위로 돌아가기</a></nav>
+  </article></div>
+  <footer class="page-footer"><span>Aevix · 0.2 미리보기</span><span>구현 참조 · 플랫폼 지원 범위는 0.2 구현 범위에 명시</span></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="할당자를 명시하고, 빌리고, 외부 경계에서 의무를 해제하십시오.">
+  <title>Box 및 외부 인터페이스 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Box/Box_FFI.html">
+<link rel="alternate" hreflang="ko" href="Box_FFI.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Box.html" aria-current="true">Box</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="Box.html" aria-current="true">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Box.html">Box</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Box 및 외부 인터페이스</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Box 및 외부 인터페이스</h1><p class="doc-subtitle">할당자를 명시하고, 빌리고, 외부 경계에서 의무를 해제하십시오.</p><div class="doc-meta"><span class="meta-chip">Box&lt;T&gt;</span><span class="meta-chip">Box 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>0</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>상자</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Boundary"><span class="toc-number">01</span><span>안전한 Box는 외국 포인터 계약이 아닙니다.</span></a></li><li><a href="#Layout"><span class="toc-number">02</span><span>크기, 정렬 및 유효한 값</span></a></li><li><a href="#Allocation"><span class="toc-number">03</span><span>일치 할당 및 Deallocation</span></a></li><li><a href="#Borrowing"><span class="toc-number">04</span><span>외국 대여은 시간이 필요합니다.</span></a></li><li><a href="#Asynchronous"><span class="toc-number">05</span><span>비동기 유지 및 완료</span></a></li><li><a href="#Failure"><span class="toc-number">06</span><span>실패와 부분적인 입양</span></a></li><li><a href="#Scope"><span class="toc-number">07</span><span>제외된 단축키 및 관련 참조</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Box 페이지"><h2>Box 참조</h2><div class="family-links"><a href="Box.html">Box</a><a href="Box_Slices.html">박스형 배열과 뷰</a><a href="Box_FFI.html" aria-current="page">Box 및 외부 인터페이스</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="Box.html" aria-current="true">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Box 및 외부 인터페이스 참조">
+<section id="Boundary" aria-labelledby="Boundary-heading">
+<h2 id="Boundary-heading">1입니다. 안전한 Box는 외국 포인터 계약이 아닙니다.
+</h2>
+<p>주소만으로는 Box 소유자를 설정하지 않습니다. 외래 메모리는 다른 할당자, 표현, 정렬 또는 파괴 프로토콜을 사용할 수 있습니다. 안전한 Box 생성자는 임의의 주소를 자동으로 채택하거나 C 할당에 유효한 T가 포함되어 있는 척하지 않습니다. 미래의 모든 채택 인터페이스는 문서화 된 증거 의무가있는 별도의 안전하지 않거나 감사 된 FFI 시설입니다.
+</p>
+</section>
+<section id="Layout" aria-labelledby="Layout-heading">
+<h2 id="Layout-heading">2입니다. 크기, 정렬 및 유효한 값
+</h2>
+<p>어댑터는 대상 크기, 필수 정렬, 초기화된 바이트, 유효한 판별값 및 중첩된 소유권 또는 참조 불변 값을 설정해야 합니다. 동등한 byte 너비는 호환성에 충분하지 않습니다. byte 버퍼는 임의의 T의 유효한 값을 포함하지 않고 원시 표현을 전달할 수 있습니다. 기본 필드 레이아웃 및 패딩은 휴대용 와이어 형식이 아닙니다. 명시적 사용 <a href="../Byte/Byte_Order.html">Byte 코덱</a> 값을 직렬화할 때.
+</p>
+</section>
+<section id="Allocation" aria-labelledby="Allocation-heading">
+<h2 id="Allocation-heading">3입니다. 일치 할당 및 Deallocation
+</h2>
+<p>할당 및 릴리스는 할당자 ID, 정확한 할당 기반, 레이아웃 및 소유권 count에 동의해야 합니다. 내부 포인터를 채택하거나 동일한 할당을 두 번 해제하는 것은 어댑터 계약을 위반하는 것입니다. 외부 릴리스 콜백에는 일반적인 Box 소멸자가 추론할 수 없는 스레드 선호도 또는 런타임 요구 사항이 있을 수 있습니다. 스레드 간에 핸들을 이동하는 것은 전체 리소스 계약이 이를 지원하는 경우에만 허용됩니다.
+</p>
+</section>
+<section id="Borrowing" aria-labelledby="Borrowing-heading">
+<h2 id="Borrowing-heading">4입니다. 외국 대여은 시간이 필요합니다.
+</h2>
+<p>빌린 수출은 소유권을 양도하지 않습니다. 외국 측은 대여이 끝나기 전에 읽거나 쓰는 것을 중단해야하며 소유자는 필요에 따라 살아 있고 수정되지 않은 채로 있어야합니다. 읽기 내보내기는 대여 시 외부 변경를 금지합니다. 쓰기 가능한 내보내기는 모든 충돌하는 별칭을 제외합니다. 만약 외국 콜백이 나중을 위해 주소를 저장한다면, 동기 호출 경계는 충분한 수명 증명이 아니다.
+</p>
+</section>
+<section id="Asynchronous" aria-labelledby="Asynchronous-heading">
+<h2 id="Asynchronous-heading">5입니다. 비동기 유지 및 완료
+</h2>
+<p>지연된 외국 작업의 경우 실제 소유자를 완료 관리 어댑터로 이동하거나 선택적 사용자 핸들과 독립적으로 완료를 추적하는 구조화된 범위를 사용합니다. 요청을 취소해도 외국 작업이 중지되었음을 증명하지 않습니다. 알림 토큰을 삭제하거나 유출하는 것은 빌린 메모리의 조기 릴리스를 허용할 수 없습니다. 장치 완성 및 호스트 가시성에는 서로 다른 동기화 단계가 필요할 수도 있습니다.
+</p>
+</section>
+<section id="Failure" aria-labelledby="Failure-heading">
+<h2 id="Failure-heading">6입니다. 실패와 부분적인 입양
+</h2>
+<p>사전 비행 실패는 원래 소유자에게 발신자를 남깁니다. 외부 라이브러리가 소유권을 갖게 되면, 어댑터는 소유자가 return를 파괴하거나 다른 리소스 레코드로 전송하는 오류를 명시해야 합니다. 외국 릴리스 콜백을 실행할 수 있고 return를 손상되지 않은 Box로 실행할 수 있는 API를 피하십시오. 오류와 풀림은 모든 초기화된 리소스에 대해 하나의 명확한 소유자를 유지해야 합니다.
+</p>
+</section>
+<section id="Scope" aria-labelledby="Scope-heading">
+<h2 id="Scope-heading">7입니다. 제외된 단축키 및 관련 참조
+</h2>
+<p>이 페이지는 from_raw 또는 임의의 set-initialized-length 단축키를 의도적으로 정의하지 않습니다. 일반 <a href="Box.html">Box API</a> 건설현장에서도 안전이 보장됩니다. <a href="../Shared/Shared_Threads.html">Shared 스레드 경계</a> 및 <a href="../Slice/Slice.html">Slice</a> 관련된 제한사항을 설명합니다. 문서화된 FFI 계약은 무엇이 감사되어야 하는지를 식별한다; 성공적인 빌드나 포인터 크기의 래퍼는 외부 구현을 검증하지 않는다.
+</p>
+<p>네이티브 할당 및 크기 메타데이터는 이 소유자를 외부 할당자에게 전송하거나 와이어 표현을 정의하지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Box&lt;i32&gt;, InputError&lt;i32&gt;&gt; native_owner = Box.new(42);
+usize payload_bytes = Box.payload_size(i32);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/boxed/struct.Box.html" target="_blank" rel="noopener noreferrer">Rust Box — 고유한 힙 소유권 및 할당 계약</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Box_Slices.html"><span>이전 레퍼런스</span>박스형 배열과 뷰</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

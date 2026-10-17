@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="null 역참조·암시적 참거짓 판정·숨은 할당 없이 값의 존재와 부재를 나타냅니다.">
+  <title>Optional — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Optional/Optional.html">
+<link rel="alternate" hreflang="ko" href="Optional.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Optional.html" aria-current="true">Optional</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="Optional.html" aria-current="true">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Optional.html">Optional</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Optional</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Optional</h1><p class="doc-subtitle">null 역참조·암시적 참거짓 판정·숨은 할당 없이 값의 존재와 부재를 나타냅니다.</p><div class="doc-meta"><span class="meta-chip">Optional&lt;T&gt;</span><span class="meta-chip">Optional. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>디자인 초안</dd></div><div class="doc-stat"><dt>변형</dt><dd>없음 · 일부(T)</dd></div><div class="doc-stat"><dt>저장 방식</dt><dd>인라인 변형</dd></div><div class="doc-stat"><dt>API 함수</dt><dd>39</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>티?</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>개요</span></a></li><li><a href="#Declaration"><span class="toc-number">02</span><span>선언 및 변형</span></a></li><li><a href="#Inspection"><span class="toc-number">03</span><span>안전한 검사 및 추출</span></a></li><li><a href="#Ownership"><span class="toc-number">04</span><span>소유권 및 현장 업데이트</span></a></li><li><a href="#Evaluation"><span class="toc-number">05</span><span>게으른 및 열망하는 대안</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>함수 참조</span></a></li><li><a href="#Nested"><span class="toc-number">07</span><span>중첩 옵션 및 Result</span></a></li><li><a href="#Errors-Layout"><span class="toc-number">08</span><span>실패, 레이아웃 및 드롭 규칙</span></a></li><li><a href="#Parallel-FFI"><span class="toc-number">09</span><span>병렬, 장치 및 외부 경계</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>예시 및 명시적 비용</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Optional 페이지"><h2>Optional 참조</h2><div class="family-links"><a href="Optional.html" aria-current="page">Optional</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="Optional.html" aria-current="true">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Optional 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 개요
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> prelude가 제공하는 타입: <code>Optional&lt;T&gt;</code>, <code>Optional.some(value)</code>, 문맥이 정하는 <code>Optional.none()</code>, <code>Optional.is_some(&amp;value)</code> 및 <code>is_none</code>. variant 생성·완전한 switch와 소유 값의 후위 <code>?</code> 를 통한 Optional 반환 함수로의 전파가 구현되어 있습니다. 아래 map·unwrap·반복자 등 카탈로그 보조 함수가 자동으로 제공되는 것은 아닙니다. 자세한 내용: <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p><strong>카탈로그 상태.</strong> 지원 범위 알림은 구현된 부분집합을 밝히며 다른 API는 제안된 Aevix 계약입니다. 선택된 매개변수 형식: <code>T value</code>, <code>&amp;T value</code>, 및 <code>&amp;mut T value</code>. 타입 팩·호출 가능 타입·반환 참조의 명시적 수명 표기·오류 enum은 표시된 곳에서 설명용으로 남습니다. 모든 연산은 네임스페이스 함수를 사용하며 값 메서드 별칭은 없습니다.
+</p>
+<p>Optional은 값이 없을 수도 있음을 나타냅니다. 값 없음은 예상 가능한 데이터이며 오류 payload가 아닙니다. 진단이 있는 파싱 실패에는 Result를 쓰고 선택적 검색은 None을 반환할 수 있습니다. 초기화되지 않은 저장소는 None도 Some도 아니며 유효한 Optional로 드러내지 않습니다.
+</p>
+</section>
+<section id="Declaration" aria-labelledby="Declaration-heading">
+<h2 id="Declaration-heading">2입니다. 선언 및 변형
+</h2>
+<p>네임스페이스 생성자를 타입 우선 선언과 함께 사용합니다. None 생성자에는 기대되는 T 또는 명시적인 타입 인수가 필요합니다. Some은 소유 payload를 소비하며 암시적으로 clone하지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Optional&lt;i32&gt; present = Optional.some(12);
+Optional&lt;i32&gt; absent = Optional.none&lt;i32&gt;();
+bool found = Optional.is_some(&amp;present);</code></pre>
+</section>
+<section id="Inspection" aria-labelledby="Inspection-heading">
+<h2 id="Inspection-heading">3입니다. 안전한 검사 및 추출
+</h2>
+<p>variant 태그를 읽어도 payload는 이동하지 않습니다. 공유·배타적 대여 투영은 소유자 수명을 유지하며 투영한 참조가 살아 있는 동안 소유자 교체를 막습니다. 선택된 enum 분기 형식: <a href="../../grammar/enums/Enum_Switch.html">case 패턴을 사용하는 switch</a>. 이 카탈로그는 아직 Optional의 완전한 공개 variant 패턴 표현을 정의하지 않습니다. 이름 있는 검사·추출 API에는 각각 명시한 계약을 적용합니다.
+</p>
+<p>카탈로그 제안에는 None일 때 panic하는 unwrap·검사 없는 접근·암시적 참거짓 변환이 없습니다. 대체 값·Result 변환·완전한 분기를 사용하세요. 진단 편의 기능이 복구 가능한 값 없음을 모델에 없는 중단으로 조용히 바꿔서는 안 됩니다.
+</p>
+</section>
+<section id="Ownership" aria-labelledby="Ownership-heading">
+<h2 id="Ownership-heading">4입니다. 소유권 및 현장 업데이트
+</h2>
+<p>소유 T의 Optional은 기본적으로 이동합니다. 명시적 복사에는 T: Copy가 필요합니다. 명시적 clone은 T의 Clone 의미를 따르며 실패할 수 있습니다. 값을 꺼낸 뒤에는 유효한 None 상태가 남으므로 소유자를 잠시라도 미초기화 상태로 두지 않습니다.
+</p>
+<p>insert·교체에는 배타적 접근이 필요합니다. insert는 이전 payload를 정리한 뒤 새 payload의 대여를 반환하고 replace는 이전 payload를 호출자에게 반환합니다. 공유 대여와 동시에 변경할 수 없습니다.
+</p>
+</section>
+<section id="Evaluation" aria-labelledby="Evaluation-heading">
+<h2 id="Evaluation-heading">5입니다. 게으른 및 열망하는 대안
+</h2>
+<p>이름이 다음으로 끝나는 함수는 <code>_else</code> 또는 <code>_with</code> 콜백을 받고 실행 시점을 정확히 밝힙니다. 일반 대체 값·and/or 인수·zip 입력은 호출 전에 이미 평가되며, 선택하지 않은 소유 payload도 정확히 한 번 정리합니다.
+</p>
+<p>map·and_then은 존재하는 payload를 소비합니다. map_ref는 대여합니다. inspect는 관측을 위해 대여한 뒤 소유권을 그대로 반환합니다. 콜백 반환 타입은 관측용 <code>unit</code> 를 포함해 명시적으로 유지합니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6입니다. 함수 참조
+</h2>
+<p><code>T value</code> 는 값을 전달합니다. Copy 타입은 복사하며 소유 non-Copy 값은 깊은 clone 없이 이동합니다. <code>&amp;T value</code> 는 공유 읽기 대여이고 <code>&amp;mut T value</code> 는 배타적 변경 대여입니다. 호출 시 각각 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code> 를 사용합니다. 이미 대여한 참조·뷰 값은 직접 전달하며 &amp;를 하나 더 붙이면 타입이 바뀝니다. <code>*ref</code> 는 참조 대상을 읽고 씁니다. 일반적인 <code>&amp;mut x</code> 에는 <code>mut</code> 소유자가 필요합니다. <code>mut T value</code> 만으로는 값 매개변수가 함수 안에서 변경 가능해질 뿐 호출자의 값을 변경하지 않습니다. 겹치는 활성 대여는 마지막 사용까지 검사합니다. 서로 겹치지 않는 영역은 안전하게 나눌 수 있으며 대여는 원본보다 오래 살 수 없습니다. 동기화된 내부 변경은 해당 타입의 계약을 따릅니다. <code>Fn(A) -&gt; B</code> 는 호출 가능한 값을 설명하며 반환 참조의 수명 관계는 본문으로 문서화합니다.
+</p>
+<h3>건설, 관측 및 변경
+</h3>
+<div class="table-scroll" role="region" aria-label="함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">제안된 시그니처</th><th scope="col">반환</th><th scope="col">계약 및 제약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Optional-none"><td><code>Optional.none&lt;T&gt;()</code></td><td><code>Optional&lt;T&gt;</code></td><td>T 를 생성하지 않고 부재를 생성한다.</td><td>O(1)</td>
+</tr>
+<tr id="Optional-some"><td><code>Optional.some(T value)</code></td><td><code>Optional&lt;T&gt;</code></td><td>제공된 값을 현재 변형으로 이동합니다. 래퍼 할당이 없습니다.</td><td>가치 이동 비용</td>
+</tr>
+<tr id="Optional-is_some"><td><code>Optional.is_some(&amp;Optional&lt;T&gt; value)</code></td><td><code>bool</code></td><td>T를 이동하지 않고 태그를 확인합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Optional-is_none"><td><code>Optional.is_none(&amp;Optional&lt;T&gt; value)</code></td><td><code>bool</code></td><td>부재에 대한 진실</td><td>O(1)</td>
+</tr>
+<tr id="Optional-is_some_and"><td><code>Optional.is_some_and(&amp;Optional&lt;T&gt; value, Fn(&amp;T) -&gt; bool predicate)</code></td><td><code>bool</code></td><td>한 번만 빌려주면 빌려주면 된다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-is_none_or"><td><code>Optional.is_none_or(&amp;Optional&lt;T&gt; value, Fn(&amp;T) -&gt; bool predicate)</code></td><td><code>bool</code></td><td>不不(불욕불호)하며 : 그렇지 않을 때</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-as_ref"><td><code>Optional.as_ref(&amp;Optional&lt;T&gt; value)</code></td><td><code>Optional&lt;&amp;T&gt;</code></td><td>현재의 페이로드를 대여; 소스는 파괴 또는 대여이 사는 동안 교체 할 수 없습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Optional-as_mut"><td><code>Optional.as_mut(&amp;mut Optional&lt;T&gt; value)</code></td><td><code>Optional&lt;&amp;mut T&gt;</code></td><td>현재 페이로드를 독점적으로 대여합니다. 반환된 대여 동안에는 태그 변경가 허용되지 않습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Optional-take"><td><code>Optional.take(&amp;mut Optional&lt;T&gt; value)</code></td><td><code>Optional&lt;T&gt;</code></td><td>이전 변형을 밖으로 이동하고 할당 없이 원본에 None을 남깁니다.</td><td>이동 비용</td>
+</tr>
+<tr id="Optional-replace"><td><code>Optional.replace(&amp;mut Optional&lt;T&gt; value, T replacement)</code></td><td><code>Optional&lt;T&gt;</code></td><td>Some(replacement)를 설치하고 이전 변형을 반환합니다.</td><td>이동 비용</td>
+</tr>
+<tr id="Optional-insert"><td><code>Optional.insert(&amp;mut Optional&lt;T&gt; value, T replacement)</code></td><td><code>&amp;mut T</code></td><td>일부 설치 및 이전 페이로드를 파괴; 반환 대여은 독점적이다.</td><td>이동 + 이전 드롭 비용</td>
+</tr>
+<tr id="Optional-get_or_insert"><td><code>Optional.get_or_insert(&amp;mut Optional&lt;T&gt; value, T fallback)</code></td><td><code>&amp;mut T</code></td><td>Eager fallback; 없음일 때만 삽입하고, 그렇지 않으면 fallback을 파괴합니다.</td><td>O(1) + 가능한 드롭</td>
+</tr>
+<tr id="Optional-get_or_insert_with"><td><code>Optional.get_or_insert_with(&amp;mut Optional&lt;T&gt; value, Fn() -&gt; T make)</code></td><td><code>&amp;mut T</code></td><td>전화는 아무도 없을 때만 합니다. 건설 전에 콜백 실패는 변경되지 않습니다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>폴백, 구성 및 모양 변경
+</h3>
+<div class="table-scroll" role="region" aria-label="함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">제안된 시그니처</th><th scope="col">반환</th><th scope="col">계약 및 제약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Optional-unwrap_or"><td><code>Optional.unwrap_or(Optional&lt;T&gt; value, T fallback)</code></td><td><code>T</code></td><td>페이로드 또는 이미 구성된 폴백을 반환합니다; 사용되지 않은 소유 대안을 파괴합니다.</td><td>이동 + 사용하지 않는 드롭 비용</td>
+</tr>
+<tr id="Optional-unwrap_or_else"><td><code>Optional.unwrap_or_else(Optional&lt;T&gt; value, Fn() -&gt; T make)</code></td><td><code>T</code></td><td>fallback factory는 None에 대해서만 호출합니다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-ok_or"><td><code>Optional.ok_or(Optional&lt;T&gt; value, E error)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>어떤 것은 OK가 되고, 어떤 것은 Err(error)가 되고, 어떤 것은 unused eager error가 파괴된다.</td><td>이동 + 옵션 드롭</td>
+</tr>
+<tr id="Optional-ok_or_else"><td><code>Optional.ok_or_else(Optional&lt;T&gt; value, Fn() -&gt; E make_error)</code></td><td><code>Result&lt;T, E&gt;</code></td><td>아무에게나 오류를 만듭니다.Creates an error only for None.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-map"><td><code>Optional.map(Optional&lt;T&gt; value, Fn(T) -&gt; U transform)</code></td><td><code>Optional&lt;U&gt;</code></td><td>현재 페이로드를 한 번 변환합니다. 아무도 머물지 않습니다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-map_ref"><td><code>Optional.map_ref(&amp;Optional&lt;T&gt; value, Fn(&amp;T) -&gt; U transform)</code></td><td><code>Optional&lt;U&gt;</code></td><td>소유자를 사용하지 않고 공유 대여을 매핑합니다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-map_or"><td><code>Optional.map_or(Optional&lt;T&gt; value, U fallback, Fn(T) -&gt; U transform)</code></td><td><code>U</code></td><td>Eager fallback; 사용하지 않은 폴백은 일부에서 파괴됩니다.</td><td>Optional 콜백 + 드롭</td>
+</tr>
+<tr id="Optional-map_or_else"><td><code>Optional.map_or_else(Optional&lt;T&gt; value, Fn() -&gt; U fallback, Fn(T) -&gt; U transform)</code></td><td><code>U</code></td><td>정확히 하나의 브랜치 콜백을 호출한다.</td><td>하나의 콜백</td>
+</tr>
+<tr id="Optional-and"><td><code>Optional.and(Optional&lt;T&gt; left, Optional&lt;U&gt; right)</code></td><td><code>Optional&lt;U&gt;</code></td><td>오른쪽; 왼쪽이 일부일 때만 반환합니다. 폐기된 소유 페이로드가 파괴됩니다.</td><td>이동 + 비용 절감</td>
+</tr>
+<tr id="Optional-and_then"><td><code>Optional.and_then(Optional&lt;T&gt; value, Fn(T) -&gt; Optional&lt;U&gt; next)</code></td><td><code>Optional&lt;U&gt;</code></td><td>有(개유유유언) : 어떤 이에게 청하지 않고</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-or"><td><code>Optional.or(Optional&lt;T&gt; left, Optional&lt;T&gt; right)</code></td><td><code>Optional&lt;T&gt;</code></td><td>열망하는 대안; 존재할 때 왼쪽, 그렇지 않으면 오른쪽을 유지합니다.</td><td>이동 + 사용하지 않는 드롭</td>
+</tr>
+<tr id="Optional-or_else"><td><code>Optional.or_else(Optional&lt;T&gt; value, Fn() -&gt; Optional&lt;T&gt; next)</code></td><td><code>Optional&lt;T&gt;</code></td><td>다음엔 아무에게나 전화하지 않는다.</td><td>O(1) + 옵션 콜백</td>
+</tr>
+<tr id="Optional-xor"><td><code>Optional.xor(Optional&lt;T&gt; left, Optional&lt;T&gt; right)</code></td><td><code>Optional&lt;T&gt;</code></td><td>정확히 하나의 입력이 존재할 때만 존재하며, 두 개의 현재 페이로드가 모두 파괴됩니다.</td><td>이동 + 비용 절감</td>
+</tr>
+<tr id="Optional-filter"><td><code>Optional.filter(Optional&lt;T&gt; value, Fn(&amp;T) -&gt; bool predicate)</code></td><td><code>Optional&lt;T&gt;</code></td><td>테스트를 위해 현재 페이로드를 대여합니다. 거부된 페이로드는 누출되지 않고 파괴됩니다.</td><td>Optional 콜백 + 드롭</td>
+</tr>
+<tr id="Optional-inspect"><td><code>Optional.inspect(Optional&lt;T&gt; value, Fn(&amp;T) -&gt; unit observer)</code></td><td><code>Optional&lt;T&gt;</code></td><td>현재 대여을 관찰하고 원래 소유 변형을 반환합니다.</td><td>Optional 콜백</td>
+</tr>
+<tr id="Optional-zip"><td><code>Optional.zip(Optional&lt;T&gt; left, Optional&lt;U&gt; right)</code></td><td><code>Optional&lt;Tuple&lt;T, U&gt;&gt;</code></td><td>둘 중 하나만 존재하면 짝이 없어지고, 짝이 없는 현재 페이로드는 모두 파괴됩니다.</td><td>이동 + 가능한 드롭</td>
+</tr>
+<tr id="Optional-unzip"><td><code>Optional.unzip(Optional&lt;Tuple&lt;T, U&gt;&gt; value)</code></td><td><code>Tuple&lt;Optional&lt;T&gt;, Optional&lt;U&gt;&gt;</code></td><td>어떤 쌍은 두 Somes가 되고, 어느 누구도 두 Nones가 되지 않습니다.</td><td>이동 비용</td>
+</tr>
+<tr id="Optional-flatten"><td><code>Optional.flatten(Optional&lt;Optional&lt;T&gt;&gt; value)</code></td><td><code>Optional&lt;T&gt;</code></td><td>하나의 선택적 레이어를 제거합니다.</td><td>O(1) 태그 + 이동</td>
+</tr>
+<tr id="Optional-transpose"><td><code>Optional.transpose(Optional&lt;Result&lt;T, E&gt;&gt; value)</code></td><td><code>Result&lt;Optional&lt;T&gt;, E&gt;</code></td><td>없음 -&gt; Ok(none); 일부(Ok(x)) -&gt; Ok(some(x)); 일부(Err(e)) -&gt; Err(e).</td><td>O(1) 태그 + 이동</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>반복, 중복 및 비교
+</h3>
+<div class="table-scroll" role="region" aria-label="함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">제안된 시그니처</th><th scope="col">반환</th><th scope="col">계약 및 제약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Optional-iter"><td><code>Optional.iter(&amp;Optional&lt;T&gt; value)</code></td><td><code>Iterator&lt;&amp;T&gt;</code></td><td>0 또는 1개의 공유 대여을 생성합니다; 반복자 수명은 소유자에 의해 제한됩니다.</td><td>O(1)</td>
+</tr>
+<tr id="Optional-iter_mut"><td><code>Optional.iter_mut(&amp;mut Optional&lt;T&gt; value)</code></td><td><code>Iterator&lt;&amp;mut T&gt;</code></td><td>0 또는 1개의 배타적 대여을 생성합니다; 별칭에 쓰기를 복제할 수 없습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Optional-into_iter"><td><code>Optional.into_iter(Optional&lt;T&gt; value)</code></td><td><code>Iterator&lt;T&gt;</code></td><td>래퍼를 사용하고 페이로드를 한 번에 생성합니다. 커서를 떨어뜨리면 승화되지 않은 페이로드가 파괴됩니다.</td><td>O(1) + 가능한 드롭</td>
+</tr>
+<tr id="Optional-copy"><td><code>Optional.copy(&amp;Optional&lt;T&gt; value)</code></td><td><code>Optional&lt;T&gt;</code></td><td>필요한 T: Copy; 활성 변형만 복사합니다.</td><td>페이로드 크기 비용</td>
+</tr>
+<tr id="Optional-clone"><td><code>Optional.clone(&amp;Optional&lt;T&gt; value)</code></td><td><code>Result&lt;Optional&lt;T&gt;, CloneError&gt;</code></td><td>T: 복제가 필요합니다. 아무도 T 클론을 필요로 하지 않습니다; 실패한 클론은 소스를 변경하지 않습니다.</td><td>페이로드 클론 비용</td>
+</tr>
+<tr id="Optional-equal"><td><code>Optional.equal(&amp;Optional&lt;T&gt; left, &amp;Optional&lt;T&gt; right)</code></td><td><code>bool</code></td><td>T equality; 없음 equals 없음, 일부는 페이로드를 비교합니다.</td><td>페이로드 비교 비용</td>
+</tr>
+<tr id="Optional-compare"><td><code>Optional.compare(&amp;Optional&lt;T&gt; left, &amp;Optional&lt;T&gt; right)</code></td><td><code>Ordering</code></td><td>T total order; 제안된 변형 순서 없음</td><td>페이로드 비교 비용</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Nested" aria-labelledby="Nested-heading">
+<h2 id="Nested-heading">7입니다. 중첩 옵션 및 Result
+</h2>
+<p><code>Optional&lt;Optional&lt;T&gt;&gt;</code> 에는 바깥 값 없음과 존재하는 안쪽 값 없음이라는 서로 다른 상태가 있습니다. flatten이 의도적으로 합치기 전에는 구분됩니다. Optional.transpose는 존재하는 Result 안의 오류를 보존하며 바깥 값 없음은 성공적인 값 없음으로 취급합니다.
+</p>
+<p><code>Optional&lt;unit&gt;</code> 는 의미상 두 상태를 갖는 존재 표시입니다. <code>Optional&lt;never&gt;</code> 는 None만 가능합니다. 이는 타입 수준의 의미이며 어느 쪽도 특정 바이트 배치를 요구하지 않습니다.
+</p>
+</section>
+<section id="Errors-Layout" aria-labelledby="Errors-Layout-heading">
+<h2 id="Errors-Layout-heading">8입니다. 실패, 레이아웃 및 드롭 규칙
+</h2>
+<p>Optional 래퍼 생성에는 할당이 필요하지 않습니다. payload 생성·clone·소멸 비용은 T에서 물려받을 수 있습니다. clone 실패는 대여한 원본을 유효하게 유지하고 부분 생성된 clone을 정리합니다.
+</p>
+<p>컴파일러는 모든 비트 패턴·ABI 규칙이 허용할 때만 payload의 미사용 표현에 값 없음을 인코딩할 수 있습니다. 보편적인 null 포인터 최적화·태그 크기·C 호환 배치를 보장하지 않습니다. 원시 바이트에는 활성 payload를 검증하는 디코더가 필요합니다.
+</p>
+</section>
+<section id="Parallel-FFI" aria-labelledby="Parallel-FFI-heading">
+<h2 id="Parallel-FFI-heading">9입니다. 병렬, 장치 및 외부 경계
+</h2>
+<p>다른 Task나 장치로 Optional을 이전하려면 payload·표현 계약이 그 경계를 지원해야 합니다. 공유 Optional이 payload의 동시 변경을 허용하지는 않습니다. payload가 원자 타입이라고 Optional 저장소도 원자적으로 되는 것은 아닙니다.
+</p>
+<p>C nullable 포인터·C++ optional·Python None에는 명시적 어댑터가 필요합니다. Optional의 대여 참조는 외부 객체나 고정 보호자보다 오래 살 수 없습니다. 불투명 Python 소유권은 바인딩 계층에서 유지합니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10입니다. 예시 및 명시적 비용
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 chosen = Optional.unwrap_or(Optional.some(7), 99);
+Result&lt;i32, i32&gt; required = Optional.ok_or(Optional.none&lt;i32&gt;(), 404);
+Optional&lt;Optional&lt;i32&gt;&gt; nested = Optional.some(Optional.some(3));
+Optional&lt;i32&gt; flat = Optional.flatten(nested);</code></pre>
+<p>Some payload를 사용하더라도 대체 값 99는 평가됩니다. 비싼 할당을 늦추려면 콜백 형식이 필요합니다. 일반 대여 식은 이미 선택되어 있습니다: <code>&amp;owner</code> 는 읽기, <code>&amp;mut owner</code> 는 변경 가능한 소유자에 대한 배타적 접근을 요청하며 <code>*reference</code> 는 참조 대상을 읽고 씁니다. <a href="../../declaration/Function_Declaration.html">함수 선언 참조 문서</a> 에서 이 형식을 정의합니다. 콜백 타입 표기와 반환 참조의 명시적 수명 표기는 별도의 열린 설계 과제입니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/option/enum.Option.html" target="_blank" rel="noopener noreferrer">Rust 옵션 참조: 변형 구성 및 빌린 투영</a>
+</li>
+<li><a href="https://eel.is/c++draft/optional" target="_blank" rel="noopener noreferrer">C++ 작업 초안: 선택적 스토리지 및 수명 의미 체계</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

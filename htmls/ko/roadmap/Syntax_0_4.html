@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="기존 안전성·부트스트랩 목표를 유지하면서 컴파일러 이식과 함께 진행하는 Aevix 0.4 추가 문법 작업입니다.">
+    <title>0.4 추가 문법 — Aevix</title>
+    <link rel="stylesheet" href="../../css/root.css?v=7">
+    <script src="../../js/docs.js?v=5" defer></script>
+    <link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../roadmap/Syntax_0_4.html">
+<link rel="alternate" hreflang="ko" href="Syntax_0_4.html">
+<script src="../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header">
+    <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="로드맵"><a href="index.html">0.5 로드맵</a><a href="Library_Foundation.html">라이브러리 기반</a><a href="../releases/0_2.html">0.2 프로필</a></nav>
+    <span class="draft-badge">0.4 계획</span>
+<label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+    <header class="doc-intro"><div><p class="eyebrow">로드맵 추가 작업</p><h1>0.4 추가 문법</h1><p class="doc-subtitle">컴파일러의 Aevix 포팅을 계속하면서 유용한 제어 흐름을 추가합니다.</p></div></header>
+    <div class="docs-layout">
+        <aside class="table"><details class="toc" open><summary>이 페이지의 내용</summary><ol>
+            <li><a href="#scope">기존 로드맵과의 관계</a></li>
+            <li><a href="#do-while">후검사 루프</a></li>
+            <li><a href="#try">지역 오류 처리</a></li>
+            <li><a href="#candidates">추가 검토할 문법</a></li>
+            <li><a href="#gates">통합·완료 조건</a></li>
+            <li><a href="#sources">주요 참고 자료</a></li>
+        </ol></details></aside>
+        <article class="content">
+            <section id="scope"><h2>기존 로드맵과의 관계</h2>
+                <p>0.4 계획에는 다음 문법의 연구와 구현을 포함합니다: <code>try</code> 및 <code>do ... while</code>. 이 작업은 <a href="index.html#versions">기존 마일스톤</a>을 보완합니다. 0.3은 네이티브 자원·라이브러리 기반을 마련하고, 0.4는 컴파일러를 Aevix로 포팅하며, 0.5는 셀프 호스팅 부트스트랩을 수행합니다.</p>
+                <p class="callout warning">향후 작업 계획입니다. 이 추가 항목이 현재 다음 범위에 구현되어 있다는 뜻은 아닙니다: <a href="../releases/0_2.html">0.2 구현</a>. 아래 문법 초안은 0.2에서 실행 가능한 예제가 아닙니다.</p>
+                <p>타입 우선 선언, 기본 불변성, 명시적 non-void 반환, 필수 조건 괄호와 기존 소유권·가시성 규칙은 유지합니다. 새 편의 문법은 컴파일러의 제어 흐름·정리 모델로 옮기는 방식이 정의되어야 합니다.</p>
+            </section>
+            <section id="do-while"><h2>후검사 루프</h2>
+                <p>추가할 문법: <code>do ... while (condition);</code> . 0.4 작업으로 포함하며 bool 조건을 검사하기 전에 본문을 실행합니다. 본문의 정상 완료와 <code>continue;</code> 는 모두 조건 평가로 이어집니다. <code>break;</code> 는 조건을 평가하지 않고 루프를 벗어납니다. 앞선 return이나 오류 전파도 조건 검사 전에 루프를 벗어날 수 있습니다.</p>
+                <pre class="code-block" data-status="planned-0.4"><code id="Aevix">i32 repetitions() {
+    mut i32 count = 0;
+    do {
+        count++;
+    } while (count &lt; 3);
+    return count;
+}</code></pre>
+                <p>끝 세미콜론과 조건 괄호는 필수입니다. 단일 문장은 기존 문장 본문 규칙에 따라 중괄호를 생략할 수 있지만 선언에는 블록이 필요합니다. 본문 블록 안의 지역 변수는 뒤에 오는 조건에서 보이지 않습니다.</p>
+                <p>확정 초기화, 반복 사이의 이동·대여, 각 탈출 경로의 정리, 중첩 루프와 오류를 반환하는 조건을 검사합니다. Java·C++의 후검사 루프 명세는 비교 자료이며 해당 언어의 암시적 변환을 채택할 근거가 아닙니다. Aevix 조건은 계속 bool만 허용합니다.</p>
+            </section>
+            <section id="try"><h2>지역 오류 처리</h2>
+                <p>포함할 문법: <code>try</code> . 0.4 설계·구현 작업으로 두며 파서를 바꾸기 전에 정확한 문법과 오류 모델을 별도로 결정해야 합니다. 기존 <code>?</code> 와 명시적 오류 모델을 유지하면서 Result 값을 지역적으로 처리하는 방향을 우선합니다.</p>
+                <p>확정된 <a href="Functions_and_Errors_0_3.html#common-error">0.3 공통 오류·Result 모델</a> 은 대여 기반 검사를 위한 Error와 소유형 Result 전파를 위한 AnyError를 계획합니다. try는 0.4 설계 작업으로 남기고 0.3에 try/catch를 추가하지 않습니다. Result 오류 타입 사이의 암시적 변환이나 Java식 스택 되감기도 선택하지 않습니다.</p>
+                <div class="table-scroll" role="region" aria-label="try 설계 비교"><table><thead><tr><th scope="col">접근 방식</th><th scope="col">장점</th><th scope="col">Aevix의 결정</th></tr></thead><tbody>
+                    <tr><td>Result 기반 지역 오류 범위</td><td>실패 가능한 연산을 묶고 함수 전체에서 반환하지 않은 채 오류를 처리합니다.</td><td>우선 개발할 설계입니다. 문법을 채택하기 전에 각 <code>?</code>의 목적지, 성공 시 완료 방식과 중첩 규칙을 정해야 합니다.</td></tr>
+                    <tr><td>throw/catch 예외의 스택 되감기</td><td>던져진 오류를 호출 프레임을 넘어 일치하는 처리기로 전달합니다.</td><td>오류·정리 정책을 바꾸므로 사용자의 명시적 결정이 필요합니다. 다음 이름을 추가하는 것만으로 채택되지는 않습니다: <code>try</code>.</td></tr>
+                    <tr><td>finally 또는 지연 정리</td><td>탈출 경로에서 수행할 작업을 붙입니다.</td><td>먼저 0.3 자원 정리와 함께 검토합니다. 독립적인 두 소유자가 같은 자원을 해제하려는 상황을 피해야 합니다.</td></tr>
+                </tbody></table></div>
+                <p>Rust의 공식 try-block 문서는 <code>?</code> 를 위한 지역 범위를 불안정 기능으로 설명합니다. 반면 Java의 try 문은 던져진 예외를 처리하며 finally·자원 규칙도 별도로 갖습니다. 서로 다른 설계이며 Aevix 계획은 Rust에서 안정화됐다고 주장하거나 Java의 스택 되감기 의미를 암묵적으로 도입하지 않습니다.</p>
+                <p>정상 반환은 명시적으로 유지하고 마지막 식의 암시적 반환을 추가하지 않습니다. 클로저는 독립적인 반환·전파 경계입니다. 정상 탈출은 초기화된 소유자를 정확히 한 번 해제해야 합니다. 지역 복구가 안전 중단, 잘못된 외부 동작이나 프로세스 종료를 일반 Result 오류처럼 잡아서는 안 됩니다. 새 오류 범위 밖의 기존 직접 반환 동작과도 호환되어야 합니다.</p>
+            </section>
+            <section id="candidates"><h2>추가 검토할 문법</h2>
+                <p>아래 항목은 연구 후보이며 추가로 확정된 기능이나 새로운 0.5 선행 조건이 아닙니다.</p>
+                <div class="table-scroll" role="region" aria-label="추가 문법 후보"><table><thead><tr><th scope="col">후보</th><th scope="col">사용법:</th><th scope="col">호환성 확인</th></tr></thead><tbody>
+                    <tr><td>레이블이 있는 break·continue</td><td>선택한 바깥 루프를 벗어나거나 다음 반복으로 진행합니다.</td><td>일반 break/continue 동작을 유지합니다. 레이블 범위, 이름 가림 금지와 함수·클로저를 넘는 점프 금지를 정하고 정리를 보존해야 합니다.</td></tr>
+                    <tr><td>가드가 있는 switch case</td><td>variant나 패턴이 일치한 뒤 bool 조건을 적용합니다.</td><td>case 범위와 명시적으로 쓰는 <code>break;</code>를 유지합니다. 실패할 수 있는 가드만으로 enum variant를 완전히 처리했다고 입증할 수는 없습니다.</td></tr>
+                    <tr><td>패턴 기반 조건부 바인딩</td><td>더 적은 중첩으로 Optional이나 enum payload를 사용합니다.</td><td>타입 우선 바인딩, private 필드 접근, 명시적 이동·대여 규칙과 선택된 문장 전용 if 모델을 유지합니다.</td></tr>
+                    <tr><td>defer</td><td>범위를 벗어날 때 명시적으로 등록한 동작을 실행합니다.</td><td>자원 정리 계약이 정해질 때까지 보류합니다. 또 다른 정리 수단을 추가하기 전에 캡처 수명, 순서와 실패 동작을 정의해야 합니다.</td></tr>
+                </tbody></table></div>
+                <p>현재 규칙을 약화하지 않으면서 실제 컴파일러·라이브러리 문제를 해결할 때만 후보를 채택합니다. 기능 연구가 정확한 표기를 승인하거나 모든 후보의 출시를 약속하는 것은 아닙니다.</p>
+            </section>
+            <section id="gates"><h2>통합·완료 조건</h2><ol>
+                <li>채택한 문법과 제어 흐름·소유권·정리 의미를 기록합니다.</li>
+                <li>Aevix로 작성할 컴파일러 소스가 의존하기 전에 C++ stage0 컴파일러에 구현하고 검사합니다.</li>
+                <li>공통 허용·거절·정규화된 AST/IR·실행 fixture를 stage0와 Aevix 포팅 컴파일러 양쪽에서 실행합니다. 조기 탈출과 실패 연산도 포함합니다.</li>
+                <li>0.5 부트스트랩 비교 전에 추가 문법을 동결합니다. 후보가 지연되면 부트스트랩 완료 조건를 조용히 완화하지 말고 기존 부분집합으로 포팅합니다.</li>
+            </ol><p>새 작업이 기존 0.3·0.4·0.5의 완료 조건를 없애지는 않습니다. 셀프 호스팅 프런트엔드는 파싱, 타입 검사와 소유권 분석을 여전히 직접 수행해야 합니다.</p></section>
+            <section id="sources"><h2>주요 참고 자료</h2><ul class="source-list">
+                <li><a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-14.html#jls-14.13">Java 언어 명세: do 문</a> — 후검사 평가와 continue 동작의 비교 자료입니다.</li>
+                <li><a href="https://eel.is/c++draft/stmt.do">C++ 작업 초안: do 문</a> — 후검사 루프 비교 자료입니다.</li>
+                <li><a href="https://doc.rust-lang.org/unstable-book/language-features/try-blocks.html">Rust Unstable Book: try 블록</a> — 불안정 기능으로 문서화된 지역 전파 범위입니다.</li>
+                <li><a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-14.html#jls-14.20">Java 언어 명세: try 문</a> — 예외, finally와 자원 동작의 비교 자료입니다.</li>
+                <li><a href="https://doc.rust-lang.org/reference/expressions/loop-expr.html#loop-labels">Rust Reference: 루프 레이블</a> 및 <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-14.html#jls-14.11.1">Java 언어 명세: switch 블록</a> — 추가 후보 연구 자료입니다.</li>
+            </ul></section>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix · 0.4 추가 작업</span><span>2026-10-17 · 계획 단계이며 0.2에는 미구현</span></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="신호, 관찰, 정리 및 별도의 작업으로 가입.">
+  <title>Task 취소 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Task/Task_Cancellation.html">
+<link rel="alternate" hreflang="ko" href="Task_Cancellation.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Task.html" aria-current="true">Task</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Task.html">Task</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Task 취소</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Task 취소</h1><p class="doc-subtitle">신호, 관찰, 정리 및 별도의 작업으로 가입.</p><div class="doc-meta"><span class="meta-chip">CancellationSource / CancellationToken</span><span class="meta-chip">Task. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>12</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>작업</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#request"><span class="toc-number">01</span><span>요청이 인텐트를 변경함</span></a></li><li><a href="#propagation"><span class="toc-number">02</span><span>토큰 트리 및 알림</span></a></li><li><a href="#checkpoint"><span class="toc-number">03</span><span>체크 포인트 및 차단 작업</span></a></li><li><a href="#timeout"><span class="toc-number">04</span><span>타임아웃 및 레이싱 결과</span></a></li><li><a href="#shutdown"><span class="toc-number">05</span><span>우아한 종료는 시퀀스입니다.</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>요청 및 완료는 명시적</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>설계 요구 사항 및 소스</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Task 페이지"><h2>Task 참조</h2><div class="family-links"><a href="Task.html">Task</a><a href="Task_Scope.html">Task 범위</a><a href="Task_Cancellation.html" aria-current="page">Task 취소</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Task 취소 참조">
+<section id="request" aria-labelledby="request-heading">
+<h2 id="request-heading">1입니다. 요청이 인텐트를 변경함
+</h2>
+<p>CancellationSource는 취소를 요청할 수 있는 권한을 가지고 있습니다. CancellationToken은 작업에 할당된 읽기 전용 알림 기능입니다. 요청은 코드에 협동 경계에서 중지하고 필요한 정리를 수행하도록 지시합니다; 이미 실행된 효과를 지우거나 종료를 증명하지 않습니다. 소스와 토큰은 필요할 때 오류 상태 할당이 가능한 라이브러리 유형입니다.
+</p>
+<p>작업은 일반적으로 취소 쿼리와 요청 사이에서 또는 요청이 정리를 수행하는 동안 요청을 알아 차린 후에 완료 될 수 있습니다. 실제 결과는 권위적입니다. 취소 플래그와 터미널 단계는 별개의 상태이므로, 완료된 작업은 취소가 너무 늦게 요청되었음을 보고할 수도 있습니다.
+</p>
+</section>
+<section id="propagation" aria-labelledby="propagation-heading">
+<h2 id="propagation-heading">2입니다. 토큰 트리 및 알림
+</h2>
+<p>자식 토큰은 부모로부터 전달된 취소를 받습니다. 자식을 취소해도 부모 또는 형제는 취소되지 않습니다. 토큰의 공유 클론은 동일한 요청 상태를 관찰합니다. 이 계약은 선택된 동기화 프로파일에 대한 요청 동작 반환 후 요청 가시성을 지정합니다; 모든 독립된 자식이 전파가 진행되는 동안 동시에 전환을 준수할 것을 약속하지 않습니다.
+</p>
+<p>토큰이 요청되기를 기다리는 것은 알림만 인식합니다. 토큰을 사용하는 모든 작업이 중지되기를 기다리지 않습니다. Task 또는 스코프 조인은 완료 경계를 제공합니다. 알림 대기는 손실된 웨이크업 레이스 없이 토큰 상태를 유지하고 웨이크업을 등록해야 합니다; 바쁜 루프에서 bool를 반복적으로 폴링하는 것은 의도된 API가 아닙니다.
+</p>
+</section>
+<section id="checkpoint" aria-labelledby="checkpoint-heading">
+<h2 id="checkpoint-heading">3입니다. 체크 포인트 및 차단 작업
+</h2>
+<p>check_cancel 은 취소 값을 반환하는 명시적 협동 체크포인트입니다. 수율, 타이머 및 I/O 통합은 또한 지정된 계약을 통해 요청 처리를 노출시킬 수 있습니다. never가 취소를 확인하는 CPU 바운드 루프가 무기한으로 실행될 수 있습니다. 일반적으로 차단 작업을 안전하게 강제 종료할 수 없으므로 취소는 호스트 스케줄러가 아직 시작하지 않은 작업을 제거할 수 있는 경우에도 요청으로 남아 있습니다.
+</p>
+<p>중단된 작업은 자체 계약이 정리 및 부작용을 설명하는 경우에만 취소하는 것이 안전합니다. wait 개체를 삭제해도 기본 작업이 자동으로 취소되지는 않습니다. I/O 또는 GPU 작업이 외부에서 수락된 경우 수명 의무는 완료 또는 입증된 안전한 중단까지 계속됩니다. 호스트 취소 토큰은 장치 quiescence를 인증할 수 없습니다.
+</p>
+</section>
+<section id="timeout" aria-labelledby="timeout-heading">
+<h2 id="timeout-heading">4입니다. 타임아웃 및 레이싱 결과
+</h2>
+<p>시간 초과는 관찰자가 얼마나 오래 기다릴 수 있는지를 제한하는 것이지 얼마나 오래 작업이 지속될 수 있는지를 제한하는 것이 아닙니다. 시간 초과 작업은 그 범위에 남아 있으며 캡처 된 대여을 유지합니다. 시간 초과 시 취소를 요청하는 함수는 해당 정책의 이름을 지정하고 return를 핸들로 지정하거나 최종 완료를 기다려야 합니다. 마감 시한은 단조 시간 기준입니다. 클럭 정밀도와 스케줄러 지연 시간은 엄격한 실시간 제한을 방지합니다.
+</p>
+<p>레이스는 미완성 패자 핸들과 함께 우승 터미널 결과를 반환합니다. 이미 쓰기를 수행 한 패자는 그것을 취소하여 롤백 할 수 없습니다. 결정론적 편향(deterministic bias) 또는 타이 브레이킹(tie-breaking)은 명시적 선택 정책(explicit selection policy)에 속하며, 스케줄러 도착 순서만으로는 결정론적 애플리케이션 의미론이 아니다.
+</p>
+</section>
+<section id="shutdown" aria-labelledby="shutdown-heading">
+<h2 id="shutdown-heading">5입니다. 우아한 종료는 시퀀스입니다.
+</h2>
+<p>우아한 종료는 입학을 닫고, 요청을 보내고, 정리를 허용하고, 추적 된 작업에 참여합니다. 각 단계는 비협조적 인 어린이를 기다리거나 실패 할 수 있습니다. 종료시 타임아웃은 소유권과 범위 의무를 보존해야 합니다; 그것은 단지 기한을 맞추기 위해 빌린 메모리를 자유롭게 할 수 없습니다. 분리 된 작업은 호출자 스택을 빌리지 않기 때문에 별도의 런타임 종료 정책을 따를 수 있습니다.
+</p>
+<p>복구할 수 없는 프로세스 오류 및 치명적인 런타임 종료는 일반 TaskError 복구 외부에 있습니다. 지원되는 풀림은 런타임이 작업 상태의 안전한 정리를 설정한 후에만 보고됩니다. API는 모든 패닉, 할당자 재앙 또는 외부 스레드 종료를 안전하게 복구 가능한 것으로 광고해서는 안 됩니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 요청 및 완료는 명시적
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;CancellationSource, CancellationError&gt; created = Task.cancel_source();
+// Given a validated source and task handle; cancellation uses synchronized interior state.
+Result&lt;CancelRequest, CancellationError&gt; requested = Task.cancel_request(&amp;source);
+bool finished = Task.is_finished(&amp;job);
+Result&lt;i32, TaskError&gt; outcome = Task.join(job);</code></pre>
+<p>bool 완료는 성공적인 요청 후에 false일 수 있으며 즉시 정체될 수 있습니다. join은 결과 핸들을 소비하고 완료를 설정합니다. request는 그것을 대신하지 않습니다.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Task-cancel_source"><td><code>Task.cancel_source()</code></td><td><code>Result&lt;CancellationSource, CancellationError&gt;</code></td><td>요청되지 않은 독립된 상태를 만듭니다.</td><td>할당할 수 있습니다.</td>
+</tr>
+<tr id="Task-cancel_token"><td><code>Task.cancel_token(&amp;CancellationSource source)</code></td><td><code>CancellationToken</code></td><td>읽기 전용 알림 기능 유지; 소스 수명만 나중에 필요하지 않습니다.</td><td>O(1) 상태 유지.</td>
+</tr>
+<tr id="Task-cancel_child"><td><code>Task.cancel_child(&amp;CancellationToken parent)</code></td><td><code>Result&lt;CancellationSource, CancellationError&gt;</code></td><td>새로운 자식 상태는 부모 전파를 수신한다; 자식 요청은 부모에 영향을 주지 않는다.</td><td>5월 allocate/register입니다.</td>
+</tr>
+<tr id="Task-cancel_clone"><td><code>Task.cancel_clone(&amp;CancellationToken token)</code></td><td><code>CancellationToken</code></td><td>같은 요청 상태의 관찰자를 유지, 하지 새로운 독립적 인 아이.</td><td>O(1)는 유지합니다.</td>
+</tr>
+<tr id="Task-cancel_request"><td><code>Task.cancel_request(&amp;CancellationSource source)</code></td><td><code>Result&lt;CancelRequest, CancellationError&gt;</code></td><td>Idempotent request; 새로 요청되거나 이미 요청된 상태를 보고합니다.</td><td>Notification/propagation 비용.</td>
+</tr>
+<tr id="Task-cancel_requested"><td><code>Task.cancel_requested(&amp;CancellationToken token)</code></td><td><code>bool</code></td><td>동기화된 요청 스냅샷; 완료 보장 없음.</td><td>O(1).</td>
+</tr>
+<tr id="Task-await_cancel"><td><code>Task.await_cancel(CancellationToken token)</code></td><td><code>Awaitable&lt;unit&gt;</code></td><td>요청이 표시되면 해결합니다; 작업 정리를 기다리지 않습니다.</td><td>registration/suspension를 깨우십시오.</td>
+</tr>
+<tr id="Task-cancel_and_join"><td><code>Task.cancel_and_join(Task&lt;T&gt; task)</code></td><td><code>Result&lt;T, TaskError&gt;</code></td><td>그런 다음 요청은 실제 결과에 합류하며 정상적인 완료는 경주에서 승리 할 수 있습니다.</td><td>끝없이 기다릴 수 있습니다.</td>
+</tr>
+<tr id="Task-cancel_scope_and_wait"><td><code>Task.cancel_scope_and_wait(TaskScope scope)</code></td><td><code>Awaitable&lt;Result&lt;ScopeReport, ScopeError&gt;&gt;</code></td><td>입장료를 닫고, 취소를 요청하고, 수용 된 모든 어린이를 배수시킵니다.</td><td>끝없이 기다릴 수 있습니다.</td>
+</tr>
+<tr id="Task-deadline_after"><td><code>Task.deadline_after(Duration duration)</code></td><td><code>Result&lt;Deadline, TimerError&gt;</code></td><td>Monotonic deadline computation을 체크했습니다. Wall-clock 의존성이 없습니다.</td><td>O(1).</td>
+</tr>
+<tr id="Task-wait_deadline"><td><code>Task.wait_deadline(&amp;Task&lt;T&gt; task, Deadline deadline)</code></td><td><code>Awaitable&lt;Result&lt;WaitStatus, TaskError&gt;&gt;</code></td><td>관찰만; 만료는 캡처를 해제 하거나 작업을 취소 하지 않습니다.</td><td>Timer 스케줄링 비용.</td>
+</tr>
+<tr id="Task-race_with_policy"><td><code>Task.race_with_policy(Vector&lt;Task&lt;T&gt;&gt; tasks, RacePolicy policy)</code></td><td><code>Result&lt;RaceOutcome&lt;T&gt;, JoinError&gt;</code></td><td>Nonempty input; named tie policy; 완료되지 않은 패자가 핸들로 반환됩니다.</td><td>예약 가능 예약 가능.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 설계 요구 사항 및 소스
+</h2>
+<p>이러한 계약에는 컴파일러 수명 분석과 런타임 추적이 모두 필요합니다. 사용자 핸들 소멸기, Rust 스레드 인터페이스 또는 Tokio 동작으로부터 자동으로 유추되지 않습니다. 참조된 시스템은 비교점을 제공합니다; Aevix는 의도적으로 자체 구조화된 기본값과 오류-값 정책을 지정합니다. 구현, 제한된 종료 보증 또는 교착 상태의 자유는 주장되지 않습니다.
+</p>
+<p><a href="Task.html">Task 공통 참조</a> · <a href="Task_Scope.html">범위</a> · <a href="Task_Cancellation.html">취소</a> · <a href="../Pending/Pending.html">장치 완료</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/future/trait.Future.html" target="_blank" rel="noopener noreferrer">Rust 미래 투표 계약</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/thread/fn.scope.html" target="_blank" rel="noopener noreferrer">Rust 범위 스레드 및 수명 경계</a>
+</li>
+<li><a href="https://docs.rs/tokio/latest/tokio/task/struct.JoinHandle.html" target="_blank" rel="noopener noreferrer">Tokio JoinHandle 라이프사이클</a>
+</li>
+<li><a href="https://tokio.rs/tokio/topics/shutdown" target="_blank" rel="noopener noreferrer">Tokio 우아한 종료</a>
+</li>
+<li><a href="https://docs.rs/tokio-util/latest/tokio_util/sync/struct.CancellationToken.html" target="_blank" rel="noopener noreferrer">Tokio 취소토큰</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Task_Scope.html"><span>이전 레퍼런스</span>Task 범위</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

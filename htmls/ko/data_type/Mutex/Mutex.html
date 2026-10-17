@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="보호된 초기화 데이터, 명시적 가드, 참고 정보로 쓰는 잠금 오염 상태.">
+  <title>Mutex — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Mutex/Mutex.html">
+<link rel="alternate" hreflang="ko" href="Mutex.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Mutex.html" aria-current="true">Mutex</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Mutex.html">Mutex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Mutex</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Mutex</h1><p class="doc-subtitle">보호된 초기화 데이터, 명시적 가드, 참고 정보로 쓰는 잠금 오염 상태.</p><div class="doc-meta"><span class="meta-chip">Mutex&lt;T&gt;</span><span class="meta-chip">Mutex 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>16</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>잠금</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>보호된 데이터 및 액세스 기능</span></a></li><li><a href="#Acquisition"><span class="toc-number">02</span><span>수집, 차단 및 가드 수명</span></a></li><li><a href="#Poisoning"><span class="toc-number">03</span><span>독이 되는 조언</span></a></li><li><a href="#Mutation"><span class="toc-number">04</span><span>Mutation 및 moved-input 오류 발생</span></a></li><li><a href="#Threads"><span class="toc-number">05</span><span>스레드, 작업 및 경계 대기</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>전체 제안 Mutex API</span></a></li><li><a href="#Costs"><span class="toc-number">07</span><span>비용, 우선 순위 및 지원되지 않는 기능</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>예제 및 특수 규칙</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Mutex 페이지"><h2>Mutex 참조</h2><div class="family-links"><a href="Mutex.html" aria-current="page">Mutex</a><a href="Mutex_Guard.html">Mutex 감시</a><a href="Mutex_Poisoning.html">Mutex 중독</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="Mutex.html" aria-current="true">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Mutex 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 보호된 데이터 및 액세스 기능
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> Mutex와 그 가드들은 기본 전주곡과 구현된 0.2 type/API 부분집합 밖에 있는 전문 라이브러리 설계들이다. 최종 사용은 명시적인 가져오기가 필요하며, 이 카탈로그에서 내장된 0.2 모듈이 제공되지 않습니다. 이 디자인 페이지에서는 사용 가능한 0.2 백엔드 또는 패키지가 아닌 의도된 라이브러리 경계를 설명합니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>Mutex&lt;T&gt;는 하나의 초기화된 T에 대한 액세스를 직렬화합니다. 경비원은 독점적 인 접근을 증명하고 자물쇠를 살아있는 채로 유지합니다. 뮤텍스를 공유하는 것은 직접 공유 T 액세스가 유효하지 않은 경우에도 전송 가능한 T에 대해 유효할 수 있습니다. 재진입 인수, 글로벌 잠금 순서, 공정성 또는 교착 상태 보장은 암시되지 않습니다.
+</p>
+<blockquote class="callout note">
+<p><strong>설계 초안.</strong> API, 메모리 순서 및 오류 레코드 및 특성 이름은 의도한 Aevix 계약을 설명합니다. 매개 변수 사용 <code>T value</code> 가치에 의하여, <code>&amp;T value</code> 공유 대여, 그리고 <code>&amp;mut T value</code> 단독 대여. 패스 소유자를 호출합니다 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code>; 복용 <code>&amp;mut owner</code> 에는 <code>mut</code> 바인딩. 기존 참조 및 빌린된 보기는 직접 전달 됩니다. 콜백 별칭, 오류 레코드 및 반환 참조 수명 표기법은 설계 설명으로 남아 있습니다. unit는 void와는 다른 값 유형입니다. 네이티브 구현, 공정성 또는 벤치 마크 주장이 함축되어 있지 않습니다.
+</p>
+</blockquote>
+</section>
+<section id="Acquisition" aria-labelledby="Acquisition-heading">
+<h2 id="Acquisition-heading">2입니다. 수집, 차단 및 가드 수명
+</h2>
+<p>인수는 자물쇠 소유자와 연결된 경비원을 반환합니다. 가드의 정상적인 파괴 또는 명시적인 잠금 해제는 그 능력을 해제합니다; 그 가드에서 파생된 참조는 이후에 사용할 수 없습니다. 차단 된 통화는 논쟁이나 교착 상태에서 무기한 기다릴 수 있습니다. 시간 초과 및 try 작업 상태 비 성공 명시 적으로. 잠금 장치를 이동하거나 파괴 할 수 없습니다 동안 대여 경비원이나 웨이터가 필요합니다.
+</p>
+</section>
+<section id="Poisoning" aria-labelledby="Poisoning-heading">
+<h2 id="Poisoning-heading">3입니다. 독이 되는 조언
+</h2>
+<p>기본 정책은 PoisonOnUnwind입니다. 독점 가드가 유지되는 동안 풀림은 기본 독 상태를 표시합니다. 풀지 않고 일반 Result 오류를 반환해도 잠금이 자동으로 오염되지는 않습니다. 중독은 더 높은 수준의 불변성이 불완전 할 수 있다고 경고합니다; 그것은 메모리 안전 검증이 아닙니다. 중독된 인수는 이미 획득한 가드를 운반하는 오류를 반환합니다. 그 오류를 해제하면 가드가 해제됩니다. 명시 적으로 복구하면 자동으로 독을 제거하지 않고 액세스가 유지됩니다.
+</p>
+</section>
+<section id="Mutation" aria-labelledby="Mutation-heading">
+<h2 id="Mutation-heading">4입니다. Mutation 및 moved-input 오류 발생
+</h2>
+<p>convenience get_cloned 는 선택된 접근 모드 하에서 잠재적으로 할당되는 클론이다. 인수가 실패할 때 사용되지 않는 이동된 대체물을 설정하고 교체한다. 사용자 소멸자 및 콜백은 액세스가 유지되는 동안 실행될 수 있으며 다른 잠금을 다시 입력할 수 있으므로 비용과 교착 상태 위험이 계속 표시됩니다. 반환된 콜백 오류는 이미 수행된 돌연변이를 반전시키지 않습니다. 할당 또는 응용 프로그램 오류는 자문 독 상태와 다릅니다.
+</p>
+<p>LockCloneError는 get_cloned의 결합 된 편의 오류입니다. 할당 원인을 포함하여 lock/system/poison 오류를 오류 페이로드 CloneError와 구별합니다. never는 실패한 클론을 자동으로 언래핑합니다. 가드 반환 잠금 작업은 고유한 LockError&lt;Guard&gt; 계약을 유지합니다.
+</p>
+</section>
+<section id="Threads" aria-labelledby="Threads-heading">
+<h2 id="Threads-heading">5입니다. 스레드, 작업 및 경계 대기
+</h2>
+<p>이 초안에서는 기본적으로 가드가 전송되지 않으며 안전 프로필에서 비동기 서스펜션을 교차할 수 없습니다. 격리된 작업에서 가드를 캡처하는 대신 대기 또는 장치 제출 전에 릴리스합니다. 소유 자물쇠는 trait/resource 경계가 그것을 허용할 때 Shared에서 저장될지도 모릅니다. 호스트 잠금은 임의 장치 메모리를 동기화하지 않으며, 외부 리소스가 다시 입력되었음을 증명하지 않습니다. 빌린 데이터는 동기식 보호 콜백을 벗어나서는 안 됩니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6입니다. 전체 제안 Mutex API
+</h2>
+<div class="table-scroll" role="region" aria-label="제안된 Mutex API 데이터 테이블 완성">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">도메인, 오류 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Mutex-new"><th scope="row"><code>Mutex.new(T value)</code></th><td><code>Mutex&lt;T&gt;</code></td><td>초기화 된 T를 보호하는 인라인 잠금을 구축하십시오. 잠금 별 힙 할당은 암시되지 않습니다.</td>
+</tr>
+<tr id="Mutex-with_policy"><th scope="row"><code>Mutex.with_policy(T value, PoisonPolicy policy)</code></th><td><code>Mutex&lt;T&gt;</code></td><td>조언 독극물 행동을 명시 적으로 선택; 정책은 잠금 장치에 의해 유지됩니다.</td>
+</tr>
+<tr id="Mutex-lock"><th scope="row"><code>Mutex.lock(&amp;Mutex&lt;T&gt; lock)</code></th><td><code>Result&lt;MutexGuard&lt;T&gt;, LockError&lt;MutexGuard&lt;T&gt;&gt;&gt;</code></td><td>독점 취득 또는 시스템 실패까지 차단; 독극물 오류는 획득 한 가드를 유지합니다.</td>
+</tr>
+<tr id="Mutex-try_lock"><th scope="row"><code>Mutex.try_lock(&amp;Mutex&lt;T&gt; lock)</code></th><td><code>Result&lt;Optional&lt;MutexGuard&lt;T&gt;&gt;, LockError&lt;MutexGuard&lt;T&gt;&gt;&gt;</code></td><td>하나의 nonblocking 시도; 없음은 바쁜 의미; 독극물 오류는 획득 한 가드를 유지합니다.</td>
+</tr>
+<tr id="Mutex-lock_timeout"><th scope="row"><code>Mutex.lock_timeout(&amp;Mutex&lt;T&gt; lock, Duration timeout)</code></th><td><code>Result&lt;Optional&lt;MutexGuard&lt;T&gt;&gt;, LockError&lt;MutexGuard&lt;T&gt;&gt;&gt;</code></td><td>호스트 기능; 다른 작업이 완료되었다는 증거가 아닌 시간 초과를 의미합니다.</td>
+</tr>
+<tr id="Mutex-is_poisoned"><th scope="row"><code>Mutex.is_poisoned(&amp;Mutex&lt;T&gt; lock)</code></th><td><code>bool</code></td><td>권고 독 상태를 관찰하십시오; 스냅 샷은 데이터 유효성의 증거가 아닙니다.</td>
+</tr>
+<tr id="Mutex-poison_policy"><th scope="row"><code>Mutex.poison_policy(&amp;Mutex&lt;T&gt; lock)</code></th><td><code>PoisonPolicy</code></td><td>T를 획득하지 않고 선택한 정책을 검사합니다.</td>
+</tr>
+<tr id="Mutex-get_mut"><th scope="row"><code>Mutex.get_mut(&amp;mut Mutex&lt;T&gt; lock)</code></th><td><code>Result&lt;&amp;mut T, LockError&lt;&amp;mut T&gt;&gt;</code></td><td>유일한 자물쇠 접근 우회는 막는; 독 과실은 독점적인 자료 대여을 유지합니다.</td>
+</tr>
+<tr id="Mutex-into_inner"><th scope="row"><code>Mutex.into_inner(Mutex&lt;T&gt; lock)</code></th><td><code>Result&lt;T, Poisoned&lt;T&gt;&gt;</code></td><td>고유 소유권은 T를 추출합니다; 독극물 오류는 명시적 복구를 위해 여전히 T를 소유합니다.</td>
+</tr>
+<tr id="Mutex-get_cloned"><th scope="row"><code>Mutex.get_cloned(&amp;Mutex&lt;T&gt; lock)</code></th><td><code>Result&lt;T, LockCloneError&gt;</code></td><td>적절한 액세스 모드를 획득하고 T를 명시적으로 복제합니다. LockCloneError는 acquisition/poison 실패를 페이로드 CloneError/allocation 실패와 구분합니다. 반환된 모든 오류는 편의 가드를 해제합니다.</td>
+</tr>
+<tr id="Mutex-set"><th scope="row"><code>Mutex.set(&amp;Mutex&lt;T&gt; lock, T replacement)</code></th><td><code>Result&lt;unit, InputError&lt;T&gt;&gt;</code></td><td>독점 접근권을 획득하십시오; 거절된 보충은 실패에 돌려보내집니다; 자동적인 독 개간 없음.</td>
+</tr>
+<tr id="Mutex-replace"><th scope="row"><code>Mutex.replace(&amp;Mutex&lt;T&gt; lock, T replacement)</code></th><td><code>Result&lt;T, InputError&lt;T&gt;&gt;</code></td><td>교체 및 return 이전 T를 설치; 실패는 사용되지 않는 교체를 복구합니다.</td>
+</tr>
+<tr id="Mutex-with_lock"><th scope="row"><code>Mutex.with_lock(&amp;Mutex&lt;T&gt; lock, BorrowCallback&lt;T, R&gt; callback)</code></th><td><code>Result&lt;R, LockError&lt;unit&gt;&gt;</code></td><td>동기 콜백을 위한 1개의 독점적인 감시를 붙드십시오; 돌려보내진 R는 그것의 보호한 대여을 도주할 수 없습니다.</td>
+</tr>
+<tr id="Mutex-try_with_lock"><th scope="row"><code>Mutex.try_with_lock(&amp;Mutex&lt;T&gt; lock, TryBorrowCallback&lt;T, R, E&gt; callback)</code></th><td><code>Result&lt;R, CallbackLockError&lt;E&gt;&gt;</code></td><td>가드를 해제한 후 콜백 오류를 반환합니다. 이전 응용 프로그램 돌연변이는 롤백되지 않습니다.</td>
+</tr>
+<tr id="Mutex-is_sendable"><th scope="row"><code>Mutex.is_sendable(T)</code></th><td><code>bool</code></td><td>Compile-time transfer-bound query; T 및 전체 리소스 계약에 따라 달라집니다.</td>
+</tr>
+<tr id="Mutex-is_shareable"><th scope="row"><code>Mutex.is_shareable(T)</code></th><td><code>bool</code></td><td>컴파일시 shared-lock bind query; T가 독립적으로 쓰레드로부터 안전하다는 주장이 아니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Costs" aria-labelledby="Costs-heading">
+<h2 id="Costs-heading">7입니다. 비용, 우선 순위 및 지원되지 않는 기능
+</h2>
+<p>잠금은 OS 스레드를 주차하거나, 짧게 회전하거나, 런타임 대기 상태를 할당하거나, 게시된 프로필에 따라 대상 특정 백엔드를 사용할 수 있습니다. 이것은 lock-free primitive가 아니다. 우선 순위 전환과 기아는 일정과 정책에 달려 있습니다. 지원되지 않는 시간 초과 작업 또는 target/thread 프로파일은 자동으로 작업을 이동하거나 독의 의미를 변경하는 대신 기능 진단을 생성합니다. 기본 레이아웃 또는 상수 크기 OS 핸들 ABI는 약속되지 않습니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8입니다. 예제 및 특수 규칙
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Mutex&lt;i32&gt; gate = Mutex.new(0);
+Mutex.is_poisoned(&amp;gate);
+Mutex.poison_policy(&amp;gate);</code></pre>
+<p>참고: <a href="Mutex_Guard.html">Guard 작업</a> 및 <a href="Mutex_Poisoning.html">독약 회복</a> 특정 수명 및 수리 계약. <a href="../Shared/Shared.html">Shared</a> 소유자를 유지하지만 데이터 액세스 권한을 취득하지 않습니다. 오류 캐리어는 라이브러리 레코드가 제안됩니다. 기본 잠금 참조는 모든 플랫폼 동작을 가져오지 않고도 이러한 독립적인 설계를 알립니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html" target="_blank" rel="noopener noreferrer">Rust Mutex - 제외, 중독 및 복구 비교</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Mutex_Guard.html"><span>다음 레퍼런스</span>Mutex 감시</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

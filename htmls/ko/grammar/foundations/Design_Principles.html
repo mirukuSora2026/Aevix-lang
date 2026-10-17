@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="모든 15는 Aevix 원칙을 선택했으며, 구체적인 의미 론적 결과와 현재 구현 증거에 대한 명확한 한계가 있습니다.">
+<title>15 디자인 원칙 - Aevix 문서</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/foundations/Design_Principles.html">
+<link rel="alternate" hreflang="ko" href="Design_Principles.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">언어 기초</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">15 디자인 원칙</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">언어 디자인 참고</p><h1>15 디자인 원칙</h1><p class="doc-subtitle">모든 15는 Aevix 원칙을 선택했으며, 구체적인 의미 론적 결과와 현재 구현 증거에 대한 명확한 한계가 있습니다.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙 + 공개 결정</span><span class="meta-chip">영어 원문 문서</span></div><dl class="doc-stats"><div class="doc-stat"><dt>원칙</dt><dd>15 선택된 목표</dd></div><div class="doc-stat"><dt>범위</dt><dd>언어 + 컴파일러</dd></div><div class="doc-stat"><dt>상태</dt><dd>런타임 증명 없음</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>15</strong><span>언어 원칙</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="레퍼런스 탐색">
+<details class="toc" open><summary>이 페이지의 내용</summary><ol>
+<li><a href="#status"><span class="toc-number">01</span><span>설계 약속으로 이러한 원칙을 읽으십시오.</span></a></li>
+<li><a href="#simplicity"><span class="toc-number">02</span><span>01 · 단순성</span></a></li>
+<li><a href="#static-typing"><span class="toc-number">03</span><span>02 · 정적 타이핑</span></a></li>
+<li><a href="#memory-safety"><span class="toc-number">04</span><span>03 · 메모리 안전</span></a></li>
+<li><a href="#zero-cost"><span class="toc-number">05</span><span>04 · 제로 비용 추상화</span></a></li>
+<li><a href="#ai-native"><span class="toc-number">06</span><span>05 · AI 네이티브</span></a></li>
+<li><a href="#unified-compute"><span class="toc-number">07</span><span>06 · CPU / GPU 통합</span></a></li>
+<li><a href="#shape-aware"><span class="toc-number">08</span><span>07 · 형상 인식 프로그래밍</span></a></li>
+<li><a href="#explicit-cost"><span class="toc-number">09</span><span>08 · 명백한 비용</span></a></li>
+<li><a href="#errors-as-values"><span class="toc-number">10</span><span>09 · 값으로 오류</span></a></li>
+<li><a href="#immutable-default"><span class="toc-number">11</span><span>10 · 기본적으로 변경할 수 없음</span></a></li>
+<li><a href="#data-oriented"><span class="toc-number">12</span><span>11 · 데이터 지향 설계</span></a></li>
+<li><a href="#safe-parallelism"><span class="toc-number">13</span><span>12 · 안전 평행</span></a></li>
+<li><a href="#ffi-first"><span class="toc-number">14</span><span>13 · FFI 퍼스트</span></a></li>
+<li><a href="#extensible-compiler"><span class="toc-number">15</span><span>14 · 확장 가능한 컴파일러</span></a></li>
+<li><a href="#compiler-first"><span class="toc-number">16</span><span>15 · 컴파일러 우선 최적화</span></a></li>
+<li><a href="#status-summary"><span class="toc-number">17</span><span>확인된 시맨틱 및 구현 작업</span></a></li>
+<li><a href="#related"><span class="toc-number">18</span><span>선택한 언어 규칙에 목표 연결</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="언어 기초 페이지"><h2>언어 기초</h2><div class="family-links">
+<a href="index.html">개요</a>
+<a href="Design_Principles.html" aria-current="page">15 설계 원칙</a>
+<a href="Compilation_Model.html">AOT 및 선택적 JIT</a>
+</div></nav>
+<nav class="family-nav" aria-label="관련 언어 섹션"><h2>언어 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="index.html">기반</a><a href="../user_defined_types/index.html">사용자 정의 타입</a><a href="../enums/Enums.html">열거형</a><a href="../generics/Generic_Types.html">제네릭 타입</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/index.html">자료형</a></div></nav>
+</aside>
+<article class="content" aria-label="15 설계 원칙 참조">
+<section id="status" aria-labelledby="status-heading">
+<h2 id="status-heading">1입니다. 설계 약속으로 이러한 원칙을 읽으십시오.</h2>
+<p>다음 15 원칙은 선택된 Aevix 방향의 물질을 보존합니다. 전반적인 목표는 Rust, 접근 가능한 구문 및 내장 GPU/parallel 지원의 목표 수준에서 안전성을 갖춘 C++ 클래스 기본 속도입니다. 이는 완성된 성능, 보안, 상호 운용성 또는 백엔드 검증이 아닌 원하는 동작을 설명합니다. 구체적인 구문은 이미 선택된 곳에서만 표시됩니다.</p><blockquote class="callout note"><p><strong>증거 경계.</strong> 설계 목표, 선택된 소스 규칙, 제안된 표준 API 및 검증된 구현은 다른 종류의 증거입니다. 이 문서는 처음 두 가지를 식별; 그것은 마지막을 주장 하지 않습니다.</p></blockquote>
+</section>
+
+<section id="simplicity" aria-labelledby="simplicity-heading">
+<h2 id="simplicity-heading">2. 01 · 사용자 정의</h2>
+<p>간단하고 읽기 쉬운 구문을 우선시합니다. 형식 우선 선언 스타일, 일반 함수 모델, 이름 필드 집합 초기화 및 명시적 소유권 모드를 동일한 작업에 대해 관련 없는 양식이 필요한 대신 재사용합니다.</p><p>선택한 양식에는 T name = value;, rsn를 사용한 정적 추론, 조건 괄호, 단일 실행 가능한 문에 대한 선택적 중괄호 및 명시적 성공 return가 포함됩니다. 단순성은 의미있는 비용, 오류 또는 수명 경계를 제거하지 않습니다.</p>
+</section>
+
+<section id="static-typing" aria-labelledby="static-typing-heading">
+<h2 id="static-typing-heading">3. 02 · 정적 타이핑</h2>
+<p>영향을 받는 소스가 실행되기 전에 컴파일 시간에 형식 오류를 확인합니다. 입력된 숫자 값은 다른 숫자 형식으로 자동 변경되지 않습니다. 제한되지 않은 리터럴은 선택한 기본값을 유지하고 컨텍스트 리터럴 타이핑은 계속 사용할 수 있습니다.</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 count = 10;
+f64 ratio = 0.5;
+rsn enabled = true;</code></pre><p>rsn는 컴파일 타임 추론을 수행하고 결과 타입을 수정한다; 이것은 런타임 동적 타입 선언이 아니다. JIT 컴파일은 원본에 필요한 정적 형식 검사를 우회하지 않아야 합니다.</p>
+</section>
+
+<section id="memory-safety" aria-labelledby="memory-safety-heading">
+<h2 id="memory-safety-heading">4. 03 · 메모리 안전</h2>
+<p>이 컴파일러는 잘못된 리소스 관리, 피할 수 있는 메모리 누수 및 checked 소유권, 대여 및 리소스 수명을 통한 데이터 경주를 방지하기 위한 것입니다. 안전 코드는 출시 된 저장소에 액세스하거나, 독점 소유자를 복제하거나, 유효하지 않은 대여을 유지해서는 안됩니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 owner = 42;
+&amp;i32 read_view = &amp;owner;
+i32 observed = *read_view;</code></pre><p>현재 소유한 초기화 값의 정상적인 정리는 결정론적입니다; 다른 곳으로 이전된 소유권은 두 번 해제되지 않습니다. 강력한 Shared 사이클 또는 고의로 유지된 소유권은 자원을 계속 유지할 수 있으므로 소유권 검사는 가능한 모든 누출을 자동으로 방지한다는 주장이 아닙니다. 전체 프로그램 동작, 외부 경계, 완전한 컴파일러 안전 보장은 여전히 구현과 검증을 필요로 한다. 프로세스 종료 및 사용자 지정 정리 실패 동작은 이 원칙에 의해 해결되지 않습니다.</p>
+</section>
+
+<section id="zero-cost" aria-labelledby="zero-cost-heading">
+<h2 id="zero-cost-heading">5. 04 · 무비용 추상화</h2>
+<p>추상화는 불필요한 런타임 오버헤드를 도입해서는 안 됩니다. 정적 인터페이스, 소유권 검사 및 모양 정보는 컴파일러가 정확성이 입증될 때 부기를 제거할 수 있는 기회를 제공해야 합니다.</p><p>이것은 중복으로 증명될 수 없는 사본, 배부, 동기화, 경계 체크, 또는 명백하게 선정한 동적인 파견의 진짜 일을 지우지 않는다. 소스 계약과 목표 행동은 최적화를 제약합니다; 제로 비용은 보편적 벤치마크 결과가 아닌 목표입니다.</p>
+</section>
+
+<section id="ai-native" aria-labelledby="ai-native-heading">
+<h2 id="ai-native-heading">6. 05 · AI 네이티브</h2>
+<p>언어 엔진 수준에서 Tensor, 모양 및 데이터 처리를 지원합니다. 그들의 요소 유형, 모양, 소유권 및 장치 배치는 불투명한 우발적 인 규칙보다는 컴파일러의 이해의 일부가되어야합니다.</p><p>현재 <a href="../../data_type/Tensor/Tensor.html">Tensor</a> 및 <a href="../../data_type/Quantized/Quantized.html">Quantized</a> 카탈로그는 의도한 value/API 표면을 설명합니다. 이 원칙은 선택되지 않은 텐서 리터럴, 자동 분화 구문 또는 최종 training/runtime API를 도입하지 않습니다.</p>
+</section>
+
+<section id="unified-compute" aria-labelledby="unified-compute-heading">
+<h2 id="unified-compute-heading">7. 06 · CPU / GPU 통합</h2>
+<p>CPU 및 GPU 계산을 위해 하나의 프로그래밍 모델을 사용합니다. 값, 소유권, 오류 및 병렬 작업은 백엔드 특정 기능 제한이 명시적 인 목표 경계에 걸쳐 이해할 수 있어야합니다.</p><p>통합된 모델은 공유된 물리적 메모리, 동일한 장치 명령 세트, 자동 마이그레이션 또는 비용이 들지 않는 실행을 보장하지 않습니다. 커널 구문, 대상 선택, 지원되는 장치 작업, 스케줄링 및 완료 규칙은 별도의 compiler/runtime 결정으로 유지됩니다.</p>
+</section>
+
+<section id="shape-aware" aria-labelledby="shape-aware-heading">
+<h2 id="shape-aware-heading">8. 07 · 형상 인식 프로그래밍</h2>
+<p>확인 Tensor 소스와 타입 정보가 그 호환성을 정적으로 알 수 있게 하는 곳마다 컴파일 시간에 호환성을 형성합니다. 계산에서 피할 수 있는 형상 오류를 발견하는 대신 실행하기 전에 호환되지 않는 작업을 거부합니다.</p><p>기호 모양 매개 변수, 제약 조건, 추론 및 동적 모양 확인 표기이 열려 있습니다. 런타임 정보는 JIT가 하나의 실행을 관찰하기 때문에 컴파일 타임 증명으로 취급되어서는 안 됩니다. 모든 전문화는 선택한 실패 및 유효성 검사 시맨틱을 보존해야합니다.</p>
+</section>
+
+<section id="explicit-cost" aria-labelledby="explicit-cost-heading">
+<h2 id="explicit-cost-heading">9. 08 · 명백한 비용</h2>
+<p>데이터 복사 및 GPU 전송 비용을 명확하게 나타냅니다. 값 이동, 허용 Copy 값, 명시적으로 할당된 중복, 빌린 보기, 장치 전송 및 작업을 기다릴 수 있는 동기화를 구분합니다.</p><div class="table-scroll" role="region" aria-label="다른 작업은 다른 비용을 가지고">
+<table>
+<thead><tr>
+<th scope="col">작업 범주</th>
+<th scope="col">의미</th>
+<th scope="col">비용 경계</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">이동</th>
+<td>주인을 옮기다.</td>
+<td>암시적 딥 클론 또는 프로세서 전송은 없습니다; 물리적인 움직임은 남아있을 수 있습니다.</td>
+</tr>
+<tr>
+<th scope="row">Copy</th>
+<td>선택 가능한 값을 복제합니다.</td>
+<td>큰 값은 여전히 실제 바이트를 이동할 수 있습니다; 참조는 동일한 백업 저장소를 유지합니다.</td>
+</tr>
+<tr>
+<th scope="row">대여</th>
+<td>접근 제한 하에 유효한 출처를 사용하십시오.</td>
+<td>소유권 확장이나 숨겨진 자원 클론이 없습니다.</td>
+</tr>
+<tr>
+<th scope="row">할당된 중복</th>
+<td>분명히 또 다른 소유 할당을 만듭니다.</td>
+<td>API 작업, 할당 및 오류는 계속 표시되어야 합니다.</td>
+</tr>
+<tr>
+<th scope="row">CPU/GPU 전송</th>
+<td>장치 경계 전체에서 데이터를 이동하거나 복사합니다.</td>
+<td>일반적인 할당이나 유형 삭제에서 추론하지 마십시오.</td>
+</tr>
+<tr>
+<th scope="row">모델 번호:Completion/synchronization</th>
+<td>대기 중인 액세스가 완료되었는지 확인합니다.</td>
+<td>잠재적 인 대기 및 자원 보존은 무료로 제공되어서는 안됩니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="errors-as-values" aria-labelledby="errors-as-values-heading">
+<h2 id="errors-as-values-heading">10. 09 · 값으로 오류</h2>
+<p>Optional 및 Result를 통해 부재 및 실패를 안전하게 표현하십시오. 발신자는 값이 존재하는지 또는 해당 계약에서 성공한 작업을 설명해야합니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i32, IntegerError&gt; add_checked(i32 first, i32 second) {
+    i32 sum = checked(first + second)?;
+    return Result.ok(sum);
+}</code></pre><p>Postfix ?는 호환되는 Result 반환 함수에서 Err을 명시적으로 전파합니다. 성공적인 return가 작성되었습니다. 0.2 프로필도 지원합니다. <a href="../operators/Error_Propagation.html">소유 Optional에 ? 게시</a>, 포워딩 없음 Optional 반환 함수 또는 명시적으로 입력된 클로저에만 해당됩니다. None-to-error 변환은 지원되지 않습니다. 일반적인 복구할 수 없는 정수 연산과 명시적으로 checked Result 연산은 서로 다른 승인된 실패 동작을 유지합니다.</p>
+</section>
+
+<section id="immutable-default" aria-labelledby="immutable-default-heading">
+<h2 id="immutable-default-heading">11. 10 · 기본적으로 변경할 수 없음</h2>
+<p>명시적 가변 선언 또는 이미 유효한 쓰기 기능을 통해서만 데이터 수정을 허용합니다. 일반 소유자는 기본적으로 변경할 수 없으므로 로컬 인텐트와 공유 읽기 액세스가 더 쉽게 검사할 수 있습니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 fixed = 10;
+mut i32 editable = 10;
+editable += 1;</code></pre><p>공개 가시성은 쓰기 권한이 아닙니다. &amp;mut 참조 바인딩 자체가 불변인 경우에도 T는 독점적인 대상 액세스를 전달합니다. 동기화 된 내부 유형은 명시적인 전문 계약을 가지고 있으며, 무제한 쓰기를 일반 불변 데이터에 권한을 부여하지 않습니다.</p>
+</section>
+
+<section id="data-oriented" aria-labelledby="data-oriented-heading">
+<h2 id="data-oriented-heading">12. 11 · 데이터 지향 설계</h2>
+<p>연속적인 메모리와 높은 캐시 효율을 제공합니다. 고정 배열, 재배치 가능한 연속 벡터, 슬라이스, scalar/SIMD 요소 및 텐서 스토리지는 대량 작업과 레이아웃 비용을 이해할 수 있도록 해야 합니다.</p><p>구체적인 레이아웃 보장, 자동 레코드 레이아웃 변환, 캐시 동작, 벡터화 결과 및 백엔드 스토리지 선택에는 명시적인 계약 또는 측정이 필요합니다. 구조체 선언만으로는 안정적인 외국 ABI 또는 특정 캐시 레이아웃의 약속이 아닙니다.</p>
+</section>
+
+<section id="safe-parallelism" aria-labelledby="safe-parallelism-heading">
+<h2 id="safe-parallelism-heading">13. 12 · 안전한 병렬성</h2>
+<p>소유권 및 차입을 통해 데이터 인종을 차단합니다. Shared 읽기는 공존할 수 있다; 충돌하는 쓰기 액세스는 유효한 배타적 기능 또는 동시성 유형의 명시적 동기화 프로토콜을 필요로 한다.</p><p>카테고리 For <a href="../../data_type/Atomic/Atomic.html">Atomic</a>, <a href="../../data_type/Mutex/Mutex.html">Mutex</a>, <a href="../../data_type/Task/Task.html">Task</a>, 및 <a href="../../data_type/Pending/Pending.html">Pending</a> 의도된 계약을 말합니다. 스케줄링, 작업 구문, 메모리 순서 세부 사항, GPU 액세스 완료 및 구조화 된 수명 메커니즘은 여전히 각 사양 및 구현이 필요합니다.</p>
+</section>
+
+<section id="ffi-first" aria-labelledby="ffi-first-heading">
+<h2 id="ffi-first-heading">14. 13 · FFI 먼저</h2>
+<p>C, C++ 및 Python 에코시스템에 원활한 바인딩을 제공합니다. 상호 운용성은 자동으로 안전 언어 검사를 약화시키는 대신 각 경계에서 소유권, 초기화, 오류, 리소스 릴리스 및 표현을 설명해야 합니다.</p><p>바인딩 생성기, 호출 규약, 지원되는 외국 유형, 할당자 소유권, 콜백 수명, 대상별 ABI 커버리지는 구현 결정으로 남아 있습니다. 목표는 기존의 보편적 인 외국 인터페이스 또는 자동으로 안전한 임의의 외국 코드를 주장하지 않습니다.</p>
+</section>
+
+<section id="extensible-compiler" aria-labelledby="extensible-compiler-heading">
+<h2 id="extensible-compiler-heading">15. 14 · 확장 가능한 컴파일러</h2>
+<p>LLVM 및 MLIR를 비롯한 다양한 백엔드로 확장할 수 있는 컴파일러 아키텍처를 사용합니다. 충분한 유형, 모양, 효과, 소유권 및 대상 정보를 보존하여 소스 의미 체계를 변경하지 않고 백엔드를 지원합니다.</p><p>0.2 컴파일러는 이미 공유 프론트 엔드, 소유권 검사, AIR 및 LLVM AOT/ORC 경로를 통합합니다. <a href="../../releases/0_2.html">구현 범위</a>. 안정적인 공용 IR/backend 확장 스키마 및 MLIR/device 통합은 향후 작업으로 남아 있습니다. LLVM 통합이 GPU 지원 또는 안정적인 런타임 ABI를 설정하지 않습니다.</p>
+</section>
+
+<section id="compiler-first" aria-labelledby="compiler-first-heading">
+<h2 id="compiler-first-heading">16. 15 · 컴파일러 우선 최적화</h2>
+<p>개발자가 복잡한 수동 튜닝을 수행하도록 요구하는 것보다 자동 컴파일러 최적화에 유리합니다. 유형, 모양, 레이아웃, 소유권 및 효과 정보는 유효한 기본 및 병렬 변환을 선택하는 데 도움이 됩니다.</p><p>컴파일러는 관찰 가능한 평가 순서, 오류, 값 결과, 소유권 검사 및 명시적인 비용 경계를 유지해야 합니다. 안전 점검을 제거하려면 해당 경로에서 점검이 실패할 수 없다는 증거가 필요합니다. 부동 소수점, 동기화 및 대상 특정 변환에는 자체 정확성 계약이 필요합니다.</p><p>AOT 및 명시적 ORC JIT는 이미 0.2에서 최적화 수준을 지원합니다. 자동 선택-JIT 정책, 런타임-사실 전문화 및 비교 성능 주장은 별도의 작업으로 남아 있으며, 현재 계획은 최종 외부 검토까지 성능 변경 최적화를 유지합니다.</p>
+</section>
+
+<section id="status-summary" aria-labelledby="status-summary-heading">
+<h2 id="status-summary-heading">17입니다. 확인된 시맨틱 및 구현 작업</h2>
+<div class="table-scroll" role="region" aria-label="디자인 약속 및 필요한 증거">
+<table>
+<thead><tr>
+<th scope="col">지역</th>
+<th scope="col">소스 수준 방향</th>
+<th scope="col">여전히 필요한 증거</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">가독성과 타이핑</th>
+<td>형식 우선 선언, 정적 추론, 이름 필드, 명시적 성공 return.</td>
+<td>파서, 유형 검사기, 진단 및 사용성 검증.</td>
+</tr>
+<tr>
+<th scope="row">소유권 및 동시성</th>
+<td>기본값 이동, 명시적 Copy 검사, read/write 대여, 범위 정리.</td>
+<td>컴파일러 적용, 외국 경계 규칙 및 race/lifetime 유효성 검사.</td>
+</tr>
+<tr>
+<th scope="row">AI 및 통합 컴퓨팅</th>
+<td>Tensor/Shape 인식 및 명시적 CPU/GPU 비용.</td>
+<td>대상 저감, 지원되는 장치, 전송 및 완료 구현.</td>
+</tr>
+<tr>
+<th scope="row">네이티브 최적화</th>
+<td>AOT 기준선, 선택적 JIT, 확장 가능한 백엔드, 컴파일러 우선 튜닝.</td>
+<td>코드 생성, 시맨틱 등가 검사 및 대표적인 벤치마크</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">18입니다. 선택한 언어 규칙에 목표 연결</h2>
+<nav class="page-navigation" aria-label="관련 재단 참조">
+<a href="Compilation_Model.html"><span>실행</span><strong>AOT 및 선택적 JIT</strong><p>Shared 의미론과 명시적으로 열린 메커니즘 결정.</p></a>
+<a href="../user_defined_types/index.html"><span>값</span><strong>사용자 정의 형식</strong><p>건설, 입력 수신기 및 checked Copy.</p></a>
+<a href="../scope_and_comments/Resource_Cleanup.html"><span>수명</span><strong>자원 정리</strong><p>일반 범위 릴리스, 소유권 이전 및 보류 중인 액세스 경계.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix 언어 · 언어 기초</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

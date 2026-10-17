@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Aevix 0.3 편의 기능 계획: 불리언의 정수 반환, 명시적 변환, 출력 조합, 필드 축약 표기, 원시 문자열.">
+    <title>0.3 편의 기능 — Aevix</title>
+    <link rel="stylesheet" href="../../css/root.css?v=7">
+    <script src="../../js/docs.js?v=5" defer></script>
+    <link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../roadmap/Convenience_0_3.html">
+<link rel="alternate" hreflang="ko" href="Convenience_0_3.html">
+<script src="../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header">
+    <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="로드맵"><a href="index.html">로드맵</a><a href="Convenience_0_3.html" aria-current="page">0.3 편의 기능</a><a href="System_IO_0_3.html">0.3 콘솔 IO</a><a href="../releases/0_2.html">0.2 프로필</a></nav>
+    <span class="draft-badge">0.3 계획 · 미구현</span>
+<label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+    <header class="doc-intro"><div><p class="eyebrow">로드맵 추가 작업</p><h1>0.3 편의 기능</h1><p class="doc-subtitle">타입, 소유권과 실패 동작을 정의한 간결한 소스 표기입니다.</p></div></header>
+    <div class="docs-layout">
+        <aside class="table"><details class="toc" open><summary>이 페이지의 내용</summary><ol>
+            <li><a href="#scope">범위와 버전 구분</a></li>
+            <li><a href="#boolean-return">정수 반환 위치의 불리언 결과</a></li>
+            <li><a href="#explicit-conversion">명시적 불리언 변환</a></li>
+            <li><a href="#output">+로 출력 조합하기</a></li>
+            <li><a href="#fields">이름 있는 필드의 축약 표기</a></li>
+            <li><a href="#raw-strings">원시 문자열 리터럴</a></li>
+            <li><a href="#gates">구현 완료 조건</a></li>
+            <li><a href="#sources">주요 참고 자료</a></li>
+        </ol></details></aside>
+        <article class="content">
+            <section id="scope"><h2>범위와 버전 구분</h2>
+                <p>이 편의 기능들을 <a href="index.html#versions">기존 0.3 로드맵</a>에 추가합니다. 네이티브 자원, FFI, 라이브러리 기반과 컴파일러 부분집합은 계속 필수입니다. 0.4 컴파일러 포팅과 0.5 셀프 호스팅 목표는 바뀌지 않습니다.</p>
+                <p class="callout warning"><strong>0.3 계획입니다.</strong> 이 예제들은 앞으로 구현할 목표를 설명합니다. 릴리스된 다음 범위에서 허용되는 소스라고 보장하지 않습니다: <a href="../releases/0_2.html">0.2 프로필</a>. 불리언 변환 API는 이미 설계 카탈로그에 있으며, 이 계획은 그 구현 시점을 정합니다.</p>
+                <p>타입 우선 선언, 기본 불변성, 명시적 non-void 반환, bool 전용 조건과 기존 이동·대여·접근 규칙을 유지합니다.</p>
+            </section>
+            <section id="boolean-return"><h2>정수 반환 위치의 불리언 결과</h2>
+                <p>명시적인 <code>return expression;</code>에서는 bool 값으로 스칼라 정수 반환 타입을 충족할 수 있게 합니다. 변환 규칙은 <code>false</code> → <code>0</code> 및 <code>true</code> → <code>1</code>입니다. 식은 한 번 평가하며 비교 식 자체의 타입은 여전히 bool입니다.</p>
+                <pre class="code-block" data-status="planned-0.3"><code id="Aevix" class="language-aevix" data-language="aevix">i32 is_larger(i32 left, i32 right) {
+    return left &gt; right;
+}
+
+i32 main() {
+    return 1 &gt; 2;
+}</code></pre>
+                <p>보조 함수는 0 또는 1을 반환합니다. main 예제는 0을 반환합니다. 프로세스 종료 상태에서 0은 성공을 뜻합니다. 이는 비교 결과의 숫자 인코딩이며, 참인 조건이 성공적인 프로세스 종료를 뜻한다는 규칙은 아닙니다.</p>
+                <table><thead><tr><th scope="col">문맥</th><th scope="col">계획된 규칙</th></tr></thead><tbody>
+                    <tr><td>스칼라 정수로 명시적으로 반환</td><td>128비트까지의 부호 있는 정수·부호 없는 정수, isize/usize와 int 같은 투명 별칭에 0/1 변환을 허용합니다.</td></tr>
+                    <tr><td>메서드와 반환 타입이 명시된 클로저</td><td>선언된 결과가 스칼라 정수로 확정되면 같은 규칙을 적용합니다.</td></tr>
+                    <tr><td>bool로 반환</td><td>bool 값을 그대로 유지합니다.</td></tr>
+                    <tr><td>변수 초기화, 대입, 인수, 산술과 오버로드 선택</td><td>새로운 암시적 bool→정수 변환을 추가하지 않습니다.</td></tr>
+                    <tr><td>목적지가 float, byte, char, enum, SIMD, Optional 또는 Result인 경우</td><td>변환하지 않습니다. bool을 Ok로 감싸거나 컨테이너 payload를 자동 매핑하지 않습니다.</td></tr>
+                    <tr><td>대여한 bool 또는 정수 조건</td><td>이 규칙을 위한 자동 역참조와 숫자 참·거짓 판정은 없습니다.</td></tr>
+                </tbody></table>
+                <p>이 반환 규칙을 적용하기 전에 원본 식이 일반적인 식 타입 검사에서 bool로 확정되어야 합니다. 수치 리터럴 문맥, 제네릭 추론과 제네릭 본문의 계약 검사를 유지합니다. 컴파일러의 일반 타입 호환 관계에 bool 호환성을 추가하거나, 변환을 허용하기 위해 미정인 제네릭 타입을 임의로 선택해서는 안 됩니다. 유리한 구체 특수화를 골랐다는 이유로 원래 잘못된 제네릭 본문이 유효해져서도 안 됩니다. 이 규칙에는 할당, clone이나 표현 재해석이 필요하지 않습니다.</p>
+                <p>0.2에서 이미 가능한 다음 명시적 표기도 계속 유효합니다:</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 main() {
+    return (1 &gt; 2) ? 1 : 0;
+}</code></pre>
+            </section>
+            <section id="explicit-conversion"><h2>명시적 불리언 변환</h2>
+                <p>기존 카탈로그의 표기인 <a href="../data_type/Boolean/Boolean.html#Boolean-to_integer"><code>Boolean.to_integer&lt;T&gt;(bool value)</code></a> 를 스칼라 정수 T에 대해 구현합니다. 반환문 밖에서도 false→0, true→1의 같은 변환을 사용합니다.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">bool ready = true;
+i32 encoded = Boolean.to_integer&lt;i32&gt;(ready);
+rsn comparison = 1 &gt; 2;</code></pre>
+                <p>여기서 encoded는 1이고 comparison은 여전히 bool입니다. 카탈로그 연산 하나의 구현을 계획하는 것이며 모든 Boolean 보조 함수가 구현되었다는 뜻은 아닙니다. 정수를 bool로 해석하는 동작은 계속 명시적으로, 별도 명세에 따라 정의합니다.</p>
+            </section>
+            <section id="output"><h2>+로 출력 조합하기</h2>
+                <p>사용법: <code>+</code> 로 텍스트와 출력 가능한 값을 결합합니다. 적용되는 호출은 <code>system.print</code> 및 <code>system.println</code>입니다. 출력 가능한 내장 값 하나를 직접 전달할 수도 있습니다. 일반 숫자 덧셈과 기존의 왼쪽 결합 우선순위를 유지하며 구분자를 자동으로 넣지 않습니다.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import system;
+
+Result&lt;unit, system.IoError&gt; show_count(i32 count) {
+    system.println("count: " + count)?;
+    system.println("sum: " + 1 + 2)?;
+    system.println("sum: " + (1 + 2))?;
+    return Result.ok(Unit.value());
+}</code></pre>
+                <p>마지막 두 호출의 출력은 <code>sum: 12</code> 및 <code>sum: 3</code>입니다. 이는 대여한 포매팅 조각을 조합하는 출력 전용 계획이며 중간 소유 string을 반드시 만들 필요가 없습니다. 일반 문자열 할당 연산자를 추가하지 않습니다. 지원 값, 평가, 대여와 부분 출력 오류는 <a href="System_IO_0_3.html#composition">콘솔 IO 계약</a> 을 참고하세요.</p>
+                <p>bool을 출력하면 <code>true</code> 또는 <code>false</code>가 표시됩니다. 0/1 규칙은 출력이 아니라 정수 반환과 명시적 변환에 적용됩니다. 소유 string은 대여하여 읽습니다. 내장 값을 지원한다고 해서 구조체, enum, 컨테이너와 포인터도 자동으로 출력할 수 있는 것은 아닙니다.</p>
+            </section>
+            <section id="fields"><h2>이름 있는 필드의 축약 표기</h2>
+                <p>이름 있는 초기화에서 같은 이름의 지역 변수로 필드를 채울 수 있게 합니다. <code>Point { x, y }</code> 는 다음 표기와 같습니다: <code>Point { x = x, y = y }</code>.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">struct Point {
+    public f64 x;
+    public f64 y;
+};
+
+Point make_point(f64 x, f64 y) {
+    Point point = Point { x, y };
+    return point;
+}</code></pre>
+                <p>값 이름은 현재 어휘적 범위 안에 있어야 하며, 축약 표기가 인스턴스 필드를 암시적으로 검색하지는 않습니다. 일반적인 필드 가시성, 타입, 중복, 알 수 없는 필드와 완전성 검사를 적용합니다. 필드는 왼쪽부터 오른쪽으로 각각 한 번 평가합니다. Copy 필드는 복사하고 non-Copy 값은 일반 규칙대로 이동합니다. 자동 clone·대여·spread·기본값 채우기는 없습니다.</p>
+                <p>enum variant의 이름 있는 초기화에도 같은 축약을 적용하고 필드 접근 규칙을 유지합니다. case 패턴 바인딩 문법을 바꾸거나 이름 가림을 허용하지 않습니다.</p>
+            </section>
+            <section id="raw-strings"><h2>원시 문자열 리터럴</h2>
+                <p>역슬래시나 따옴표가 든 텍스트를 위해 원시 UTF-8 리터럴을 추가합니다. 일반 리터럴과 마찬가지로 할당이 없는 <code>string_view</code> 값입니다. 원시 문자열의 내용에는 이스케이프 처리나 보간이 없습니다.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">string_view path = r"C:\temp\main.avx";
+string_view quoted = r#"say "hello""#;
+string_view pattern = r##"a "# marker"##;</code></pre>
+                <p>사용법: <code>r"..."</code>를 사용하거나, r과 여는 따옴표 사이에 #을 1~255개 쓰고 닫는 따옴표 뒤에도 같은 개수를 써야 합니다. 해당 닫는 구분자가 붙지 않은 따옴표는 내용에 남습니다. 여러 줄을 허용하며 리터럴 안의 줄바꿈 바이트를 포함해 유효한 UTF-8 소스 바이트를 보존합니다. 유니코드 정규화를 암시하지 않습니다.</p>
+                <p>닫히지 않은 리터럴이나 지나치게 많은 구분자는 컴파일 오류입니다. 텍스트 문법이며 OS 경로 타입, 셸 이스케이프나 printf 포맷 검사의 우회 수단이 아닙니다. 소유 string을 만들 때는 계속 명시적이고 실패 가능한 생성자를 사용합니다.</p>
+            </section>
+            <section id="gates"><h2>구현 완료 조건</h2><ol>
+                <li>초기화·인수·산술·조건·제네릭·오버로드의 호환성을 넓히지 않고 반환 전용 변환을 구현하고 검사합니다. 모든 정수 폭, 별칭, 메서드, 클로저와 거절해야 할 래퍼·참조 목적지를 포함합니다.</li>
+                <li>같은 매핑을 사용하고 숨은 할당이 없는 정식 Boolean.to_integer API를 구현합니다.</li>
+                <li>실제 system 함수를 먼저 해석한 뒤 출력 조합을 lowering합니다. 숫자 부분 트리, 왼쪽에서 오른쪽으로의 평가, 대여 수명, 출력 전 실패와 기존 Result 기반 IO 계약을 유지합니다.</li>
+                <li>필드 축약을 일반적인 이름 있는 초기화로 lowering한 뒤 기존 가시성·완전성·이동·대여 검사를 수행합니다. enum variant와 부분 초기화 정리도 포함합니다.</li>
+                <li>렉서에 원시 리터럴, 바이트 범위, 여러 줄 진단, UTF-8, 줄바꿈과 구분자 개수 제한을 추가합니다. 일반 문자열의 렉싱은 유지합니다.</li>
+                <li>AOT와 JIT에서 공통 허용·거절·실행 사례를 사용합니다. 0.4 컴파일러 포팅이 의존하기 전에 승인된 규칙을 동결합니다.</li>
+            </ol></section>
+            <section id="sources"><h2>주요 참고 자료</h2>
+                <p>비교를 위한 자료입니다. 반환 전용 제한과 기존 초기화 문법에는 Aevix 자체 규칙을 적용합니다.</p>
+                <ul class="source-list">
+                    <li><a href="https://eel.is/c++draft/conv.prom">C++ 작업 초안: 정수 승격</a> — false→0, true→1 매핑의 비교 자료입니다. C++는 이 계획보다 더 많은 문맥에서 변환을 허용합니다.</li>
+                    <li><a href="https://doc.rust-lang.org/reference/expressions/struct-expr.html#struct-field-init-shorthand">Rust Reference: 구조체 필드 초기화 축약</a> — 같은 이름의 변수로 필드를 채우는 방식의 비교 자료입니다.</li>
+                    <li><a href="https://doc.rust-lang.org/reference/tokens.html#raw-string-literals">Rust Reference: 원시 문자열 리터럴</a> — 구분자와 이스케이프 없는 리터럴의 비교 자료입니다. Aevix의 소스 바이트·줄바꿈 정책은 위에 별도로 정의합니다.</li>
+                </ul>
+            </section>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix · 0.3 편의 기능 계획</span><span>2026-10-17 · 계획 단계이며 0.2에는 미구현</span></footer>
+</main>
+</body>
+</html>

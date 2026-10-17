@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="타입 우선 바인딩, 명시적 가변성, 정적 추론, 상수, 저장소, 안전한 대여.">
+    <title>변수 선언 — Aevix 문서</title>
+    <link rel="stylesheet" href="../../css/root.css?v=7">
+    <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../declaration/Variable_Declaration.html">
+<link rel="alternate" hreflang="ko" href="Variable_Declaration.html">
+<script src="../../js/language.js?v=1" defer></script>
+</head>
+<body><a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header">
+    <div class="header"><a class="brand" href="../data_type/index.html" aria-label="Aevix 문서"><span
+            class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span
+            class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+        <nav class="header-nav" aria-label="레퍼런스 항목"><a href="../errors/index.html">오류</a><a href="index.html"
+                                                                   aria-current="true">선언</a>
+            <details class="type-menu">
+                <summary>모든 자료형</summary>
+                <div class="type-menu-links"><a href="../data_type/Boolean/Boolean.html">Boolean</a><a
+                        href="../data_type/Integer/Integer.html">Integer</a><a href="../data_type/Float/Float.html">Float</a><a
+                        href="../data_type/Complex/Complex.html">Complex</a><a
+                        href="../data_type/Char/Char.html">Char</a><a href="../data_type/Byte/Byte.html">Byte</a><a
+                        href="../data_type/String/string.html">string</a><a
+                        href="../data_type/Array/Array.html">Array</a><a
+                        href="../data_type/Vector/Vector.html">Vector</a><a
+                        href="../data_type/Slice/Slice.html">Slice</a><a
+                        href="../data_type/Tuple/Tuple.html">Tuple</a><a href="../data_type/Unit/Unit.html">Unit</a><a
+                        href="../data_type/Never/Never.html">Never</a><a
+                        href="../data_type/Range/Range.html">Range</a><a href="../data_type/Optional/Optional.html">Optional</a><a
+                        href="../data_type/Result/Result.html">Result</a><a href="../data_type/Box/Box.html">Box</a><a
+                        href="../data_type/Shared/Shared.html">Shared</a><a
+                        href="../data_type/Weak/Weak.html">Weak</a><a
+                        href="../data_type/Atomic/Atomic.html">Atomic</a><a
+                        href="../data_type/Mutex/Mutex.html">Mutex</a><a
+                        href="../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../data_type/Map/Map.html">Map</a><a
+                        href="../data_type/Set/Set.html">Set</a><a href="../data_type/Tensor/Tensor.html">Tensor</a><a
+                        href="../data_type/Quantized/Quantized.html">Quantized</a><a href="../data_type/Simd/Simd.html">Simd</a><a
+                        href="../data_type/Task/Task.html">Task</a><a
+                        href="../data_type/Pending/Pending.html">Pending</a></div>
+            </details>
+        <a href="../grammar/index.html">문법</a></nav>
+        <span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../data_type/index.html">언어 레퍼런스</a><span
+            class="separator" aria-hidden="true">/</span><a href="index.html">선언</a><span class="separator"
+                                                                                                    aria-hidden="true">/</span><span
+            aria-current="page">변수 선언</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">선언 문서</p>
+            <h1>변수 선언</h1>
+            <p class="doc-subtitle">타입 우선 바인딩, 명시적 가변성, 정적 추론, 상수, 저장소, 안전한 대여.</p>
+            <div class="doc-meta"><span class="meta-chip">T 이름 = 표현식;</span><span class="meta-chip">확정된 규칙과 미정 사항</span><a
+                    href="../data_type/index.html#Language-Rules">언어 규칙 개요</a></div>
+            <dl class="doc-stats">
+                <div class="doc-stat">
+                    <dt>표준 형태</dt>
+                    <dd>7</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>기본 바인딩</dt>
+                    <dd>불변</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>추론</dt>
+                    <dd>정적</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>상태</dt>
+                    <dd>언어 설계 문서</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="type-mark" aria-hidden="true"><strong>티엑스는</strong><span>선언</span></div>
+    </header>
+    <div class="docs-layout">
+        <aside class="table" aria-label="레퍼런스 탐색">
+            <details class="toc" open>
+                <summary>이 페이지의 내용</summary>
+                <ol>
+                    <li><a href="#Overview"><span class="toc-number">01</span><span>변수 선언</span></a>
+                    </li>
+                    <li><a href="#Grammar"><span
+                            class="toc-number">02</span><span>표준 선언 형태</span></a></li>
+                    <li><a href="#Typed-Bindings"><span class="toc-number">03</span><span>명시적 타입과 일반 초기화</span></a>
+                    </li>
+                    <li><a href="#Mutability"><span class="toc-number">04</span><span>가변 바인딩</span></a></li>
+                    <li><a href="#Inference"><span
+                            class="toc-number">05</span><span>rsn의 정적 추론</span></a></li>
+                    <li><a href="#Numeric-Context"><span class="toc-number">06</span><span>숫자 문맥과 명시적 변환</span></a>
+                    </li>
+                    <li><a href="#Constants"><span class="toc-number">07</span><span>컴파일 타임 상수</span></a>
+                    </li>
+                    <li><a href="#Persistent-Storage"><span
+                            class="toc-number">08</span><span>프로세스 수명의 지속 저장소</span></a></li>
+                    <li><a href="#Copy-Move"><span
+                            class="toc-number">09</span><span>복사·이동·소유 값</span></a></li>
+                    <li><a href="#Allocation-Failure"><span
+                            class="toc-number">10</span><span>실패 가능한 초기식</span></a></li>
+                    <li><a href="#Borrowing"><span class="toc-number">11</span><span>공유·독점 참조 선언</span></a>
+                    </li>
+                    <li><a href="#Reference-Mutability"><span class="toc-number">12</span><span>바인딩 가변성과 대상 가변성</span></a>
+                    </li>
+                    <li><a href="#Lifetimes"><span class="toc-number">13</span><span>마지막 사용·겹침·동기화된 내부 상태</span></a>
+                    </li>
+                    <li><a href="#Errors"><span class="toc-number">14</span><span>진단 안내</span></a></li>
+                    <li><a href="#Open-Decisions"><span class="toc-number">15</span><span>미정 사항과 관련 문서</span></a>
+                    </li>
+                    <li><a href="#Sources"><span class="toc-number">16</span><span>출처와 설계 참고 자료</span></a>
+                    </li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="선언 페이지"><h2>선언 문서</h2>
+                <div class="family-links"><a href="index.html">개요</a><a href="Variable_Declaration.html"
+                                                                              aria-current="page">변수</a><a
+                        href="Function_Declaration.html">함수</a></div>
+            </nav>
+            <nav class="family-nav" aria-label="관련 레퍼런스"><h2>관련 레퍼런스</h2>
+                <div class="family-links"><a href="../data_type/index.html">전체 29개 타입</a><a
+                        href="../data_type/Unit/Unit.html">unit</a><a href="../data_type/Never/Never.html">never</a><a
+                        href="../data_type/Result/Result.html">Result</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="변수 선언 참조">
+            <section id="Overview" aria-labelledby="Overview-heading"><h2 id="Overview-heading">1. 변수 선언</h2>
+                <p>선언은 이름을 정적 타입의 값에 연결합니다. Aevix는 이름 앞에 타입을 쓰고 일반 바인딩을 기본적으로 불변으로 만듭니다. 선언은 저장할 타입, 바인딩의 변경 가능 여부, 초기식의 컴파일 타임 평가 여부, 저장소의 수명을 각각 정합니다. 소유권·대여는 이 구분을 합치지 않고 접근 규칙을 더합니다.</p>
+                <blockquote class="callout note"><p><strong>언어 설계 문서.</strong> 이 페이지는 Aevix에서 선택한 규칙을 기록하며 파서·컴파일러 구현 자체를 증명하지는 않습니다. 허용 예제는 선택된 규칙을 설명하고, 컴파일 오류 예정으로 표시한 코드는 의도적으로 잘못된 코드입니다. 초기식과 함수 호출의 세부 사항은 연결된 타입 계약을 따르며 미정 정책은 아래에 따로 적었습니다.</p></blockquote>
+                <p>예제는 알맞은 상위 스코프에 놓는 선언 조각입니다. 진입점·접근 권한·함수 정의 키워드를 새로 도입하지 않습니다. 다음 문서에서 <a href="Function_Declaration.html">함수 선언</a> 매개변수와 반환을 확인하세요.</p></section>
+            <section id="Grammar" aria-labelledby="Grammar-heading"><h2 id="Grammar-heading">2. 표준 선언 형태</h2>
+                <p>다음은 선택된 형태의 표준 표기입니다. T는 명시적 타입, name은 바인딩 식별자, expression은 초기식을 나타냅니다. 이 표는 모든 한정자 조합의 완전한 문법이 아니며 다른 순서를 전부 금지한다고 선언하지도 않습니다.</p>
+                <div class="table-scroll" role="region" aria-label="Canonical 선언 양식 데이터 테이블">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">표준 형태</th>
+                            <th scope="col">타입과 가변성</th>
+                            <th scope="col">평가 또는 저장소</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <th scope="row"><code>T name = expression;</code></th>
+                            <td>명시적 T, 불변 바인딩.</td>
+                            <td>초기식은 실행 중 값에 의존할 수 있습니다.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>mut T name = expression;</code></th>
+                            <td>명시적 T, 가변 바인딩.</td>
+                            <td>실행 중 초기화를 허용합니다.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>rsn name = expression;</code></th>
+                            <td>추론한 고정 타입, 불변 바인딩.</td>
+                            <td>추론은 정적이며 동적 타이핑이 아닙니다.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>mut rsn name = expression;</code></th>
+                            <td>추론한 고정 타입, 가변 바인딩.</td>
+                            <td>나중 대입도 추론된 타입을 유지합니다.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>const T name = expression;</code></th>
+                            <td>명시적 T, 항상 불변.</td>
+                            <td>초기식은 컴파일 타임에 평가할 수 있어야 합니다.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>const rsn name = expression;</code></th>
+                            <td>추론한 고정 타입, 항상 불변.</td>
+                            <td>여전히 컴파일 타임 평가가 필요합니다.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><code>persist T name = expression;</code></th>
+                            <td>명시적 T, 일반 불변 바인딩.</td>
+                            <td>선언별 프로세스 수명 저장소. 선언 문맥에 따라 시작 시 또는 처음 도달했을 때 초기화합니다.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>표시한 모든 선언은 세미콜론으로 끝납니다. 타입 추론 키워드는 <code>rsn</code>입니다. 별도의 선언 시작 키워드나 이름:타입 형태가 필요하지 않습니다.</p></section>
+            <section id="Typed-Bindings" aria-labelledby="Typed-Bindings-heading"><h2 id="Typed-Bindings-heading">3. 명시적 타입과 일반 초기화</h2>
+                <p>명시적 타입은 바인딩의 표현과 연산을 고정합니다. 초기식은 그 타입의 규칙을 만족해야 합니다. 리터럴은 허용된 대상 타입 문맥을 이용할 수 있지만 이미 숫자 타입이 정해진 값은 조용히 다른 숫자 타입으로 바뀌지 않습니다. 다음 별칭은 <code>int</code>
+                    다음을 나타내며 <code>i32</code>, 기계의 포인터 비트 폭에 맞춰 바뀌지 않습니다.</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 size = 128;
+f64 ratio = 0.5;
+char marker = &#x27;A&#x27;;
+unit completed = Unit.value();</code></pre>
+                <p>초기식이 단순하다는 이유만으로 이 바인딩에 재대입할 수는 없습니다. 일반 불변 바인딩은 실행 중 결과로도 초기화할 수 있습니다. 불변성은 접근 규칙이지 컴파일 타임 평가·하드웨어 읽기 전용 페이지·전역 수명·도달 가능한 모든 자원의 재귀적 동결을 보장하는 말이 아닙니다. <code>unit</code> 은 값 타입이며 <code>void</code> 는 반환 위치의 선택지이므로 변수 선언에서 대신 사용할 수 없습니다.</p></section>
+            <section id="Mutability" aria-labelledby="Mutability-heading"><h2 id="Mutability-heading">4. 가변 바인딩</h2>
+                <p>바인딩에 허용된 쓰기가 필요하면 앞에 다음을 붙입니다: <code>mut</code> . 타입·소유권·활성 대여 규칙이 허용하는 범위에서 값을 바꾸거나 소유 변수의 독점 대여를 만들 수 있습니다. 정적 타입을 바꾸거나 충돌하는 별칭을 허용하지는 않습니다. 불변 소유 값도 다른 소유자로 이동할 수 있으며 이동은 암묵적 clone이 아닙니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">mut i32 count = 0;
+count = 1;
+count = 2;</code></pre>
+                <p><strong>예상되는 거부:</strong> 일반 불변 바인딩에 새 값을 대입하는 것은 새 값의 타입이 같아도 잘못된 코드입니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 count = 0;
+count = 1; // Invalid: this binding is immutable.</code></pre>
+                <p>소유 집합 타입의 가변성은 소유자의 독점 대여를 통한 연산을 허용합니다. 교체되어 밀려난 소유 값도 자신의 파괴 계약을 따릅니다. 바인딩을 가변으로 만들어도 경계 검사·할당 오류·동기화 요구를 우회하지 못합니다.</p></section>
+            <section id="Inference" aria-labelledby="Inference-heading"><h2 id="Inference-heading">5. rsn의 정적 추론</h2>
+                <p><code>rsn</code> 은 초기식과 사용 가능한 정적 문맥에서 타입을 결정하도록 컴파일러에 요청합니다. 결정된 타입은 해당 바인딩에서 고정됩니다. 제약 없는 정수 리터럴의 기본형은 <code>i32</code> 이고, 제약 없는 실수 리터럴의 기본형은 <code>f64</code>입니다. 추론이 실행 중 태그 달린 숫자 슬롯을 만들거나 서로 무관한 타입 사이의 변경을 허용하지는 않습니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">rsn size = 128;
+rsn scale = 2.0;
+mut rsn count = 0;
+count = 1;</code></pre>
+                <p>여기서 size와 count는 i32, scale은 f64입니다. 가변 추론 바인딩은 다른 i32 값은 받지만 매번 다른 타입을 추론하지는 않습니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">mut rsn amount = 3;
+amount = 4.5; // Invalid: amount remains i32.</code></pre>
+                <p>초기식이나 허용된 다른 타입 근거가 없는 추론 선언은 타입을 결정할 수 없습니다. 타입을 명시한 지역 변수는 대신 확정 대입 규칙을 사용할 수 있습니다. 추론도 소유권과 대여 수명을 유지하며 이를 지우지 못합니다.</p></section>
+            <h3 id="Definite-Assignment">타입을 명시한 지역 변수는 나중에 초기화할 수 있습니다</h3>
+<p>일반적인 명시 타입 지역 변수는 초기식 없이 선언할 수 있습니다. 암묵적인 0이나 기본값은 없습니다. 도달 가능한 모든 읽기·대여·주소 취하기·이동 전에 해당 경로에서 완전한 초기화가 성공해야 합니다. 불변 지역 변수는 경로마다 정확히 한 번 초기화할 수 있고 초기화 이후 대입에는 mut이 필요합니다. const·persist에는 초기식이 필요하며 rsn도 타입 추론을 위해 초기식이 필요합니다.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose(bool first) {
+    i32 value;
+    if (first) value = 10;
+    else value = 20;
+    return value;
+}</code></pre>
+<p>두 분기가 모두 value를 정확히 한 번 초기화하므로 반환이 유효합니다. 초기화 없이 반환 지점에 도달하는 경로는 거부됩니다. 일반 필드를 부분 초기화하는 규칙은 추가하지 않습니다. 완전한 struct·enum·Array 값으로 초기화하세요. 정리는 소유 값의 초기화가 성공했고 소유권이 남아 있는 경로에만 적용됩니다.</p>
+<pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 invalid_initialization(bool ready) {
+    i32 value;
+    if (ready) value = 10;
+    return value;
+}</code></pre>
+<section id="Numeric-Context" aria-labelledby="Numeric-Context-heading"><h2 id="Numeric-Context-heading">6. 숫자 문맥과 명시적 변환</h2>
+                <p>리터럴에 타입 문맥을 주는 것과 이미 타입이 정해진 값을 변환하는 것은 다릅니다. 작은 리터럴은 값이 범위 안에 있을 때 호환되는 고정 폭 타입을 초기화할 수 있습니다. 변수가 i32 타입을 가진 뒤 i64에 대입하는 것은 모든 i32 값이 들어가더라도 타입 변환입니다. 이런 변환은 명시적이므로 CPU AOT·JIT·지원되는 디바이스 코드에서 같은 의미를 유지합니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i8 small_literal = 12;
+i32 source = 12;
+Result&lt;i64, IntegerError&gt; wider = Integer.convert(i64, source);</code></pre>
+                <p>명시적 변환은 연산의 Result 계약을 드러냅니다. 더 좁은 타입으로의 변환은 실패할 수 있으며 결과를 선언하는 것만으로 성공 값을 자동 추출하지는 않습니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 source = 12;
+i64 destination = source; // Invalid: no implicit typed numeric conversion.</code></pre>
+                <p>다음 문서를 참고하세요: <a href="../data_type/Integer/Integer.html">Integer</a> 및 <a
+                        href="../data_type/Float/Float.html">Float</a> 에서 범위·반올림·오버플로·변환 정책을 설명합니다. rsn으로 이 규칙을 완화하지 않습니다.</p></section>
+            <section id="Constants" aria-labelledby="Constants-heading"><h2 id="Constants-heading">7. 컴파일 타임 상수</h2>
+                <p><code>const</code> 는 컴파일 타임에 평가할 수 있는 초기식을 가진 불변 상수를 요구합니다.
+                    <code>const rsn</code> 은 타입만 추론하며 이 요구를 완화하지 않습니다. 일반 불변 선언은 실행 중 입력에 의존할 수 있지만 const는 실행 중에만 주어지는 입력을 사용할 수 없습니다. 최적화의 상수 전파만으로 임의의 실행 중 작업이 유효한 상수 초기식이 되지는 않습니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">const i32 LIMIT = 100;
+const rsn SCALE = 2.0;
+const i32 BLOCK_BYTES = 4 * 32;</code></pre>
+                <p>mut과 const의 조합은 잘못된 코드이며 상수의 나중 재대입도 거부됩니다. 다음 코드는 다른 한정자 순서를 허용하려는 예제가 아니라 금지된 조합을 보여줍니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">const mut i32 LIMIT = 100; // Invalid: const and mut conflict.</code></pre>
+                <p>이 문맥 예제에서 runtime_value는 바깥 실행 인터페이스가 주는 i32 입력입니다. 첫 선언은 일반 불변 초기화이고 둘째 선언은 사용할 수 없는 컴파일 타임 데이터를 요구합니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 snapshot = runtime_value;
+const i32 CAPTURED = runtime_value; // Invalid: runtime-only initializer.</code></pre>
+                <p>0.2는 지원하는 상수식을 평가하고 const usize 제네릭 인수를 값으로 정규화하므로 동등한 크기는 같은 구체 특수화를 식별합니다. 사용자 정의 상수 함수와 임의 타입의 const 매개변수는 이 범위에 없습니다. 매개변수 기본값은 Copy 가능한 컴파일 타임 상수로 제한합니다. 자세한 내용은 <a href="../grammar/functions/Arguments_and_Defaults.html">인수와 기본값</a>. const 값이 주소를 가진 프로세스 수명 객체 하나를 뜻하는 것은 아닙니다.</p></section>
+            <section id="Persistent-Storage" aria-labelledby="Persistent-Storage-heading"><h2 id="Persistent-Storage-heading">8. 프로세스 수명의 지속 저장소</h2>
+<p><code>persist</code> 는 선언에 프로세스 수명의 저장소를 부여합니다. 접근 권한·가변성·상수 평가는 별개입니다. 프로세스가 다시 시작된 뒤 데이터를 보존하거나 대여 원본의 수명을 늘리지 않습니다.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">persist i32 protocol_revision = 1;</code></pre>
+<p>모듈 최상위에서는 프로그램 진입 전에 초기화합니다. 함수 안에서는 실행이 선언에 처음 도달할 때 초기화하고 이후에는 완료된 같은 값을 재사용합니다. 지역 초기식은 실행 중 함수 매개변수나 일반 지역 변수에 직접 의존할 수 없습니다. 제네릭 함수는 구체 타입 인수 조합마다 별도 저장소를 가지며 같은 조합의 AOT·JIT 코드 버전이 공유합니다.</p>
+<p>persist 저장 위치에서 값을 이동해 꺼낸 뒤 미초기화 상태로 둘 수 없습니다. 대여하거나 완전한 대체 값을 안전하게 설치하는 명시적 연산을 사용하세요. 초기화가 끝나기 전에 초기식이 다음을 전파하여 <code>?</code> 바깥 함수에서 반환해서는 안 됩니다.</p><p>스레드 하나가 최초 초기화를 수행하고 다른 호출자는 기다립니다. 미완성 값은 공개하지 않습니다. 저장된 Err는 완성된 Result 값이지만 초기화 실행 오류는 진단 후 프로그램을 중단합니다. 공유 수정에는 Atomic·Mutex·RwLock 같은 명시적 동기화 타입이 필요합니다.</p>
+<p>정상 종료에서는 언어가 추적하는 자원 사용자가 끝나기를 기다린 뒤 초기화 완료의 역순으로 성공적으로 초기화된 persist 값을 해제합니다. 정리 중에는 다른 persist에 접근할 수 없습니다. 자세한 내용은 <a href="../grammar/persistent_storage/index.html">지속 저장소</a> 에서 의존 순서, 실행 중 검사, 종료 범위와 남은 미정 정책을 확인하세요.</p></section>
+            <section id="Copy-Move" aria-labelledby="Copy-Move-heading"><h2 id="Copy-Move-heading">9. 복사·이동·소유 값</h2>
+                <p>Copy 스칼라는 다른 스칼라에서 초기화할 때 값을 복사합니다. 소유한 non-Copy 값은 기본적으로 소유권을 이전합니다. 선택된 집합 타입 규칙의 Array·Vector·소문자 string도 포함됩니다. 불변 원본 바인딩도 이동할 수 있으며 그 뒤에는 두 번째 살아 있는 소유자처럼 읽거나 대여하거나 파괴할 수 없습니다. mut으로 소유 값이 Copy 타입이 되지는 않습니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 first = 7;
+i32 second = first;
+Array&lt;i32, 3&gt; original = [1, 2, 3];
+Array&lt;i32, 3&gt; duplicate = Array.copy(&amp;original);
+Array&lt;i32, 3&gt; moved = original;
+usize count = Array.len(&amp;moved);</code></pre>
+                <p>Copy 원소의 Array도 집합 값 복제에는 명시적 Array.copy를 사용합니다. 이는 moved로 소유권을 이전하는 것과 다릅니다. 두 번째 이름을 선언한다고 첫 소유 값을 조용히 clone하지는 않습니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">Vector&lt;i32&gt; original = Vector.new(i32);
+Vector&lt;i32&gt; destination = original;
+usize old_count = Vector.len(&amp;original); // Invalid: original was moved.</code></pre>
+                <p>명시적 Clone은 할당하거나 실패할 수 있으며 중첩된 Shared 자원까지 재귀적으로 분리하지는 않을 수 있습니다. 관련 문서는
+                    <a href="../data_type/Array/Array.html">Array</a>, <a
+                            href="../data_type/Vector/Vector.html">Vector</a>, 및 <a
+                            href="../data_type/String/string.html">string</a>.</p><p><a href="../grammar/user_defined_types/Structs.html">구조체</a> 및 <a href="../grammar/enums/Enums.html">enum</a> 도 기본적으로 이동합니다. <a href="../grammar/user_defined_types/Copy.html">implements Copy</a> 를 명시하면 컴파일러가 검사하는 복사를 선택합니다. 모든 enum 항목을 포함한 모든 필드가 조건을 충족해야 합니다. 타입 매개변수의 where T implements Copy 제약이 컨테이너 자체를 자동으로 Copy로 만들지는 않습니다.</p></section>
+            <section id="Allocation-Failure" aria-labelledby="Allocation-Failure-heading"><h2
+                    id="Allocation-Failure-heading">10. 실패 가능한 초기식</h2>
+                <p>선언은 초기식의 결과 타입과 소유권 계약을 유지합니다. 할당을 숨기거나 Result를 unwrap하거나 실패를 빈 컬렉션으로 바꾸지 않습니다. Result 바인딩은 성공 값이나 복구 정보를 직접 소유할 수 있습니다. 그 결과를 처리하는 것은 별도 작업이며 일반 전파·패턴 구문은 이 선언 문서의 범위 밖입니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;Vector&lt;i32&gt;, CollectionError&gt; reserved = Vector.with_capacity(i32, 64);
+Array&lt;i32, 3&gt; values = [1, 2, 3];
+Result&lt;Array&lt;i32, 3&gt;, CollectionError&gt; cloned = Array.clone(&amp;values);</code></pre>
+                <p>목적 바인딩이 불변이어도 실패 가능한 clone·할당은 명시적입니다. API가 이동한 입력의 사전 검사 복구를 약속하면 오류 래퍼가 해당 소유 값을 보존합니다. 이는 함수의 계약이지 선언 구문이 제공하는 보편적 롤백이 아닙니다. 콜백의 앞선 외부 효과가 Result에 이름을 붙였다는 이유로 취소되지도 않습니다.</p></section>
+            <section id="Borrowing" aria-labelledby="Borrowing-heading"><h2 id="Borrowing-heading">11. 공유·독점 참조 선언</h2>
+                <p><code>&amp;T</code> 는 공유 읽기 참조를 선언합니다. <code>&amp;mut T</code> 는 독점 쓰기 참조를 선언합니다. 생성할 때 기존 값을 대여하며 소유권을 복제하지 않습니다. 대상은 허용된 모든 사용 동안 유효해야 합니다. 다음을 통해 스칼라를 읽으면 <code>*reference</code>
+                    그 스칼라 값을 복사합니다. 소유 값을 역참조한다고 소유자의 암묵적 복사가 허용되지는 않습니다.
+                </p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 value = 10;
+&amp;i32 reference = &amp;value;
+i32 observed = *reference;
+Array&lt;i32, 3&gt; values = [1, 2, 3];
+Slice&lt;i32&gt; view = Slice.from_array(&amp;values);
+usize count = Slice.len(view);</code></pre>
+                <p>소유 값을 전달할 때 x, &amp;x, &amp;mut x를 구분합니다. 이미 있는 참조와 대여한 Slice·MutSlice·string_view는 해당 대여 타입을 기대하는 곳에 그대로 전달하세요. 기계적으로 주소 취하기 연산자를 더하지 마세요. 대여한 뷰는 원본 소유 값의 수명 제한을 유지하며 원소의 소유자가 되지 않습니다. 자세한 내용은 <a
+                            href="../data_type/Slice/Slice.html">Slice</a>.</p></section>
+            <section id="Reference-Mutability" aria-labelledby="Reference-Mutability-heading"><h2
+                    id="Reference-Mutability-heading">12. 바인딩 가변성과 대상 가변성</h2>
+                <p>참조에는 바인딩과 접근 권한이 있습니다. &amp;mut T 타입의 불변 바인딩은 다른 참조로 재대입할 수 없지만 허용된 대상에는 쓸 수 있습니다. 반대로 &amp;T 타입의 가변 바인딩은 다른 공유 참조를 선택할 수 있어도 어느 대상에도 쓰기 권한은 없습니다. 따라서 mut의 위치가 중요합니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">mut i32 count = 1;
+&amp;mut i32 target = &amp;mut count;
+*target = 2;
+i32 observed = *target;</code></pre>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 left = 1;
+i32 right = 2;
+mut &amp;i32 selected = &amp;left;
+selected = &amp;right;
+i32 observed = *selected;</code></pre>
+                <p>&amp;mut owner를 만들려면 owner 바인딩이 mut이어야 합니다. 이는 소유 변수에 대한 요구이며 이미 있는 쓰기 참조·뷰를 사용하는 데 가변 참조를 한 겹 더 만들라는 뜻은 아닙니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">i32 fixed = 10;
+&amp;mut i32 forbidden = &amp;mut fixed; // Invalid: immutable owner.</code></pre>
+                <p>함수 매개변수의 mut T value는 값으로 받은 함수 내부 지역 바인딩을 가변으로 만들 뿐 호출자의 원본 접근 권한을 주지 않습니다. &amp;mut T value는 호출자 대상의 독점 대여를 제공합니다. 자세한 차이는 <a href="Function_Declaration.html">함수 문서</a> 에서 설명합니다.</p>
+            </section>
+            <section id="Lifetimes" aria-labelledby="Lifetimes-heading"><h2 id="Lifetimes-heading">13. 마지막 사용·겹치는 영역·동기화된 내부 상태</h2>
+                <p>대여 검사는 텍스트상 모든 참조 이름이 닫는 중괄호까지 살아 있다고 보지 않고 활성 사용과 소유권 경로를 따릅니다. 충돌하는 공유 대여의 마지막 사용 뒤에는 새 독점 대여가 시작될 수 있습니다. 소멸자·캡처한 참조·반환 뷰가 의무를 유지할 수 있으므로 정리 중에 접근할 수 있는 별칭을 겉보기 미사용만으로 끝났다고 가정해서는 안 됩니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">mut i32 number = 10;
+&amp;i32 reader = &amp;number;
+i32 saved = *reader;
+&amp;mut i32 writer = &amp;mut number;
+*writer = 20;
+i32 after = number;</code></pre>
+                <p>다음 예제는 writer를 만든 뒤 reader를 다시 사용하므로 충돌하는 대여가 겹칩니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">mut i32 number = 10;
+&amp;i32 reader = &amp;number;
+&amp;mut i32 writer = &amp;mut number; // Invalid: reader remains active.
+i32 saved = *reader;</code></pre>
+                <p>여러 읽기는 공존할 수 있지만 충돌하는 쓰기 또는 읽기와 독점 쓰기는 공존할 수 없습니다. 겹치지 않음이 증명된 하위 범위에는 별도 쓰기 뷰를 만들 수 있습니다. 내부 동기화는 별도 계약입니다. Atomic·Mutex는 임의의 &amp;mut 별칭을 허용하지 않고도 공유 참조를 통해 정의된 연산을 수행할 수 있습니다. 저장 기간만으로 동기화가 보장되지는 않습니다. 자세한 내용은 <a href="../data_type/Atomic/Atomic.html">Atomic</a> 및 <a
+                            href="../data_type/Mutex/Mutex.html">Mutex</a>.</p></section>
+            <section id="Errors" aria-labelledby="Errors-heading"><h2 id="Errors-heading">14. 진단 안내</h2>
+                <p>이는 필수 진단 조건과 권장 설명이며 구현된 컴파일러 오류 코드가 아닙니다. 진단은 선언·충돌 사용·관련 타입이나 대여를 식별해야 합니다. clone을 조용히 추가하거나 숫자 타입을 넓히거나 실패를 버려서는 안 됩니다.</p>
+                <div class="table-scroll" role="region" aria-label="진단 가이드 데이터 테이블">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th scope="col">조건</th>
+                            <th scope="col">설명</th>
+                            <th scope="col">일반적인 수정</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <th scope="row">불변 바인딩에 대입</th>
+                            <td>바인딩에 쓰기 권한이 없습니다.</td>
+                            <td>변경이 목적이면 mut을 사용하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">rsn 추론 이후 다른 타입 대입</th>
+                            <td>추론으로 정적 타입 하나가 고정됐습니다.</td>
+                            <td>알맞은 타입의 별도 바인딩을 사용하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">타입이 정해진 숫자의 암묵적 타입 변경</th>
+                            <td>암묵적 숫자 캐스트는 정의되지 않았습니다.</td>
+                            <td>명시적 변환 API를 호출하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">mut과 const 조합</th>
+                            <td>상수는 가변일 수 없습니다.</td>
+                            <td>평가·접근 계약 중 의도한 것을 선택하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">const 초기식에 실행 중 값 필요</th>
+                            <td>컴파일 타임 평가에 값이 주어지지 않습니다.</td>
+                            <td>일반 불변 초기화나 실제 상수를 사용하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">불변 소유 값의 독점 대여</th>
+                            <td>소유 바인딩이 쓰기 권한을 제공할 수 없습니다.</td>
+                            <td>소유 값이 가변이어야 한다면 mut을 쓰세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">충돌하는 활성 대여</th>
+                            <td>나중 사용 때문에 겹치는 대여가 계속 활성 상태입니다.</td>
+                            <td>충돌하는 사용을 끝내거나 저장 영역의 분리를 증명하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">이동한 소유 값 사용</th>
+                            <td>소유권이 다른 바인딩으로 이전되었습니다.</td>
+                            <td>목적지를 사용하거나 미리 대여하거나 명시적으로 clone하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">rsn에 사용 가능한 타입 근거 없음</th>
+                            <td>정적 타입을 추론할 수 없습니다.</td>
+                            <td>타입 근거가 있는 초기식이나 명시적 타입을 제공하세요.</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">변수 값 타입에 void 사용</th>
+                            <td>void는 반환 위치의 선택지입니다.</td>
+                            <td>페이로드 없는 값이 필요하면 unit을 사용하세요.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>수정은 의도한 소유권·비용 모델을 보존해야 하며 자동 복구를 뜻하지 않습니다.</p></section>
+            <section id="Open-Decisions" aria-labelledby="Open-Decisions-heading"><h2 id="Open-Decisions-heading">15. 미정 사항과 관련 문서</h2>
+                <p>명시적 타입 지역 변수는 확정 대입 규칙 아래 초기식 없이 선언할 수 있습니다. 전역 대여 참조의 명시적 수명 표기는 아직 미정입니다. 최상위 persist 초기화는 값 의존성을 먼저 따르고 모듈 경로·선언 순서로 동률을 결정합니다. 다음 구문은 <code>T name;</code> 지원되는 명시적 타입 지역 선언이지만 초기화가 확정되기 전에는 사용할 수 없습니다. rsn에 초기식이나 다른 타입 근거가 없다면 추론할 수 없습니다. 이미 보이는 변수의 이름 가리기는 금지됩니다. 다음 접근 한정자는 <code>public</code>/<code>private</code> 모듈·타입 선언에 적용하고 지역 변수는 렉시컬 블록 범위를 유지합니다. 자세한 내용은 <a href="../grammar/scope_and_comments/Scope_and_Visibility.html">스코프와 접근 권한</a>.</p>
+                <p>전체 한정자 순서 문법, 지속 저장소가 포함된 조합, 상수 함수 기능, 스레드별 저장소는 아직 미정입니다. const usize 제네릭 인수의 식별은 이미 0.2에서 값으로 정규화합니다. <a href="../grammar/functions/index.html">함수 호출</a> 에는 기본값 인수와 오버로드 우선순위가 정해져 있고, <a href="../grammar/persistent_storage/index.html">persist</a> 에는 초기화 시점·치명적 실행 실패·정상 종료가 정해져 있습니다. 접근 권한과 일반 스코프 정리는 다음에서 설명합니다: <a href="../grammar/scope_and_comments/index.html">스코프와 주석</a>. 함수 시작 키워드나 마지막 표현식의 암묵적 반환은 추가하지 않습니다.</p>
+                <p>아래 외부 출처는 용어와 설계 선택을 비교하는 자료입니다. Aevix 구문을 정의하거나 다른 언어의 초기화·이름 가리기·수명 표기·저장 규칙을 도입하지 않습니다. 이어서 <a href="Function_Declaration.html">함수 선언</a>, 다음의 <a
+                            href="../data_type/index.html">자료형 개요</a>, 또는 <a href="index.html">선언 개요</a>.</p><p>이름 지정 필드 초기화, private 필드 접근, enum 항목 접근 권한, 타입 매개변수 선언은 다음 문서에서 정했습니다: <a href="../grammar/user_defined_types/index.html">사용자 정의 타입</a>, <a href="../grammar/enums/index.html">enum</a>, 및 <a href="../grammar/generics/index.html">제네릭 타입</a> . 필드 기본값과 사용자 정의 정리 선언은 미정입니다.</p></section>
+            <section id="Sources" aria-labelledby="Sources-heading"><h2 id="Sources-heading">16. 출처와 설계 참고 자료</h2>
+                <p>이 문서는 Aevix 규칙을 확정·미정으로 구분합니다. 1차 자료는 비교를 제공하며 다른 언어 규칙을 조용히 받아들이지 않습니다.</p>
+                <ul class="source-list">
+                    <li><a href="https://doc.rust-lang.org/book/ch03-01-variables-and-mutability.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Programming Language: 변수와 가변성(비교 자료)</a></li>
+                    <li><a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Programming Language: 참조와 대여(비교 자료)</a></li>
+                    <li><a href="https://eel.is/c++draft/basic.stc.static" target="_blank" rel="noopener noreferrer">C++ 작업 초안: 정적 저장 기간(용어 비교)</a></li>
+                </ul>
+            </section>
+            <nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a
+                    href="Function_Declaration.html"><span>다음 레퍼런스</span>함수</a></nav>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix 언어 · 선언 문서</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span>
+    </footer>
+</main>
+</body>
+</html>

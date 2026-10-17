@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="채널 메타데이터는 축, 뷰 및 소유권을 따릅니다.">
+  <title>축당 정량화 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Quantized/Quantized_PerAxis.html">
+<link rel="alternate" hreflang="ko" href="Quantized_PerAxis.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Quantized.html" aria-current="true">Quantized</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Quantized.html">Quantized</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">축당 정량화</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>축당 정량화</h1><p class="doc-subtitle">채널 메타데이터는 축, 뷰 및 소유권을 따릅니다.</p><div class="doc-meta"><span class="meta-chip">PerAxis&lt;I, F&gt;</span><span class="meta-chip">Quantized. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>10</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>Q는</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>축이 눈금 항목을 선택합니다.</span></a></li><li><a href="#ownership"><span class="toc-number">02</span><span>하나의 메타데이터 소유자, 많은 요소 코드</span></a></li><li><a href="#transforms"><span class="toc-number">03</span><span>축 인식 형상 변환</span></a></li><li><a href="#arithmetic"><span class="toc-number">04</span><span>커널 및 수축 제약</span></a></li><li><a href="#interchange"><span class="toc-number">05</span><span>외국 기술자 및 포장된 데이터</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>축별 메타데이터 구축</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>교환 경계</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Quantized 페이지"><h2>Quantized 참조</h2><div class="family-links"><a href="Quantized.html">Quantized</a><a href="Quantized_Affine.html">Affine 정량화</a><a href="Quantized_PerAxis.html" aria-current="page">축당 정량화</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="축별 정량화 참조">
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1입니다. 축이 눈금 항목을 선택합니다.
+</h2>
+<p>축별 스킴은 모든 정수 텐서 요소를 하나의 논리적 좌표로 선택된 스케일 및 영점과 연결합니다. 텐서 형상 [D0,...,Dr-1]과 축 a의 경우, 두 메타데이터 배열의 길이는 Da입니다. 모든 스케일은 유한하고 양수이며, 모든 영점(zero point)은 스토리지 유형에서 표현 가능하다. Rank-Zero 페이로드는 축이 없기 때문에 축 당 계획을 수행 할 수 없습니다.
+</p>
+<p>선택된 0개의 범위는 비어있는 메타데이터 배열을 허용합니다. 이러한 텐서는 스케일 엔트리를 필요로 하는 요소가 없지만, 축 유효성 및 나머지 형상은 여전히 유효성 검증을 필요로 합니다. 빈 채널에서의 캘리브레이션은 스케일을 제조하는 대신 명백한 누락된 데이터 오류를 보고합니다. 고정 순위 정적 제약 조건은 컴파일 중에 알려진 메타데이터 불일치를 거부할 수 있으며 런타임 메타데이터 길이는 checked로 유지됩니다.
+</p>
+</section>
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">2입니다. 하나의 메타데이터 소유자, 많은 요소 코드
+</h2>
+<p>이 스킴은 스케일과 영점 배열을 소유하거나 소유자에게 묶여있는 명시적으로 명명된 빌린 SchemeView입니다. 양자화된 텐서는 모든 요소에 이러한 배열을 반복하지 않습니다. 전체 값 딥 카피 페이로드 및 소유 메타 데이터를 복제; 뷰를 만드는 것은 단지 그들을 빌려. 대기 중인 장치 작업은 핸들 포기 후를 포함하여 대기 상태가 될 때까지 두 리스를 모두 유지합니다.
+</p>
+<p>메타데이터는 값이 사용하는 동안 변경할 수 없습니다. 가변적인 슬라이스는 퀀타이즈된 읽기 뷰 또는 이러한 슬라이스를 해석하는 기내 커널과 공존할 수 없습니다. 새로운 시스템을 구축하는 것은 그것을 독립적으로 검증합니다. Shared 메타데이터는 다른 할당과 동일한 소유권 규칙을 가진 실제 Shared 소유자를 필요로 합니다.
+</p>
+</section>
+<section id="transforms" aria-labelledby="transforms-heading">
+<h2 id="transforms-heading">3입니다. 축 인식 형상 변환
+</h2>
+<p>전치 텐서 축은 스킴 축을 새로운 논리 위치로 변경합니다. 그 축을 따라 슬라이싱하면 동일한 시작, 길이 및 단계로 메타데이터가 슬라이스되며, 다른 축을 슬라이싱하면 메타데이터 좌표가 변경되지 않습니다. 재형성은 모든 새로운 논리 요소에서 동일한 채널 매개 변수로 입증 가능한 매핑을 보존하는 경우에만 숫자 변환 없이 유효합니다. 동일 요소 count만으로는 충분하지 않습니다.
+</p>
+<p>양자화된 축을 브로드캐스팅하려면 특별한 주의가 필요하다: 싱글톤 채널은 논리적으로 동일한 메타데이터를 반복할 수 있지만, 임의의 새로운 채널 크기는 새로운 독립적인 스케일을 얻을 수 없다. 퀀타이즈 축을 따라 연결하면 메타데이터가 코드와 같은 순서로 연결됩니다. 다른 축을 연결하려면 먼저 동일한 매개 변수 의미 또는 명시적 재 정량화가 필요합니다.
+</p>
+</section>
+<section id="arithmetic" aria-labelledby="arithmetic-heading">
+<h2 id="arithmetic-heading">4입니다. 커널 및 수축 제약
+</h2>
+<p>축당 matmul 백엔드는 선택된 축 위치와 피연산자 역할만 지원할 수 있습니다. 어댑터는 제출 전에 이 기능을 확인하며, 채널 스케일을 하나의 스칼라로 자동으로 축소하지 않습니다. dot/matmul 계약은 누산기 정밀도와 수축 및 출력 축에 스케일 제품이 어떻게 적용되는지 설명합니다. 계약 차원에 따라 변화하는 스케일은 일반적으로 하나의 승수로 인수 분해 될 수 없습니다.
+</p>
+<p>원시 코드 합계에는 해당 제로 포인트 및 스케일 회계가 필요합니다. 더 좁은 누산기 또는 다른 채도 규칙을 사용하는 백엔드는 명시적 대체 프로파일을 통해 선택되어야 합니다. Portable semantics는 native per-channel 명령어 시퀀스를 보장하지 않는다. 오류 보고서는 수학적으로 유효한 스키마와 백엔드가 지원되지 않는 레이아웃을 구분합니다.
+</p>
+</section>
+<section id="interchange" aria-labelledby="interchange-heading">
+<h2 id="interchange-heading">5입니다. 외국 기술자 및 포장된 데이터
+</h2>
+<p>상호 교환 레코드에는 순위, 선택된 논리 축, 메타데이터 길이, 스케일 유형, 정수 서명 및 소유권이 포함됩니다. 음수 축 규칙은 checked 산술 및 외부 스키마 버전을 사용하여 어댑터에 의해 정규화됩니다. 포장하는 4-bit 또는 2-bit 페이로드에는 명시적인 비트 순서, 패딩 정책 및 논리적 요소가 필요합니다. count표준이 아닌 선택적 인코딩입니다.These are optional encodings, not standard. Array&lt;i8&gt; 기억.
+</p>
+<p>원시 바이트만 내보내면 양자화 의미가 사라집니다. 네이티브 개체 레이아웃, 포인터 너비 및 메타데이터 구조는 안정적인 직렬화가 아닙니다. 가져오기된 버퍼는 할당 범위, 정렬 및 수명을 증명하거나 소유 저장소에 명시적으로 복사되어야 합니다. 장치 전용 메타데이터는 명시적인 전송 없이는 설명자를 통해 호스트에서 읽을 수 없습니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 축별 메타데이터 구축
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Vector&lt;f32&gt; scales = prepared_scales;
+Vector&lt;i8&gt; zeros = prepared_zero_points;
+Result&lt;PerAxis&lt;i8, f32&gt;, QuantizationInputError&lt;(Vector&lt;f32&gt;, Vector&lt;i8&gt;)&gt;&gt; channels = Quantized.per_axis&lt;i8, f32&gt;(1, scales, zeros, tensor_shape);</code></pre>
+<p>입력 벡터는 성공 시 검증된 스킴으로 이동하며, 제안된 오류 페이로드는 유효성 검사가 실패하기 전에 소유권이 수락되었을 때 이를 유지합니다. 그들의 길이는 1 치수와 같아야 합니다. 성공적인 스킴은 텐서 요소 버퍼를 복사하거나 이동시키지 않는다.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-axis"><td><code>Quantized.axis(&amp;PerAxis&lt;I, F&gt; scheme)</code></td><td><code>usize</code></td><td>검증된 논리 파라미터 축을 반환합니다.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-scales"><td><code>Quantized.scales(Q value)</code></td><td><code>Slice&lt;F&gt;</code></td><td>읽기 전용으로 빌린 매개 변수 배열; 장치 대 호스트 사본이 없습니다.</td><td>O(1); 호스트 액세스 가능한 메타데이터만.</td>
+</tr>
+<tr id="Quantized-zero_points"><td><code>Quantized.zero_points(Q value)</code></td><td><code>Slice&lt;I&gt;</code></td><td>읽기 전용 영점 배열이 구성 수명과 연결되어 있습니다.</td><td>O(1); 사본 없음.</td>
+</tr>
+<tr id="Quantized-channel_scheme"><td><code>Quantized.channel_scheme(Q value, usize channel)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>검증 된 채널의 매개 변수를 복사합니다. checked 범위.</td><td>O(1); 호스트 액세스 가능한 메타데이터.</td>
+</tr>
+<tr id="Quantized-permute_axes"><td><code>Quantized.permute_axes(Q value, AxisList permutation)</code></td><td><code>Result&lt;QuantizedView, QuantizationError&gt;</code></td><td>읽기 전용 텐서 보기와 올바르게 다시 매핑된 양자화된 축.</td><td>O(rank); 요소 복사가 없습니다.</td>
+</tr>
+<tr id="Quantized-slice_channels"><td><code>Quantized.slice_channels(Q value, Range&lt;usize&gt; channels)</code></td><td><code>Result&lt;QuantizedView, QuantizationError&gt;</code></td><td>code/metadata 슬라이스는 매개 변수 대응을 유지합니다.</td><td>O(rank); 요소 복사가 없습니다.</td>
+</tr>
+<tr id="Quantized-reshape_preserving_axis"><td><code>Quantized.reshape_preserving_axis(Q value, ShapeLike shape)</code></td><td><code>Result&lt;QuantizedView, QuantizationError&gt;</code></td><td>모든 요소가 동일한 파라미터 인덱스를 유지함을 증명해야 합니다; 그렇지 않으면 오류가 발생합니다.</td><td>Shape/layout 분석; 암시적 레코딩이 아닙니다.</td>
+</tr>
+<tr id="Quantized-concatenate_channels"><td><code>Quantized.concatenate_channels(Slice&lt;Q&gt; inputs)</code></td><td><code>Result&lt;Quantized&lt;S, PerAxis&lt;I, F&gt;&gt;, QuantizationError&gt;</code></td><td>같은 비채널 형태와 유형; 코드와 메타데이터를 연결합니다.</td><td>O(elements + channels); 할당합니다.</td>
+</tr>
+<tr id="Quantized-calibrate_per_axis"><td><code>Quantized.calibrate_per_axis&lt;I, F&gt;(R samples, usize axis, CalibrationPolicy policy)</code></td><td><code>Result&lt;PerAxis&lt;I, F&gt;, QuantizationError&gt;</code></td><td>모든 비 비어있는 채널 유한; empty/missing 채널 통계 오류.</td><td>O(N); 메타데이터를 할당합니다.</td>
+</tr>
+<tr id="Quantized-convert_per_axis_scale"><td><code>Quantized.convert_per_axis_scale&lt;F2&gt;(Q value)</code></td><td><code>Result&lt;Quantized&lt;S, PerAxis&lt;I, F2&gt;&gt;, QuantizationError&gt;</code></td><td>명시적인 메타데이터 정밀 변환 및 독립적인 소유자 사본; 모든 스케일은 유한하게 유지됩니다.</td><td>O(N + channels); 할당합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 교환 경계
+</h2>
+<p>이들은 도서관 계약을 제안 합니다. 소스 연산자는 비교와 교환을 알려주지만 Aevix 동작을 자동으로 정의하지는 않습니다. 어댑터는 정확한 외부 스키마 버전에 대해 타이, 음수 값, 채도, 영점 및 스케일 정밀도를 테스트해야 합니다. 일반적인 Quantized 참조는 반올림 순서와 비제한 입력 정책을 소유합니다.
+</p>
+<p><a href="Quantized.html">Quantized 공통 참조</a> · <a href="../Tensor/Tensor_Shape.html">모양 제약</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://onnx.ai/onnx/operators/onnx__QuantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX Quantize리니어 오퍼레이터</a>
+</li>
+<li><a href="https://onnx.ai/onnx/operators/onnx__DequantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX Dequantize리니어 연산자</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/QuantDialect/" target="_blank" rel="noopener noreferrer">MLIR 양자화 방언</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Quantized_Affine.html"><span>이전 레퍼런스</span>Affine 정량화</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

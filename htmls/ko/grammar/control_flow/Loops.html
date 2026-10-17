@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Range 기반, C 스타일 및 루프 플러스, 증가 및 구조화 된 출구에 대해 향상되었습니다.">
+  <title>루프 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/control_flow/Loops.html">
+<link rel="alternate" hreflang="ko" href="Loops.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html" aria-current="true">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">제어 흐름</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">반복문</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">문법 레퍼런스</p><h1>반복문</h1><p class="doc-subtitle">Range 기반, C 스타일 및 루프 플러스, 증가 및 구조화 된 출구에 대해 향상되었습니다.</p><div class="doc-meta"><span class="meta-chip">Range 값 + 리터럴</span><span class="meta-chip">접두사 / 접두사 ++ --</span><span class="meta-chip">C++ 스타일 종료</span><span>확정된 규칙과 미정 사항</span></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 문서</dd></div><div class="doc-stat"><dt>모형</dt><dd>문 제어 흐름</dd></div><div class="doc-stat"><dt>청소</dt><dd>소유권 / 역 초기화</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>for / while</strong><span>제어 흐름</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>그리고 3 for forms</span></a></li><li><a href="#while"><span class="toc-number">02</span><span>각 반복 전에 bool 조건을 확인하는 동안</span></a></li><li><a href="#range-values"><span class="toc-number">03</span><span>기존 Range 유형을 직접 사용</span></a></li><li><a href="#range-literals"><span class="toc-number">04</span><span>0..10 및 0..=10는 Range 값을 구성</span></a></li><li><a href="#steps-and-boundaries"><span class="toc-number">05</span><span>방향 및 긍정적 인 단계는 Range API에서 온다</span></a></li><li><a href="#c-style"><span class="toc-number">06</span><span>C 스타일은 전용 초기화 및 업데이트 슬롯이 있습니다</span></a></li><li><a href="#increments"><span class="toc-number">07</span><span>접두사 및 접두사 ++ 및 -- 다른 값을 가지고 있습니다.</span></a></li><li><a href="#enhanced-text"><span class="toc-number">08</span><span>읽기 텍스트가 Unicode 스칼라로 향상됨</span></a></li><li><a href="#bindings-and-scope"><span class="toc-number">09</span><span>바인딩, 평가 및 소스 수명</span></a></li><li><a href="#break-and-continue"><span class="toc-number">10</span><span>구조화된 종료, 업데이트 단계 및 정리</span></a></li><li><a href="#rejected-forms"><span class="toc-number">11</span><span>거부된 루프 예제</span></a></li><li><a href="#open-decisions"><span class="toc-number">12</span><span>오픈 루프 설계 결정</span></a></li></ol></details><nav class="family-nav" aria-label="흐름 페이지 제어"><h2>제어 흐름 참조</h2><div class="family-links"><a href="index.html">개요</a><a href="Conditionals.html">조건부</a><a href="Loops.html" aria-current="page">반복문</a><a href="Switch.html">Switch</a></div></nav><nav class="family-nav" aria-label="관련 레퍼런스"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/index.html">모든 자료형</a></div></nav></aside><article class="content" aria-label="루프 참조">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. 동안 양식에 대한 세</h2><p>Aevix는 다음과 같은 세 가지 형태를 지원합니다. Range는 in, C 스타일 initialization/condition/update로 횡단하고 콜론으로 횡단을 강화했습니다. 모든 루프 헤더에는 괄호가 있습니다. 하나의 실행 가능한 본문문은 중괄호를 생략할 수 있다; 여러 본문문은 중괄호를 필요로 한다.</p><div class="table-wrap"><div class="table-scroll" role="region" aria-label="헤더를 위한 세 가지"><table><thead><tr><th scope="col">형태</th><th scope="col">헤더</th><th scope="col">바인딩 모델</th></tr></thead><tbody><tr><td>Range</td><td><code>for (int index in indices)</code></td><td>산출 된 각 값에 대한 신선한 불변 바인딩.</td></tr><tr><td>C 작풍</td><td><code>for (mut int index = 0; index &lt; 10; index++)</code></td><td>루프 전체에서 하나의 가변 제어 바인딩.</td></tr><tr><td>향상된</td><td><code>for (char scalar : text)</code></td><td>텍스트 탐색 중 신선한 불변 스칼라 바인딩.</td></tr></tbody></table></div></div></section>
+<section id="while" aria-labelledby="while-heading"><h2 id="while-heading">2. 각 반복 전에 bool 상태를 검사하는 동안</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">int count_to(int limit) {
+    mut int count = 0;
+    while (count &lt; limit) count++;
+    return count;
+}</code></pre><p>조건은 항목 및 각 나중에 반복 하기 전에 평가 됩니다. False 첫 번째 조건은 본문을 0 번 실행합니다. 조건은 bool 유형이어야 합니다. 바디 효과는 다음 조건 평가에 의해 사용되는 값을 변경할 수 있습니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">int count_even(int limit) {
+    mut int candidate = 0;
+    mut int count = 0;
+    while (candidate &lt; limit) {
+        candidate++;
+        if (candidate % 2 != 0) continue;
+        count++;
+    }
+    return count;
+}</code></pre><p>이 반복 본문을 떠나 즉시 동안 상태 테스트를 다시 시작합니다. 그것은 중단 된 신체의 나머지 진술을 반복하지 않습니다.</p></section>
+<section id="range-values" aria-labelledby="range-values-heading"><h2 id="range-values-heading">3입니다. 기존 Range 유형을 직접 사용</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int sum_indices() {
+    Range&lt;int&gt; indices = Range.new(0, 10);
+    mut int total = 0;
+    for (int index in indices) total += index;
+    return total;
+}</code></pre><p>루프는 Range 디스크립터 자체를 수신한다. 범위를 배열 또는 Vector로 변환할 필요가 없습니다. 설명자는 경계, 방향, 포함 및 단계 크기를 제공합니다. 순회는 독립적 인 커서 상태를 만듭니다.</p><p>설명자는 소유 할당이 없는 작은 Copy 값입니다. 그것을 복사하는 것은 시퀀스를 깊이 복사하거나 다른 설명자를 비밀리에 변경하지 않습니다. 전체 요소 count는 단순히 범위를 진행하는 데 필요하지 않습니다.</p></section>
+<section id="range-literals" aria-labelledby="range-literals-heading"><h2 id="range-literals-heading">4. 0..10 및 0..=10는 Range 값을 구성</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Range 리터럴 경계"><table><thead><tr><th scope="col">리터럴</th><th scope="col">API 대응</th><th scope="col">값</th></tr></thead><tbody><tr><td><code>0..10</code></td><td><code>Range.new(0, 10)</code></td><td>0부터 9까지: 포괄적으로 시작, 최종 독점.</td></tr><tr><td><code>0..=10</code></td><td><code>Range.closed(0, 10)</code></td><td>0부터 10까지: 두 엔드포인트 모두 사용 가능.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">int sum_closed() {
+    Range&lt;int&gt; inclusive = 0..=10;
+    mut int total = 0;
+    for (int index in inclusive) total += index;
+    return total;
+}
+
+int sum_literal() {
+    mut int total = 0;
+    for (int index in 0..10) total += index;
+    return total;
+}</code></pre><p>범위 리터럴은 구체화된 컨테이너가 아닌 기술자를 구성합니다. 경계는 설명자 표현식이 평가될 때 한 번 평가됩니다. 이미 입력된 엔드포인트는 지원되는 정수 형식에 동의해야 합니다. 형식이 지정되지 않은 리터럴은 호환되는 컨텍스트 또는 기본 int 형식을 사용합니다.</p><p>오름차순 범위에서 경계가 역전되면 자동으로 방향을 바꾸지 않고 빈 범위가 됩니다. 반개구간 0..0에는 값이 없고, 닫힌 구간 0..=0에는 값이 하나 있습니다.</p></section>
+<section id="steps-and-boundaries" aria-labelledby="steps-and-boundaries-heading"><h2 id="steps-and-boundaries-heading">5입니다. 방향 및 긍정적 인 단계는 Range API에서 온다</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;int, RangeError&gt; sum_every_four() {
+    u32 magnitude = 4;
+    Range&lt;int&gt; strided = Range.with_step(Range.closed(0, 10), magnitude)?;
+    mut int total = 0;
+    for (int index in strided) total += index;
+    return Result.ok(total);
+}
+
+int count_down() {
+    Range&lt;int&gt; descending = Range.descending_closed(3, 0);
+    mut int total = 0;
+    for (int index in descending) total += index;
+    return total;
+}</code></pre><p>보폭 범위는 0, 4 및 8를 산출합니다. 도달 가능한 경우에만 포괄적 인 경계가 포함됩니다. 스텝 크기는 범위 정수에 해당하는 동일한 너비의 부호 없는 형식입니다. 제로 스텝(zero step)은 RangeError이고, 하강 방향은 양수와는 별도로 표현된다.</p><p>정수 최대 또는 최소 경계에서, 범위 커서는 넘칠 수 있는 최종 증가 없이 횡단이 완료되었는지를 결정해야 합니다. 정수 최대값으로 끝나는 범위가 유효합니다. 이 안전한 커서 계약은 일반 사용자가 작성한 i + + 무오류를 만들지 않습니다.</p><p>Range API 카탈로그는 이러한 건설 계약을 제공합니다. 완전한 반복자 프로토콜 문법, 사용자 정의 스테핑 및 새로운 보폭 리터럴 표기법은 열려 있습니다.</p></section>
+<section id="c-style" aria-labelledby="c-style-heading"><h2 id="c-style-heading">6입니다. C 스타일은 전용 초기화 및 업데이트 슬롯이 있습니다</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int c_style_total() {
+    mut int index = 0;
+    mut int total = 0;
+    for (mut int cursor = 0; cursor &lt; 10; cursor++) {
+        total += cursor;
+        index = cursor;
+    }
+    return total + index;
+}</code></pre><p>헤더 바인딩을 한 번 초기화하고, bool 조건을 평가하고, true일 때 본문을 실행하고, 업데이트를 실행하고, 상태 테스트를 반복합니다. 루프 제어 바인딩은 상태, 업데이트 및 본문에서 볼 수 있지만 문이 끝난 후에는 사용할 수 없습니다.</p><p>일반 헤더 변수를 업데이트하려면 mut가 필요합니다. int cursor = 0는 다른 곳에서와 마찬가지로 불변 바인딩을 선언합니다. 나중에 커서 ++ 또는 커서 += 1는 변경 권한이 없으면 유효하지 않습니다.</p><p>초기화 및 업데이트 슬롯에는 승인된 선언 또는 assignment/increment 양식이 포함될 수 있습니다. 이 전용 사용은 일반적으로 = 또는 += 값 표현을 만들지 않습니다. 0.2는 빈 초기화, 조건 및 업데이트 슬롯을 허용합니다. 생략된 조건은 참을 의미합니다. 선언 없는 이니셜라이저 expression/action도 지원됩니다. 콤마 표현식과 여러 initializer/update 항목은 지원되지 않습니다.</p></section>
+<section id="increments" aria-labelledby="increments-heading"><h2 id="increments-heading">7입니다. 접두사 및 접두사 ++ 및 -- 다른 값을 가지고 있습니다.</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Integer 증가와 감소"><table><thead><tr><th scope="col">형태</th><th scope="col">저장된 변화</th><th scope="col">표현 값</th></tr></thead><tbody><tr><td><code>++value</code></td><td>한 명씩 늘린다.</td><td>새로운 가치.</td></tr><tr><td><code>value++</code></td><td>한 명씩 늘린다.</td><td>이전 가치.</td></tr><tr><td><code>--value</code></td><td>하나씩 줄어듭니다.</td><td>새로운 가치.</td></tr><tr><td><code>value--</code></td><td>하나씩 줄어듭니다.</td><td>이전 가치.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">int observe_increment() {
+    mut int value = 4;
+    int previous = value++;
+    int next = ++value;
+    return previous + next;
+}</code></pre><p>이 연산자는 쓰기 가능한 정수 자리를 필요로 합니다. 값 표현식이며, for update 에 포함되어 있습니다. 일반 증분 및 감소 오버플로를 확인 하 고 안전하게 산술 실패에 중지 합니다. 실패 증가는 래핑된 값을 저장하지 않습니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i8, IntegerError&gt; checked_increment() {
+    mut i8 value = 127;
+    i8 previous = checked(value++)?;
+    return Result.ok(previous);
+}</code></pre><p>여기서 checked 증분은 Err를 반환하고 127에서 값을 유지하며 ?은 함수에서 해당 오류를 반환합니다. 더 큰 표현식에서 이전에 완료된 효과는 롤백되지 않습니다. 이것은 실행된 컴파일러의 주장이 아닌 디자인 예제입니다.</p></section>
+<section id="enhanced-text" aria-labelledby="enhanced-text-heading"><h2 id="enhanced-text-heading">8입니다. 읽기 텍스트가 Unicode 스칼라로 향상됨</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int count_scalars(string_view text) {
+    mut int count = 0;
+    for (char scalar : text) {
+        count++;
+    }
+    return count;
+}
+
+char final_scalar(string_view text) {
+    mut char last = &#x27; &#x27;;
+    for (char scalar : text) last = scalar;
+    return last;
+}</code></pre><p>char 스칼라 : 텍스트는 string 또는 string_view에서 Unicode 스칼라 값을 방문합니다. 스칼라는 사용자가 인식한 문자 또는 UTF-8 byte일 필요는 없습니다. final_scalar 예제는 의도적으로 빈 입력의 공간을 반환합니다; 이는 부재 처리 API가 아닌 루프 예제입니다.</p><p>텍스트 횡단은 소스 소유자를 기존 소유자와 유지하고 대여을 통해 읽습니다. 기존 string_view는 이미 대여되어 직접 전달됩니다; 예제에서 추가 및 삽입되지 않습니다. 횡단 대여이 활성화되어 있는 동안에는 횡단된 저장소에 대한 구조 변경 또는 다른 충돌하는 접근이 허용되지 않습니다.</p><p>이 확인된 텍스트 동작은 모든 컬렉션 트래버설 모드를 해결하지 못합니다. 제네릭 컬렉션에 대한 읽기-대여, 쓰기-대여 및 소비 헤더는 선택된 구문으로 취급되기 전에 명시적 계약이 필요합니다.</p></section>
+
+<section id="bindings-and-scope" aria-labelledby="bindings-and-scope-heading"><h2 id="bindings-and-scope-heading">9입니다. 바인딩, 평가 및 소스 수명</h2><p>Range 및 향상된 순회는 각 반복에 신선한 반복 값을 바인딩, 기본적으로 불변; 명시적 mut는 로컬 바인딩을 변경할 수 있습니다. 변경 반복 값은 하나의 불변 바인딩을 재배치하지 않습니다. C-스타일 제어 바인딩은 시간이 지남에 따라 의도적으로 업데이트되는 하나의 바인딩입니다.</p><p>헤더 바인딩은 루프 안에만 존재합니다. 눈에 띄는 로컬 이름을 지정할 수 없습니다. 소스 대여은 소스가 살아 있을 때만 유효합니다; 루프 로컬 값에 대한 참조를 이스케이프하거나 활성 소스 대여을 무효화하는 것은 거부됩니다. 반복 로컬 소유 리소스는 새 소유자로 이동하지 않는 한 반복 범위가 종료될 때 릴리스됩니다.</p><p>실행된 form <code>for (mut i32 value in 0..3)</code> 로컬 반복 값의 변경을 허용합니다. 원본 요소를 쓸 수 있게 만들지 않습니다. 일반 가변 컬렉션 반복은 이 프로필 외부에 남아 있습니다. 원본 가변성만으로는 새로운 쓰기 권한이 부여되지 않습니다.</p><p>Range 또는 enhanced-loop 소스 표현식은 반복 전에 한 번 평가됩니다. Range 경계는 매번 재평가되지 않습니다. C-스타일 조건과 업데이트는 다릅니다: 조건은 각 본문 항목 전에 평가 하 고 각 완료 된 본문 또는 계속 후 업데이트 합니다.</p><p>현재 Range 커서와 텍스트 커서는 반복 상태이다; 기술자를 만들거나 복사하는 것은 모든 값의 숨겨진 할당이 아니다. 시체는 여전히 명시 적으로 수행하는 작업에 대해 비용을 지불하고, 텍스트 횡단은 기본 표현에서 스칼라를 디코딩합니다.</p><p>이러한 루프는 순차적 실행을 표현합니다. GPU 제출, 병렬 스케줄링, Tensor 방송 또는 자동 작업 생성은 구문에 대한 일반에 의해 암시되지 않습니다. AOT 및 JIT는 동일한 관찰 가능한 제어 흐름 및 소유권 동작을 유지해야 합니다.</p></section>
+<section id="break-and-continue" aria-labelledby="break-and-continue-heading"><h2 id="break-and-continue-heading">10입니다. 구조화된 종료, 업데이트 단계 및 정리</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="루프 종료"><table><thead><tr><th scope="col">구축</th><th scope="col">모델 번호: break</th><th scope="col">계속;</th></tr></thead><tbody><tr><td>동안</td><td>내부 스위치가 break 대상에 더 가깝지 않으면 가장 가까운 둘러싸는 루프를 종료합니다.</td><td>신체를 떠나 다시 상태를 테스트합니다.</td></tr><tr><td>Range는을 위해 강화했습니다</td><td>가장 가까운 적격 루프 또는 내부 스위치 대상을 종료합니다.</td><td>본문을 떠나 커서를 전진하고 존재하는 경우 다음 반복을 시작합니다.</td></tr><tr><td>C-스타일</td><td>업데이트 조항을 실행하지 않고 종료합니다.</td><td>본체를 떠나 업데이트 절을 실행한 다음 조건을 테스트합니다.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">int sum_until_five() {
+    mut int total = 0;
+    for (mut int index = 0; index &lt; 10; index++) {
+        if (index == 2) continue;
+        if (index == 5) break;
+        total += index;
+    }
+    return total;
+}</code></pre><p>break는 가장 안쪽의 둘러싸는 루프 또는 스위치를 표적으로 합니다. 계속하여 가장 안쪽의 둘러싸는 루프를 표적으로 하여 루프 타겟으로서 개입 스위치를 무시합니다. 어느 키워드도 허용된 문법에서 숫자 깊이 또는 레이블을 사용하지 않습니다. 루프 외부로 계속하는 것은 유효하지 않습니다.</p><p>계속 진행 중일 때, 현재 바디 스코프가 여전히 소유하고 있는 리소스는 다음 반복 단계 전에 역 초기화 순서로 정리됩니다. C-스타일 컨트롤 바인딩은 계속 됩니다. break에서 루프 헤더 범위를 포함하여 종료되는 범위가 남아 있고 현재 소유자가 정리됩니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;int, IntegerError&gt; sum_checked() {
+    mut int total = 0;
+    for (int index in 0..10) {
+        int next = checked(total + index)?;
+        total = next;
+    }
+    return Result.ok(total);
+}</code></pre><p>return 및 Err 전파는 ? 함수 범위를 남겨두고 정상적인 소유권 정리를 수행하고 보류중인 C 스타일 업데이트 절을 건너 니다. 실제로 초기화되고 여전히 로컬 소유된 리소스만 정리됩니다. 반환된 페이로드를 소유하는 것은 출구에서 파괴되기보다는 발신자로 이동했습니다.</p><p>자동 정리는 롤백이 아니며 새로운 오류 return 채널이 아닙니다. GPU로 빌린 리소스는 사용이 완료될 때까지 살아 있어야 합니다. 강제 안전 정지 청소는 열려 있습니다. 일반 프로세스 수명 persist 정리는 다음과 같습니다. <a href="../persistent_storage/Shutdown.html">성공적인 초기화-완료 순서를 반대로</a> 추적 된 자원이 완료를 사용한 후.</p></section>
+
+<section id="rejected-forms" aria-labelledby="rejected-forms-heading"><h2 id="rejected-forms-heading">11입니다. 거부된 루프 예제</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_immutable_counter() {
+    mut int total = 0;
+    for (int index = 0; index &lt; 3; index++) total += index;
+    return total;
+}</code></pre><p>C 스타일 인덱스는 변경할 수 없으므로 업데이트에는 쓰기 권한이 없습니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_shadowing(int index) {
+    mut int total = 0;
+    for (int index in 0..3) total += index;
+    return total;
+}</code></pre><p>루프 바인딩은 보이는 매개 변수 인덱스를 숨기려고 시도합니다. 다른 이름이 필요합니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void invalid_continue() {
+    continue;
+}</code></pre><p>계속 진행하기 위한 클로징 루프가 없습니다. 이러한 예제는 관찰된 컴파일러 진단이 아닌 의도된 컴파일 시간 거부를 지정합니다.</p></section>
+<section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">12입니다. 오픈 루프 설계 결정</h2><ul><li><a href="../../roadmap/Syntax_0_4.html#do-while">do/while는 0.4를 위해 계획됩니다</a>. 전용 무한 루프 키워드, 레이블 및 다중 레벨 break/continue는 현재 프로필 외부에 남아 있습니다.</li><li>쉼표 표현식과 여러 initializer/update 항목은 지원되지 않습니다. 빈 C 스타일 절과 선언 없는 이니셜라이저는 0.2에서 이미 지원됩니다.</li><li>일반 수집 반복기 프로토콜, 반복기 trait/bounds, 반복 사용, 반복 쓰기 및 사용자 정의 반복.</li><li>Destructuring 헤더와 광범위한 추론 형태는 별도의 설계 작업으로 남아 있습니다. Range/enhanced 반복 바인딩에서 명시적인 mut가 구현되어 해당 바인딩에만 영향을 줍니다.</li><li>대여한 컬렉션 헤더 철자; for (&amp;i32 value : &amp;values) 와 같은 미래 형태는 제안일 뿐입니다.</li><li>미래의 슬라이싱 구문은 여전히 열려 있습니다. <a href="../operators/Parsing_Rules.html">파싱 규칙</a> 이제 범위 우선 순위, 숫자 토큰 경계 및 혼합 조건 파싱을 지정합니다.</li></ul><p>루프 본문으로 사용되는 선언에는 중괄호가 필요합니다. 하나의 일반적인 실행가능한 본문문은 그것들을 생략할 수 있다. 이것은 선택된 규칙입니다.더 보기 <a href="../operators/Parsing_Rules.html#statement-bodies">바디 스코프</a>.</p><p>설명자 구성, 끝점, 긍정적인 단계 및 비용이 문서화되어 있습니다. <a href="../../data_type/Range/Range.html">Range</a>. <a href="Switch.html">Switch</a> 내부 케이스 break가 주변 루프가 계속 실행되는 동안 스위치를 종료 할 수있는 이유를 설명합니다.</p></section>
+<nav class="page-navigation" aria-label="관련 참조 페이지"><a href="../index.html"><span>문법 개요</span>언어 문법</a><a href="../../declaration/index.html"><span>바인딩 및 시그니처</span>선언</a></nav>
+</article></div><footer class="page-footer"><span>Aevix 언어 · 제어 흐름 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer></main>
+</body>
+</html>

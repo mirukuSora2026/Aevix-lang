@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="명시적 리터럴 및 일반 타이 규칙과 함께 하나의 원래 모듈 내에서 매개 변수별로 선택합니다.">
+<title>함수 오버로딩 — Aevix Docs</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/functions/Overloading.html">
+<link rel="alternate" hreflang="ko" href="Overloading.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">함수와 호출</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">기능 하중 초과</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">기능 참고</p><h1>기능 하중 초과</h1><p class="doc-subtitle">명시적 리터럴 및 일반 타이 규칙과 함께 하나의 원래 모듈 내에서 매개 변수별로 선택합니다.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙과 미정 사항</span><span class="meta-chip">명시적인 유형 및 비용</span><a href="../../declaration/Function_Declaration.html">기본 선언</a></div><dl class="doc-stats"><div class="doc-stat"><dt>시그니처</dt><dd>매개 변수 유형 / count</dd></div><div class="doc-stat"><dt>반환 전용 과부하</dt><dd>거부됨</dd></div><div class="doc-stat"><dt>숫자 기본값</dt><dd>i32 / f64 먼저</dd></div><div class="doc-stat"><dt>모듈 출처</dt><dd>Never 풀링됨</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>에프 (a)</strong><span>함수</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>유효한 오버로드를 통해서만 함수 이름 공유</span></a></li><li><a href="#namespace"><span class="toc-number">02</span><span>유형, 함수 및 상수는 하나의 모듈 네임스페이스를 공유합니다.</span></a></li><li><a href="#return-type"><span class="toc-number">03</span><span>반환 형식만으로는 선언을 구분할 수 없습니다.</span></a></li><li><a href="#selection-order"><span class="toc-number">04</span><span>선택한 환경 설정을 순서대로 적용</span></a></li><li><a href="#typed-first"><span class="toc-number">05</span><span>리터럴의 기본값 앞에 입력된 증거</span></a></li><li><a href="#literal-defaults"><span class="toc-number">06</span><span>일반성보다 기본 숫자 형식 우선</span></a></li><li><a href="#generic-ties"><span class="toc-number">07</span><span>동등한 적합성을 위해서만 구체적인 기능을 선호한다.</span></a></li><li><a href="#numeric-ambiguity"><span class="toc-number">08</span><span>기본 후보자가 승리하지 않을 때 추측하지 마십시오.</span></a></li><li><a href="#defaults"><span class="toc-number">09</span><span>더 적은 기본값은 기본 설정이 아닙니다.</span></a></li><li><a href="#module-origins"><span class="toc-number">10</span><span>오버로드 일치 전에 모듈 제품군 해결</span></a></li><li><a href="#named-arguments"><span class="toc-number">11</span><span>이름이 시그니처 ID가 아닌 후보 일치에 참여</span></a></li><li><a href="#open-decisions"><span class="toc-number">12</span><span>최종 타이 break로만 고정 대 가변 환경 설정 적용</span></a></li></ol></details><nav class="family-nav" aria-label="기능 페이지"><h2>함수와 호출</h2><div class="family-links"><a href="index.html">개요</a><a href="Generic_Functions.html">제네릭 함수</a><a href="Overloading.html" aria-current="page">과부하</a><a href="Arguments_and_Defaults.html">인수와 기본값</a><a href="Variadic_Parameters.html">Variadic 매개변수</a></div></nav><nav class="family-nav" aria-label="관련 언어 reference"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../../declaration/Function_Declaration.html">기본 함수 선언</a><a href="../generics/index.html">제네릭 타입</a><a href="../interfaces/index.html">인터페이스</a><a href="../modules/index.html">모듈과 import</a><a href="../persistent_storage/index.html">영속 저장소</a><a href="../../data_type/index.html">전체 자료형</a></div></nav></aside><article class="content" aria-label="기능 하중 초과 참고">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1입니다. 유효한 오버로드를 통해서만 함수 이름 공유</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 select(i32 value) {
+    return value;
+}
+
+i64 select(i64 value) {
+    return value;
+}
+
+i32 select(i32 first, i32 second) {
+    return first + second;
+}
+
+void use_selection() {
+    i32 small = select(10);
+    i64 wide = 20;
+    i64 retained = select(wide);
+    i32 sum = select(1, 2);
+    return;
+}</code></pre><p>하나의 원래 모듈 내에서 파라미터 유형 또는 개수는 과부하를 구별합니다. i32 리터럴 기본값은 첫 번째 단일 인수 형식을 선택하고, 이미 입력된 i64는 두 번째를 선택하고, 두 개의 인수는 세 번째를 선택합니다. 일반 매개 변수 권한은 일치의 일부로 유지되며 과부하 해상도는 쓰기 기능을 제조할 수 없습니다.</p></section><section id="namespace" aria-labelledby="namespace-heading"><h2 id="namespace-heading">2입니다. 유형, 함수 및 상수는 하나의 모듈 네임스페이스를 공유합니다.</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: a constant and a function cannot share this module name;
+const i32 scale = 2;
+
+i32 scale(i32 value) {
+    return value;
+}</code></pre><p>함수 오버로드는 서로 다른 매개 변수 시그니처에 대한 특정 예외입니다. 형식이나 상수가 동일한 선언 이름을 차지하는 것을 허용하지 않습니다. Public/private는 이러한 세 가지 선언 범주에 대한 고유한 네임스페이스가 아닌 액세스에 영향을 미칩니다.</p><p>매개 변수 이름은 호출에 도움이되지만 다른 매개 변수 type/count 시그니처을 만들지는 않습니다. 그렇지 않으면 동일한 함수는 단순히 인수의 이름을 변경하여 다시 선언할 수 없습니다.</p></section><section id="return-type" aria-labelledby="return-type-heading"><h2 id="return-type-heading">3입니다. 반환 형식만으로는 선언을 구분할 수 없습니다.</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected: these parameter signatures are identical;
+i32 convert(i32 value) {
+    return value;
+}
+
+f64 convert(i32 value) {
+    return 1.0;
+}</code></pre><p>i32 또는 f64 유형으로 수신 변수를 기록한다고 해서 이 과부하가 적법하게 설정되는 것은 아닙니다. 반환 컨텍스트 일반 추론은 그렇지 않으면 일치하는 후보의 해결되지 않은 형식 매개 변수를 채웁니다. return 전용 오버로드를 승인하거나 인수 추론 유형을 대체하지 않습니다.</p></section><section id="selection-order" aria-labelledby="selection-order-heading"><h2 id="selection-order-heading">4입니다. 선택한 환경 설정을 순서대로 적용</h2><div class="table-wrap"><div class="table-scroll" role="region" tabindex="0" aria-label="과부하 선택 단계"><table><thead><tr><th scope="col">단계</th><th scope="col">선택된 행동</th></tr></thead><tbody><tr><th scope="row">선언 출처 해결</th><td>다른 원래 모듈은 별도의 과부하 가족으로 남아 있습니다. 모호한 가져온 짧은 이름은 먼저 자격이 있어야 합니다.</td></tr><tr><th scope="row">Map 인수</th><td>인수 names/positions, 일반 카운트, 사용 가능한 기본값, 전달 모드, 일반 대체 및 선언 된 요구 사항을 확인하십시오.</td></tr><tr><th scope="row">입력된 입력 사용</th><td>암시적 숫자 변환 없이 이미 입력된 인수 정보를 사용하는 좁은 후보.</td></tr><tr><th scope="row">형식이 없는 숫자 리터럴 비교하기</th><td>generic/non-generic 타이 규칙 전에 i32 정수 또는 f64 실제 기본값과 일치하는 호환 가능한 후보를 선호합니다.</td></tr><tr><th scope="row">달리 동등한 일반 넥타이를 깨십시오.</th><td>부적합이 그렇지 않으면 동등할 때 non-generic 후보자를 선호하십시오.</td></tr><tr><th scope="row">그렇지 않으면 동등한 팩 넥타이를 깨십시오.</th><td>앞의 유형, 리터럴 및 generic/non-generic 환경 설정 후, 다양한 것보다 고정 파라미터 후보를 선호합니다.</td></tr><tr><th scope="row">남은 타이를 거부합니다.</th><td>소스 순서, 가져오기 순서, 추측 너비 또는 기본값 count 폴백이 없으면 승자가 선택됩니다.</td></tr></tbody></table></div></div><p>명시적 형식 인수는 일반 후보자를 요청합니다. 이것은 컴파일-시간 선택이다; 표현식은 어떤 오버로드가 성공할 것인지를 발견하기 위해 추측적으로 실행되지 않는다. 추가 숫자 변환 순위 또는 임의의 가중치 일치 점수가 도입되지 않습니다.</p></section><section id="typed-first" aria-labelledby="typed-first-heading"><h2 id="typed-first-heading">5입니다. 리터럴의 기본값 앞에 입력된 증거</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose_pair(i32 first, i32 second) {
+    return first;
+}
+
+i64 choose_pair(i64 first, i64 second) {
+    return first;
+}
+
+void use_later_typed_argument() {
+    i64 wide = 40;
+    i64 result = choose_pair(10, wide);
+    return;
+}</code></pre><p>형식화된 i64가 암시적으로 변환되지 않기 때문에 wide는 i32 후보를 배제합니다. 나머지 i64 매개변수 컨텍스트는 형식이 지정되지 않은 정수 리터럴을 허용합니다. 10의 이전 소스 위치는 잘못된 i32 결정을 강제할 수 없습니다.</p><p>이 선택 순서는 평가 순서를 변경하지 않습니다: 첫 번째 인수는 두 번째 인수 이전에 평가됩니다. 정적 형식 정보는 이러한 런타임 부작용과 독립적으로 컴파일러에서 사용할 수 있습니다.</p></section><section id="literal-defaults" aria-labelledby="literal-defaults-heading"><h2 id="literal-defaults-heading">6입니다. 일반성보다 기본 숫자 형식 우선</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 numeric(i32 value) {
+    return value;
+}
+
+i64 numeric(i64 value) {
+    return value;
+}
+
+f32 real_numeric(f32 value) {
+    return value;
+}
+
+f64 real_numeric(f64 value) {
+    return value;
+}
+
+void use_literal_defaults() {
+    i32 whole = numeric(10);
+    f64 real = real_numeric(0.5);
+    return;
+}</code></pre><pre class="code-block"><code class="language-aevix" data-language="aevix">i64 prefer_literal_default(i64 value) {
+    return value;
+}
+
+T prefer_literal_default&lt;T&gt;(T value) {
+    return value;
+}
+
+void default_before_generic_tie() {
+    i32 selected = prefer_literal_default(10);
+    return;
+}</code></pre><p>마지막 호출은 정수 기본값과 일치하기 때문에 일반 T = i32 후보를 선택합니다. 비제네릭 i64 후보는 단순히 비제네릭이기 때문에 이기지 않는다; 그 선호는 문자적 적합성이 달리 묶여진 후에만 적용된다.</p></section><section id="generic-ties" aria-labelledby="generic-ties-heading"><h2 id="generic-ties-heading">7입니다. 동등한 적합성을 위해서만 구체적인 기능을 선호한다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 identity(i32 value) {
+    return value;
+}
+
+T identity&lt;T&gt;(T value) {
+    return value;
+}
+
+void use_generic_ties() {
+    i32 concrete = identity(10);
+    i32 generic = identity&lt;i32&gt;(20);
+    return;
+}</code></pre><p>일반 호출에는 똑같이 적합한 콘크리트 i32 함수와 일반 i32 전문화가 있으므로 비원형 형식이 승리합니다. 명시적인 angle-bracket 호출은 제네릭 패밀리를 직접 선택합니다. 0.2에서 명시적 함수 제네릭 인수 목록은 선행 부분을 제공할 수 있습니다. 추론 또는 후행 기본값은 나머지 매개 변수를 해결해야 합니다. 더 보기 <a href="../generics/Generics_02.html#defaults">제네릭 프로파일 Generic Profile</a>.</p></section><section id="numeric-ambiguity" aria-labelledby="numeric-ambiguity-heading"><h2 id="numeric-ambiguity-heading">8입니다. 기본 후보자가 승리하지 않을 때 추측하지 마십시오.</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i8 small_number(i8 value) {
+    return value;
+}
+
+i16 small_number(i16 value) {
+    return value;
+}
+
+// Rejected: both accept 10, neither matches the i32 default;
+void ambiguous_numeric_literal() {
+    rsn result = small_number(10);
+    return;
+}</code></pre><p>최소 너비 설정은 없습니다. 이미 입력 된 인수를 제공하거나 그렇지 않으면 모호성을 제거합니다. 호환 가능한 비 기본값 후보가 하나만 남아 있는 경우 컨텍스트 리터럴 입력은 해당 후보를 사용할 수 있습니다. 규칙은 모든 비 i32 숫자 매개 변수를 금지하지 않습니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">void resolve_with_a_type() {
+    i8 value = 10;
+    i8 result = small_number(value);
+    return;
+}</code></pre></section><section id="defaults" aria-labelledby="defaults-heading"><h2 id="defaults-heading">9입니다. 더 적은 기본값은 기본 설정이 아닙니다.</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">i32 choose_default(i32 value) {
+    return value;
+}
+
+i32 choose_default(i32 value, i32 offset = 0) {
+    return value + offset;
+}
+
+// Rejected: both match equally; the omitted-default count is not ranked;
+void ambiguous_default_count() {
+    i32 result = choose_default(10);
+    return;
+}</code></pre><p>두 함수 모두 별개의 선언된 매개변수 카운트를 가지고 있으며 공존할 수 있지만, 단일 인수 호출은 애매합니다. 어떤 규칙도 제로 디폴트 인수를 사용하는 후보를 선호하지 않습니다. 두 인자 호출은 두 번째 함수를 직접 선택할 수 있습니다. 더 보기 <a href="Arguments_and_Defaults.html">인수와 기본값</a>.</p></section><section id="module-origins" aria-labelledby="module-origins-heading"><h2 id="module-origins-heading">10입니다. 오버로드 일치 전에 모듈 제품군 해결</h2><p>이러한 독립적인 모듈들이 각각 choose라는 이름의 public 함수를 노출시킨다고 가정하자. 코드 블록은 별도의 모듈 픽스처이며 하나의 모듈에 연결하기위한 선언이 아닙니다.</p><p><strong>단위 calculations.integer</strong></p><pre class="code-block"><code class="language-aevix" data-language="aevix">public i32 choose(i32 value) {
+    return value;
+}</code></pre><p><strong>단위 calculations.real</strong></p><pre class="code-block"><code class="language-aevix" data-language="aevix">public f64 choose(f64 value) {
+    return value;
+}</code></pre><p><strong>Consumer(소비자): 의도된 가족을 식별하는 자격</strong></p><pre class="code-block"><code class="language-aevix" data-language="aevix">import calculations.integer { choose };
+import calculations.real { choose };
+
+void use_qualified_calls() {
+    i32 first = calculations.integer.choose(10);
+    f64 second = calculations.real.choose(0.5);
+    return;
+}</code></pre><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반한 예제입니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">// Rejected in that consumer: different originating modules share choose;
+void invalid_pooled_set() {
+    i32 result = choose(10);
+    return;
+}</code></pre><p>인자는 하나의 모듈의 함수를 선택함으로써 애매모호한 짧은 이름을 적법하게 만들 수 없다. 원래의 두 오버로드 제품군은 never 풀링입니다. 로컬 패밀리와 다른 가져온 패밀리는 동일한 규칙을 따릅니다. 로컬 이름은 가져온 패밀리를 자동으로 흡수하거나 능가하지 않습니다.</p><p>재수출 경로를 통해 동일한 정식 원본 선언에 반복적으로 액세스해도 해당 선언의 경쟁 복사본이 생성되지 않습니다. 형식 및 함수 ID는 원래 선언을 따르고 자격 증명 권한은 선택한 가져오기 및 다시 내보내기 경로를 따릅니다.</p></section><section id="named-arguments" aria-labelledby="named-arguments-heading"><h2 id="named-arguments-heading">11입니다. 이름이 시그니처 ID가 아닌 후보 일치에 참여</h2><p>각 후보는 지정된 인수를 선언된 매개 변수에 매핑합니다. 알 수 없는 이름, 중복된 바인딩 및 지정된 형식이 유효하지 않은 후의 위치 인수입니다. 공개 매개 변수 이름은 유효한 명명 된 호출을 변경하기 때문에 호출 가능한 API의 일부입니다.</p><p>동일한 매개 변수 types/count를 가진 함수는 단순히 다른 매개 변수 이름을 통해 고유한 과부하가 될 수 없습니다. 지정된 인수 표현식의 소스 평가 순서는 선택된 매개변수 위치가 다른 경우에도 유지됩니다.</p></section><section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">12입니다. 최종 타이 break로만 고정 대 가변 환경 설정 적용</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose_pack(i32 value) {
+    return 1;
+}
+
+i32 choose_pack(i32 values[]) {
+    return 2;
+}
+
+void fixed_wins_equal_tie() {
+    i32 selected = choose_pack(10);
+    return;
+}</code></pre><p>두 후보 모두 i32 인수를 수락하고 둘 다 비정형입니다. 최종 팩 타이-break는 고정 파라미터 기능을 선호하므로 지정된 디자인에서 1가 선택됩니다. 이것은 관찰된 Aevix 실행이 아닙니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">T generic_or_pack&lt;T&gt;(T value) {
+    return value;
+}
+
+i32 generic_or_pack(i32 values[]) {
+    return 2;
+}
+
+void generic_preference_still_runs_first() {
+    i32 selected = generic_or_pack(10);
+    i32 explicit_generic = generic_or_pack&lt;i32&gt;(10);
+    return;
+}</code></pre><p>일반 호출은 최종 고정 대 가변적 타이 break에 도달하기 전에 비일반 팩 후보를 선택합니다; 선택된 것은 2입니다. 명시 적으로 입력 된 호출은 일반 함수를 선택하고 10를 반환합니다. 숫자 리터럴 환경 설정도 동점-break보다 일찍 유지됩니다.</p><p>생략된 일반 기본값의 count는 순위가 없습니다. 다른 오리진 모듈은 별도의 과부하 패밀리로 남아 있으며, 정규 복제 재수출은 추가 후보자를 만들지 않으며 나머지 동점은 여전히 컴파일 시간 모호성입니다.</p><ul><li>암시적 사용자 정의 변환, 확장 메서드 조회 및 추가 인터페이스 방법 충돌은 이러한 자유 함수 규칙에 의해 도입되지 않습니다.</li><li>팩 규칙은 별칭을 활성화하거나, 개인 선언을 노출하거나, 선택되지 않은 형제 자매를 가져오거나, named/spread 팩을 허용하거나, 외국 varargs ABI를 정착하지 않습니다.</li></ul><p><a href="Variadic_Parameters.html">Variadic 매개변수</a> · <a href="Arguments_and_Defaults.html">인수와 기본값</a> · <a href="Generic_Functions.html">제네릭 함수</a></p></section>
+<nav class="page-navigation" aria-label="인접한 함수 참조 페이지"><a href="index.html"><span>관련 레퍼런스</span>개요</a><a href="Generic_Functions.html"><span>관련 레퍼런스</span>제네릭 함수</a><a href="Arguments_and_Defaults.html"><span>관련 레퍼런스</span>인수와 기본값</a><a href="Variadic_Parameters.html"><span>관련 레퍼런스</span>Variadic 매개변수</a></nav></article></div>
+<footer class="page-footer"><span>Aevix 언어 · 기능 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

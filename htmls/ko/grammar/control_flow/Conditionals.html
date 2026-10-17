@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Boolean if 문, 단일 구문 본문 및 삼항 조건부 값 선택.">
+  <title>조건부 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/control_flow/Conditionals.html">
+<link rel="alternate" hreflang="ko" href="Conditionals.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html" aria-current="true">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">제어 흐름</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">조건부</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">문법 레퍼런스</p><h1>조건부</h1><p class="doc-subtitle">Boolean if 문, 단일 구문 본문 및 삼항 조건부 값 선택.</p><div class="doc-meta"><span class="meta-chip">필요한 괄호</span><span class="meta-chip">단일 문: 선택적인 버팀대</span><span class="meta-chip">삼중 값</span><span>확정된 규칙과 미정 사항</span></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 문서</dd></div><div class="doc-stat"><dt>모형</dt><dd>문 제어 흐름</dd></div><div class="doc-stat"><dt>청소</dt><dd>소유권 / 역 초기화</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>if / else</strong><span>제어 흐름</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>if is a statement; 조건부 선택은 표현식</span></a></li><li><a href="#basic-form"><span class="toc-number">02</span><span>필수 괄호 및 명시적 return 경로</span></a></li><li><a href="#boolean-conditions"><span class="toc-number">03</span><span>조건은 bool 여야합니다.</span></a></li><li><a href="#single-statements"><span class="toc-number">04</span><span>하나의 실행 가능한 구문에 대해 중괄호를 생략할 수 있음</span></a></li><li><a href="#else-if"><span class="toc-number">05</span><span>if checking alternatives 수정/삭제 댓글쓰기</span></a></li><li><a href="#ternary"><span class="toc-number">06</span><span>? 사용 : 조건이 값을 선택할 때</span></a></li><li><a href="#two-question-marks"><span class="toc-number">07</span><span>조건부 ? 및 postfix Result ? 다른 연산자입니다</span></a></li><li><a href="#evaluation-and-ownership"><span class="toc-number">08</span><span>선택된 코드만 실행됩니다. 소유권은 checked입니다.</span></a></li><li><a href="#scope-and-cleanup"><span class="toc-number">09</span><span>지점은 지역 범위 및 정리를 준수합니다.</span></a></li><li><a href="#rejected-forms"><span class="toc-number">10</span><span>거부된 양식은 계속 볼 수 있습니다.</span></a></li><li><a href="#open-decisions"><span class="toc-number">11</span><span>열린 결정</span></a></li></ol></details><nav class="family-nav" aria-label="흐름 페이지 제어"><h2>제어 흐름 참조</h2><div class="family-links"><a href="index.html">개요</a><a href="Conditionals.html" aria-current="page">조건부</a><a href="Loops.html">반복문</a><a href="Switch.html">Switch</a></div></nav><nav class="family-nav" aria-label="관련 레퍼런스"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/index.html">모든 자료형</a></div></nav></aside><article class="content" aria-label="조건부 참조">
+<section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. if is a statement; 조건부 선택은 표현식입니다.</h2><p>if 문은 어떤 문이나 블록이 실행될지를 결정합니다. 그것은 가치를 생산하지 않습니다. Aevix는 이니셜라이저, 인수 또는 return 표현식에 대한 값을 선택할 때 삼항 조건 연산자를 사용합니다.</p><p>문법은 각각의 if 와 else if 조건 주위에 괄호를 필요로 합니다. 조건에는 bool 유형이 있습니다; 숫자, 포인터 및 Optional 값은 암묵적인 진실성을 획득하지 않습니다.</p></section>
+<section id="basic-form" aria-labelledby="basic-form-heading"><h2 id="basic-form-heading">2입니다. 필수 괄호 및 명시적 return 경로</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">int maximum(int left, int right) {
+    if (left &gt; right) {
+        return left;
+    } else {
+        return right;
+    }
+}</code></pre><p>실행이 이 경우에 도달하면 조건이 한 번 평가됩니다. exactly one branch executes. else 는 statement-form if 에 대해 선택 사항이다; 조건이 false 이고 else 가 없으면 statement 후에 실행이 계속된다.</p><p>비 void 값을 반환하는 함수는 모든 일반 완료 경로에 명시적인 return가 필요합니다. 분기를 선택하는 것은 함수에서 return 자체를 선택하지 않습니다.</p></section>
+<section id="boolean-conditions" aria-labelledby="boolean-conditions-heading"><h2 id="boolean-conditions-heading">3입니다. 조건은 bool 여야합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int clamp_negative(int value) {
+    bool negative = value &lt; 0;
+    if (negative) return 0;
+    return value;
+}</code></pre><p>비교는 bool를 생산합니다. 논리 !, &amp;&amp; 및  bool 피연산자에 대한 작업; &amp;&amp; 조건 내에서 자신의 단락 동작을 유지 . 숫자 테스트는 숫자를 다른 값과 명시적으로 비교해야 합니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void invalid_numeric_condition() {
+    int count = 3;
+    if (count) return;
+}</code></pre><p>거부된 조건은 int 타입이 있고, 그렇지 않습니다. bool. count != 0 와 같은 명시적 조건을 사용합니다.</p></section>
+<section id="single-statements" aria-labelledby="single-statements-heading"><h2 id="single-statements-heading">4입니다. 하나의 실행 가능한 구문에 대해 중괄호를 생략할 수 있음</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int normalize(int value) {
+    mut int normalized = value;
+    if (normalized &lt; 0) normalized = 0;
+    else normalized += 1;
+    return normalized;
+}</code></pre><p>하나의 실행가능한 문장은 중괄호가 없는 브랜치 바디를 형성할 수 있다. 여러 문장은 { ... }가 필요합니다. 이것은 소스 라인의 count가 아닌 진술의 count입니다. 모든 선언, 할당, 호출 문 및 return 문은 세미콜론으로 끝납니다. 폐쇄 제어 흐름 또는 기능 보조기는 추가 세미콜론이 필요하지 않습니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">int record_positive(int value) {
+    mut int adjusted = value;
+    mut int changes = 0;
+    if (adjusted &gt; 0) {
+        adjusted += 1;
+        changes += 1;
+    }
+    return adjusted + changes;
+}</code></pre><p>같은 물리적인 라인에 다른 문장을 넣는다고 해서 그것이 괄호가 없는 브랜치에 추가되는 것은 아니다. 분기 본문으로 사용되는 선언은 유일한 선언인 경우에도 명시적인 블록이 필요합니다. 이 블록은 렉시컬 범위와 정리 경계를 제공한다; 단독의 unbraced 선언은 거부된다.</p></section>
+<section id="else-if" aria-labelledby="else-if-heading"><h2 id="else-if-heading">5. 그렇지 않으면 대안을 순서대로 검사합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int sign_code(int value) {
+    if (value &lt; 0) return -1;
+    else if (value == 0) return 0;
+    else return 1;
+}</code></pre><p>조건들은 브랜치가 선택될 때까지 소스 순서로 고려된다. 나중에 조건과 그들의 신체는 이전 조건이 성공한 후에 평가되지 않습니다. 각각의 else가 bool 조건의 괄호를 가지고 있다면; else는 조건이 없다.</p><p>다음 <code>else</code> 는 가장 가까운 짝 없는 다음 문장에 연결됩니다: <code>if</code>. 에서 <code>if (outer) if (inner) action(); else fallback();</code>다른 하나는 내면의 것이다. 그것을 외부에 부착하기 위해 중괄호를 사용하십시오. 더 보기 <a href="../operators/Parsing_Rules.html#statement-bodies">구문 분석</a>.</p></section>
+<section id="ternary" aria-labelledby="ternary-heading"><h2 id="ternary-heading">6입니다. ? 사용 : 조건이 값을 선택할 때</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">int maximum_value(int left, int right) {
+    int larger = (left &gt; right) ? left : right;
+    return larger;
+}</code></pre><div class="table-wrap"><div class="table-scroll" role="region" aria-label="조건부 값 선택"><table><thead><tr><th scope="col">속성</th><th scope="col">확정된 규칙</th></tr></thead><tbody><tr><td>조건</td><td>bool 유형이 있어야 합니다.</td></tr><tr><td>대체 형식</td><td>두 대안 모두 동일한 결과 유형을 가지며, 이미 입력된 값에 대한 자동 숫자 프로모션이 없습니다.</td></tr><tr><td>평가 방식</td><td>조건을 평가 한 다음 선택한 대안 만 평가하십시오.</td></tr><tr><td>우선순위</td><td>산술, 비교 및 논리 연산자보다 낮음.</td></tr><tr><td>협회</td><td>중첩된 조건부 선택 연결은 오른쪽에 있습니다.</td></tr><tr><td>반환</td><td>조건식은 명시적 return 키워드를 대체하지 않습니다.</td></tr></tbody></table></div></div><pre class="code-block"><code class="language-aevix" data-language="aevix">int sign_value(int value) {
+    return (value &lt; 0) ? -1 : ((value == 0) ? 0 : 1);
+}</code></pre><p>조건 주위에 괄호가 조건식의 가독성에 대해 표시됩니다. 이미 선택한 필수 조건 괄호는 if와 while에 적용되며, 삼항 조건에 별도의 필수 부모 규칙을 부과하지 않습니다.</p></section>
+<section id="two-question-marks" aria-labelledby="two-question-marks-heading"><h2 id="two-question-marks-heading">7입니다. 조건부 ? 및 postfix Result ? 다른 연산자입니다</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;int, IntegerError&gt; select_sum(bool use_left, int left, int right) {
+    int selected = use_left ? left : right;
+    int sum = checked(selected + 1)?;
+    return Result.ok(sum);
+}</code></pre><p>삼항 연산자는 조건과 콜론으로 구분 된 두 가지 대안이 필요합니다. Postfix ?는 하나의 Result 값으로 동작한다: 현재 Result-returning 함수에서 Ok를 추출하거나 Err를 반환한다. 그들의 의미는 공백에 의존하지 않습니다.</p><p>postfix ? 는 enclosing 함수에 의해 선언된 동일한 에러 타입을 전파한다. 그것은 오류를 자동으로 변환하지 않거나, 함수라는 내부 강제 안전 정지를 잡거나, 이미 발생한 효과를 취소하지 않습니다. Result 구성 및 조건부 값 선택은 별도의 작업으로 유지됩니다.</p></section>
+<section id="evaluation-and-ownership" aria-labelledby="evaluation-and-ownership-heading"><h2 id="evaluation-and-ownership-heading">8입니다. 선택된 코드만 실행됩니다. 소유권은 checked입니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">string choose_text(bool use_first, string first, string second) {
+    return use_first ? first : second;
+}</code></pre><p>선택된 소유 string 반환 값으로 이동합니다. 선택되지 않은 로컬 소유자는 함수가 종료될 때 정리됩니다. string는 조용히 딥 클로닝되지 않습니다. 조건과 부작용은 여전히 선택된 평가 순서를 따르며, 건너뛴 브랜치는 런타임 효과가 없다.</p><p>조건부 브랜치 후에, 값은 그 사용에 도달할 수 있는 모든 경로에서 유효한 경우에만 사용될 수 있다. 한 브랜치가 Copy가 아닌 소유자를 옮기고 다른 브랜치가 그것을 유지했다면, 브랜치가 소유권을 유지한 후에 무조건적인 사용은 가정할 수 없다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">string invalid_conditional_move(bool take_first, string first, string second) {
+    if (take_first) {
+        string moved = first;
+    }
+    return first;
+}</code></pre><p>거부된 return는 먼저 한 브랜치의 내부 바인딩으로 이동한 후에 도달할 수 있다. 다른 런타임 조건은 컴파일 시간 소유권 요구 사항을 제거하지 않습니다.</p></section>
+<section id="scope-and-cleanup" aria-labelledby="scope-and-cleanup-heading"><h2 id="scope-and-cleanup-heading">9입니다. 지점은 지역 범위 및 정리를 준수합니다.</h2><p>중괄호가 있는 분기 안에 선언된 로컬은 해당 분기 블록에 속합니다. 중첩된 블록 내에서 볼 수 있으며 분기 블록이 끝난 후 사용할 수 없습니다. 보이는 외부 로컬 바인딩의 이름은 브랜치 내에서 다시 선언할 수 없습니다. 가시성 수정자는 로컬 범위에서 벗어나는 것이 아닙니다.</p><pre class="code-block"><code class="language-aevix" data-language="aevix">int branch_scope(int input) {
+    mut int output = input;
+    if (input &gt; 0) {
+        int bonus = 2;
+        output += bonus;
+    }
+    return output;
+}</code></pre><p>보너스 바인딩은 닫는 분기 중괄호에서 사라집니다. 해당 블록이 소유한 리소스는 역초기화 순서로 정리됩니다. return 또는 Result? 브랜치 내부에 있는 return 페이로드가 발신자를 따라가는 동안, 또한 해당 브랜치가 남긴 클로징 기능 범위를 정리합니다.</p></section>
+<section id="rejected-forms" aria-labelledby="rejected-forms-heading"><h2 id="rejected-forms-heading">10입니다. 거부된 양식은 계속 볼 수 있습니다.</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_if_expression(int left, int right) {
+    int larger = if (left &gt; right) left else right;
+    return larger;
+}</code></pre><p>expression-form : 의도적으로 제외된 경우 사용 (왼쪽 &gt; 오른쪽) ? 왼쪽 : 값을 생성하는 오른쪽.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">int invalid_missing_parentheses(int value) {
+    if value &gt; 0 return value;
+    return 0;
+}</code></pre><p>조건 주위에 필요한 괄호가 없습니다. 이러한 부정적인 예는 선택된 컴파일 타임 거부 규칙을 문서화한다; 컴파일러 실행은 주장되지 않는다.</p></section>
+<section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">11입니다. 열린 결정</h2><ul><li>패턴 바인딩 형태를 포함한 if 조건 안에 선언 또는 조건-로컬 바인딩.</li><li>never 브랜치, 사용자 정의 변환, 또는 기존 숫자 추론을 넘어서는 문맥적 리터럴 타이핑을 포함하는 조건부 표현식.</li><li>미래의 타입 문법과의 추가적인 상호작용; 기존의 postfix Result ? and ternary ? : 파싱 규칙이 이미 선택되어 있습니다.</li></ul><p>선택된 파싱 규칙은 다음과 같습니다. <a href="../operators/Parsing_Rules.html">파싱 규칙</a>: else uncomponent if; 선언 본문에 명시적 블록이 필요한 경우; postfix Result ? and ternary ? : 공백과 독립적으로 고유한 구문 해석을 사용합니다. 여러 완전한 해석은 유형 검사의 앞에 괄호를 요구한다. 이 규칙은 공개 결정이 아닙니다.</p><p>이 페이지에서 표현, 진실성 변환 또는 자동 복사본을 소개하면 패턴 일치가 없습니다. 계속하기 <a href="Loops.html">반복문</a> iteration 또는 <a href="Switch.html">Switch</a> 여러 케이스 브랜치.</p></section>
+<nav class="page-navigation" aria-label="관련 참조 페이지"><a href="../index.html"><span>문법 개요</span>언어 문법</a><a href="../../declaration/index.html"><span>바인딩 및 시그니처</span>선언</a></nav>
+</article></div><footer class="page-footer"><span>Aevix 언어 · 제어 흐름 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer></main>
+</body>
+</html>

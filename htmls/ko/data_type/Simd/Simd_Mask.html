@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="논리 레인은 가정된 네이티브 마스크 ABI가 없는 것을 나타냅니다.">
+  <title>SIMD 마스크 — Aevix 문서 도구</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Simd/Simd_Mask.html">
+<link rel="alternate" hreflang="ko" href="Simd_Mask.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Simd.html" aria-current="true">Simd</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Simd.html">Simd</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">SIMD 마스크</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>SIMD 마스크</h1><p class="doc-subtitle">논리 레인은 가정된 네이티브 마스크 ABI가 없는 것을 나타냅니다.</p><div class="doc-meta"><span class="meta-chip">Mask&lt;N&gt;</span><span class="meta-chip">Simd. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>16</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>한국어 (ko)</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#meaning"><span class="toc-number">01</span><span>차선당 하나의 논리 술어</span></a></li><li><a href="#logic"><span class="toc-number">02</span><span>논리적 작업 및 감소</span></a></li><li><a href="#evaluation"><span class="toc-number">03</span><span>값 선택 및 효과 보호</span></a></li><li><a href="#bits"><span class="toc-number">04</span><span>명시적인 비트셋 변환</span></a></li><li><a href="#ownership"><span class="toc-number">05</span><span>마스크가 메모리 권한을 부여하지 않음</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>논리적 배열은 명시적 변환이다.</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>참조 범위</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Simd 페이지"><h2>Simd 참조</h2><div class="family-links"><a href="Simd.html">Simd</a><a href="Simd_Mask.html" aria-current="page">SIMD 마스크</a><a href="Simd_Portable.html">휴대용 SIMD</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="Simd.html" aria-current="true">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="SIMD 마스크 참조">
+<section id="implemented-02"><h2>0.2 CPU 프로파일 구현</h2><p><a href="Simd_02.html">구현된 SIMD 프로파일 읽기</a> 0.2에서 사용할 수 있는 정확한 가져오기, 지원되는 레인 카운트, checked 작업, 마스크 및 고정 어레이 액세스. 아래의 광범위한 API 카탈로그는 설계 초안으로 남아 있으며 컴파일러 지원 함수 목록이 아닙니다.</p></section>
+
+<section id="meaning" aria-labelledby="meaning-heading">
+<h2 id="meaning-heading">1입니다. 차선당 하나의 논리 술어
+</h2>
+<p>Mask&lt;N&gt;는 N 논리 진리 값을 포함하고 Simd 값의 count 레인과 일치합니다. bool, Array&lt;bool, N&gt;, 정수 벡터 또는 하드웨어 술어 레지스터에 대한 별칭이 아닌 제안된 라이브러리 유형입니다. 논리적 연산은 레인당 결과를 지정하는 동시에 네이티브 표현을 대상에 남겨 둡니다. 백엔드는 비트 패킹(bit packing), 전폭 레인 비트(full-width lane bits) 또는 다른 유효한 내부 포맷을 사용할 수 있다.
+</p>
+<p>포지티브 레인 count는 컴파일 타임 제약이다. 마스크는 힙 할당없이 값으로 복사 할 수 있지만 단일 레지스터 또는 안정적인 메모리 레이아웃을 보장하지는 않습니다. 숫자 비교는 마스크를 만듭니다. 비트캐스트를 통해 마스크를 C bool 배열 포인터로 전달할 수 없습니다. 명시적인 논리 배열 변환이 필요합니다.
+</p>
+</section>
+<section id="logic" aria-labelledby="logic-heading">
+<h2 id="logic-heading">2입니다. 논리적 작업 및 감소
+</h2>
+<p>접속, 분리, 독점 및 부정은 각 레인에 독립적으로 적용됩니다. 모든 레인이 true일 때만 true입니다. 적어도 하나의 레인이 true일 때만 true입니다. count는 진정한 레인의 수를 반환합니다. first_set 및 last_set return Optional&lt;usize&gt;, 모든 false 마스크에 대한 유효하지 않은 센티널 인덱스를 피합니다.
+</p>
+<p>N이 양수이기 때문에, 올 트루 마스크는 적어도 하나의 활성 레인을 포함한다. 미래의 제로 레인 확장은 명시적인 감소 ID가 필요하며 일반 빈 배열 동작에서 자동으로 수행되지 않습니다. 마스크 평등은 동일한 패딩 또는 레지스터 비트가 아닌 동일한 논리적 진리 값을 의미합니다.
+</p>
+</section>
+<section id="evaluation" aria-labelledby="evaluation-heading">
+<h2 id="evaluation-heading">3입니다. 값 선택 및 효과 보호
+</h2>
+<p>select는 이미 평가 된 두 개의 벡터 값을받습니다. 차선을 선택하지만 이러한 입력의 계산을 억제할 수는 없습니다. 제로 디바이저를 보호하려면 비활성 산수를 제외하는 마스킹된 산술 함수 또는 정규 나셈 전에 입증된 안전한 대체 약수가 필요합니다. 부하를 보호하려면 유효하지 않은 부하 이후의 선택이 아닌 마스크된 load/gather 기능이 필요합니다.
+</p>
+<p>마스크된 메모리 함수는 활성 인덱스만 검증하고 액세스합니다. 비활성 유효하지 않은 인덱스에 대한 주소를 만들지 않습니다. 마스킹된 분산형은 쓰기 전에 활성 대상 사이에서 중복을 거부합니다; 비활성 레인 사이에서만 중복은 관련이 없습니다. 대여 검사기는 모든 차선이 비활성 상태 일지라도 법적 출처와 목적지 대여이 필요합니다.
+</p>
+</section>
+<section id="bits" aria-labelledby="bits-heading">
+<h2 id="bits-heading">4입니다. 명시적인 비트셋 변환
+</h2>
+<p>휴대용 비트셋 변환은 레인 i를 비트 i에 할당하며, 비트 0은 단어 0 중 가장 덜 중요한 논리적 비트입니다. Bitset&lt;N&gt;는 충분한 u64 단어를 포함하는 라이브러리 레코드입니다; 마스크를 구성할 때 마지막 단어에서 사용되지 않는 높은 비트는 0이어야 합니다. 소형 u64 변환은 N &lt;= 64인 경우에만 사용할 수 있습니다. 이들은 값 변환이며 네이티브 마스크 객체 메모리를 노출시키지 않습니다.
+</p>
+<p>Endianness는 명시 적으로 명명 된 little-endian 또는 big-endian 인코딩을 통해 비트 세트가 바이트로 직렬화 될 때만 중요합니다. N=64는 64의 유효하지 않은 시프트로 구현되어서는 안 된다. 안전 어댑터는 CPU 시프트 마스킹에 의존하지 않고 너비 인식 산술을 사용하여 사용되지 않는 비트의 유효성을 검사합니다.
+</p>
+</section>
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">5입니다. 마스크가 메모리 권한을 부여하지 않음
+</h2>
+<p>마스크는 값 술어이지 버퍼가 고유하게 대여되었거나 GPU 프로듀서가 완료되었다는 증거가 아닙니다. 마스크 된 저장소는 여전히 MutSlice 소유권을 필요로하며 활성 레인에 대한 증거를 제한합니다. 복사된 마스크는 소스 버퍼를 유지하거나 빌린 작업 수명을 연장하지 않습니다. 큐에 저장된 작업은 마스크를 값으로 캡처하거나 소유 메모리가 버퍼에 저장되어 있는 경우 명시적으로 이를 유지합니다.
+</p>
+<p>마스크 작업이 네이티브인지 여부는 컴파일 기능입니다. 컴파일러는 마스크를 결합하거나 중복 검사를 제거하여 동일한 활성 액세스 세트 및 오류 동작을 증명할 수 있지만 checked 작업을 비활성 레인에서 독으로 전환할 수는 없습니다. AOT와 JIT는 이러한 의미론적 요구사항을 공유한다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 논리적 배열은 명시적 변환이다.
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Mask&lt;4&gt; active = Simd.mask_from_array&lt;4&gt;([true, false, true, false]);
+Array&lt;bool, 4&gt; flags = Simd.mask_to_array(active);
+usize enabled = Simd.mask_count(active);
+Optional&lt;usize&gt; first = Simd.mask_first_set(active);</code></pre>
+<p>값 플래그와 활성에는 서로 다른 추상 유형이 있으며 공유 네이티브 레이아웃 보장이 없습니다. 이 예제에서는 동적 Vector를 할당하지 않으며 숫자 레인 유형으로 암묵적으로 변환하지 않습니다.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Simd-mask_splat"><td><code>Simd.mask_splat&lt;N&gt;(bool value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>모든 레인에 하나의 논리적 술어를 복사합니다.</td><td>O(N); 힙 없음.</td>
+</tr>
+<tr id="Simd-mask_from_array"><td><code>Simd.mask_from_array&lt;N&gt;(Array&lt;bool, N&gt; values)</code></td><td><code>Mask&lt;N&gt;</code></td><td>Array 요소 i는 논리 레인 i가 됩니다.</td><td>O(N); ABI 재 해석 없음.</td>
+</tr>
+<tr id="Simd-mask_to_array"><td><code>Simd.mask_to_array(Mask&lt;N&gt; value)</code></td><td><code>Array&lt;bool, N&gt;</code></td><td>정규 배열 표현으로 논리 bool 값을 반환합니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_and"><td><code>Simd.mask_and(Mask&lt;N&gt; a, Mask&lt;N&gt; b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>레인-와이즈 결합.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_or"><td><code>Simd.mask_or(Mask&lt;N&gt; a, Mask&lt;N&gt; b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>차선-현명한 분리.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_xor"><td><code>Simd.mask_xor(Mask&lt;N&gt; a, Mask&lt;N&gt; b)</code></td><td><code>Mask&lt;N&gt;</code></td><td>레인-와이즈 진실의 불평등</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_not"><td><code>Simd.mask_not(Mask&lt;N&gt; value)</code></td><td><code>Mask&lt;N&gt;</code></td><td>논리적으로 부정적으로.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_all"><td><code>Simd.mask_all(Mask&lt;N&gt; value)</code></td><td><code>bool</code></td><td>True iff 모든 논리 레인은 true입니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_any"><td><code>Simd.mask_any(Mask&lt;N&gt; value)</code></td><td><code>bool</code></td><td>True iff 적어도 하나의 논리 레인은 true입니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_count"><td><code>Simd.mask_count(Mask&lt;N&gt; value)</code></td><td><code>usize</code></td><td>포함 범위 0..N에서 진정한 차선의 수.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_first_set"><td><code>Simd.mask_first_set(Mask&lt;N&gt; value)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>가장 낮은 실제 레인 인덱스 또는 부재입니다.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_last_set"><td><code>Simd.mask_last_set(Mask&lt;N&gt; value)</code></td><td><code>Optional&lt;usize&gt;</code></td><td>가장 높은 진정한 레인 인덱스 또는 부재.</td><td>O(N).</td>
+</tr>
+<tr id="Simd-mask_to_bitset"><td><code>Simd.mask_to_bitset(Mask&lt;N&gt; value)</code></td><td><code>Bitset&lt;N&gt;</code></td><td>레인 i는 비트 i가 되고, 사용되지 않은 하이 비트는 0이 됩니다.</td><td>O(ceil(N/64)); 고정 크기 값.</td>
+</tr>
+<tr id="Simd-mask_from_bitset"><td><code>Simd.mask_from_bitset&lt;N&gt;(Bitset&lt;N&gt; value)</code></td><td><code>Result&lt;Mask&lt;N&gt;, MaskError&gt;</code></td><td>논리적 N 레인 외부의 모든 세트 비트를 거부합니다.</td><td>O(ceil(N/64)).</td>
+</tr>
+<tr id="Simd-mask_to_u64"><td><code>Simd.mask_to_u64(Mask&lt;N&gt; value)</code></td><td><code>u64</code></td><td>N &lt;= 64에만 사용할 수 있습니다. lane i는 비트 i에 매핑됩니다. 상위 비트 0.</td><td>O(N); 컴파일 타임 폭 게이트.</td>
+</tr>
+<tr id="Simd-mask_from_u64"><td><code>Simd.mask_from_u64&lt;N&gt;(u64 value)</code></td><td><code>Result&lt;Mask&lt;N&gt;, MaskError&gt;</code></td><td>N &lt;= 64; N보다 높은 비트를 거부합니다.</td><td>O(1) 논리적 검증.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 참조 범위
+</h2>
+<p>모든 인터페이스는 제안서입니다. Rust 휴대용 SIMD 문서는 명시적으로 실험적이며 공식 비교 소스로만 사용됩니다. LLVM 벡터 IR은 어휘를 낮추는 것입니다; 그것의 독과 정의되지 않은 행동 전제 조건은 안전한 Aevix 계약이 아닙니다. 언어는 자체 관찰 가능한 의미론에 의해 요구되는 모든 조건을 검증해야 한다.
+</p>
+<p><a href="Simd.html">Simd 공통 참조</a> · <a href="Simd_Mask.html">마스크</a> · <a href="Simd_Portable.html">품질 관리</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Simd.html" target="_blank" rel="noopener noreferrer">Rust 실험 휴대용 SIMD</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/simd/struct.Mask.html" target="_blank" rel="noopener noreferrer">Rust 실험용 SIMD 마스크</a>
+</li>
+<li><a href="https://llvm.org/docs/LangRef.html#vector-type" target="_blank" rel="noopener noreferrer">LLVM 벡터 유형 및 작업</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Simd.html"><span>이전 레퍼런스</span>Simd</a><a href="Simd_Portable.html"><span>다음 레퍼런스</span>휴대용 SIMD</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

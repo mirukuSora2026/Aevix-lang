@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="특성, 비동기 수명 및 게시 경계를 전송합니다.">
+  <title>스레드 간 Shared — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Shared/Shared_Threads.html">
+<link rel="alternate" hreflang="ko" href="Shared_Threads.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Shared.html" aria-current="true">Shared</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="Shared.html" aria-current="true">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Shared.html">Shared</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">스레드에 걸쳐 Shared</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>스레드에 걸쳐 Shared</h1><p class="doc-subtitle">특성, 비동기 수명 및 게시 경계를 전송합니다.</p><div class="doc-meta"><span class="meta-chip">Shared&lt;T&gt;</span><span class="meta-chip">Shared 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>0</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>rc에서</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Traits"><span class="toc-number">01</span><span>전송 및 Shared-액세스 경계</span></a></li><li><a href="#Publication"><span class="toc-number">02</span><span>소유권은 데이터 공개가 아닙니다.</span></a></li><li><a href="#Tasks"><span class="toc-number">03</span><span>범위 및 분리 캡처</span></a></li><li><a href="#Devices"><span class="toc-number">04</span><span>GPU 및 외국 완성</span></a></li><li><a href="#Counts"><span class="toc-number">05</span><span>Atomic 비용 및 진행 상황</span></a></li><li><a href="#Cleanup"><span class="toc-number">06</span><span>마무리 및 외부 자원</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>관련 동기화 계약</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Shared 페이지"><h2>Shared 참조</h2><div class="family-links"><a href="Shared.html">Shared</a><a href="Shared_Mutation.html">Shared 변경</a><a href="Shared_Threads.html" aria-current="page">스레드에 걸쳐 Shared</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="Shared.html" aria-current="true">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Shared Across 스레드 참조">
+<section id="Traits" aria-labelledby="Traits-heading">
+<h2 id="Traits-heading">1입니다. 전송 및 Shared-액세스 경계
+</h2>
+<p>Shared&lt;T&gt;는 pointee 및 allocator/resource 계약이 해당 Send/Sync-style 범위를 충족하는 경우에만 양도할 수 있고 공유할 수 있습니다. 이것들은 최종 철자가 언어 결정으로 남아있는 설명적인 안전 특성입니다. Atomic 소유권 메타데이터는 동기화되지 않은 내부 필드를 안전하게 만들거나 외부 핸들의 스레드 친화도를 변경할 수 없습니다. 고유한 Box는 페이로드의 전송 제약을 비슷하게 상속합니다.
+</p>
+</section>
+<section id="Publication" aria-labelledby="Publication-heading">
+<h2 id="Publication-heading">2입니다. 소유권은 데이터 공개가 아닙니다.
+</h2>
+<p>또 다른 강력한 손잡이를 만드는 것은 수명을 유지합니다. 초기화 된 데이터를 게시하고 나중에 돌연변이를 통신하는 것은 여전히 적절한 동기화 가장자리가 필요합니다 : 채널, 잠금, 작업 조인 또는 올바른 원자. 카운트 스냅샷은 임의의 필드의 가시성을 설정하지 않습니다. Shared 불변 데이터는 T가 지원할 때 동시에 읽을 수 있지만, 내부 상태를 변경하는 메서드를 호출하면 해당 메서드의 동기화 의무를 유지해야 합니다.
+</p>
+</section>
+<section id="Tasks" aria-labelledby="Tasks-heading">
+<h2 id="Tasks-heading">3입니다. 범위 및 분리 캡처
+</h2>
+<p>범위 작업은 캡처 된 대여이 만료되기 전에 실제 완료를 추적하는 부모 범위에서만 빌릴 수 있습니다. 분리 된 작업에는 소유 된 캡처 또는 유효한 전송 범위가있는 적절한 보유 소유자가 필요합니다. Shared에 빌린 Slice를 넣는 것은 참조 수명을 연장하지 않습니다. 공유 핸들 자체는 사이클에서 누수될 수 있으며, 그렇지 않으면 안전한 실행에서 사용 후 무료가 될 수 없습니다.
+</p>
+</section>
+<section id="Devices" aria-labelledby="Devices-heading">
+<h2 id="Devices-heading">4입니다. GPU 및 외국 완성
+</h2>
+<p>호스트 Shared는 메모리를 업로드하거나 CPU 포인터를 커널 버퍼로 변환하지 않습니다. 장치 리소스 래퍼는 배치 인식 기능 및 완료 임대를 사용합니다. 취소 요청 또는 폐기된 Pending 핸들은 장치가 중지되었음을 증명하지 않습니다. 기내 작업에 필요한 버퍼와 코드는 백엔드가 완료될 때까지 유지되지만 호스트 가시성은 추가 동기화 또는 전송이 필요할 수 있습니다.
+</p>
+</section>
+<section id="Counts" aria-labelledby="Counts-heading">
+<h2 id="Counts-heading">5입니다. Atomic 비용 및 진행 상황
+</h2>
+<p>핸들 클로닝은 공유 원자 count를 증가시키고 그것을 감소시킨다. 이러한 작업은 캐시 라인에서 경쟁 할 수 있으며 소유권이 종료 될 때 페이로드 마무리를 트리거 할 수 있습니다. 이 문서는 하나의 명령, 대기 자유, 보편적 인 잠금 자유 또는 특정 대상 간 구현을 약속하지 않습니다. Refcount 오버플로우는 명시적으로 처리되며 래핑할 수 없습니다. 진단 횟수는 다른 스레드에서 값이 즉시 변경될 수 있는 스냅샷입니다.
+</p>
+</section>
+<section id="Cleanup" aria-labelledby="Cleanup-heading">
+<h2 id="Cleanup-heading">6입니다. 마무리 및 외부 자원
+</h2>
+<p>참조 사이클, 의도적으로 유지되는 핸들 및 프로세스 종료는 정리를 방지 할 수 있습니다. 이 설계는 모든 파일의 최종 릴리스, 콜백 등록, GPU 개체 또는 힙 할당이 아닌 계약에 따라 안전한 수명 관리를 약속합니다. 특정 릴리스 스레드를 요구하는 리소스에는 해당 스레드를 강제하는 소유 어댑터가 필요합니다. 제네릭 T 소멸자는 단지 카운터가 원자이기 때문에 임의의 worker 쓰레드에서 올바르지 않을 수 있다.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7입니다. 관련 동기화 계약
+</h2>
+<p>참고: <a href="Shared.html">Shared</a>, <a href="../Atomic/Memory_Order.html">메모리 순서</a>, <a href="../Mutex/Mutex.html">Mutex</a>, 및 <a href="../Rwlock/Rwlock.html">RwLock</a>. 이 계약은 외부 드라이버 정확성 또는 측정된 동시성 성능 없이 AOT 및 JIT에 걸쳐 선택된 Aevix 시맨틱을 보존합니다. 선택되지 않은 FFI 채택 또는 일반 raw-count 편집은 제공되지 않습니다.
+</p>
+<p>이러한 기능 쿼리는 전체 페이로드 유형과 관련이 있으며 Shared 핸들을 만드는 것은 여전히 별개의 오류 작업입니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">bool scalar_transfer = Shared.is_sendable(i32);
+bool locked_access = Shared.is_shareable(Mutex&lt;i32&gt;);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" target="_blank" rel="noopener noreferrer">Rust Arc — 원자 공유 소유권 및 명시적 복제</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Shared_Mutation.html"><span>이전 레퍼런스</span>Shared 변경</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

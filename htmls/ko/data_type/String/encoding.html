@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="명시적 UTF-8, UTF-16, UTF-32, byte 순서, FFI 및 스트리밍 변환 경계.">
+  <title>텍스트 인코딩 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/String/encoding.html">
+<link rel="alternate" hreflang="ko" href="encoding.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="string.html" aria-current="true">string</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="string.html">string</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">텍스트 인코딩</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>텍스트 인코딩</h1><p class="doc-subtitle">명시적 UTF-8, UTF-16, UTF-32, byte 순서, FFI 및 스트리밍 변환 경계.</p><div class="doc-meta"><span class="meta-chip">인코딩</span><span class="meta-chip">인코딩. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>함수</dt><dd>30 제안서</dd></div><div class="doc-stat"><dt>기본 디코딩</dt><dd>엄격함</dd></div><div class="doc-stat"><dt>Byte 순서</dt><dd>명시적</dd></div><div class="doc-stat"><dt>스트리밍</dt><dd>발신자 버퍼 진행률</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>스트링</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>인코딩은 명백한 경계입니다.</span></a></li><li><a href="#Validity"><span class="toc-number">02</span><span>스칼라 유효성 및 오류 정책</span></a></li><li><a href="#Endian-BOM"><span class="toc-number">03</span><span>코드 단위, Byte 순서 및 BOM</span></a></li><li><a href="#Import-Export"><span class="toc-number">04</span><span>검증된 Import &amp; Export 기능</span></a></li><li><a href="#Sizing-Interop"><span class="toc-number">05</span><span>사이징, BOM 감지 및 FFI</span></a></li><li><a href="#Streaming"><span class="toc-number">06</span><span>스트리밍 경계 및 진행</span></a></li><li><a href="#Streaming-API"><span class="toc-number">07</span><span>스트리밍 컨버터 기능</span></a></li><li><a href="#Examples-Targets"><span class="toc-number">08</span><span>예제 및 실행 대상</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="string 페이지"><h2>string 참조</h2><div class="family-links"><a href="string.html">string</a><a href="string_view.html">string_view</a><a href="unicode.html">Unicode 텍스트 서비스</a><a href="encoding.html" aria-current="page">텍스트 인코딩</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="string.html" aria-current="true">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="텍스트 인코딩 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 인코딩은 명백한 경계입니다.
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 일반 <code>encoding</code> 아래 네임스페이스와 UTF-16/UTF-32/transcoding API는 제안으로 남아 있습니다. 구현된 UTF-8 엔트리 포인트는 <code>string.from_utf8(Slice&lt;byte&gt;)</code>#돌아오는 <code>Result&lt;string, TextError&gt;</code> 소유하고 있는 문자입니다. <code>string.as_bytes</code> 이미 존재하는 유효한 텍스트를 borrow합니다. 제안된 <code>string.view_utf8</code> validator는 owning 생성자에 대한 0.2 별칭이 아닙니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<blockquote class="callout note">
+<p><strong>언어 설계 초안.</strong> 아래 계약·보조 타입·함수 표기는 제안입니다. 컴파일러 구현, 확정된 문법이나 검증된 런타임을 주장하지 않습니다. 예제는 타입 우선 선언, 기본 불변성과 세미콜론으로 끝나는 문장을 사용합니다.
+</p>
+</blockquote>
+<p><code>encoding.</code> 유효성 검사된 가져오기 및 내보내기를 위한 제안된 라이브러리 네임스페이스입니다. 내부 <code>string</code> 스토리지는 UTF-8로 유지됩니다. UTF-16 및 UTF-32 코드-unit 배열은 추가 텍스트 기본 형식이 아닌 외부 표현입니다. 기존 UTF-8 사용 대여 <code>string.view_utf8</code>; 새 배열로 인코딩하면 보이는 복사본이 만들어집니다.
+</p>
+<p><code>Encoding</code>, <code>DecodeError</code>, <code>EncodeError</code>, <code>EncodingError</code>, <code>Decoder</code>, <code>Encoder</code>, 및 <code>ConversionProgress</code>, <code>DecodeReport&lt;T&gt;</code>, 및 <code>TranscodeReport&lt;T&gt;</code> 도서관의 제안을 지지한다. 각 오류 패밀리에는 작업이 할당되거나 기록되는 곳마다 할당 또는 용량 오류가 포함됩니다. 변환 never는 자동으로 시스템 코드 페이지로 돌아갑니다.
+</p>
+<p>관련 참조 문서: <a href="../Char/Char.html">char</a>, <a href="../Byte/Byte.html">byte</a>, 및 <a href="../Array/Array.html">배열</a>.
+</p>
+<p>보고서 레코드는 출력 및 교체 카운트를 전달합니다. 트랜스코드 보고서는 소스 진행 상황을 기록합니다. 손실 정책 never를 선택하면 대체가 발생했는지 여부를 숨깁니다.
+</p>
+</section>
+<section id="Validity" aria-labelledby="Validity-heading">
+<h2 id="Validity-heading">2입니다. 스칼라 유효성 및 오류 정책
+</h2>
+<p>UTF-8 유효성 검사는 오버롱 시퀀스, 대체 인코딩, 격리된 연속 바이트, 잘린 시퀀스 및 U+10FFFF 이상의 값을 거부합니다. UTF-16는 페어링되지 않은 대리모를 거부합니다. UTF-32는 스칼라를 인코딩하기 위해 모든 코드 unit가 필요합니다. 비문자 및 할당되지 않은 스칼라는 자동으로 형식이 잘못된 인코딩이 아니며 프로토콜 수준 제한은 별도의 검사입니다.
+</p>
+<p>엄격한 디코딩은 byte 또는 코드-unit 위치로 첫 번째 잘못된 시퀀스를 보고합니다. 손실 디코딩은 명시 적으로 이름이 지정되고 교체 횟수를보고하는 동안 최대 잘못된 형식의 서브 파트를 U + FFFD로 대체합니다. 시그니처, 감사 기록 또는 이진 프로토콜을 위해 원본 바이트를 보존해야 하는 경우에는 적합하지 않습니다. 이 규칙은 다음과 같은 구분을 따릅니다. <a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/">Unicode 코어 인코딩 정의</a>.
+</p>
+</section>
+<section id="Endian-BOM" aria-labelledby="Endian-BOM-heading">
+<h2 id="Endian-BOM-heading">3입니다. 코드 단위, Byte 순서 및 BOM
+</h2>
+<p> <code>Slice&lt;u16&gt;</code> byte 직렬화 순서에 관계없이 숫자 코드 단위를 포함합니다. UTF-16LE 및 UTF-16BE byte 스트림은 명시 적으로 거의 또는 큰 엔디안을 선택합니다. UTF-32는 유사한 구별을 가지고 있습니다. UTF-8에는 엔디안 변형이 없습니다. Raw byte 재 해석은 디코딩 또는 엔디안 변환을 대체할 수 없습니다.
+</p>
+<p>BOM 처리는 별도의 옵션입니다. preserve, require-and-consume, or detect under an explicitly allowed set. 고정 엔디안 API는 초기 U+FEFF를 기본적으로 텍스트로 보존하며, 자동으로 제거하지 않습니다. BOM을 감지하면 임의의 BOM이 없는 바이트의 인코딩이 아니라 가능한 접두사만 식별합니다. 비교하기 <a href="https://www.unicode.org/faq/utf_bom.html">Unicode 폭탄 자주 묻는 질문</a>.
+</p>
+</section>
+<section id="Import-Export" aria-labelledby="Import-Export-heading">
+<h2 id="Import-Export-heading">4입니다. 검증된 Import &amp; Export 기능
+</h2>
+<p>출력 크기와 곱셈은 checked입니다. 모든 소유 텍스트 및 벡터 결과는 오류일 수 있습니다. UTF-8 수출 사본; <code>string.as_bytes</code> 그것은 대여 된 옵션입니다.
+</p>
+<div class="table-scroll" role="region" aria-label="검증된 Import &amp; Export 함수 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="encoding-validate_utf8"><th scope="row"><code>encoding.validate_utf8(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;unit, DecodeError&gt;</code></td><td>전체 byte 슬라이스를 검사합니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="encoding-decode_utf8"><th scope="row"><code>encoding.decode_utf8(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>소유된 텍스트에 대한 엄격한 검증 복사본입니다.</td><td>스캔 및 복사; 할당 할 수 있습니다.</td>
+</tr>
+<tr id="encoding-decode_utf8_lossy"><th scope="row"><code>encoding.decode_utf8_lossy(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;DecodeReport&lt;string&gt;, DecodeError&gt;</code></td><td>최대 변형된 하위 파트 교체; 교체 count 포함.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-encode_utf8"><th scope="row"><code>encoding.encode_utf8(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>Copy 정확한 내부 UTF-8 바이트.</td><td>O(n); 할당할 수 있음</td>
+</tr>
+<tr id="encoding-decode_utf16"><th scope="row"><code>encoding.decode_utf16(Slice&lt;u16&gt; units)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>코드 단위 디코딩; 쌍으로 된 대리모가 필요합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-encode_utf16"><th scope="row"><code>encoding.encode_utf16(s)</code></th><td><code>Result&lt;Vector&lt;u16&gt;, EncodeError&gt;</code></td><td>스칼라 당 하나 또는 두 개의 코드 단위를 인코딩합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-decode_utf32"><th scope="row"><code>encoding.decode_utf32(Slice&lt;u32&gt; units)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Unicode 스칼라의 유효성을 검사하고 인코딩합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-encode_utf32"><th scope="row"><code>encoding.encode_utf32(s)</code></th><td><code>Result&lt;Vector&lt;u32&gt;, EncodeError&gt;</code></td><td>스칼라 당 하나의 숫자 코드 unit.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-decode_utf16_le"><th scope="row"><code>encoding.decode_utf16_le(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>심지어 byte count; little-endian 코드 단위; 엄격한 검증.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-decode_utf16_be"><th scope="row"><code>encoding.decode_utf16_be(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>심지어 byte count; 빅 엔디언 코드 단위; 엄격한 검증.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-encode_utf16_le"><th scope="row"><code>encoding.encode_utf16_le(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>암시적 BOM 없이 UTF-16 리틀 엔디안을 직렬화합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-encode_utf16_be"><th scope="row"><code>encoding.encode_utf16_be(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>암시적 BOM 없이 UTF-16 big endian을 직렬화합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-decode_utf32_le"><th scope="row"><code>encoding.decode_utf32_le(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>Byte count는 4로 나눌 수 있습니다. 디코딩된 스칼라의 유효성을 검사합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-decode_utf32_be"><th scope="row"><code>encoding.decode_utf32_be(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>엄격한 검증을 거친 Big-endian 스칼라 코드 유닛.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-encode_utf32_le"><th scope="row"><code>encoding.encode_utf32_le(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>스칼라 코드 유닛을 작은 엔디안으로 직렬화합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-encode_utf32_be"><th scope="row"><code>encoding.encode_utf32_be(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>큰 엔디안 스칼라 코드 단위를 직렬화합니다.</td><td>순회 및 출력 비용 · 메모리 할당 가능</td>
+</tr>
+<tr id="encoding-decode_ascii"><th scope="row"><code>encoding.decode_ascii(Slice&lt;byte&gt; bytes)</code></th><td><code>Result&lt;string, DecodeError&gt;</code></td><td>0x7F보다 높은 byte 값을 거부합니다.</td><td>확인 및 복사; 할당할 수 있음</td>
+</tr>
+<tr id="encoding-encode_ascii"><th scope="row"><code>encoding.encode_ascii(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>대신 대신 Non-ASCII 스칼라를 거부합니다.</td><td>스캔 및 복사; 할당 할 수 있습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Sizing-Interop" aria-labelledby="Sizing-Interop-heading">
+<h2 id="Sizing-Interop-heading">5입니다. 사이징, BOM 감지 및 FFI
+</h2>
+<p>이 도우미들은 직렬화 결정을 눈에 띄게 만듭니다. C 텍스트는 종결자 외에 수명 계약이 필요하며, 소유 벡터는 자동으로 안정적인 원시 포인터가 아닙니다.
+</p>
+<div class="table-scroll" role="region" aria-label="사이징, BOM 감지 및 FFI 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="encoding-utf8_len"><th scope="row"><code>encoding.utf8_len(s)</code></th><td><code>usize</code></td><td>현재 인코딩된 byte count입니다.</td><td>O(1); 할당 없음</td>
+</tr>
+<tr id="encoding-utf16_len"><th scope="row"><code>encoding.utf16_len(s)</code></th><td><code>usize</code></td><td>종료기를 제외한 u16 코드 단위가 필요합니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="encoding-utf32_len"><th scope="row"><code>encoding.utf32_len(s)</code></th><td><code>usize</code></td><td>Count 필수 스칼라 코드 단위입니다.</td><td>O(n); 할당 없음</td>
+</tr>
+<tr id="encoding-detect_bom"><th scope="row"><code>encoding.detect_bom(Slice&lt;byte&gt; bytes)</code></th><td><code>Optional&lt;(Encoding, usize)&gt;</code></td><td>지원되는 BOM 및 byte 길이만 인식합니다.</td><td>최대 4 바이트 검사</td>
+</tr>
+<tr id="encoding-transcode"><th scope="row"><code>encoding.transcode(Slice&lt;byte&gt; bytes, source, target, policy)</code></th><td><code>Result&lt;TranscodeReport&lt;Vector&lt;byte&gt;&gt;, EncodingError&gt;</code></td><td>명시적인 인코딩 및 엄격하거나 손실 정책; 보고서 손실.</td><td>디코딩 및 인코딩; 할당 가능</td>
+</tr>
+<tr id="encoding-to_c_utf8"><th scope="row"><code>encoding.to_c_utf8(s)</code></th><td><code>Result&lt;Vector&lt;byte&gt;, EncodeError&gt;</code></td><td>NUL을 거부합니다. NUL 터미네이터를 추가합니다.</td><td>O(n); 할당할 수 있음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Streaming" aria-labelledby="Streaming-heading">
+<h2 id="Streaming-heading">6입니다. 스트리밍 경계 및 진행
+</h2>
+<p>전송 청크는 UTF-8 시퀀스, UTF-16 대리 쌍 또는 직렬화 된 코드 unit 내에서 끝날 수 있습니다. 디코더는 호출간에 인코딩 특정 제한 캐리 상태를 유지하며 임시 청크에 대한 빌린 포인터를 보유하지 않습니다. 빈 입력은 스트림 종료가 아닙니다. 오직 명시적 finish 연산만이 대기 중인 바이트가 잘린 시퀀스를 형성하는지 여부를 결정합니다.
+</p>
+<p>Caller-buffer 작업은 입력 바이트와 기록 된 출력 바이트를 소비합니다. <code>OutputFull</code> 호출자가 더 많은 출력 공간을 제공해야 함을 의미합니다; 이는 잘못된 입력이 아닙니다. 디코딩은 완전한 UTF-8 스칼라만을 방출하며, 호출자는 보고된 모든 부분 진행 상황을 보존해야 합니다. 엄격한 오류는 원본 스트림 위치를 보고합니다. 스테이트풀 객체는 독점적인 변경가 필요하며 동기화 없이 동시에 공유할 수 없습니다.
+</p>
+<p>엄격한 스트리밍 오류에는 consumed/written 진행이 포함되며 변환기를 실패한 상태로 만들고 다시 시도하기 전에 다시 만듭니다. 끝 후에, 추가 끝 외침만 산출을 때까지 배수할지도 모릅니다 <code>Finished</code>. 이는 명시적인 상태-기계 제안이며, 부분적인 실패 후 침묵하는 재사용을 피한다.
+</p>
+</section>
+<section id="Streaming-API" aria-labelledby="Streaming-API-heading">
+<h2 id="Streaming-API-heading">7입니다. 스트리밍 컨버터 기능
+</h2>
+<p>Progress status 진행 상태 <code>InputExhausted</code>, <code>NeedMoreInput</code>, <code>OutputFull</code>, 및 <code>Finished</code>. 설정은 할당할 수 있습니다; 청크 작업은 미리 구성된 상태와 호출기 버퍼를 사용합니다. 추가 레거시 인코딩은 명시적인 선택적 백엔드 지원이 필요합니다.
+</p>
+<div class="table-scroll" role="region" aria-label="스트리밍 컨버터 기능 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">함수 시그니처</th><th scope="col">반환</th><th scope="col">계약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="encoding-decoder"><th scope="row"><code>encoding.decoder(source, policy)</code></th><td><code>Result&lt;Decoder, EncodingError&gt;</code></td><td>명시적 BOM 정책으로 설정된 디코딩 상태를 생성합니다.</td><td>테이블 또는 상태를 할당할 수 있음</td>
+</tr>
+<tr id="encoding-decode_chunk"><th scope="row"><code>encoding.decode_chunk(decoder, Slice&lt;byte&gt; input, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>발신자 UTF-8 바이트로 해독하십시오; 불완전한 입력 상태를 유지하십시오.</td><td>출력 할당 없음; 보고서 consumed/written 바이트</td>
+</tr>
+<tr id="encoding-finish_decode"><th scope="row"><code>encoding.finish_decode(decoder, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>EOF를 선언하십시오; 보류중인 잘못된 입력을 명시적으로 거부하거나 대체하십시오.</td><td>호출자 버퍼; OutputFull 보고할 수 있음</td>
+</tr>
+<tr id="encoding-encoder"><th scope="row"><code>encoding.encoder(target, policy)</code></th><td><code>Result&lt;Encoder, EncodingError&gt;</code></td><td>설정된 직렬화 상태를 만듭니다.</td><td>테이블 또는 상태를 할당할 수 있음</td>
+</tr>
+<tr id="encoding-encode_chunk"><th scope="row"><code>encoding.encode_chunk(encoder, string_view input, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>전체 UTF-8 스칼라 경계를 사용하고 대상 바이트를 직렬화합니다.</td><td>출력 할당 없음; 정확한 진행 상황 보고</td>
+</tr>
+<tr id="encoding-finish_encode"><th scope="row"><code>encoding.finish_encode(encoder, out)</code></th><td><code>Result&lt;ConversionProgress, EncodingError&gt;</code></td><td>명시적인 최종 인코딩 상태를 플러시하고 마크 완료.</td><td>호출자 버퍼; OutputFull 보고할 수 있음</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Examples-Targets" aria-labelledby="Examples-Targets-heading">
+<h2 id="Examples-Targets-heading">8입니다. 예제 및 실행 대상
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">string_view text = &quot;café&quot;;
+Result&lt;Vector&lt;u16&gt;, EncodeError&gt; wide = encoding.encode_utf16(text);
+Result&lt;Vector&lt;byte&gt;, EncodeError&gt; network = encoding.encode_utf16_be(text);
+Result&lt;Vector&lt;byte&gt;, EncodeError&gt; c_text = encoding.to_c_utf8(text);
+Result&lt;string_view, TextError&gt; checked = string.view_utf8(input_bytes);</code></pre>
+<p>입력 byte 조각은 이미 빌린 외부 버퍼입니다. UTF-16 출력은 다른 소유자 유형이 아닌 인코딩 된 데이터입니다. Strict import는 case를 정규화하거나, 접거나, 유효한 제어 문자를 폐기하지 않습니다. AOT 및 JIT는 이러한 경계 규칙을 유지합니다. GPU 변환은 명시적으로 지원되는 형식 및 메모리 공간에만 사용할 수 있습니다. CPU 로케일 또는 코덱 지원은 장치 지원을 설정하지 않습니다.
+</p>
+<p><a href="https://unicode-org.github.io/icu/userguide/conversion/converters.html">ICU 스트리밍 변환</a> 분할 입력 및 출력 버퍼에 대한 비교를 제공합니다. 구현 검사는 모든 청크 경계, 잘못된 꼬리, 버퍼 소진, BOM 정책, 할당 실패 및 왕복 스칼라 보존을 포함해야 합니다. 이들은 필수 검증 대상이며, 기록 된 테스트 결과가 아닙니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank" rel="noopener noreferrer">Unicode 코어 사양 — 인코딩 양식 및 유효하지 않은 시퀀스</a>
+</li>
+<li><a href="https://www.unicode.org/faq/utf_bom.html" target="_blank" rel="noopener noreferrer">Unicode FAQ - UTF 및 BOM 구분</a>
+</li>
+<li><a href="https://unicode-org.github.io/icu/userguide/conversion/converters.html" target="_blank" rel="noopener noreferrer">ICU — 스트리밍 컨버터의 의미</a>
+</li>
+<li><a href="https://unicode-org.github.io/icu/userguide/strings/utf-8.html" target="_blank" rel="noopener noreferrer">ICU — UTF-8 및 변환 경계</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/string/struct.String.html" target="_blank" rel="noopener noreferrer">Rust 소유 UTF-8 텍스트 — 엄격하고 손실이 많은 검증 경로</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="unicode.html"><span>이전 레퍼런스</span>Unicode 텍스트 서비스</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

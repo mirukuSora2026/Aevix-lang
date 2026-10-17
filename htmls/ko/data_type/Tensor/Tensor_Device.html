@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="배치, 큐 ID 및 명시적 CPU / GPU 전송.">
+  <title>Tensor 장치 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Tensor/Tensor_Device.html">
+<link rel="alternate" hreflang="ko" href="Tensor_Device.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Tensor.html" aria-current="true">Tensor</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Tensor.html">Tensor</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Tensor 장치</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Tensor 장치</h1><p class="doc-subtitle">배치, 큐 ID 및 명시적 CPU / GPU 전송.</p><div class="doc-meta"><span class="meta-chip">Tensor&lt;T, S, P&gt; / Pending&lt;T&gt;</span><span class="meta-chip">Tensor. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>10</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>[S]한국어</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#placement"><span class="toc-number">01</span><span>배치는 checked 기능입니다</span></a></li><li><a href="#submission"><span class="toc-number">02</span><span>제출 및 실패 순서</span></a></li><li><a href="#transfer"><span class="toc-number">03</span><span>전송 및 준비</span></a></li><li><a href="#ordering"><span class="toc-number">04</span><span>대기열 및 가시성</span></a></li><li><a href="#numeric"><span class="toc-number">05</span><span>정밀 및 컴파일러 전문화</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>명시적 할당 및 종속성 처리</span></a></li><li><a href="#specialized-functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>디자인 경계 및 관련 페이지</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Tensor 페이지"><h2>Tensor 참조</h2><div class="family-links"><a href="Tensor.html">Tensor</a><a href="Tensor_Shape.html">Tensor 모양</a><a href="Tensor_View.html">Tensor 조회수</a><a href="Tensor_Device.html" aria-current="page">Tensor 장치</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="Tensor.html" aria-current="true">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Tensor 장치 참조">
+<section id="placement" aria-labelledby="placement-heading">
+<h2 id="placement-heading">1입니다. 배치는 checked 기능입니다
+</h2>
+<p>P는 Cpu 및 Gpu와 같은 배치 클래스를 구별합니다. DeviceId는 실제 할당 컨텍스트 및 장치를 식별합니다. 동일한 Gpu 마커가 호환되지 않는 장치를 설명 할 수 있으므로 큐 제출은 구체적인 ID 및 지원되는 메모리 액세스를 확인합니다. 통합된 가상 주소 지정, 통합된 물리적 메모리 및 일관된 호스트 액세스는 별도의 백엔드 기능입니다.
+</p>
+<p>목표는 하나의 형식화 된 모양과 작동 모델입니다. 전송 비용을 지우거나 모든 CPU 스칼라 작업이 모든 GPU에서 기본이라고 가정하지 않습니다. 스토리지 지원, 산술 지원, 동기화 지원 및 원자 지원은 별도로 쿼리됩니다. 대상은 f64를 저장할 수 있지만 요청 된 f64 작업 프로필이 없거나 처리량이 부족합니다.
+</p>
+</section>
+<section id="submission" aria-labelledby="submission-heading">
+<h2 id="submission-heading">2입니다. 제출 및 실패 순서
+</h2>
+<p>Tensor.submit은 입력된 TensorOp 설명자를 수락하고, 모양과 기능을 검증하고, 리소스 리스를 등록한 다음 작업을 제출합니다. 제출물에는 명시적인 전문화 및 할당이 포함될 수 있으므로 Result를 반환합니다. 성공적인 제출은 Pending&lt;Out&gt;를 반환합니다; return는 준비된 텐서가 아닙니다. 선택한 큐와 작업은 Cpu로의 암시적 대체 전송 없이 실행 배치를 결정합니다.
+</p>
+<p>어댑터는 부분적인 제출을 신중하게 처리해야 합니다. 백엔드가 작업을 수락한 후 실패를 보고하는 경우, 리소스 리스는 중단이 설정될 때까지 유지됩니다. 간단한 오류 return는 장치 액세스가 발생하지 않았 음을 의미 할 수 없습니다. SubmitError는 영수증 또는 복구 상태를 전달할 수 있으므로 장치 범위가 허용된 작업을 안전하게 배출할 수 있습니다. 이것은 필수 계약이며, 모든 백엔드가 이미 그것을 구현한다는 주장은 아닙니다.
+</p>
+</section>
+<section id="transfer" aria-labelledby="transfer-heading">
+<h2 id="transfer-heading">3입니다. 전송 및 준비
+</h2>
+<p>전송은 대상 장치 및 정책을 명시적으로 지정합니다. 업로드는 필요한 간격 동안 소스 스토리지를 안정적으로 유지하며, 다운로드는 장치 소스를 라이브로 유지하고 호스트 대상은 완료될 때까지 충돌하는 액세스에 액세스할 수 없게 합니다. 호출 가능한 호스트 메모리는 스테이징이 필요할 수 있습니다. 호출자는 스테이징 정책을 선택하고 바이트가 고정 스테이징 소유자로 복사되었는지 검사할 수 있습니다.
+</p>
+<p>진정한 비동기 전송은 등록되거나 고정된 메모리를 필요로 할 수 있다. 스택 슬라이스 전달은 선택한 어댑터가 범위 대여을 유지하고 백엔드 수명 요구 사항을 충족할 수 있는 경우에만 허용되며, 그렇지 않으면 지원되지 않는 스토리지 오류를 반환합니다. Zero-copy mapping은 transfer_async가 0 바이트를 전송한다는 약속이 아닌 동기화 의무가있는 명명 된 기능입니다.
+</p>
+</section>
+<section id="ordering" aria-labelledby="ordering-heading">
+<h2 id="ordering-heading">4입니다. 대기열 및 가시성
+</h2>
+<p>큐는 선언된 의미론이 다루는 연산에 대해서만 순서를 정의합니다. 교차 큐 소비자는 명시적인 의존성 토큰과 적절한 가시성 작업을 필요로 합니다. 이벤트는 특정 세대의 제출 된 작업을 기록합니다. 이벤트 객체를 재활용하면 이전 토큰이 새로운 제출을 인증 할 수 없습니다. 대기열 유휴 및 성공적인 완료는 다른 보고서입니다.
+</p>
+<p>호스트 가독성은 완성 된 프로듀서, 필요한 메모리 visibility/cache 작업 및 호스트 액세스 가능한 할당이 필요합니다. 장치 계산에서 대기해도 장치 전용 메모리가 다운로드되지 않습니다. 매핑된 공유 버퍼는 대량 전송을 피할 수 있지만 인수 작업 및 독점 소유권 전송이 필요합니다. 전체 경계에 대한 Pending_Visibility를 참조하십시오.
+</p>
+</section>
+<section id="numeric" aria-labelledby="numeric-heading">
+<h2 id="numeric-heading">5입니다. 정밀 및 컴파일러 전문화
+</h2>
+<p>AOT 및 JIT는 동일한 스칼라 및 오류 시맨틱을 유지하면서 모양, 레이아웃 및 장치 기능을 전문으로 할 수 있습니다. 엄격한 프로파일은 자동으로 감소, 플러시 정상 이하 또는 좁은 누산기를 다시 연결하지 않습니다. 요청된 편안한 수학은 작업 옵션에서 명시적이며 컴파일 된 작업 ID 및 캐시 키에 반영됩니다.
+</p>
+<p>편집 보고서는 선택한 인하 및 필수 기능을 설명 할 수 있으며 하드웨어 속도 또는 타이밍을 증명하지 않습니다. 배치를 변경하는 폴백은 명시적인 정책과 비용 표시 전송 경로가 필요합니다. 커널 실행 범위와 주소 산술은 MLIR 또는 LLVM 내부 작업에서 사전 조건이 약한 경우에도 checked로 유지되어야 합니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 명시적 할당 및 종속성 처리
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Pending&lt;Tensor&lt;f32, Shape&lt;2, 3&gt;, Gpu&gt;&gt;, SubmitError&gt; initialization = Tensor.zeros_async&lt;f32, Shape&lt;2, 3&gt;&gt;(&amp;queue);
+// Given a validated operation descriptor and already borrowed input descriptors on queue.device.
+Result&lt;Pending&lt;Tensor&lt;f32, Shape&lt;2, 3&gt;, Gpu&gt;&gt;, SubmitError&gt; calculation = Tensor.submit(&amp;queue, operation, inputs);</code></pre>
+<p>위의 값은 제출 결과이며 Pending 함수가 호출되기 전에 처리되어야 합니다. 이후의 control-flow 구문을 통해 이들을 기다리는 것은 명시적 Pending 함수와 동일한 완료 계약을 갖습니다. 어떤 예도 GPU 텐서가 Cpu 인덱싱을 통해 즉시 읽을 수 있다는 것을 의미하지는 않습니다.
+</p>
+</section>
+<section id="specialized-functions" aria-labelledby="specialized-functions-heading">
+<h2 id="specialized-functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Tensor-device_id"><td><code>Tensor.device_id(&amp;Queue queue)</code></td><td><code>DeviceId</code></td><td>큐 allocation/compilation 컨텍스트의 ID입니다.</td><td>O(1).</td>
+</tr>
+<tr id="Tensor-storage_support"><td><code>Tensor.storage_support&lt;T&gt;(DeviceId device)</code></td><td><code>CapabilityReport</code></td><td>스토리지 너비, 정렬 및 레이아웃 지원을 산술과 별도로 확인합니다.</td><td>Query 뿐입니다.</td>
+</tr>
+<tr id="Tensor-operation_support"><td><code>Tensor.operation_support(DeviceId device, OperationKind kind, NumericProfile profile)</code></td><td><code>CapabilityReport</code></td><td>명명된 작업에 대한 하강 및 엄격한 매스 요구 사항을 보고합니다.</td><td>query; 미래의 제출은 여전히 실패 할 수 있습니다.</td>
+</tr>
+<tr id="Tensor-upload_async"><td><code>Tensor.upload_async(X cpu_source, &amp;Queue queue, TransferPolicy policy)</code></td><td><code>Result&lt;Pending&lt;O&gt;, SubmitError&gt;</code></td><td>명시적인 Cpu-to-device copy; 복사본이 더 이상 읽지 않을 때까지 소스 임대가 유지됩니다.</td><td>O(bytes); 스테이징 정책 명시.</td>
+</tr>
+<tr id="Tensor-download_async"><td><code>Tensor.download_async(X device_source, HostAllocationPolicy policy)</code></td><td><code>Result&lt;Pending&lt;O&gt;, SubmitError&gt;</code></td><td>명백한 장치 대 CPU 소유자 할당 및 복사; 결과 추출 전에 호스트 가시성.</td><td>O(bytes); 호스트 출력을 할당합니다.</td>
+</tr>
+<tr id="Tensor-stage_copy"><td><code>Tensor.stage_copy(X cpu_source)</code></td><td><code>Result&lt;PinnedBuffer&lt;T&gt;, TensorError&gt;</code></td><td>명시적 초기화된 스테이징 소유자; 암시적 인코딩 변경 없이 입력 bytes/elements를 복사합니다.</td><td>O(bytes); 고정 된 할당이 실패 할 수 있습니다.</td>
+</tr>
+<tr id="Tensor-submit_after"><td><code>Tensor.submit_after(&amp;Queue queue, CompletionToken dependency, TensorOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;Out&gt;, SubmitError&gt;</code></td><td>의존성 generation/device 호환성 checked; 필요한 메모리 의존성을 포함한다.</td><td>대기 대기; 숨겨진 호스트가 없습니다.</td>
+</tr>
+<tr id="Tensor-compile_report"><td><code>Tensor.compile_report(&amp;CompiledOp&lt;Inputs, Out&gt; operation)</code></td><td><code>CompileReportView</code></td><td>빌린 옵션, 기능 및 진단 낮추기; 성능 보증 없음.</td><td>O(1) 보기.</td>
+</tr>
+<tr id="Tensor-transfer_plan"><td><code>Tensor.transfer_plan(X source, DeviceId destination, TransferPolicy policy)</code></td><td><code>Result&lt;TransferPlan, DeviceError&gt;</code></td><td>제출하지 않고 copy/staging 경로 및 byte count를 보고합니다.</td><td>Query/descriptor 할당이 실패할 수 있습니다.</td>
+</tr>
+<tr id="Tensor-validate_submission"><td><code>Tensor.validate_submission(&amp;Queue queue, TensorOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;SubmissionReport, SubmitError&gt;</code></td><td>알려진 shape/layout/lease 제약 조건을 확인합니다.</td><td>호스트 검증 비용.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 디자인 경계 및 관련 페이지
+</h2>
+<p>모든 시그니처은 도서관 계약으로 제안됩니다. AOT 및 JIT는 동일한 유효성 검사, 수명 및 숫자 의미를 유지합니다. 최적화는 입증된 중복 작업을 제거할 수 있지만 관찰 가능한 오류 및 동기화 경계를 보존해야 합니다. 지원 설명자 유형 및 일반적인 모양 맞춤법은 디자인 후보자로 남아 있습니다; 매개 변수 전달은 승인 된 값, &amp;T 및 &amp;mut T 양식을 사용합니다. 반환 참조 수명 표기법은 개념적으로 남아 있습니다.
+</p>
+<p><a href="Tensor.html">Tensor 공통 참조</a> · <a href="Tensor_Shape.html">모양</a> · <a href="Tensor_View.html">보기</a> · <a href="Tensor_Device.html">장치 실행</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/TensorOps/" target="_blank" rel="noopener noreferrer">MLIR Tensor 방언</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/MemRef/" target="_blank" rel="noopener noreferrer">MLIR MemRef 사투리</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/ShapeDialect/" target="_blank" rel="noopener noreferrer">MLIR 모양 방언</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy 방송</a>
+</li>
+<li><a href="https://numpy.org/doc/stable/user/basics.copies.html" target="_blank" rel="noopener noreferrer">NumPy 복사 및 보기</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Tensor_View.html"><span>이전 레퍼런스</span>Tensor 조회수</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

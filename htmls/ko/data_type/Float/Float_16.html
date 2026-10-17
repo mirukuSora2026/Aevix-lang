@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="16-bit 이진 부동 소수점. 정의 된 정밀도, 명시적 반올림 및 공유 Float API.">
+  <title>플로트16 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Float/Float_16.html">
+<link rel="alternate" hreflang="ko" href="Float_16.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Float.html" aria-current="true">Float</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Float.html">Float</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">플로트16</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>플로트16</h1><p class="doc-subtitle">16-bit 이진 부동 소수점. 정의 된 정밀도, 명시적 반올림 및 공유 Float API.</p><div class="doc-meta"><span class="meta-chip">f16</span><span class="meta-chip">Float. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>저장 방식</dt><dd>2 바이트</dd></div><div class="doc-stat"><dt>정밀</dt><dd>11 비트</dd></div><div class="doc-stat"><dt>엡실론</dt><dd>2^-10</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>f16</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>기본 정보</span></a></li><li><a href="#Bit-Representation"><span class="toc-number">02</span><span>비트 표현</span></a></li><li><a href="#Literals"><span class="toc-number">03</span><span>문자 및 형식 추론</span></a></li><li><a href="#Precision"><span class="toc-number">04</span><span>정밀 &amp; 반올림 경계</span></a></li><li><a href="#Special-Values"><span class="toc-number">05</span><span>제로, 인피니티, NaN 및 서브 노멀</span></a></li><li><a href="#Type-Conversion"><span class="toc-number">06</span><span>유형 변환</span></a></li><li><a href="#Arithmetic"><span class="toc-number">07</span><span>산술 및 공통 함수 바인딩</span></a></li><li><a href="#Comparison"><span class="toc-number">08</span><span>비교 및 인접 값</span></a></li><li><a href="#String-Byte"><span class="toc-number">09</span><span>string 및 Byte 표현</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">10</span><span>배열, 텐서 및 실행 대상</span></a></li><li><a href="#Type-Functions"><span class="toc-number">11</span><span>Float16-특정 기능</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Float 페이지"><h2>Float 참조</h2><div class="family-links"><a href="Float.html">Float</a><a href="Float_8.html">플로트8</a><a href="Float_16.html" aria-current="page">플로트16</a><a href="BFloat_16.html">BFloat16에는</a><a href="Float_32.html">플로트32</a><a href="Float_64.html">플로트64</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="Float.html" aria-current="true">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Float16 참조">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. 기본 정보
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 자동으로 사용할 수 있는 형식은 <code>f16</code>, <code>bf16</code>, <code>f32</code> 및 <code>f64</code>; <code>float</code> 는 다음 타입의 별칭입니다: <code>f64</code>. 수치 접미사, 스칼라 산술과 비교가 구현되어 있습니다. 구현된 네임스페이스 호출은 <code>Float.convert&lt;D&gt;(value)</code>, <code>Float.convert_exact&lt;D&gt;(value)</code> 및 <code>Float.to_integer_exact&lt;I&gt;(value)</code>입니다. 앞의 두 함수는 정수 또는 부동소수점을 입력받고 부동소수점 목적지를 요구합니다. 마지막 함수는 부동소수점을 입력받고 정수 목적지를 요구합니다. 반환 타입은 <code>Result</code> 이며 오류 타입은 <code>FloatError</code> 입니다. 반올림 모드 인수는 받지 않습니다. 분류·비트/바이트 인코딩과 아래 수학 함수 카탈로그는 0.2에 구현된 API가 아닙니다. 자세한 내용: <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p><code>f16</code> 11 비트가 일반 significand 정밀도인 16-bit 바이너리 부동소수점 값입니다. 이 형식은 형식화된 컨텍스트에서 명시적으로 선택되거나 유추됩니다.The default type is selected explicitly or inferred from a typed context. <code>float</code> 별칭이 남음 <code>f64</code>.
+</p>
+<div class="table-scroll" role="region" aria-label="기본 정보 표">
+<table>
+<thead>
+<tr><th scope="col">속성</th><th scope="col">상세 정보</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>코드 종류</td><td><code>f16</code></td>
+</tr>
+<tr><td>저장된 비트 / 바이트</td><td>16 조금/2 바이트</td>
+</tr>
+<tr><td>기호 / 지수 / 저장된 분수</td><td>1 / 5 / 10 비트</td>
+</tr>
+<tr><td>중요 한 정밀도</td><td>일반 값에 대한 11 이진 숫자</td>
+</tr>
+<tr><td>지수 편향</td><td>15</td>
+</tr>
+<tr><td>최대 유한 크기</td><td>65504; 정확하게 (2 − 2<sup>−10</sup>) × 2<sup>15</sup></td>
+</tr>
+<tr><td>최소 양성 정상</td><td>2<sup>-14</sup></td>
+</tr>
+<tr><td>최소 양수 정상 이하</td><td>2<sup>-24</sup></td>
+</tr>
+<tr><td>1 (epsilon)의 위 간격</td><td>2<sup>−10</sup></td>
+</tr>
+<tr><td>연속적인 정확한 정수</td><td>−2의 모든 정수<sup>11</sup> +2를 통해<sup>11</sup></td>
+</tr>
+<tr><td>특별 값</td><td>양수와 음수 0, 양수와 음수 무한대, NaN</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code>bf16</code> 및 <code>f16</code> 둘 다 두 바이트를 차지하지만 다른 형식입니다. BFloat16은 f32의 지수 범위를 유지하고 분수 비트가 적습니다. 어느 형식도 다른 형식의 모든 값을 정확히 나타낼 수 없습니다.
+</p>
+</section>
+<section id="Bit-Representation" aria-labelledby="Bit-Representation-heading">
+<h2 id="Bit-Representation-heading">2입니다. 비트 표현
+</h2>
+<p>높은 비트는 기호를 저장하고 5 지수 비트와 10 분수 비트를 저장합니다. 정규값은 (−1)<sup>서명</sup> (1 + fraction / 2)를 참조하십시오.<sup>10</sup>) × 2<sup>지수  15</sup>. Zero/subnormal 인코딩은 0개의 지수를 사용합니다. 올원 지수는 무한대 또는 NaN을 나타냅니다.
+</p>
+<div class="table-scroll" role="region" aria-label="비트 표현 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">Value / property</th><th scope="col">원시 인코딩 또는 계약</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>1.0</td><td><code>0x3C00</code></td>
+</tr>
+<tr><td>최대 양수 유한값</td><td><code>0x7BFF</code></td>
+</tr>
+<tr><td>마이너스 0</td><td><code>0x8000</code></td>
+</tr>
+<tr><td>부호 없는 원시 대응물</td><td><code>u16</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>사용법: <code>Float.to_bits</code> 및 <code>Float.from_bits</code> 대표적 Access. NaN 페이로드 보존은 storage/bit-conversion 계약이며 산술 결과에 대한 보장은 아닙니다.
+</p>
+</section>
+<section id="Literals" aria-labelledby="Literals-heading">
+<h2 id="Literals-heading">3입니다. 문자 및 형식 추론
+</h2>
+<p>문자 그대로의 A <code>f16</code> 컨텍스트는 해당 대상 형식으로 직접 반올림됩니다. 입력되지 않은 소수 실제 리터럴 기본값: <code>f64</code>. 이전에 입력한 값은 암시적으로 변환되지 않습니다. 상수 구문 분석은 의도하지 않은 중간 라운딩이 다른 형식을 거치지 않도록 해야 합니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">f16 value = 1.5;
+// Declaration syntax is illustrative.
+Float.to_bits(value);
+Float.is_finite(value);</code></pre>
+<p>0.1와 같은 소수에는 일반적으로 정확한 유한 이진 표현이 없습니다. 리터럴은 정확하게 반올림된 값이지 정확한 소수 유리수가 아닙니다. 유한 범위를 벗어나는 값은 명시적으로 문서화된 변환 또는 리터럴 진단 정책이 필요합니다.
+</p>
+</section>
+<section id="Precision" aria-labelledby="Precision-heading">
+<h2 id="Precision-heading">4입니다. 정밀 &amp; 반올림 경계
+</h2>
+<p>일반 값에는 11 유효 이진수가 있습니다. 간격은 크기에 따라 변한다; 엡실론은 1 바로 위의 간격이며 보편적인 비교 공차가 아니다.
+</p><pre class="code-block"><code class="language-aevix" data-language="aevix">// Round-to-nearest, ties-to-even at a precision boundary.
+f16 a = 2048;
+a + 1;   // rounds back to 2048
+
+Float.next_up(a); // adjacent representable value</code></pre>
+<p>크기가 대부분의 2048인 모든 정수는 정확합니다. 그 경계를 넘어서, 일부 정수는 정확하게 남아 있고 다른 정수는 그렇지 않습니다. 정수 값을 유지할 때 정확한 변환을 선택합니다. 기본 스칼라 라운딩은 가장 둥글고 짝수이며, 다른 정책에는 명시적인 API 선택이 필요합니다.
+</p>
+</section>
+<section id="Special-Values" aria-labelledby="Special-Values-heading">
+<h2 id="Special-Values-heading">5입니다. 제로, 인피니티, NaN 및 서브 노멀
+</h2>
+<p>양수와 음수 0은 숫자적으로 동일하지만 부호 비트가 다릅니다. NaN은 자신과의 평등을 포함하여 일반적인 비교에서 순서가 정해지지 않습니다. 무한대는 고유한 숫자 값이며 가장 큰 유한 값이 아닙니다.
+</p>
+<p>비정상 값은 0과 가장 작은 정상 크기 사이의 간격을 채웁니다. 엄격한 실행 프로파일은 이러한 값을 유지합니다. 이를 0으로 만드는 대상은 해당 동작을 별도의 옵트인 기능으로 노출해야 하며 문서 계약을 자동으로 변경해서는 안 됩니다.
+</p>
+<p>애플리케이션 특정 유한값 제약 조건을 적용하기 전에 분류 함수를 사용합니다. 계산된 산술은 0으로 나셈, 유효하지 않은 도메인 또는 비-유한 결과가 될 때 명시적인 대안입니다. <code>Result</code> 오류.
+</p>
+</section>
+<section id="Type-Conversion" aria-labelledby="Type-Conversion-heading">
+<h2 id="Type-Conversion-heading">6입니다. 유형 변환
+</h2>
+<p><code>Float.convert_exact</code> 수학적 값이 대상 형식으로 나타낼 수 있는지 여부를 보고합니다. <code>Float.convert</code> 명확한 반올림 정책을 사용하고 정확성을 잃을 수 있습니다. 좁혀지는 것은 조용히 비트 캐스트가되지 않습니다.
+</p>
+<p><code>Float.to_integer_exact&lt;I&gt;(value)</code> 대상 정수 범위에서 유한 적분 입력이 필요합니다. 분수 값 반환 <code>FloatError.NonExact</code>NaN/infinity return - 비디오 <code>NonFinite</code>범위 실패 반환Range failure returns <code>OutOfRange</code>. 반올림된 정수 변환은 별도의 제안된 API입니다.
+</p>
+<div class="table-scroll" role="region" aria-label="유형 변환 데이터 표">
+<table>
+<thead>
+<tr><th scope="col">변환</th><th scope="col">유형별 요구 사항</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>f16 → u16 비트 포함</td><td>숫자 변환이 아닌 비트 표현</td>
+</tr>
+<tr><td>u16 → f16 부터 비트</td><td>동일폭 표현 디코드</td>
+</tr>
+<tr><td>f16 → 정수</td><td>구현됨 <code>Float.to_integer_exact&lt;I&gt;</code>: 유한, 적분 및 범위</td>
+</tr>
+<tr><td>Integer → 이 형식</td><td>정확한 변환은 표현 가능한 정수에만 성공합니다. 연속 보증은 2^11에서 종료됩니다.</td>
+</tr>
+<tr><td>기타 float → 이 형식</td><td>정확함 또는 반올림은 명시 적으로 선택해야합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>NaN 페이로드와 부호 있는 0은 형식 간에 변환할 때 별도의 표현 보존 정책이 필요합니다.
+</p>
+</section>
+<section id="Arithmetic" aria-labelledby="Arithmetic-heading">
+<h2 id="Arithmetic-heading">7입니다. 산술 및 공통 함수 바인딩
+</h2>
+<p>산술 반환 <code>f16</code> 일반적인 Float 계약에 따라. 더 작은 스토리지 타입은 초월적 동작들이 네이티브 하드웨어 명령어들을 갖는다는 것을 의미하지 않는다. 백엔드 promotion/emulation는 요청된 라운딩 포인트를 보존하고 비용을 노출해야 합니다.
+</p>
+<div class="table-scroll" role="region" aria-label="산술 &amp; 일반적인 기능 바인딩 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">일반적인 기능</th><th scope="col">f16에 대한 반환 바인딩</th>
+</tr>
+</thead>
+<tbody>
+<tr><td><code>Float.abs(x)</code>, <code>Float.sqrt(x)</code>, <code>Float.sin(x)</code></td><td><code>f16</code>; 수치 도메인 동작은 Float에 정의되어 있습니다.</td>
+</tr>
+<tr><td><code>Float.checked_add(a, b)</code> checked 수학</td><td><code>Result&lt;f16, FloatError&gt;</code></td>
+</tr>
+<tr><td><code>Float.is_finite(x)</code> 그리고 분류 predicates</td><td><code>bool</code></td>
+</tr>
+<tr><td><code>Float.to_bits(x)</code></td><td><code>u16</code></td>
+</tr>
+<tr><td><code>Float.to_be_bytes(x)</code></td><td><code>Array&lt;byte, 2&gt;</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>일반적인 함수는 한번에 정의됩니다. <a href="Float.html#Function-Reference">Float</a>. 이 페이지에는 형식별 값과 제약 조건만 추가됩니다.
+</p>
+</section>
+<section id="Comparison" aria-labelledby="Comparison-heading">
+<h2 id="Comparison-heading">8입니다. 비교 및 인접 값
+</h2>
+<p>일반적인 비교는 NaN이 순서가 없는 숫자 순서를 따릅니다. <code>Float.total_compare</code> 부호 있는 0 및 NaN 인코딩을 포함하여 원시 부동 소수점 값을 정렬하기 위한 명시적 토탈 오더 경로를 제공합니다.
+</p>
+<p>대략적인 비교는 absolute/relative 허용오차 또는 명시적인 ULP 정책을 지정해야 합니다. Never는 보편적인 포용력으로 이 체재의 epsilon를 사용합니다. <code>next_up</code>, <code>next_down</code>, 및 <code>next_after</code> 포맷의 표현 가능한 그리드를 탐색하고 Float의 특수 값 규칙을 따르십시오.
+</p>
+</section>
+<section id="String-Byte" aria-labelledby="String-Byte-heading">
+<h2 id="String-Byte-heading">9. string 및 Byte 표현
+</h2>
+<p>원시 직렬화 사용 <code>byte</code>상기 불투명한 옥 타입은 The opaque octet type <a href="../Byte/Byte.html">Byte</a>숫자형 정수 대신, <code>u8</code>. 그들 사이에 암묵적인 변환은 없습니다: use <code>Byte.from_u8</code> 또는 <code>Byte.to_u8</code> 각 옥에 대해 숫자 값이 필요할 때 명시 적으로. 숫자형 비트 워드 API는 문서화되지 않은 정수형을 유지합니다.</p>
+<p>상기 원시 저장소는 The raw storage is <code>2</code> 바이트. 명백한 리틀 엔디언 및 빅 엔디언 변환이 생성됩니다. <code>Array&lt;byte, 2&gt;</code>byte 순서는 부동 소수점 형식을 변경하지 않습니다. 동적 버퍼 읽기 및 쓰기는 전체 범위를 확인합니다.
+</p>
+<p>가장 짧은 왕복 포맷터는 문서화된 파서 아래에서 동일한 유한 값으로 다시 파싱하는 10진수 텍스트를 방출합니다. NaN 텍스트는 임의의 페이로드를 보존하지 않습니다. 정확한 페이로드 전송은 비트 또는 byte API를 사용합니다.
+</p><pre class="code-block"><code class="language-aevix" data-language="aevix">f16 value = 1.5;
+Array&lt;byte, 2&gt; bytes = Float.to_be_bytes(value);
+f16 decoded = Float.from_be_bytes(f16, bytes);
+Float.parse(f16, &quot;1.5&quot;);
+Float.format_into(value, buffer, options);</code></pre>
+<p>기존 버퍼로 포맷하면 새 출력 할당이 방지됩니다. string 생성 포맷터에는 명시적인 할당 실패 경로가 있습니다.
+</p>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">10입니다. 배열, 텐서 및 실행 대상
+</h2>
+<p><code>Array&lt;f16, N&gt;</code>, <code>Vector&lt;f16&gt;</code>, 및 <code>Tensor&lt;f16, Shape, Place&gt;</code> 이 형식의 값을 저장합니다. 값 복사는 스칼라 힙 할당을 필요로 하지 않습니다; 컬렉션은 자신의 move/copy 규칙을 따릅니다.
+</p>
+<p>저장, 산술, 변환, 특수 함수 및 원자 지원은 각 대상에 대해 별도로 checked입니다. 엄격한 AOT 및 JIT 실행은 동일한 형식 의미를 사용합니다. FMA 수축, 빠른 수학 reassociation 및 subnormal 플러싱은 명시적인 정책이 필요합니다.
+</p>
+<p>감소의 누산기 형식 및 평가 순서가 표시되어야 합니다. 더 넓은 축적은 별개의 선택이며 스토리지 형식으로 반복 반올림하여 다른 결과를 얻을 수 있습니다. FFI는 형식 이름만 일치시키는 것이 아니라 외부 형식과 ABI를 확인해야 합니다.
+</p>
+</section>
+<section id="Type-Functions" aria-labelledby="Type-Functions-heading">
+<h2 id="Type-Functions-heading">11입니다. Float16-특정 기능
+</h2>
+<p>별도의 형식 전용 함수 네임스페이스가 정의되지 않습니다. 모든 일반적인 작업은 아래에 남아 있습니다. <code>Float.</code>위의 형식별 메타데이터 및 변환 조건은 공통 계약을 전문으로 합니다.
+</p>
+<p>참고: <a href="Float.html#Function-Reference">완전한 Float 기능 카탈로그</a> 시그니처, 결과 유형, 숫자 도메인 및 대상 가용성. 이 사양은 컴파일러 또는 수학 런타임이 이미 카탈로그를 구현한다는 주장이 아닌 설계 초안입니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 API 이름과 계약은 독립적으로 제안했습니다.
+</p>
+<ul class="source-list">
+<li><a href="https://mlir.llvm.org/docs/Dialects/Builtin/" target="_blank" rel="noopener noreferrer">MLIR 부동 소수점 형식 정의</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.f32.html" target="_blank" rel="noopener noreferrer">Rust f32 숫자 속성 및 작업</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/primitive.f64.html" target="_blank" rel="noopener noreferrer">Rust f64 숫자 속성 및 작업</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Float_8.html"><span>이전 레퍼런스</span>플로트8</a><a href="BFloat_16.html"><span>다음 레퍼런스</span>BFloat16에는</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

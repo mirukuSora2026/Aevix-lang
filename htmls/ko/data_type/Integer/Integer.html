@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="정수의 공통 규칙, 명시적 산술 정책과 제안된 Integer 네임스페이스입니다.">
+  <title>Integer — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Integer/Integer.html">
+<link rel="alternate" hreflang="ko" href="Integer.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Integer.html" aria-current="true">Integer</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Integer.html">Integer</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Integer</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Integer</h1><p class="doc-subtitle">정수의 공통 규칙, 명시적 산술 정책과 제안된 Integer 네임스페이스입니다.</p><div class="doc-meta"><span class="meta-chip">인은</span><span class="meta-chip">Integer. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>인은</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>개요</span></a></li><li><a href="#Declaration-Initialization"><span class="toc-number">02</span><span>선언 및 초기화</span></a></li><li><a href="#Integer-Literals"><span class="toc-number">03</span><span>Integer 리터럴</span></a></li><li><a href="#Arithmetic-Operations"><span class="toc-number">04</span><span>산술 작업</span></a></li><li><a href="#Comparison-Bitwise"><span class="toc-number">05</span><span>비교 및 비트와이즈 운영</span></a></li><li><a href="#Type-Conversion"><span class="toc-number">06</span><span>유형 변환</span></a></li><li><a href="#Overflow-Underflow"><span class="toc-number">07</span><span>오버플로우 &amp; 언더플로우</span></a></li><li><a href="#Performance-Memory"><span class="toc-number">08</span><span>성능 및 메모리</span></a></li><li><a href="#Function-Reference"><span class="toc-number">09</span><span>제안된 함수 참조</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>예제</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">11</span><span>컴파일 및 병렬 실행</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Integer 페이지"><h2>Integer 레퍼런스</h2><div class="family-links"><a href="Integer.html" aria-current="page">Integer</a><a href="Integer_8.html">Int8에서</a><a href="Integer_16.html">Integer · 16-bit</a><a href="Integer_32.html">Integer · 32-bit</a><a href="Integer_64.html">Integer · 64-bit</a><a href="Integer_128.html">Integer · 128-bit</a><a href="Unsigned_Integer_8.html">서명되지 않음 Integer · 8-bit</a><a href="Unsigned_Integer_16.html">서명되지 않음 Integer · 16-bit</a><a href="Unsigned_Integer_32.html">서명되지 않음 Integer · 32-bit</a><a href="Unsigned_Integer_64.html">서명되지 않음 Integer · 64-bit</a><a href="Unsigned_Integer_128.html">서명되지 않음 Integer · 128-bit</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="Integer.html" aria-current="true">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Integer 레퍼런스">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 개요
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 정수 기본 타입인 <code>i128</code>/<code>u128</code>, 및 <code>int = i32</code> 에는 import가 필요하지 않습니다. 리터럴, 같은 타입끼리의 산술, 비교, 비트 연산과 <code>Integer.convert&lt;D&gt;(value)</code> 가 구현되어 있습니다. 이 변환은 정수 입력과 정수 목적지만 허용하며 반환 타입은 <code>Result&lt;D, IntegerError&gt;</code>입니다. 실패 시에는 <code>OutOfRange</code> 를 반환합니다. 정수에서 부동소수점으로 변환할 때는 구현된 <code>Float.convert</code>/<code>convert_exact</code> 를 사용하세요. 더 넓은 카탈로그의 이름 있는 산술·파싱·포매팅·바이트 인코딩 함수는 여전히 제안입니다. 자세한 내용: <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<div class="callout draft-note"><strong>언어 설계 초안.</strong> 이 참조는 제안된 Aevix 정수 모델을 설명합니다. API 카탈로그는 구현 또는 호환성 주장이 아닙니다. 선언 구문과 일반적인 산술 실패 경계는 이제 규칙을 선택했습니다. <a href="../../grammar/index.html">언어 문법</a>; 0.2 구현은 다음을 포함한 명시적인 숫자 접미사를 추가합니다. <code>i128</code> 및 <code>u128</code>. 자세히 보기 <a href="../../releases/0_2.html">구현 범위</a> 실행 가능한 기능들
+
+</div>
+
+<p>정수는 고정된 유한 범위의 정숫값을 나타냅니다. Aevix의 정수 설계에는 부호 있는 <code>i8</code>,
+                    <code>i16</code>, <code>i32</code>, <code>i64</code>, <a href="Integer_128.html"><code>i128</code></a>, 부호 없는 <code>u8</code>, <code>u16</code>,
+                    <code>u32</code>, <code>u64</code>, <a href="Unsigned_Integer_128.html"><code>u128</code></a>, 대상 환경의 크기를 따르는 <code>isize</code> 및 <code>usize</code>가 포함됩니다. 부호 있는 값은 2의 보수를 사용합니다. 별칭 <code>int</code> 는 다음 표기와 같습니다: <code>i32</code>;
+                    <code>float</code> 는 다음 표기와 같습니다: <code>f64</code>.
+
+</p>
+
+<p>폭이 <code>N</code>이면 부호 있는 타입의 범위는 <code>−2^(N−1)</code> 부터
+                    <code>2^(N−1)−1</code>까지이며, 부호 없는 타입의 범위는 <code>0</code> 부터 <code>2^N−1</code>입니다. 대상 크기 정수는 대상 환경의 주소 모델을 따릅니다. 직렬화 데이터나 CPU/GPU 공유 인터페이스에서 그 폭을 고정값으로 가정해서는 안 됩니다.
+
+</p>
+
+<p>이 페이지는 공통 동작을 정의합니다. <a href="Integer_8.html">Int8 참조 문서</a> 에는
+                    <code>i8</code> 의 경계와 특수한 결과를 설명합니다.
+
+</p>
+</section>
+<section id="Declaration-Initialization" aria-labelledby="Declaration-Initialization-heading">
+<h2 id="Declaration-Initialization-heading">2입니다. 선언 및 초기화
+</h2>
+<p>타입 추론은 리터럴의 값이 요구되는 정수 타입에 들어갈 때 허용합니다. 문맥이 타입을 제한하지 않으면 정수 리터럴의 기본 타입은 <code>int</code>, 또는 <code>i32</code>입니다. 값이 이 기본 타입에 들어가지 않으면 컴파일러가 오류를 보고하며, 더 넓은 타입을 조용히 선택하지 않습니다.
+
+</p>
+
+<p>값은 기본적으로 변경할 수 없습니다. 변경하려면 명시적으로 <code>mut</code> 를 선언해야 합니다. 예: <code>mut i32 value = 0;</code>. 공통 연산에는 다음과 같은 네임스페이스 함수를 사용합니다: <code>Integer.checked_add(a,
+                        b)</code>. 이 설계에는 정수 인스턴스 메서드가 없습니다.
+
+</p>
+</section>
+<section id="Integer-Literals" aria-labelledby="Integer-Literals-heading">
+<h2 id="Integer-Literals-heading">3입니다. Integer 리터럴
+</h2>
+<p>0.2는 십진 리터럴과 명시적인 <code>0b</code> 이진, <code>0o</code> 팔진, <code>0x</code> 십육진 표기를 지원합니다. 다음과 같은 접미사는 <code>42i64</code> 또는 <code>42u128</code> 리터럴의 타입을 고정합니다. 리터럴은 숫자 값을 나타내며 비트 패턴을 재해석하라는 지시가 아닙니다.
+
+</p>
+
+<p>음의 최솟값도 표현할 수 있어야 합니다. 컴파일러는 부호와 리터럴의 크기를 함께 평가한 뒤 목적지 범위를 검사합니다. 먼저 양의 크기가 해당 부호 있는 타입에 들어갈 것을 요구해서는 안 됩니다.
+
+</p>
+
+<p>컴파일 타임 수학 계산에는 더 넓은 내부 표현을 사용할 수 있습니다. 그렇다고 런타임 임의 정밀도 정수를 추가하거나, 타입이 정해진 식의 폭을 바꾸거나, 범위를 벗어난 초기화를 허용하는 것은 아닙니다.
+
+</p>
+</section>
+<section id="Arithmetic-Operations" aria-labelledby="Arithmetic-Operations-heading">
+<h2 id="Arithmetic-Operations-heading">4입니다. 산술 작업
+</h2>
+<p>이미 타입이 정해진 피연산자에는 암시적 수치 승격을 적용하지 않습니다. 일반 산술은 같은 정수 타입끼리 수행합니다. 목적지 폭이 부족하면 연산 전에 명시적으로 폭을 넓히세요. 결과의 폭을 나중에 넓혀도 이미 발생한 오버플로를 되돌릴 수는 없습니다.
+
+</p>
+
+<p>선택된 일반 정수 산술 정책은 실패를 검사하며 런타임 연산이 실패하면 안전 중단을 수행합니다. 일반 연산자는 해당 정수 타입을 결과로 내고 자동으로 Result를 반환하지 않습니다. 이름 있는 checked API의 반환 타입은 <code>Result&lt;T, IntegerError&gt;</code>이며, 선택된 어휘적 <code>checked(expression)</code> 형식은 직접 작성한 정수 산술을 Result로 반환합니다. 실패 경계는 명시적이며 기대 타입, AOT/JIT 모드나 최적화 프로파일에 따라 바뀌지 않습니다. 자세한 내용: <a href="../../grammar/operators/Checked_Arithmetic.html">검사 산술</a>. 안전 중단의 정확한 종료·정리 정책은 아직 열린 설계 과제입니다.</p>
+
+<p>절단 나눗셈은 0 방향으로 반올림하며 나머지는 피제수의 부호를 따릅니다. 유클리드 나눗셈은 제수의 수학적 절댓값보다 작은 음이 아닌 나머지를 만듭니다. 제수가 음수이면 바닥 나눗셈과 유클리드 나눗셈의 결과가 다릅니다.
+
+</p>
+</section>
+<section id="Comparison-Bitwise" aria-labelledby="Comparison-Bitwise-heading">
+<h2 id="Comparison-Bitwise-heading">5입니다. 비교 및 비트와이즈 운영
+</h2>
+<p>동등성·순서 비교는 같은 타입의 숫자 값을 비교하며 결과 타입은 <code>bool</code>입니다. 이미 타입이 정해진 피연산자는 암시적으로 수치 변환되지 않습니다. 값을 보존하는 명시적 변환으로 타입 간 변환 의도를 밝힙니다. 타입 미지정 리터럴은 문맥에서 타입을 받을 수 있습니다. 비트 연산은 고정 폭 표현을 대상으로 합니다.</p>
+
+<p>시프트 횟수 검증과 정보 보존은 별개입니다. 유효한 횟수는 0부터 폭보다 1 작은 값까지입니다. 횟수만 검사하는 왼쪽 시프트는 상위 비트를 버릴 수 있습니다. exact 시프트는 역연산으로 원래 값이 복원되는지도 검사합니다. 부호 있는 오른쪽 시프트는 부호 비트를 확장하며 논리 오른쪽 시프트는 0을 채웁니다. 회전은 모든 비트를 보존하고 횟수를 폭으로 나눈 나머지를 사용합니다.
+
+</p>
+</section>
+<section id="Type-Conversion" aria-labelledby="Type-Conversion-heading">
+<h2 id="Type-Conversion-heading">6입니다. 유형 변환
+</h2>
+<div class="table-scroll" role="region" aria-label="유형 변환 데이터 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">제안된 함수</th>
+                            <th scope="col">계약</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <td><code>Integer.convert&lt;T&gt;(x)</code></td>
+                            <td>체크된 정수 변환; 반환 <code>Result&lt;T, IntegerError&gt;</code> 표현할 수 없는 값을 거부합니다.
+                            </td>
+
+</tr>
+
+<tr>
+                            <td><code>Integer.widen(T, x)</code></td>
+                            <td>반환 <code>T</code> 모든 소스 값이 대상에 맞을 때; 그렇지 않으면 형식 조합이 거부됩니다.
+                            </td>
+
+</tr>
+
+<tr>
+                            <td><code>Integer.saturating_convert(T, x)</code></td>
+                            <td>대상 범위에 정수를 고정합니다.</td>
+
+</tr>
+
+<tr>
+                            <td><code>Integer.wrapping_convert(T, x)</code></td>
+                            <td>destination-width 모듈식 표현을 생성합니다; 값을 변경할 수 있습니다.</td>
+
+</tr>
+
+<tr>
+                            <td><code>Integer.bitcast(T, x)</code></td>
+                            <td>Same-width signed/unsigned 재 해석; 반드시 값이 아닌 비트를 보존합니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<p>위 타입 인수는 설명용 표기입니다. 부동소수점 변환에는 반올림·정확성·NaN·무한대에 관한 별도 계약이 필요하며, 이 정수 간 변환 함수가 이를 조용히 결정하지는 않습니다.
+
+</p>
+</section>
+<section id="Overflow-Underflow" aria-labelledby="Overflow-Underflow-heading">
+<h2 id="Overflow-Underflow-heading">7입니다. 오버플로우 &amp; 언더플로우
+</h2>
+<div class="table-scroll" role="region" aria-label="오버플로우 &amp; 언더플로우 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">정책</th>
+                            <th scope="col">Result</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <td>일반 checked 오퍼레이터</td>
+                            <td>Integer 성공 결과; 런타임 산술 실패 시 안전 정지.</td>
+                        </tr>
+                        <tr>
+                            <td><code>checked(expression)</code> / 이름 checked APIs</td>
+                            <td><code>Result</code>성공 값 또는 복구 가능한 오류가 표시됩니다.</td>
+
+</tr>
+
+<tr>
+                            <td>품질 관리</td>
+                            <td>고정폭에서 모듈식 결과.</td>
+
+</tr>
+
+<tr>
+                            <td>포화</td>
+                            <td>가장 가까운 국경.</td>
+
+</tr>
+
+<tr>
+                            <td>오버플로우</td>
+                            <td>래핑된 결과와 오버플로우 플래그.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<p>이들은 서로 다른 연산이며 최적화 설정이 아닙니다. 부호 없는 최솟값보다 작아지는 뺄셈도 checked 산술에서는 오버플로입니다. <code>IntegerError</code> 는 제안된 공통 오류 타입입니다. 오류의 예는 <code>Overflow</code>, <code>DivisionByZero</code>, <code>InvalidShiftCount</code>,
+                    <code>NotDivisible</code>, 및 <code>DomainError</code>.
+
+</p>
+
+<p>부호 있는 최솟값을 <code>−1</code> 로 나누면 오버플로가 발생합니다. 이 입력의 독립적인 나머지 연산은 0을 반환하도록 제안되어 있지만 몫·나머지 결합 연산은 계속 실패합니다. wrapping이나 saturation도 0으로 나누기의 결과를 정의하지 않습니다.
+
+</p>
+
+<p>상수 접기는 공개 계약을 보존합니다. 상수 checked 호출은 <code>Err</code>로 접힐 수 있습니다. 잘못된 타입 지정 리터럴이나 필수 상수 값에는 컴파일 타임 진단을 냅니다. 최적화가 문서화된 오류 값을 정의되지 않은 동작으로 바꿔서는 안 됩니다.
+
+</p>
+</section>
+<section id="Performance-Memory" aria-labelledby="Performance-Memory-heading">
+<h2 id="Performance-Memory-heading">8입니다. 성능 및 메모리
+</h2>
+<p>정수는 복사 가능한 단순 값입니다. 스칼라 저장에 독립적인 힙 할당이나 참조 카운트는 필요하지 않습니다. 표현 크기가 레지스터 사용, 구조체 패딩, 호출 규약이나 스택 배치를 결정하지는 않습니다. 배열 전체 복사는 별도의 집합 값 정책이며 비용이 클 수 있습니다.
+
+</p>
+
+<p>스칼라 checked 결과는 힙 할당 없이 표현할 수 있습니다. 검사와 오류 처리에도 실제 비용이 있으며, 컴파일러는 명세된 동작을 보존할 때만 검사를 제거할 수 있습니다. 바이트 변환은 고정 배열을 반환하므로 힙 버퍼를 할당하지 않습니다. 텍스트 포매팅은 출력용 할당과 호출자가 제공한 저장소에 쓰기를 구분합니다.
+
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">9입니다. 제안된 함수 참조
+</h2>
+<div class="callout draft-note"><strong>제안 된 카탈로그를 완성하십시오.</strong> 이러한 이름과 계약은 구현된 컴파일러나 라이브러리가 아닌 현재 설계를 설명합니다. 모든 기능 사용 <code>Integer.</code>정수 인스턴스 메서드는 없습니다.There are no instance methods.
+
+</div>
+
+<p><code>T</code> 모든 타입은 integer, <code>S</code> 부호 있는 형식A signed type and <code>U</code> 부호 없는 동업자와 같은 너비입니다. <code>A</code> 및 <code>B</code> 차이가 있을 수 있습니다. <code>D</code> 목적지가 있으며,
+                    <code>F</code> 지원되는 플로트, A supported float <code>N</code> 원본 byte 너비입니다. 형식 인수, 명시적 반환 참조 수명 주석, 기본값, 튜플 레이블 및 지원 뷰 프로토콜은 개념적 표기법으로 유지됩니다.
+
+</p>
+
+<p><code>IntegerError</code> 산술, 도메인, 경계, 변환, 파싱, 버퍼 용량 및 할당에 대해 제안된 공유 오류 값 유형입니다. 그것의 마지막 enum 레이아웃이 열려 있습니다.
+                    <code>Ordering</code> 및 <code>FormatOptions</code> 이들은 도서관을 제안받은 사람들이다. 체크된 통화 return <code>Result</code> 일반 사업자의 선택된 안전 정지 행동과는 독립적으로.
+
+</p>
+
+<h3>9.1입니다. 형식 정보 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>형식 인수는 컴파일 시간 입력이며, 대상 크기의 너비는 선택한 대상에 대해 해결됩니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-min_value">
+                            <td><code>Integer.min_value(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>표현 가능한 최소값입니다.</td>
+
+</tr>
+
+<tr id="Integer-max_value">
+                            <td><code>Integer.max_value(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>표현할 수 있는 최대 값입니다.</td>
+
+</tr>
+
+<tr id="Integer-bit_width">
+                            <td><code>Integer.bit_width(T)</code></td>
+                            <td><code>u32</code></td>
+                            <td>표현 너비가 고정되었습니다.</td>
+
+</tr>
+
+<tr id="Integer-byte_width">
+                            <td><code>Integer.byte_width(T)</code></td>
+                            <td><code>u32</code></td>
+                            <td>정렬 및 주변 패딩을 제외한 표현 바이트입니다.</td>
+
+</tr>
+
+<tr id="Integer-is_signed">
+                            <td><code>Integer.is_signed(T)</code></td>
+                            <td><code>bool</code></td>
+                            <td>서명한 사람들에게만 해당됩니다.</td>
+
+</tr>
+
+<tr id="Integer-zero">
+                            <td><code>Integer.zero(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>0을 입력합니다.</td>
+
+</tr>
+
+<tr id="Integer-one">
+                            <td><code>Integer.one(T)</code></td>
+                            <td><code>T</code></td>
+                            <td>타입 1.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.2입니다. 가치 예측 및 크기 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>S는 서명되었습니다. U는 T의 동일한 너비의 부호 없는 대응물입니다. 예측값과 크기 연산은 할당되지 않습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-is_zero">
+                            <td><code>Integer.is_zero(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>정확히 NULL이 맞습니다.</td>
+
+</tr>
+
+<tr id="Integer-is_positive">
+                            <td><code>Integer.is_positive(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>x가 0보다 크면 참이 됩니다</td>
+
+</tr>
+
+<tr id="Integer-is_negative">
+                            <td><code>Integer.is_negative(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>음수 값에 대해서는 true; 부호 없는 입력에 대해서는 항상 false.</td>
+
+</tr>
+
+<tr id="Integer-is_even">
+                            <td><code>Integer.is_even(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>심지어 정수에 대해서도 참입니다. 음수를 포함해서요.</td>
+
+</tr>
+
+<tr id="Integer-is_odd">
+                            <td><code>Integer.is_odd(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>음수를 포함한 홀수 정수의 경우 참입니다.</td>
+
+</tr>
+
+<tr id="Integer-signum">
+                            <td><code>Integer.signum(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>서명: -1, 0 또는 1. 부호 없음: 0 또는 1.</td>
+
+</tr>
+
+<tr id="Integer-unsigned_abs">
+                            <td><code>Integer.unsigned_abs(S x)</code></td>
+                            <td><code>U</code></td>
+                            <td>S.MIN를 포함한 정확한 크기; 부호 있는 입력 만.</td>
+
+</tr>
+
+<tr id="Integer-abs_diff">
+                            <td><code>Integer.abs_diff(T a, T b)</code></td>
+                            <td><code>U</code></td>
+                            <td>정확한 nonnegative 다름; 일치 부호 있는 입력 또는 unsigned.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.3입니다. 비교 및 범위 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>순서은 덜, 평등 또는 더 크게 제안됩니다. 이종 비교는 피연산자를 암시적으로 변환하지 않습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-compare">
+                            <td><code>Integer.compare(T a, T b)</code></td>
+                            <td><code>Ordering</code></td>
+                            <td>일치하는 유형의 숫자 비교.</td>
+
+</tr>
+
+<tr id="Integer-compare_value">
+                            <td><code>Integer.compare_value(A a, B b)</code></td>
+                            <td><code>Ordering</code></td>
+                            <td>정수 폭과 부호에 대한 정확한 비교.</td>
+
+</tr>
+
+<tr id="Integer-min">
+                            <td><code>Integer.min(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>작은 숫자 값입니다.</td>
+
+</tr>
+
+<tr id="Integer-max">
+                            <td><code>Integer.max(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>더 큰 숫자 값입니다.</td>
+
+</tr>
+
+<tr id="Integer-midpoint">
+                            <td><code>Integer.midpoint(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>정확한 수학적 평균은 중간 오버플로우 없이 0으로 반올림됩니다.</td>
+
+</tr>
+
+<tr id="Integer-clamp">
+                            <td><code>Integer.clamp(T x, T lower, T upper)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>InvalidBounds - 더 낮은 값이 상위를 초과할 때 발생합니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.4입니다. 명시적 변환 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>D는 정수 대상입니다. F는 f16, bf16, f32 또는 f64입니다. 수치 변환과 비트 재 해석은 다른 작업입니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-convert">
+                            <td><code>Integer.convert&lt;D&gt;(T x)</code></td>
+                            <td><code>Result&lt;D, IntegerError&gt;</code></td>
+                            <td>값을 보존합니다; D에 맞출 수 없을 때 OutOfRange.</td>
+
+</tr>
+
+<tr id="Integer-widen">
+                            <td><code>Integer.widen(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>모든 T 값이 D에 맞는 경우에만 허용됨; 유효하지 않은 형식 조합은 컴파일 타임 오류입니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-fits">
+                            <td><code>Integer.fits(D, T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>대상 숫자 표현 능력을 테스트합니다.</td>
+
+</tr>
+
+<tr id="Integer-saturating_convert">
+                            <td><code>Integer.saturating_convert(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>목적지 범위에 클램프.</td>
+
+</tr>
+
+<tr id="Integer-wrapping_convert">
+                            <td><code>Integer.wrapping_convert(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>대상 너비를 조정한 다음 결과 비트를 해석합니다.</td>
+
+</tr>
+
+<tr id="Integer-bitcast">
+                            <td><code>Integer.bitcast(D, T x)</code></td>
+                            <td><code>D</code></td>
+                            <td>Same-width integer reinterpretation; 일치하지 않는 너비가 거부됩니다.</td>
+
+</tr>
+
+<tr id="Integer-to_float_exact">
+                            <td><code>Integer.to_float_exact(F, T x)</code></td>
+                            <td><code>Result&lt;F, IntegerError&gt;</code></td>
+                            <td>finite exact representability; 그렇지 않으면 NonExact 또는 OutOfRange가 필요합니다.</td>
+
+</tr>
+
+<tr id="Integer-to_float">
+                            <td><code>Integer.to_float(F, T x)</code></td>
+                            <td><code>Result&lt;F, IntegerError&gt;</code></td>
+                            <td>[사설] [사설] [사설] [사설] ‘사설’을 부정하라</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.5입니다. 산술값 확인 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>모든 피연산자는 일치하는 유형을 가지고 있습니다. 일반 연산자 return 정수 유형 및 런타임 산술 실패에 선택한 안전 중지 정책을 사용합니다. 복구 실패 필요 <code>checked(expression)</code> 또는 명명된 checked API; <code>?</code> 호환되는 return 컨텍스트에서 오류를 명시적으로 전파합니다.</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-checked_add">
+                            <td><code>Integer.checked_add(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>수학적 합계가 T에 맞지 않는 경우 오버플로우.</td>
+
+</tr>
+
+<tr id="Integer-checked_sub">
+                            <td><code>Integer.checked_sub(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>수학적 차이가 T에 맞지 않는 경우 오버플로우.</td>
+
+</tr>
+
+<tr id="Integer-checked_mul">
+                            <td><code>Integer.checked_mul(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>수학 제품이 T에 맞지 않는 경우 오버플로우.</td>
+
+</tr>
+
+<tr id="Integer-checked_div">
+                            <td><code>Integer.checked_div(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>0으로 라운드; DivisionByZero 또는 부호 있는 MIN/-1 오버플로우.</td>
+
+</tr>
+
+<tr id="Integer-checked_rem">
+                            <td><code>Integer.checked_rem(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>절단 된 나머지; DivisionByZero. 부호 있는 MIN%-1는 return 0으로 제안됩니다.</td>
+
+</tr>
+
+<tr id="Integer-checked_neg">
+                            <td><code>Integer.checked_neg(S x)</code></td>
+                            <td><code>Result&lt;S, IntegerError&gt;</code></td>
+                            <td>서명 만; MIN 부정은 오버 플로우를 반환합니다.</td>
+
+</tr>
+
+<tr id="Integer-checked_abs">
+                            <td><code>Integer.checked_abs(S x)</code></td>
+                            <td><code>Result&lt;S, IntegerError&gt;</code></td>
+                            <td>서명 만; MIN 등급은 S에 맞지 않습니다.</td>
+
+</tr>
+
+<tr id="Integer-checked_pow">
+                            <td><code>Integer.checked_pow(T base, u32 exponent)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>정확한 전력이 맞을 수 없는 경우 오버플로우; 0^0를 포함한 0개의 지수가 1개를 반환합니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.6입니다. 래핑 산술 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>래핑은 명시적으로 모듈화되어 있습니다. 그것은 제조 된 분할 제로 결과를 제공하지 않습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-wrapping_add">
+                            <td><code>Integer.wrapping_add(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>합계 모듈로 2^width.</td>
+
+</tr>
+
+<tr id="Integer-wrapping_sub">
+                            <td><code>Integer.wrapping_sub(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>차이 모듈 2^width.</td>
+
+</tr>
+
+<tr id="Integer-wrapping_mul">
+                            <td><code>Integer.wrapping_mul(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>제품 모듈 2^width.</td>
+
+</tr>
+
+<tr id="Integer-wrapping_neg">
+                            <td><code>Integer.wrapping_neg(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>서명 또는 부호 없는 입력에 대한 모듈식 부정입니다.</td>
+
+</tr>
+
+<tr id="Integer-wrapping_abs">
+                            <td><code>Integer.wrapping_abs(S x)</code></td>
+                            <td><code>S</code></td>
+                            <td>서명만 하면, MIN 남습니다.</td>
+
+</tr>
+
+<tr id="Integer-wrapping_pow">
+                            <td><code>Integer.wrapping_pow(T base, u32 exponent)</code></td>
+                            <td><code>T</code></td>
+                            <td>Power modulo 2^width; 0 지수가 1을 반환합니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.7입니다. 포화 산술 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>포화도는 정확한 결과를 고정시키며, 부호 있는 유일한 unary 함수는 소스 유형을 유지합니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-saturating_add">
+                            <td><code>Integer.saturating_add(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>표현 가능한 범위에 정확한 합계를 니다.</td>
+
+</tr>
+
+<tr id="Integer-saturating_sub">
+                            <td><code>Integer.saturating_sub(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>표현 가능한 범위에 대한 정확한 차이를 클램핑합니다.</td>
+
+</tr>
+
+<tr id="Integer-saturating_mul">
+                            <td><code>Integer.saturating_mul(T a, T b)</code></td>
+                            <td><code>T</code></td>
+                            <td>정확한 제품을 표현 가능한 범위에 고정합니다.</td>
+
+</tr>
+
+<tr id="Integer-saturating_neg">
+                            <td><code>Integer.saturating_neg(S x)</code></td>
+                            <td><code>S</code></td>
+                            <td>서명만; MIN 반환 거부 MAX.</td>
+
+</tr>
+
+<tr id="Integer-saturating_abs">
+                            <td><code>Integer.saturating_abs(S x)</code></td>
+                            <td><code>S</code></td>
+                            <td>서명 만; MIN의 크기를 취하는 것은 MAX를 반환합니다.</td>
+
+</tr>
+
+<tr id="Integer-saturating_pow">
+                            <td><code>Integer.saturating_pow(T base, u32 exponent)</code></td>
+                            <td><code>T</code></td>
+                            <td>정확한 힘을 나타낼 수 있는 범위에 고정시킵니다. 지수가 0이면 1을 반환합니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.8입니다. 오버플로우 보고 산술 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>각 튜플은 래핑된 값과 수학적 결과 표현 가능성을 나타내는 플래그를 포함합니다. 이 플래그는 일반적인 오류 태그가 아닙니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-overflowing_add">
+                            <td><code>Integer.overflowing_add(T a, T b)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>Wrapped sum; 정확한 결과가 맞지 않을 경우 true.</td>
+
+</tr>
+
+<tr id="Integer-overflowing_sub">
+                            <td><code>Integer.overflowing_sub(T a, T b)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>Wrapped difference; 정확한 결과가 맞지 않을 경우 true.</td>
+
+</tr>
+
+<tr id="Integer-overflowing_mul">
+                            <td><code>Integer.overflowing_mul(T a, T b)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>포장 된 제품; 정확한 결과가 맞지 않는 경우 true.</td>
+
+</tr>
+
+<tr id="Integer-overflowing_neg">
+                            <td><code>Integer.overflowing_neg(S x)</code></td>
+                            <td><code>(S, bool)</code></td>
+                            <td>서명 만; MIN은 MIN과 True를 생성합니다.</td>
+
+</tr>
+
+<tr id="Integer-overflowing_abs">
+                            <td><code>Integer.overflowing_abs(S x)</code></td>
+                            <td><code>(S, bool)</code></td>
+                            <td>서명 만; MIN은 MIN과 True를 생성합니다.</td>
+
+</tr>
+
+<tr id="Integer-overflowing_pow">
+                            <td><code>Integer.overflowing_pow(T base, u32 exponent)</code></td>
+                            <td><code>(T, bool)</code></td>
+                            <td>(주); 그 힘이 쇠한즉 - 여기서 &#x27;실질적&#x27;이라는 말은 &#x27;실질적&#x27;이라는 뜻이다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.9입니다. 분할 및 나머지 변형 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>Divisor는 0이 아니어야 합니다. QoT 생성 함수는 부호 있는 MIN/-1를 거부합니다. 초안 제안에 따라 해당 쌍 return 0에 대한 독립형 나머지입니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-div_trunc">
+                            <td><code>Integer.div_trunc(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>explicit checked_div name; 0을 향해 반올림합니다.</td>
+
+</tr>
+
+<tr id="Integer-rem_trunc">
+                            <td><code>Integer.rem_trunc(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>explicit checked_rem name; 0이 아닌 나머지는 배당 기호를 따릅니다.</td>
+
+</tr>
+
+<tr id="Integer-div_floor">
+                            <td><code>Integer.div_floor(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>음의 무한대로의 원입니다.</td>
+
+</tr>
+
+<tr id="Integer-div_ceil">
+                            <td><code>Integer.div_ceil(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>positive infinity를 향한 quotient round; 넘침 없는 add-before-divide 바로 가기.
+                            </td>
+
+</tr>
+
+<tr id="Integer-div_euclid">
+                            <td><code>Integer.div_euclid(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>지수는 0 &lt;= remainder &lt; mathematical abs(b)와 페어링됩니다.</td>
+
+</tr>
+
+<tr id="Integer-div_exact">
+                            <td><code>Integer.div_exact(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>0이 아닌 나머지에 대해 NotDivisible; 제수와 오버플로 검사는 남아 있습니다.</td>
+
+</tr>
+
+<tr id="Integer-rem_floor">
+                            <td><code>Integer.rem_floor(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>나머지는 floor division과 짝을 이루며; 나머지는 0이 아닌 것은 divisor sign을 따른다.</td>
+
+</tr>
+
+<tr id="Integer-rem_euclid">
+                            <td><code>Integer.rem_euclid(T a, T b)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>음수가 아닌 나머지, 심지어 음수 a 또는 b.</td>
+
+</tr>
+
+<tr id="Integer-div_rem_trunc">
+                            <td><code>Integer.div_rem_trunc(T a, T b)</code></td>
+                            <td><code>Result&lt;(T, T), IntegerError&gt;</code></td>
+                            <td>나머지를 일치시킵니다.Matching remainder.</td>
+
+</tr>
+
+<tr id="Integer-div_rem_floor">
+                            <td><code>Integer.div_rem_floor(T a, T b)</code></td>
+                            <td><code>Result&lt;(T, T), IntegerError&gt;</code></td>
+                            <td>바닥 지수, 그리고 나머지를 일치시킵니다.</td>
+
+</tr>
+
+<tr id="Integer-div_rem_euclid">
+                            <td><code>Integer.div_rem_euclid(T a, T b)</code></td>
+                            <td><code>Result&lt;(T, T), IntegerError&gt;</code></td>
+                            <td>유클리드 지수, 그리고 음이 아닌 나머지.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.10입니다. 비트 카운트 및 표현 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>bit_length를 제외하고, 이 함수들은 부호 비트를 포함한 고정폭 패턴을 검사한다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-count_ones">
+                            <td><code>Integer.count_ones(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>비트의 개수입니다.</td>
+
+</tr>
+
+<tr id="Integer-count_zeros">
+                            <td><code>Integer.count_zeros(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>너비에서 count_ones를 니다.</td>
+
+</tr>
+
+<tr id="Integer-leading_zeros">
+                            <td><code>Integer.leading_zeros(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>연속적인 선행 0; 0 은 전체 너비를 반환합니다.</td>
+
+</tr>
+
+<tr id="Integer-leading_ones">
+                            <td><code>Integer.leading_ones(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>연속적인 선두 주자; 모든 한 패턴은 전체 너비를 반환합니다.</td>
+
+</tr>
+
+<tr id="Integer-trailing_zeros">
+                            <td><code>Integer.trailing_zeros(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>연속 후행 0; 0은 전체 너비를 반환합니다.</td>
+
+</tr>
+
+<tr id="Integer-trailing_ones">
+                            <td><code>Integer.trailing_ones(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>최하위 비트부터 연속된 1의 개수입니다. 모든 비트가 1이면 전체 비트 폭을 반환합니다.</td>
+
+</tr>
+
+<tr id="Integer-bit_length">
+                            <td><code>Integer.bit_length(T x)</code></td>
+                            <td><code>u32</code></td>
+                            <td>기호를 제외한 수학적 크기에 필요한 비트; 0은 0을 반환합니다.</td>
+
+</tr>
+
+<tr id="Integer-reverse_bits">
+                            <td><code>Integer.reverse_bits(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>소스 너비에 걸쳐 모든 비트를 뒤집습니다.</td>
+
+</tr>
+
+<tr id="Integer-swap_bytes">
+                            <td><code>Integer.swap_bytes(T x)</code></td>
+                            <td><code>T</code></td>
+                            <td>byte 순서를 반전하고, 각 byte 내의 조금 순서를 보존합니다.</td>
+
+</tr>
+
+<tr id="Integer-highest_one_bit">
+                            <td><code>Integer.highest_one_bit(T x)</code></td>
+                            <td><code>U</code></td>
+                            <td>소스 표현의 가장 높은 세트 비트를 포함하는 부호 없는 마스크; 0 은 0 을 반환합니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-lowest_one_bit">
+                            <td><code>Integer.lowest_one_bit(T x)</code></td>
+                            <td><code>U</code></td>
+                            <td>소스 표현의 가장 낮은 세트 비트를 포함하는 부호 없는 마스크; 0 은 0 을 반환합니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.11입니다. 시프트 및 회전 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>Shift 카운트는 u32입니다. 유효한 카운트는 유형 너비 아래에 있습니다. 카운트 유효성과 정보 보존은 분리되어 있습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-shift_left">
+                            <td><code>Integer.shift_left(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>범위 밖의 count에 대한 InvalidShiftCount; 그렇지 않으면 높은 비트를 버리고 0을 삽입합니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-shift_right">
+                            <td><code>Integer.shift_right(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Count checked; 부호 있는 입력은 부호 없는 입력을 0으로 확장합니다.</td>
+
+</tr>
+
+<tr id="Integer-logical_shift_right">
+                            <td><code>Integer.logical_shift_right(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Count checked; 부호 있는 패턴과 부호 없는 패턴 모두에 대해 0을 삽입합니다.</td>
+
+</tr>
+
+<tr id="Integer-shift_left_exact">
+                            <td><code>Integer.shift_left_exact(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>checked; LossOfInformation를 세십시오 후에 이동하지 않는 한 x를 재기합니다.</td>
+
+</tr>
+
+<tr id="Integer-shift_right_exact">
+                            <td><code>Integer.shift_right_exact(T x, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>checked 카운트; 낮은 비트가 0이 아닌 경우 LossOfInformation이 폐기됩니다.</td>
+
+</tr>
+
+<tr id="Integer-rotate_left">
+                            <td><code>Integer.rotate_left(T x, u32 count)</code></td>
+                            <td><code>T</code></td>
+                            <td>모든 비트를 보존합니다. count는 너비를 줄였습니다.</td>
+
+</tr>
+
+<tr id="Integer-rotate_right">
+                            <td><code>Integer.rotate_right(T x, u32 count)</code></td>
+                            <td><code>T</code></td>
+                            <td>모든 비트를 보존합니다. count는 너비를 줄였습니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.12입니다. 비트 필드 및 마스크 <span class="api-level">고급</span>
+
+</h3>
+
+<p>0 은 가장 작은 값입니다. 필드는 오프셋 &lt;= 너비 및 count &lt;= 너비-오프셋을 필요로 합니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-test_bit">
+                            <td><code>Integer.test_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;bool, IntegerError&gt;</code></td>
+                            <td>비트를 반환합니다; 인덱스 &gt;= 너비는 InvalidBitRange입니다.</td>
+
+</tr>
+
+<tr id="Integer-set_bit">
+                            <td><code>Integer.set_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>비트를 설정합니다; 유효하지 않은 인덱스는 InvalidBitRange입니다.</td>
+
+</tr>
+
+<tr id="Integer-clear_bit">
+                            <td><code>Integer.clear_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>비트를 지웁니다. 유효하지 않은 인덱스는 InvalidBitRange입니다.</td>
+
+</tr>
+
+<tr id="Integer-toggle_bit">
+                            <td><code>Integer.toggle_bit(T x, u32 index)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>비트를 뒤집습니다; 유효하지 않은 인덱스는 InvalidBitRange입니다.</td>
+
+</tr>
+
+<tr id="Integer-extract_bits">
+                            <td><code>Integer.extract_bits(T x, u32 offset, u32 count)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>부호 없는 필드가 낮은 비트로 채워집니다. 유효하지 않은 경계는 InvalidBitRange입니다.</td>
+
+</tr>
+
+<tr id="Integer-insert_bits">
+                            <td><code>Integer.insert_bits(T x, U field, u32 offset, u32 count)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>필드를 대체합니다. count 위의 유효하지 않은 범위 또는 필드 비트가 거부됩니다.</td>
+
+</tr>
+
+<tr id="Integer-low_mask">
+                            <td><code>Integer.low_mask(T, u32 count)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>낮음 count 비트 세트; 0은 0을 생성하고, 전체 너비는 모든 것을 생성합니다. count 거부됨.
+                            </td>
+
+</tr>
+
+<tr id="Integer-compress_bits">
+                            <td><code>Integer.compress_bits(T x, U mask)</code></td>
+                            <td><code>U</code></td>
+                            <td>소스-비트 순서가 증가함에 따라 마스크-선택된 비트를 낮은 위치로 묶습니다.</td>
+
+</tr>
+
+<tr id="Integer-expand_bits">
+                            <td><code>Integer.expand_bits(U bits, U mask)</code></td>
+                            <td><code>T</code></td>
+                            <td>마스크 선택 위치에 낮은 입력 비트를 입금합니다. 사용되지 않은 높은 입력 비트는 의도적으로 무시됩니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.13입니다. 엔디안 바이트와 바인드된 버퍼 <span class="api-level">핵심</span>
+
+</h3>
+<p>원시 직렬화 사용 <code>byte</code>상기 불투명한 옥 타입은 The opaque octet type <a href="../Byte/Byte.html">Byte</a>숫자형 정수 대신, <code>u8</code>. 그들 사이에 암묵적인 변환은 없습니다: use <code>Byte.from_u8</code> 또는 <code>Byte.to_u8</code> 각 옥에 대해 숫자 값이 필요할 때 명시 적으로. 숫자형 비트 워드 API는 문서화되지 않은 정수형을 유지합니다.</p>
+
+<p>N은 T의 byte 너비입니다. 고정된 배열은 모든 비트를 보존한다; 부호 있는 디코딩은 두 개의 보완을 사용한다. 버퍼 작업은 할당되지 않습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-to_le_bytes">
+                            <td><code>Integer.to_le_bytes(T x)</code></td>
+                            <td><code>Array&lt;byte, N&gt;</code></td>
+                            <td>Little-Endian을 발음하는 법</td>
+
+</tr>
+
+<tr id="Integer-to_be_bytes">
+                            <td><code>Integer.to_be_bytes(T x)</code></td>
+                            <td><code>Array&lt;byte, N&gt;</code></td>
+                            <td>Big-Endian Representation 이라는게 있습니다.</td>
+
+</tr>
+
+<tr id="Integer-from_le_bytes">
+                            <td><code>Integer.from_le_bytes(T, Array&lt;byte, N&gt; bytes)</code></td>
+                            <td><code>T</code></td>
+                            <td>Little-endian decoding; 잘못된 고정 길이는 형식 오류입니다.</td>
+
+</tr>
+
+<tr id="Integer-from_be_bytes">
+                            <td><code>Integer.from_be_bytes(T, Array&lt;byte, N&gt; bytes)</code></td>
+                            <td><code>T</code></td>
+                            <td>Big-endian decoding; 잘못된 고정 길이는 형식 오류입니다.</td>
+
+</tr>
+
+<tr id="Integer-read_le">
+                            <td><code>Integer.read_le(T, Slice&lt;byte&gt; bytes, usize offset= 0)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>오프셋시 N 바이트가 필요합니다. 그렇지 않으면 InvalidOffset 또는 BufferTooSmall이 필요합니다.</td>
+
+</tr>
+
+<tr id="Integer-read_be">
+                            <td><code>Integer.read_be(T, Slice&lt;byte&gt; bytes, usize offset= 0)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>같은 경계 계약, 빅 엔디언 디코딩</td>
+
+</tr>
+
+<tr id="Integer-write_le">
+                            <td><code>Integer.write_le(T x, MutSlice&lt;byte&gt; buffer, usize offset= 0)</code></td>
+                            <td><code>Result&lt;usize, IntegerError&gt;</code></td>
+                            <td>전체 용량을 사전 검사합니다. 실패는 버퍼를 변경하지 않습니다. 성공은 N 바이트를 쓰고 돌려보낸다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-write_be">
+                            <td><code>Integer.write_be(T x, MutSlice&lt;byte&gt; buffer, usize offset= 0)</code></td>
+                            <td><code>Result&lt;usize, IntegerError&gt;</code></td>
+                            <td>동일한 용량 계약, 빅 엔디안 인코딩.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.14입니다. 파싱 및 포맷 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>처음에는 host-side library API를 사용했습니다. FormatOptions는 기수, 대소문자, 접두사, 패딩 및 value/bit-pattern 표현을 설명합니다. 최종 옵션 구문이 열려 있습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-parse">
+                            <td><code>Integer.parse(T, string_view text)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>완전입력 소수입니다. 공백, 접두사 또는 구분자 없음; 옵션 플러스, 부호 있는 T만 제외
+                            </td>
+
+</tr>
+
+<tr id="Integer-parse_radix">
+                            <td><code>Integer.parse_radix(T, string_view text, u32 radix)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>Radix 2-36 및 ASCII 대소문자를 구분하지 않는 숫자; 유효하지 않은 radix/digit, 빈 입력 또는 범위 위반이 오류를 반환합니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-parse_prefix">
+                            <td><code>Integer.parse_prefix(T, string_view text)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>제안된 0b/0o/0x는 허용된 기호 다음에 탐지합니다; 그렇지 않으면 소수점으로, 0의 8진법으로 된 레거시가 없습니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-format">
+                            <td><code>Integer.format(T x, FormatOptions options= default)</code></td>
+                            <td><code>Result&lt;string, IntegerError&gt;</code></td>
+                            <td>출력 할당; InvalidRadix 또는 OutOfMemory. 기본값은 signed-value decimal입니다.</td>
+
+</tr>
+
+<tr id="Integer-format_into">
+                            <td><code>Integer.format_into(T x, MutSlice&lt;byte&gt; buffer, FormatOptions options=
+                                default)</code></td>
+                            <td><code>Result&lt;usize, IntegerError&gt;</code></td>
+                            <td>할당이 필요 없음; 쓰기 전에 options/capacity의 유효성을 검사하고 불충분 한 공간에서 byte count를 반환합니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-digit_count">
+                            <td><code>Integer.digit_count(T x, u32 radix= 10)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>크기 숫자만; sign/prefix/padding는 제외됩니다. 0은 한 자리 숫자입니다. 유효하지 않은 반지름이 거부되었습니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.15입니다. Integer 루트 및 로그 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>이러한 함수는 자동으로 float로 변환하지 않고 정수 결과를 계산합니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-isqrt">
+                            <td><code>Integer.isqrt(T x)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>지면 제곱근; 부정적인 부호 있는 입력을 위한 DomainError.</td>
+
+</tr>
+
+<tr id="Integer-ilog">
+                            <td><code>Integer.ilog(T x, T base)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>플로어 로그; x &gt; 0 및 base &gt;= 2가 필요합니다.</td>
+
+</tr>
+
+<tr id="Integer-ilog2">
+                            <td><code>Integer.ilog2(T x)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>바닥 밑 2 로그; 0 또는 음의 입력은 DomainError입니다.</td>
+
+</tr>
+
+<tr id="Integer-ilog10">
+                            <td><code>Integer.ilog10(T x)</code></td>
+                            <td><code>Result&lt;u32, IntegerError&gt;</code></td>
+                            <td>바닥 밑 열 로그; 0 또는 음의 입력은 DomainError입니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.16입니다. 힘, 배수 및 줄맞춤 <span class="api-level">핵심</span>
+
+</h3>
+
+<p>값과 배수에 대한 형식 일치. 정렬은 처음에 부호 없는 정수만 허용합니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-is_power_of_two">
+                            <td><code>Integer.is_power_of_two(T x)</code></td>
+                            <td><code>bool</code></td>
+                            <td>2의 양의 힘; zero와 negatives return false.</td>
+
+</tr>
+
+<tr id="Integer-next_power_of_two">
+                            <td><code>Integer.next_power_of_two(T x)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>최소 전력 &gt;= x; 0을 1로 매핑합니다. 음수 입력은 DomainError이며, 대형 결과는 오버플로우입니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-floor_power_of_two">
+                            <td><code>Integer.floor_power_of_two(T x)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>가장 큰 힘 &lt;= x; 0에 0개의 지도. 음수 입력은 DomainError입니다.</td>
+
+</tr>
+
+<tr id="Integer-is_multiple_of">
+                            <td><code>Integer.is_multiple_of(T x, T multiple)</code></td>
+                            <td><code>bool</code></td>
+                            <td>정확한 divisibility; 제안된 zero convention: 0만이 0의 배수입니다.</td>
+
+</tr>
+
+<tr id="Integer-next_multiple_of">
+                            <td><code>Integer.next_multiple_of(T x, T multiple)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>최소 배수 &gt;= x; 는 양수의 배수를 필요로 합니다; 유효하지 않은 입력 또는 대형 결과가 오류를 반환합니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-previous_multiple_of">
+                            <td><code>Integer.previous_multiple_of(T x, T multiple)</code></td>
+                            <td><code>Result&lt;T, IntegerError&gt;</code></td>
+                            <td>가장 큰 배수 &lt;= x; 필요한 양의 배수; 부호 있는 MIN보다 넘칠 수 있습니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-align_up">
+                            <td><code>Integer.align_up(U x, U alignment)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>필요한 2의 긍정 힘 정렬; InvalidAlignment 또는 Overflow.</td>
+
+</tr>
+
+<tr id="Integer-align_down">
+                            <td><code>Integer.align_down(U x, U alignment)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>밑으로 반올림; 정렬이 2의 양수가 아닌 한 InvalidAlignment</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.17입니다. 수론 및 모듈식 산술 <span class="api-level">고급</span>
+
+</h3>
+
+<p>U는 부호 있는 크기를 나타냅니다. 중간 오버플로가 수학적으로 표현 가능한 결과를 손상시키지 않아야합니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-gcd">
+                            <td><code>Integer.gcd(T a, T b)</code></td>
+                            <td><code>U</code></td>
+                            <td>정확한 음이 아닌 최대 공약수의 크기; gcd(0,0)는 0입니다.</td>
+
+</tr>
+
+<tr id="Integer-lcm">
+                            <td><code>Integer.lcm(T a, T b)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>Nonnegative 최소공배수; 입력이 0이면 0; 결과가 U에 맞지 않으면 오버플로우.
+                            </td>
+
+</tr>
+
+<tr id="Integer-pow_mod">
+                            <td><code>Integer.pow_mod(T base, u64 exponent, U modulus)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>캐노니컬 nonnegative 잔기; 0 계수는 InvalidModulus, 1 계수는 0을 반환합니다.
+                            </td>
+
+</tr>
+
+<tr id="Integer-mod_inverse">
+                            <td><code>Integer.mod_inverse(T x, U modulus)</code></td>
+                            <td><code>Result&lt;U, IntegerError&gt;</code></td>
+                            <td>계수 &gt;= 2 및 동위 원소 입력이 필요합니다. InvalidModulus 또는 NoInverse. Result는 계수 아래에 있습니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>9.18입니다. 부호 없는 넓은 단어 산술 <span class="api-level">고급</span>
+
+</h3>
+
+<p>모든 단어가 부호 없는 형식과 일치합니다. Tuple 필드 레이블은 개념적입니다. 64-bit 쌍에는 공용 128-bit 유형이 필요하지 않습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="제안된 함수 레퍼런스 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">개념적 시그니처</th>
+                            <th scope="col">반환 타입</th>
+                            <th scope="col">계약 및 오류</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Integer-add_carry">
+                            <td><code>Integer.add_carry(U a, U b, bool carry)</code></td>
+                            <td><code>(U word, bool carry)</code></td>
+                            <td>a + b + carry; 낮은 단어와 발신이 전달됩니다.</td>
+
+</tr>
+
+<tr id="Integer-sub_borrow">
+                            <td><code>Integer.sub_borrow(U a, U b, bool borrow)</code></td>
+                            <td><code>(U word, bool borrow)</code></td>
+                            <td>정확한 a-b-borrow; 모듈 형 저 단어 및 발신 대여.</td>
+
+</tr>
+
+<tr id="Integer-mul_wide">
+                            <td><code>Integer.mul_wide(U a, U b)</code></td>
+                            <td><code>(U low, U high)</code></td>
+                            <td>정확한 이중 폭 제품, 낮은 단어 먼저.</td>
+
+</tr>
+
+<tr id="Integer-div_wide">
+                            <td><code>Integer.div_wide(U low, U high, U divisor)</code></td>
+                            <td><code>Result&lt;(U quotient, U remainder), IntegerError&gt;</code></td>
+                            <td>지수가 한 단어에 맞지 않을 경우 high*2^width+low; DivisionByZero 또는 Overflow를 나눕니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<h3>적용 가능성 및 구현 경계
+
+</h3>
+
+<p>인수는 명시적으로 이질적인 변환 및 비교를 제외하고 일치하는 유형을 사용합니다. 서명 전용 함수는 부호 없는 형식 인수를 거부합니다. <code>Integer.wrapping_neg</code> unsigned modular negation 부호 없는 모듈 부정 <code>Integer.unsigned_abs</code> 및 <code>Integer.abs_diff</code>
+                    return unsigned values; 넓은 carry 함수는 boolean carry 또는 borrow 비트를 사용한다.
+
+</p>
+
+<p>비트 범위와 버퍼 오프셋 검증 계산 자체가 오버플로해서는 안 됩니다. 잘못된 타입 지정 리터럴에는 컴파일 타임 진단을 내며, 유효한 상수 checked 호출은
+                    <code>Err</code>로 접힐 수 있습니다. 0인 제수에 wrapping·saturation 값을 만들어 주지 않습니다. 실패 전파가 앞서 발생한 부작용을 되돌리지는 않습니다.
+
+</p>
+
+<p>파싱 오류는 빈 입력, 유효하지 않은 radix 또는 digit 및 범위 밖의 값을 구분해야 합니다. 수학-값 포맷은 선택적인 고정폭 비트-패턴 포맷과 다르다: 음수 16진수 출력은 자동으로 원시 비트 덤프가 아니다. Atomic 작업에 속함 <code>Atomic&lt;T&gt;</code>
+                    문서. 백엔드, GPU, FFI 및 할당자 범위는 릴리스 전에 구현 및 검증이 필요합니다.
+
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10입니다. 예제
+</h2>
+<p>다음 호출은 제안된 표기법을 설명합니다. 가정 <code>a</code> 및 <code>b</code> 있습니다. <code>i32</code>
+                    값 40 및 2; <code>Err</code> 예외가 아닌 오류 값의 이름을 지정합니다.
+
+</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Integer.checked_add(a, b);    // Ok(42)
+Integer.convert&lt;i64&gt;(a);      // Ok(40)
+Integer.bit_width(i32);       // 32
+Integer.div_rem_trunc(a, b);  // Ok((20, 0))</code></pre>
+
+<p>크기 계산에서는 할당 전에 곱셈을 검증해야 합니다. 아래 식은 검사되는 계산을 나타내며 확정된 선언·오류 전파 문법이 아닙니다.
+
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Integer.checked_mul(element_count, element_size);
+// Handle Overflow before allocating the resulting byte count.</code></pre>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">11입니다. 컴파일 및 병렬 실행
+</h2>
+<p>AOT와 JIT는 산술 정책, 오류 결과와 평가 순서를 보존해야 합니다. 검증된 가드 아래에서는 특수화로 검사를 제거할 수 있습니다. 백엔드는 나눗셈·시프트 등에서 정의되지 않은 동작이나 poison이 발생하지 않도록 보호해야 합니다.
+
+</p>
+
+<p>checked 산술의 결합 순서를 임의로 바꿀 수는 없습니다. 수학적으로 같은 식도 중간 오버플로에 따라 구별되기 때문입니다. 병렬 축약에는 누적 폭·순서 정책·실패 계약이 명시되어야 합니다. 정수 저장·산술·원자 연산의 지원은 서로 다른 GPU 기능입니다. FFI 어댑터는 외부 ABI와 일치해야 하며 Aevix 별칭이 외부 언어의 다음 타입을 재정의하지는 않습니다: <code>int</code>.
+
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 API 이름과 계약은 독립적으로 제안했습니다.
+
+</p>
+
+<ul class="source-list">
+
+<li><a href="https://doc.rust-lang.org/std/primitive.i32.html" target="_blank"
+                           rel="noopener noreferrer">Rust: 부호 있는 정수 API</a>
+
+</li>
+
+<li><a href="https://doc.rust-lang.org/std/primitive.u32.html" target="_blank"
+                           rel="noopener noreferrer">Rust: 부호 없는 정수 API</a>
+
+</li>
+
+<li><a href="https://developer.apple.com/documentation/swift/binaryinteger?changes=_8"
+                           target="_blank" rel="noopener noreferrer">Swift: 이진 정수 변환 계약</a>
+
+</li>
+
+<li>
+                        <a href="https://developer.apple.com/documentation/swift/int/dividedreportingoverflow%28by%3A%29"
+                           target="_blank" rel="noopener noreferrer">스위프트: 오버플로우 보고 부문</a>
+
+</li>
+
+<li><a href="https://ziglang.org/documentation/0.16.0/" target="_blank" rel="noopener noreferrer">Zig: 정수 연산과 내장</a>
+
+</li>
+
+<li><a href="https://llvm.org/docs/LangRef.html#arithmetic-with-overflow-intrinsics" target="_blank"
+                           rel="noopener noreferrer">LLVM: 넘침 본질을 가진 산술</a>
+
+</li>
+
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Integer_8.html"><span>다음 레퍼런스</span>Int8에서</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

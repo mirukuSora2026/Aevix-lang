@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="f64 실수부·허수부: 명시적 정밀도, 128비트 payload, 공통 Complex 계약.">
+  <title>Complex&lt;f64&gt; — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Complex/Complex_64.html">
+<link rel="alternate" hreflang="ko" href="Complex_64.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Complex.html" aria-current="true">Complex</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="Complex.html" aria-current="true">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Complex.html">Complex</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Complex&lt;f64&gt;</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Complex&lt;f64&gt;</h1><p class="doc-subtitle">f64 실수부·허수부: 명시적 정밀도, 128비트 payload, 공통 Complex 계약.</p><div class="doc-meta"><span class="meta-chip">Complex&lt;f64&gt;</span><span class="meta-chip">Complex. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>사이트 맵</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>기본 정보</span></a></li><li><a href="#Literals"><span class="toc-number">02</span><span>Type-First 선언 및 건설</span></a></li><li><a href="#Range"><span class="toc-number">03</span><span>Range &amp; 크기 경계</span></a></li><li><a href="#Precision"><span class="toc-number">04</span><span>정밀도, 반올림 &amp; 축적</span></a></li><li><a href="#Special-Values"><span class="toc-number">05</span><span>제로, 인피니티 &amp; NaN</span></a></li><li><a href="#Conversion"><span class="toc-number">06</span><span>변환 및 반환 유형</span></a></li><li><a href="#Storage"><span class="toc-number">07</span><span>바이트, 레이아웃 및 외래 함수</span></a></li><li><a href="#Execution-Targets"><span class="toc-number">08</span><span>배열, SIMD 및 GPU 실행</span></a></li><li><a href="#Type-Functions"><span class="toc-number">09</span><span>형식 지정 함수 바인딩</span></a></li><li><a href="#Sources"><span class="toc-number">10</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Complex 문서"><h2>Complex 참조 문서</h2><div class="family-links"><a href="Complex.html">Complex</a><a href="Complex_16.html">Complex&lt;f16&gt;</a><a href="Complex_BFloat16.html">Complex&lt;bf16&gt;</a><a href="Complex_32.html">Complex&lt;f32&gt;</a><a href="Complex_64.html" aria-current="page">Complex&lt;f64&gt;</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="Complex.html" aria-current="true">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Complex&lt;f64&gt; 참조">
+<p class="callout"><strong>0.2에서 구현되었습니다.</strong> 관련 참조 문서: <a href="Complex_02.html">Complex 0.2 구현 범위</a> 작업 가져오기, 함수, 오류 값 및 형식 지원. 아래의 더 큰 카탈로그는 미래의 API를 포함합니다.</p>
+<p class="callout"><strong>0.2 코어 구현; 확장 카탈로그.</strong> complex에서 Complex와 ComplexError를 명시적으로 import합니다. 생성·성분 필드·기본 산술·크기·실패 가능한 나눗셈에 적용할 규칙: <a href="Complex_02.html">0.2 프로필</a>. Branch, byte, conversion, checked-finite, Transcendary API discussions는 해당 프로필에 작업이 나열되지 않는 한 제안으로 남아 있습니다.</p>
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1. 기본 정보
+</h2>
+<p><code>Complex&lt;f64&gt;</code> 실제 f64 구성 요소와 가상의 f64 구성 요소를 저장합니다. 쌍은 가치 탑재량의 128 조금을 나르고 2개의 자주적으로 돌린 성분을 비치하고 있습니다. 결합 된 128-bit significand는 없습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="기본 정보 표">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">속성</th>
+                            <th scope="col">바인딩</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <td>코드 종류</td>
+                            <td><code>Complex&lt;f64&gt;</code></td>
+
+</tr>
+
+<tr>
+                            <td>각 성분</td>
+                            <td>f64; 64 조금</td>
+
+</tr>
+
+<tr>
+                            <td>값 페이로드</td>
+                            <td>128 조금/16 바이트</td>
+
+</tr>
+
+<tr>
+                            <td>일반 정밀도</td>
+                            <td>성분 당 53 뜻깊은 이진 손가락</td>
+
+</tr>
+
+<tr>
+                            <td>구성 요소 최대 유한 크기</td>
+                            <td>1.79769313 × 10^308</td>
+
+</tr>
+
+<tr>
+                            <td>분 긍정적인 정상</td>
+                            <td>2^-1022</td>
+
+</tr>
+
+<tr>
+                            <td>분 긍정적인 subnormal</td>
+                            <td>2^-1074</td>
+
+</tr>
+
+<tr>
+                            <td>성분 epsilon</td>
+                            <td>2^-52</td>
+
+</tr>
+
+<tr>
+                            <td>연속적인 정확한 성분 정수</td>
+                            <td>−9007199254740992를 통해 +9007199254740992</td>
+
+</tr>
+
+<tr>
+                            <td>상태</td>
+                            <td>기본 구성 요소 형식</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<p>상기 공유 API는 The shared API <a href="Complex.html#Function-Reference">Complex</a>. 구성 요소 인코딩은 다음과 같습니다. <a href="../Float/Float_64.html">f64</a>. 기본값 <code>complex</code> 이 유형을 선택하도록 alias 가 제안됩니다.
+
+</p>
+</section>
+<section id="Literals" aria-labelledby="Literals-heading">
+<h2 id="Literals-heading">2입니다. Type-First 선언 및 건설
+</h2>
+<p>변수 이름 앞에 형식이 나타납니다. 리터럴 구성 요소는 checked이며 예상 f64 컨텍스트에서 반올림되므로 다른 형식을 통해 의도하지 않은 변환을 피할 수 있습니다. 이미 입력된 f64 값을 직접 전달할 수 있습니다. 다른 구성 요소 형식의 값은 명시적인 변환이 필요합니다. 이 디자인에서는 가상의 문자 접미사가 필요하지 않습니다.
+
+</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">import complex { Complex, ComplexError };
+
+Complex&lt;f64&gt; value = Complex&lt;f64&gt;.new(3.0, 4.0);
+f64 real = value.real;
+f64 magnitude = Complex&lt;f64&gt;.norm(value);
+Complex&lt;f64&gt; copy = value;</code></pre>
+
+<p>모든 진술은 세미콜론으로 끝납니다. 복사된 스칼라에는 독립적인 구성 요소 값이 있습니다. 이 할당, 구성 요소 추출 또는 활용을 위해 할당이 필요하지 않습니다.
+
+</p>
+</section>
+<section id="Range" aria-labelledby="Range-heading">
+<h2 id="Range-heading">3입니다. Range &amp; 크기 경계
+</h2>
+<p>두 구성 요소는 독립적으로 f64의 유한 한도에 도달 할 수 있습니다. 그 정사각형 영역은 크기에서 원형의 경계가 아닙니다: 표현 가능한 쌍은 가장 큰 표현 가능한 f64보다 더 큰 유클리드 규범을 가질 수 있습니다. 이 쌍은 크기 반환 함수가 오버플로우되는 경우에도 유효한 유한 복소수 값으로 남아 있습니다.
+
+</p>
+
+<p><code>Complex.norm</code> 불필요한 정사각형 오버플로우를 피하기 위해 스케일링된 평가를 사용합니다. <code>norm_squared</code>
+                    f64의 제곱 크기를 의도적으로 반환하므로 훨씬 일찍 넘칠 수 있습니다. 제안된 checked 표준은 쌍 자체가 유효하지 않은 척하기보다는 비유한 결과를 보고합니다. 나셈은 마찬가지로 무조건적인 real2+imag2 분모가 아닌 확장 알고리즘을 사용합니다.
+
+</p>
+</section>
+<section id="Precision" aria-labelledby="Precision-heading">
+<h2 id="Precision-heading">4입니다. 정밀도, 반올림 &amp; 축적
+</h2>
+<p>[−9007199254740992, +9007199254740992]의 모든 정수 성분은 정확합니다. 이 보증은 실제 및 가상의 값에 별도로 적용; 그것은 정확한 복잡한 곱셈 또는 정확한 규범을 보장하지 않습니다. 정밀 경계에서 unit를 추가하면 동일한 구성 요소로 반올림할 수 있습니다.
+
+</p>
+
+<p>코어 구성 요소 산술은 요청된 Float 프로파일을 사용합니다. 곱셈 추가 재작성, 더 넓은 임시 또는 병렬 감소 트리가 결과를 변경할 수 있습니다. 감소를 위해 명시적 누산기 형식과 순서를 사용합니다. 더 넓은 누산기는 선택적이며 명시적입니다; 엄격한 실행은 다른 결과가 서로 교환될 수 있다고 추론할 수 없습니다.
+
+</p>
+</section>
+<section id="Special-Values" aria-labelledby="Special-Values-heading">
+<h2 id="Special-Values-heading">5입니다. 제로, 인피니티 &amp; NaN
+</h2>
+<p>f64는 0, 무한대, NaN 및 정상 이하로 서명했으며 두 구성 요소 중 하나를 보유할 수 있습니다.
+                    <code>is_finite</code> 이 두 가지 요소가 모두 완료되어야 합니다. <code>is_nan</code> 및 <code>is_infinite</code>
+                    둘 다 한 쌍에 대해 사실 일 수 있습니다. 수적 평등은 영표(zero signs)를 무시하고 NaN과 관련된 평등을 거부한다; 비트 평등은 여전히 유효하다.
+
+</p>
+
+<p>분지 과민한 기능은 서명한 0에 의해 선정된 측을 보존한다. 음수 실수값의 경우 +0가 있는 sqrt는 양수 가상 루트에 접근하고 −0는 음수 가상 루트를 선택합니다. Conjugation 은 숫자 허수 값이 0일 때에도 해당 기호를 토글해야 합니다. 텍스트 전송은 페이로드 세부 사항을 잃을 수 있습니다; 원시 구성 요소 비트는 그렇지 않습니다.
+
+</p>
+</section>
+<section id="Conversion" aria-labelledby="Conversion-heading">
+<h2 id="Conversion-heading">6입니다. 변환 및 반환 유형
+</h2>
+<p><code>Complex.convert_exact</code> 두 대상 구성 요소를 모두 검증합니다. 실패는 return를 절반으로 만들 수 없습니다. 반올림된 변환은 Float 반올림 정책을 명시적으로 선택합니다. f64를 다른 구성 요소 형식으로 변경하면 never가 암시적 프로모션이 됩니다. 실제 스칼라로 변환하려면 0개의 가상 구성 요소가 필요합니다. 정수로 변환하면 유한도, 반올림 및 범위가 추가로 검사됩니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="변환 및 반환 유형 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">작동</th>
+                            <th scope="col">특수 결과</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+                            <td>Complex.new / 추가 / 결합</td>
+                            <td><code>Complex&lt;f64&gt;</code></td>
+
+</tr>
+
+<tr>
+                            <td>Complex.real / imag / 표준 / 위상</td>
+                            <td><code>f64</code></td>
+
+</tr>
+
+<tr>
+                            <td>모델 번호:Complex.checked_div</td>
+                            <td><code>Result&lt;Complex&lt;f64&gt;, ComplexError&gt;</code></td>
+
+</tr>
+
+<tr>
+                            <td>모델 번호:Complex.to_bits</td>
+                            <td><code>(u64, u64)</code></td>
+
+</tr>
+
+<tr>
+                            <td>모델 번호:Complex.to_be_bytes</td>
+                            <td><code>Array&lt;byte, 16&gt;</code></td>
+
+</tr>
+
+<tr>
+                            <td>모델 번호:Complex.to_string</td>
+                            <td><code>Result&lt;string, ComplexError&gt;</code></td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+
+<p>한 쌍을 정수로 변환하는 것은 가상의 값을 자동으로 폐기하지 않습니다. 부호가 있는 허수 0은 허용되며 정수 기호가 포함되지 않습니다. 모든 명시적 손실 작업은 발신자가 이름을 지정해야 합니다.
+
+</p>
+</section>
+<section id="Storage" aria-labelledby="Storage-heading">
+<h2 id="Storage-heading">7입니다. 바이트, 레이아웃 및 외래 함수
+</h2>
+<p>Canonical wire storage는 16 바이트입니다. 실제 구성 요소 첫 번째, 가상 구성 요소 두 번째, 각 구성 요소는 요청된 byte 순서로 인코딩됩니다. 빅 엔디언은 전체 쌍을 뒤집는 것을 의미하지 않습니다. 동적 버퍼 디코더는 읽기 전에 전체 쌍을 검사합니다. checked 쓰기는 경계 오류에 대해 대상을 변경하지 않습니다.
+
+</p>
+
+<p>의 발음을  [ja] 이 언어는 일치하는 C 복합체, C++ 템플릿 전문화, 공급 업체 GPU 벡터, 등록 쌍 또는 정렬을 약속하지 않습니다. FFI 바인딩은 전체 대상 레이아웃 및 호출 규칙을 검증합니다. 또한 byte 뷰는 독점 차입을 중단하는 가변 액세스를 부여할 수 없습니다.
+
+</p>
+</section>
+<section id="Execution-Targets" aria-labelledby="Execution-Targets-heading">
+<h2 id="Execution-Targets-heading">8입니다. 배열, SIMD 및 GPU 실행
+</h2>
+<p><code>Array&lt;Complex&lt;f64&gt;, N&gt;</code> 및 <code>Vector&lt;Complex&lt;f64&gt;&gt;</code> 자신의 인접한 스칼라 쌍. 텐서는 요소의 구성 요소 범위를 늘리지 않고 모양과 배치를 추가합니다. 소유자는 기본적으로 이동합니다. 인터리브된 쌍을 실제 버퍼와 가상 버퍼로 분리하는 것은 컴파일러가 완전히 관찰할 수 없는 임시를 제거하지 않는 한 눈에 보이는 O(n) 작업입니다.
+
+</p>
+
+<p>타겟은 네이티브 복잡한 분할 또는 초월적 구현 없이 스칼라 컴포넌트 명령어를 제공할 수 있다. 수학 라이브러리 기능과 정확성 프로파일은 스토리지 지원과는 독립적으로 checked입니다. 병렬 출력은 분리 가능한 영역을 필요로 합니다. GPU 완료, 전송 및 CPU 가시성은 별도의 단계로 유지됩니다.
+
+</p>
+</section>
+<section id="Type-Functions" aria-labelledby="Type-Functions-heading">
+<h2 id="Type-Functions-heading">9입니다. 형식 지정 함수 바인딩
+</h2>
+<p>두 번째 형식별 함수 네임스페이스가 도입되지 않습니다. 전체 카탈로그에 남아
+                    <code>Complex.</code>; 이 페이지는 구성 요소 유형, 범위, 와이어 너비 및 실행 요구 사항을 전문으로합니다. 주 브랜치와 checked-오류 정책은 형식에 따라 동일하지만, 반올림 그리드와 지원되는 대상 구현은 다릅니다.
+
+</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Complex&lt;f64&gt; conjugated = Complex&lt;f64&gt;.conjugate(value);
+Result&lt;Complex&lt;f64&gt;, ComplexError&gt; divided =
+    Complex&lt;f64&gt;.div(value, Complex&lt;f64&gt;.one());</code></pre>
+
+<p>이 페이지는 컴파일러, 외국 라이브러리 또는 GPU 백엔드가 형식을 구현한다는 증거가 아니라 제안된 언어 참조입니다. 지원되지 않는 기능은 다른 표현을 자동으로 선택하는 대신 진단됩니다.
+
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">10입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+
+</p>
+
+<ul class="source-list">
+
+<li><a href="https://docs.python.org/3/library/cmath.html" target="_blank"
+                           rel="noopener noreferrer">Python cmath: 분지 커트와 부호 있는 0</a>
+
+</li>
+
+<li><a href="https://docs.rs/num-complex/latest/num_complex/struct.Complex.html" target="_blank"
+                           rel="noopener noreferrer">num-complex: 복잡한 연산, 확장된 분할 및 FFI</a>
+
+</li>
+
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Complex_32.html"><span>이전 레퍼런스</span>Complex&lt;f32&gt;</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

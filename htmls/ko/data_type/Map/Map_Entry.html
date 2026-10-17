@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="하나의 조회, 독점 액세스 및 복구 가능한 빈 입력.">
+  <title>맵엔트리 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Map/Map_Entry.html">
+<link rel="alternate" hreflang="ko" href="Map_Entry.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Map.html" aria-current="true">Map</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Map.html">Map</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">맵엔트리</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>맵엔트리</h1><p class="doc-subtitle">하나의 조회, 독점 액세스 및 복구 가능한 빈 입력.</p><div class="doc-meta"><span class="meta-chip">MapEntry&lt;K, V&gt;</span><span class="meta-chip">MapEntry 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>12</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>K: 그렇습니다</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>진입 능력</span></a></li><li><a href="#Key-Ownership"><span class="toc-number">02</span><span>저장된 키와 들어오는 키</span></a></li><li><a href="#Borrow-Scope"><span class="toc-number">03</span><span>독점 범위</span></a></li><li><a href="#Failure-Carriers"><span class="toc-number">04</span><span>복구 캐리어</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>MapEntry 함수 참조</span></a></li><li><a href="#Lazy-Building"><span class="toc-number">06</span><span>게으른 가치 건설</span></a></li><li><a href="#Examples-Related"><span class="toc-number">07</span><span>예제 및 관련 계약</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Map 문서"><h2>Map 참조 문서</h2><div class="family-links"><a href="Map.html">Map</a><a href="Ordered_Map.html">명령된맵</a><a href="Map_Entry.html" aria-current="page">맵엔트리</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="Map.html" aria-current="true">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="MapEntry 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 진입 능력
+</h2>
+<p>Map.entry는 한 번 조회를 수행하고 특정 키에 대한 선형 기능을 반환합니다. 이 기능은 전체 맵, 트랙 점유 또는 빈 상태를 독점적으로 대여하고 터미널 작업이 어떤 일이 일어날지 선택할 때까지 들어오는 키를 소유합니다. 그것은 별도로 할당 된 key/value 컨테이너가 아니며지도를 초과 할 수 없습니다.
+</p>
+<blockquote class="callout note">
+<p><strong>설계 초안.</strong> 이것은 Aevix 계약 제안이며 구현 주장이 아닙니다. 콜백, 반복자, 특성 및 오류 전달자 이름이 설명됩니다. 매개 변수 사용 <code>T value</code> 가치에 의하여, <code>&amp;T value</code> 공유 대여, 그리고 <code>&amp;mut T value</code> 단독 대여. 패스 소유자를 호출합니다 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code>; 복용 <code>&amp;mut owner</code> 에는 <code>mut</code> 바인딩. 기존 참조 및 빌린된 보기는 직접 전달 됩니다. 콜백 별칭, 오류 레코드 및 반환 참조 수명 표기는 설계 설명으로 남아 있습니다. mut를 선언하지 않는 한 바인딩은 변경할 수 없으며 unit는 값 형식입니다.
+</p>
+</blockquote>
+</section>
+<section id="Key-Ownership" aria-labelledby="Key-Ownership-heading">
+<h2 id="Key-Ownership-heading">2입니다. 저장된 키와 들어오는 키
+</h2>
+<p>점유된 엔트리의 경우, 원래의 저장된 키는 정규적으로 유지되지만 동일한 들어오는 키는 여전히 이 능력에 의해 소유될 수 있습니다. key는 이 상태에서 저장된 키를 노출시킵니다; into_incoming_key는 두 상태 중 하나에서 원래의 들어오는 키를 복구합니다. 사용되지 않은 진입 능력을 떨어뜨리면 들어오는 키가 파괴되고 대여이 해제됩니다. 저장된 키가 변경할 수 없습니다.
+</p>
+</section>
+<section id="Borrow-Scope" aria-labelledby="Borrow-Scope-heading">
+<h2 id="Borrow-Scope-heading">3입니다. 독점 범위
+</h2>
+<p>모든 입력 작업은 동일한 라이브 맵 임대가 필요합니다. 반환된 가변 값 참조는 리스를 확장하고 관련 없는 맵 변경가 끝날 때까지 이를 방지합니다. 콜백은 해당 값을 편집할 수 있지만 구조적으로 지도에 액세스하거나, 이스케이프 값 대여을 캡처하거나, 다른 별칭을 통해 다시 입력할 수 없습니다. Occupied/vacant 상태가 이 범위에서 다른 안전한 작성자와 경쟁할 수 없습니다.
+</p>
+</section>
+<section id="Failure-Carriers" aria-labelledby="Failure-Carriers-heading">
+<h2 id="Failure-Carriers-heading">4입니다. 복구 캐리어
+</h2>
+<p>EntryInputError에는 정지 라이브 입력 기능과 사용되지 않은 대체 값이 포함되어 있습니다. EntryBuildError에는 항목과 비행 전 오류 또는 콜백 오류가 포함되어 있습니다. 이 캐리어들은 핸들링 또는 드롭될 때까지 지도 대여을 유지한다. 할당된 프리플라이트 실패 시 어떠한 입력도 자동으로 파괴되지 않습니다. 일반적인 콜백 오류는 키를 비워둡니다; 콜백은 초기화된 캡처와 엔트리 리스를 해제합니다. 이 표기법은 레코드 구문을 수정하는 대신 오류 계약을 설명합니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5입니다. MapEntry 함수 참조
+</h2>
+<div class="table-scroll" role="region" aria-label="MapEntry 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">개념적 시그니처</th><th scope="col">반환</th><th scope="col">도메인, 소유권, 오류 및 비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="MapEntry-is_occupied"><th scope="row"><code>MapEntry.is_occupied(&amp;MapEntry&lt;K, V&gt; entry)</code></th><td><code>bool</code></td><td>다른 해시 검색 없이 룩업 결과를 테스트합니다; O(1).</td>
+</tr>
+<tr id="MapEntry-key"><th scope="row"><code>MapEntry.key(&amp;MapEntry&lt;K, V&gt; entry)</code></th><td><code>&amp;K</code></td><td>점유될 때 표준에 의하여 저장된 열쇠, 또는 빈 때 소유된 들어오는 열쇠를 빌리십시오; 수명은 입장 대여에 의해 바운스됩니다.</td>
+</tr>
+<tr id="MapEntry-get"><th scope="row"><code>MapEntry.get(&amp;MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;&amp;V&gt;</code></td><td>점유 값 또는 return 없음; 할당 없음.</td>
+</tr>
+<tr id="MapEntry-get_mut"><th scope="row"><code>MapEntry.get_mut(&amp;mut MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;&amp;mut V&gt;</code></td><td>배타적으로 점유된 가치를 빌리십시오; 변하기 쉬워 열쇠는 드러내지 않습니다.</td>
+</tr>
+<tr id="MapEntry-or_insert"><th scope="row"><code>MapEntry.or_insert(MapEntry&lt;K, V&gt; entry, V value)</code></th><td><code>Result&lt;&amp;mut V, EntryInputError&lt;K, V&gt;&gt;</code></td><td>Occupied: 사용되지 않는 들어오는 열쇠 및 가치, 그 후에 return에 의하여 저장된 변하기 쉬워 가치를 파괴하십시오. 프리플라이트(preflight) 및 삽입 실패는 진입 능력과 사용되지 않는 가치를 돌려보낸다.</td>
+</tr>
+<tr id="MapEntry-or_insert_with"><th scope="row"><code>MapEntry.or_insert_with(MapEntry&lt;K, V&gt; entry, Make&lt;V&gt; make)</code></th><td><code>Result&lt;&amp;mut V, EntryBuildError&lt;K, V, unit&gt;&gt;</code></td><td>용량 사전 비행 후 빈 경우에만 원샷 빌더를 실행합니다. 사전 비행 실패는 달리기 없는 입장 기능을 만듭니다 돌려보냅니다; 콜백은 입장을 안전하게 풀어 놓습니다.</td>
+</tr>
+<tr id="MapEntry-try_or_insert_with"><th scope="row"><code>MapEntry.try_or_insert_with(MapEntry&lt;K, V&gt; entry, TryMake&lt;V, E&gt; make)</code></th><td><code>Result&lt;&amp;mut V, EntryBuildError&lt;K, V, E&gt;&gt;</code></td><td>Vacant builder failure는 E 및 빈 항목 기능을 반환합니다. 값이 삽입되지 않습니다. 외부 콜백 부작용은 반전되지 않습니다.</td>
+</tr>
+<tr id="MapEntry-insert"><th scope="row"><code>MapEntry.insert(MapEntry&lt;K, V&gt; entry, V value)</code></th><td><code>Result&lt;Optional&lt;V&gt;, EntryInputError&lt;K, V&gt;&gt;</code></td><td>점유된 값을 바꾸거나 빈 값을 삽입합니다. return 이전 값이 있을 때. 실패는 입구와 사용되지 않는 보충을 재기한다.</td>
+</tr>
+<tr id="MapEntry-and_modify"><th scope="row"><code>MapEntry.and_modify(MapEntry&lt;K, V&gt; entry, Mutate&lt;V&gt; update)</code></th><td><code>MapEntry&lt;K, V&gt;</code></td><td>점유되었을 때만 동기 콜백을 한 번만 실행하십시오. return 다음 선택을 위해 항목. 콜백은 보호된 가변 참조를 유지할 수 없습니다.</td>
+</tr>
+<tr id="MapEntry-remove"><th scope="row"><code>MapEntry.remove(MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;V&gt;</code></td><td>점유: 값을 제거하고, 저장 및 사용되지 않는 수신 키를 파괴하고, return V. 빈 공간: 들어오는 키와 return None을 파괴합니다.</td>
+</tr>
+<tr id="MapEntry-remove_entry"><th scope="row"><code>MapEntry.remove_entry(MapEntry&lt;K, V&gt; entry)</code></th><td><code>Optional&lt;(K, V)&gt;</code></td><td>return는 key/value 소유자를 저장하고 사용되지 않는 들어오는 키를 파괴한다. 빈 공간: 들어오는 키와 return None을 파괴합니다.</td>
+</tr>
+<tr id="MapEntry-into_incoming_key"><th scope="row"><code>MapEntry.into_incoming_key(MapEntry&lt;K, V&gt; entry)</code></th><td><code>K</code></td><td>맵 임대를 해제하고 두 상태 모두에서 원래 들어오는 키를 복구하여 저장된 항목을 변경하지 않고 그대로 둡니다. O(1).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Lazy-Building" aria-labelledby="Lazy-Building-heading">
+<h2 id="Lazy-Building-heading">6입니다. 게으른 가치 건설
+</h2>
+<p>게으른 빌더는 빈 항목에 대해서만 실행되므로 점유된 액세스는 사용되지 않은 대체 값을 할당하지 않습니다. 비행능력이 가장 먼저 발생한다. 빌더는 자체 return 유형에 따라 할당하거나 실패할 수 있으며, 성공적인 빌더는 삽입을 위해 한 명의 소유자를 생성합니다. 이 항목 API는 동기식이며 never는 맵의 가변 기능을 유지하면서 일시 중지됩니다.
+</p>
+</section>
+<section id="Examples-Related" aria-labelledby="Examples-Related-heading">
+<h2 id="Examples-Related-heading">7입니다. 예제 및 관련 계약
+</h2>
+<p>입력 기능은 일반적인 Map.entry 작업으로 시작됩니다. 아래 예제는 실패 가능한 owning map을 구성한다; 실제 엔트리 접근은 명시적인 성공 처리를 따르므로, 할당 에러는 빈 map과 혼동될 수 없다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Map&lt;i32, i32&gt;, CollectionError&gt; counts = Map.with_capacity(i32, i32, 8);
+Result&lt;Map&lt;i32, i32&gt;, CollectionError&gt; sparse = Map.new(i32, i32);</code></pre>
+<p>참고: <a href="Map.html#Map-entry">모델 번호:Map.entry</a> 검색 및 <a href="../Slice/Slice_Mutation.html">배타적 인 규칙</a> 중복되지 않는 대여. 엔트리 동작은 사용자 논리 에러 하에서 메모리 안전성을 보존한다; 이것은 트랜잭션 애플리케이션 롤백을 약속하지 않는다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/collections/struct.HashMap.html" target="_blank" rel="noopener noreferrer">Rust HashMap 참조: 키 불변, 항목 API, 용량 및 반복</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Ordered_Map.html"><span>이전 레퍼런스</span>명령된맵</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

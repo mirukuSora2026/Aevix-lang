@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="정상 반환할 수 없는 경로와 불가능한 값을 나타내는, 값이 없는 타입.">
+  <title>Never — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Never/Never.html">
+<link rel="alternate" hreflang="ko" href="Never.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Never.html" aria-current="true">Never</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="Never.html" aria-current="true">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Never.html">Never</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Never</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Never</h1><p class="doc-subtitle">정상 반환할 수 없는 경로와 불가능한 값을 나타내는, 값이 없는 타입.</p><div class="doc-meta"><span class="meta-chip">never</span><span class="meta-chip">Never. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>디자인 초안</dd></div><div class="doc-stat"><dt>값</dt><dd>없음</dd></div><div class="doc-stat"><dt>생성자</dt><dd>없음</dd></div><div class="doc-stat"><dt>API 함수</dt><dd>1 트랩 · 1 제안 제거기</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>∅</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>개요</span></a></li><li><a href="#Construction"><span class="toc-number">02</span><span>구성 또는 기본값 없음</span></a></li><li><a href="#Control-Flow"><span class="toc-number">03</span><span>흐름 및 명시적 반환 제어</span></a></li><li><a href="#Generic-Errors"><span class="toc-number">04</span><span>불가능한 일반 변형</span></a></li><li><a href="#Function-Reference"><span class="toc-number">05</span><span>함수 참조</span></a></li><li><a href="#Containers"><span class="toc-number">06</span><span>컨테이너 및 거주성</span></a></li><li><a href="#Layout"><span class="toc-number">07</span><span>레이아웃과 표현 경계</span></a></li><li><a href="#Resources"><span class="toc-number">08</span><span>청소 및 자원 수명</span></a></li><li><a href="#Interop"><span class="toc-number">09</span><span>외국으로 돌아오지 않는 전화</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>예제 및 유용한 구별</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Never 페이지"><h2>Never 참조</h2><div class="family-links"><a href="Never.html" aria-current="page">Never</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="Never.html" aria-current="true">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Never 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 개요
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> <code>never</code> 내장되지 않은 형식입니다.A built-in unhabited type. <code>Never.unreachable()</code> return 유형 never를 가진 실행한 안전한 함정입니다; 그것은 가치를 제조하지 않거나 정상적인 청소를 실행하지 않습니다. <code>Never.absurd</code> 그리고 이 카탈로그에 있는 Result 적출 헬퍼는 계획안 남아 있습니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p><strong>카탈로그 상태.</strong> 지원 범위 알림은 구현된 부분집합을 밝히며 다른 API는 제안된 Aevix 계약입니다. 선택된 매개변수 형식: <code>T value</code>, <code>&amp;T value</code>, 및 <code>&amp;mut T value</code>. 타입 팩·호출 가능 타입·반환 참조의 명시적 수명 표기·오류 enum은 표시된 곳에서 설명용으로 남습니다. 모든 연산은 네임스페이스 함수를 사용하며 값 메서드 별칭은 없습니다.
+</p>
+<p><code>never</code> 유효한 값이 없습니다. 그것은 불가능한 변형 또는 never가 정상적으로 반환하는 계산을 표현합니다. 하나의 값을 갖는 unit와 일반 완성을 허용하는 return 위치 void와는 다릅니다.
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">2입니다. 구성 또는 기본값 없음
+</h2>
+<p>없습니다. <code>Never.new</code>, 0 초기화, 기본값, 구문 분석 함수, 또는 유효한 비트 패턴 생성자. never를 반환하는 것으로 광고된 함수는 정상적인 실행에서 컨트롤을 분리하거나 전송해야 합니다.
+</p>
+<p>안전하지 않거나 never를 생산한다고 거짓으로 주장하는 외국 코드는 계약을 위반합니다. 컴파일러는 진짜 불가능성에 근거를 둔 부호를 제거할지도 모른다, 그래서 그런 틀린 선언은 정확함 경계이다.
+</p>
+</section>
+<section id="Control-Flow" aria-labelledby="Control-Flow-heading">
+<h2 id="Control-Flow-heading">3입니다. 흐름 및 명시적 반환 제어
+</h2>
+<p>비-void 함수의 경우, 모든 일반적으로 종료되는 경로는 명시적으로 값을 반환합니다. 분산이 입증된 경로는 불가능한 return 문을 필요로 하지 않습니다. 이 예외는 i32, unit 또는 다른 일반 값 유형을 반환하는 함수에서 도달 가능한 fallthrough를 허용하지 않습니다.
+</p>
+<p>무한 루프, 프로세스 종료 또는 반환되지 않는 외국 통화는 실제 계약 하에서만 분산 된 제어 흐름 효과를 가질 수 있습니다. never라는 단어 자체는 정리, 종료 또는 특정 런타임 오류 정책을 보장하지 않습니다.
+</p>
+</section>
+<section id="Generic-Errors" aria-labelledby="Generic-Errors-heading">
+<h2 id="Generic-Errors-heading">4입니다. 불가능한 일반 변형
+</h2>
+<p><code>Result&lt;T, never&gt;</code> Ok(T)만 포함할 수 있습니다. <code>Result&lt;never, E&gt;</code> Err (E)만 포함할 수 있습니다. <code>Optional&lt;never&gt;</code> 오직 하나가 될 수 있을 뿐이다. 이러한 속성을 통해 일반 API는 더미 오류를 발명하지 않고 무류성을 나타낼 수 있습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;i32, never&gt; success = Result.ok(7);
+i32 value = Result.into_ok(success);
+Optional&lt;never&gt; no_value = Optional.none&lt;never&gt;();</code></pre>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">5입니다. 함수 참조
+</h2>
+<p><code>T value</code> 는 값을 전달합니다. Copy 타입은 복사하며 소유 non-Copy 값은 깊은 clone 없이 이동합니다. <code>&amp;T value</code> 는 공유 읽기 대여이고 <code>&amp;mut T value</code> 는 배타적 변경 대여입니다. 호출 시 각각 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code> 를 사용합니다. 이미 대여한 참조·뷰 값은 직접 전달하며 &amp;를 하나 더 붙이면 타입이 바뀝니다. <code>*ref</code> 는 참조 대상을 읽고 씁니다. 일반적인 <code>&amp;mut x</code> 에는 <code>mut</code> 소유자가 필요합니다. <code>mut T value</code> 만으로는 값 매개변수가 함수 안에서 변경 가능해질 뿐 호출자의 값을 변경하지 않습니다. 겹치는 활성 대여는 마지막 사용까지 검사합니다. 서로 겹치지 않는 영역은 안전하게 나눌 수 있으며 대여는 원본보다 오래 살 수 없습니다. 동기화된 내부 변경은 해당 타입의 계약을 따릅니다. <code>Fn(A) -&gt; B</code> 는 호출 가능한 값을 설명하며 반환 참조의 수명 관계는 본문으로 문서화합니다.
+</p>
+<div class="table-scroll" role="region" aria-label="함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>제안된 시그니처</th><th>반환</th><th>계약 및 제약</th><th>비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Never-unreachable"><td><code>Never.unreachable()</code></td><td><code>never</code></td><td>0.2 안전 트랩을 구현했습니다. 도달하면 실행을 중지합니다; 값을 생성하거나 정상적인 정리를 약속하지 않습니다.</td><td>할당 없음</td></tr>
+<tr id="Never-absurd"><td><code>Never.absurd&lt;T&gt;(never impossible)</code></td><td><code>T</code></td><td>도달할 수 없는 브랜치에서 불가능한 값을 제거한다. 정상적으로 실행 중인 안전한 프로그램이 구성할 수 있는 유효한 인수는 없습니다.</td><td>연결할 수 없는 실행</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>엘리미네이터는 불가능한 매치 브랜치를 type-check 하는 데 유용합니다. 트랩 API, return 값이 누락된 이스케이프 해치, 호출자가 호출해야 하는 생성자가 아닙니다.
+</p>
+</section>
+<section id="Containers" aria-labelledby="Containers-heading">
+<h2 id="Containers-heading">6입니다. 컨테이너 및 거주성
+</h2>
+<p>never의 zero-length Array는 구성 할 요소가 없을 수 있습니다. 양의 길이를 갖는 never의 Array는 안전하게 완전히 초기화될 수 없다. never의 zero-length Slice는 소스 및 정렬 계약이 유효한 경우에만 빈 대여을 설명 할 수 있습니다.
+</p>
+<p>never의 Vector는 비었을 수 있습니다. Safe append에서 유효한 never 요소를 수신할 수 없습니다. 변형이나 길이가 불가능할 것으로 예상되었기 때문에 일반 작업이 초기화되지 않은 메모리에 액세스해서는 안 됩니다.
+</p>
+</section>
+<section id="Layout" aria-labelledby="Layout-heading">
+<h2 id="Layout-heading">7입니다. 레이아웃과 표현 경계
+</h2>
+<p>이 문서에서는 never에 대한 휴대용 byte 크기, 정렬 또는 호출 규칙을 약속하지 않습니다. 컴파일러는 사람이 살지 않는 열거형 변형을 제거하거나 사용 가능한 틈새를 사용할 수 있지만 이러한 최적화는 안정적인 직렬화 또는 FFI 계약이 아닙니다.
+</p>
+<p>포인터 또는 참조 표현은 유효한 never 참조자의 증명 그 자체가 아닙니다. 안전한 대여은 항상 참조 유형의 초기화 된 유효한 값을 필요로합니다.
+</p>
+</section>
+<section id="Resources" aria-labelledby="Resources-heading">
+<h2 id="Resources-heading">8입니다. 청소 및 자원 수명
+</h2>
+<p>분산은 하나의 범용 소멸자 정책을 정의하지 않습니다. 끝없는 계산은 그것의 살아있는 자원을 유지한다; 중단 과정은 소멸자를 달리지 않을지도 모른다; 풀리는 것은, 지원되면, 그것의 분리되는 지정된 정리 규칙을 따른다.
+</p>
+<p>비동기 장치 오류는 정상적인 결과를 제공할 수 없는 경우에도 대기 상태가 될 때까지 기내 리소스를 유지해야 합니다. 불가능한 유형은 기본 액세스가 끝나기 전에 대여이 종료되는 것을 허용하지 않습니다.
+</p>
+</section>
+<section id="Interop" aria-labelledby="Interop-heading">
+<h2 id="Interop-heading">9입니다. 외국으로 돌아오지 않는 전화
+</h2>
+<p>외국 반환 주석은 실제 구현 및 호출 규칙에 대해 검증되어야 합니다. 가져온 비복귀 계약에도 불구하고 반환되는 함수는 경계 위반을 만듭니다. 일반적인 Result 오류가 아닙니다.
+</p>
+<p>사용법: <code>Result&lt;T, E&gt;</code> 회복할 수 있는 실패. 정상적인 값이 존재하지 않는 경우에만 never를 사용하십시오; 컴파일러는 숨겨진 기본값을 삽입하는 대신 조작된 생성자를 거부해야 합니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10입니다. 예제 및 유용한 구별
+</h2>
+<p>위의 예는 Result 성공과 Optional 결석만을 구성하며 never는 never 값을 구성합니다. <code>Result.into_ok</code> 오류 유형이 거주되지 않기 때문에 거기에 소리입니다.
+</p>
+<p>unit를 반환하는 함수는 unit 값으로 완료됩니다. void 함수는 값 없이 완료됩니다. never를 반환하는 함수는 정상적으로 완료할 수 없습니다. 이 세 계약은 API 시그니처에서 별도의 상태로 유지됩니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/primitive.never.html" target="_blank" rel="noopener noreferrer">Rust never 참조: 무인 값 및 제거</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

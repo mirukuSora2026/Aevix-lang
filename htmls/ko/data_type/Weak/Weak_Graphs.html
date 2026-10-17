@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="백에지, 캐시 및 콜백은 보편적 인 누출 자유를 주장하지 않습니다.">
+  <title>Weak 그래프와 관찰자 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Weak/Weak_Graphs.html">
+<link rel="alternate" hreflang="ko" href="Weak_Graphs.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Weak.html" aria-current="true">Weak</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="Weak.html" aria-current="true">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Weak.html">Weak</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Weak 그래프 및 관찰자</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Weak 그래프 및 관찰자</h1><p class="doc-subtitle">백에지, 캐시 및 콜백은 보편적 인 누출 자유를 주장하지 않습니다.</p><div class="doc-meta"><span class="meta-chip">Weak&lt;T&gt;</span><span class="meta-chip">Weak 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>API 함수</dt><dd>0</dd></div><div class="doc-stat"><dt>계약</dt><dd>설계 초안 · 명시적 오류 처리</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>약한</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Direction"><span class="toc-number">01</span><span>소유권 방향 선택</span></a></li><li><a href="#Cycles"><span class="toc-number">02</span><span>Weak 가장자리는 그것의 자신의 주기만 끊습니다</span></a></li><li><a href="#Promotion"><span class="toc-number">03</span><span>빌려주기 전에 주인을 모십니다.</span></a></li><li><a href="#Callbacks"><span class="toc-number">04</span><span>관찰자 및 등록</span></a></li><li><a href="#Construction"><span class="toc-number">05</span><span>순환 건설은 부분적인 접근이 아닙니다.</span></a></li><li><a href="#Mutation"><span class="toc-number">06</span><span>안정적인 정체성과 교체</span></a></li><li><a href="#Related"><span class="toc-number">07</span><span>공통 기능 및 수명 경계</span></a></li><li><a href="#Sources"><span class="toc-number">08</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Weak 페이지"><h2>Weak 참조</h2><div class="family-links"><a href="Weak.html">Weak</a><a href="Weak_Graphs.html" aria-current="page">Weak 그래프 및 관찰자</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="Weak.html" aria-current="true">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Weak 그래프 및 관찰자 참조">
+<section id="Direction" aria-labelledby="Direction-heading">
+<h2 id="Direction-heading">1입니다. 소유권 방향 선택
+</h2>
+<p>나무는 일반적으로 자녀를 강하게 소유하고 부모를 약하게 관찰합니다. 그래프는 자동으로 하나의 올바른 강력한 방향을 가지지 않습니다: 소유권은 노드를 유지하는 책임이 있는 구성 요소를 반영해야 합니다. Weak 가장자리는 관찰자가 살아있는 동안에도 사라질 수 있습니다. 그래프 API는 모든 엣지가 항상 업그레이드된다고 가정하기보다는 부재와 호출자가 어떻게 복구되는지를 문서화해야 합니다.
+</p>
+</section>
+<section id="Cycles" aria-labelledby="Cycles-heading">
+<h2 id="Cycles-heading">2입니다. Weak 가장자리는 그것의 자신의 주기만 끊습니다
+</h2>
+<p>Weak로 참여 강한 백 에지를 교체하는 것은 break 알려진 소유권 사이클 수 있습니다. 전체 힙을 검사하거나, 다른 사이클을 제거하거나, 외부 레지스트리에 의해 유지되는 객체를 해제하지 않습니다. 객체에 저장된 클로저는 동일한 객체를 간접적으로 강력하게 캡처할 수 있습니다. 기본 no-tracing-collector 모델은 메모리 또는 외부 자원 누출의 절대 방지를 약속하지 않습니다.
+</p>
+</section>
+<section id="Promotion" aria-labelledby="Promotion-heading">
+<h2 id="Promotion-heading">3입니다. 빌려주기 전에 주인을 모십니다.
+</h2>
+<p>업그레이드는 강한 소유자 또는 결석한 결과를 반환합니다. 필드를 빌리거나 콜백에 대한 참조를 전달하는 동안 실제 소유자를 유지합니다. 이전에 성공한 업그레이드는 나중에 작성된 원시 주소나 진단 count의 유효성을 검사하지 않습니다. Refcount Overflow는 만료와는 별개입니다. 반복적인 업그레이드는 낭비가 될 수 있으며, 각 수명 작업이 개별적으로 안전한 경우에도 다른 애플리케이션 상태를 관찰할 수 있습니다.
+</p>
+</section>
+<section id="Callbacks" aria-labelledby="Callbacks-heading">
+<h2 id="Callbacks-heading">4입니다. 관찰자 및 등록
+</h2>
+<p>콜백은 Weak 관찰자를 캡처하여 강력한 등록 주기를 방지한 다음 실행할 때마다 업그레이드할 수 있습니다. 객체가 사라지면 콜백은 no-op, unsubscribe 또는 error behavior를 정의해야 합니다. 외부 이벤트 소스는 범위를 넘어서는 콜백 상태를 유지할 수 있으므로 약한 엣지만으로는 외부 콜백 ABI 또는 릴리스 프로토콜을 검증하기에 충분하지 않습니다.
+</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">5입니다. 순환 건설은 부분적인 접근이 아닙니다.
+</h2>
+<p>Shared.new_cyclic은 페이로드가 초기화되기 전에 약한 구성 핸들을 공급합니다. 그 단계에서 승진은 아무런 가치도 돌려주지 않는다. 빌더는 약한 자체 관찰자를 저장할 수 있지만 부분적으로 초기화 된 T의 안전한 읽기를 얻을 수 없습니다. Builder 실패는 오류 계약에 따라 초기화된 상태를 해제합니다. 초기화 중에 강한 참조를 제거하려면 raw-count 단축키를 사용해서는 안 됩니다.
+</p>
+</section>
+<section id="Mutation" aria-labelledby="Mutation-heading">
+<h2 id="Mutation-heading">6입니다. 안정적인 정체성과 교체
+</h2>
+<p>명시적 Shared copy-on-write는 요청 핸들의 할당 ID를 변경합니다. 기존 약한 관찰자는 이전 할당을 계속 참조하며 마지막 강한 소유자를 잃으면 만료 될 수 있습니다. 대신 Mutex 뒤에 값을 교체하면 Shared 할당 ID가 유지되지만 관찰자는 대체물이 설정한 동기화된 애플리케이션 상태를 확인합니다. 이것들은 별개의 정책이며 고의적 인 선택이 필요합니다.
+</p>
+</section>
+<section id="Related" aria-labelledby="Related-heading">
+<h2 id="Related-heading">7입니다. 공통 기능 및 수명 경계
+</h2>
+<p>전체 호출 가능한 API는 다음과 같이 한번 정의됩니다. <a href="Weak.html#Function-Reference">Weak</a>. <a href="../Shared/Shared_Mutation.html">Shared 변경</a> 문서 복제 비용 및 <a href="../Box/Box_FFI.html">Box 또는 FFI</a> 외부 소유권을 설명합니다. AOT/JIT의 정확성과 안전한 약한 액세스로 인해 궁극적으로 정리, 콜백 공정성 또는 외부 감사 스레드 친화도가 설정되지 않습니다.
+</p>
+<p>비어있는 그래프 가장자리는 페이로드를 유지할 수 없습니다. 승진은 잘못 될 수 있으며 여기에 강한 소유자를 반환하지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Weak&lt;i32&gt; parent = Weak.new(i32);
+bool absent_edge = Weak.is_empty(&amp;parent);
+Result&lt;Optional&lt;Shared&lt;i32&gt;&gt;, RefCountError&gt; retained = Weak.upgrade(&amp;parent);</code></pre>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">8. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Weak.html" target="_blank" rel="noopener noreferrer">Rust Weak — 조건부 프로모션 및 제어 블록 수명</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" target="_blank" rel="noopener noreferrer">Rust Arc — 참조 주기 및 스레드 범위</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Weak.html"><span>이전 레퍼런스</span>Weak</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

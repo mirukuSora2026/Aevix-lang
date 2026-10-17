@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="반환형 우선 구문, 명시적 인수 권한, 정상 경로의 명시적 반환.">
+    <title>함수 선언 — Aevix 문서</title>
+    <link rel="stylesheet" href="../../css/root.css?v=7">
+    <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <script src="../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../declaration/Function_Declaration.html">
+<link rel="alternate" hreflang="ko" href="Function_Declaration.html">
+<script src="../../js/language.js?v=1" defer></script>
+</head>
+<body><a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header">
+    <div class="header"><a class="brand" href="../data_type/index.html" aria-label="Aevix 문서"><span
+            class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span
+            class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+        <nav class="header-nav" aria-label="레퍼런스 항목"><a href="../errors/index.html">오류</a><a href="index.html"
+                                                                   aria-current="true">선언</a>
+            <details class="type-menu">
+                <summary>모든 자료형</summary>
+                <div class="type-menu-links"><a href="../data_type/Boolean/Boolean.html">Boolean</a><a
+                        href="../data_type/Integer/Integer.html">Integer</a><a href="../data_type/Float/Float.html">Float</a><a
+                        href="../data_type/Complex/Complex.html">Complex</a><a
+                        href="../data_type/Char/Char.html">Char</a><a href="../data_type/Byte/Byte.html">Byte</a><a
+                        href="../data_type/String/string.html">string</a><a
+                        href="../data_type/Array/Array.html">Array</a><a
+                        href="../data_type/Vector/Vector.html">Vector</a><a
+                        href="../data_type/Slice/Slice.html">Slice</a><a
+                        href="../data_type/Tuple/Tuple.html">Tuple</a><a href="../data_type/Unit/Unit.html">Unit</a><a
+                        href="../data_type/Never/Never.html">Never</a><a
+                        href="../data_type/Range/Range.html">Range</a><a href="../data_type/Optional/Optional.html">Optional</a><a
+                        href="../data_type/Result/Result.html">Result</a><a href="../data_type/Box/Box.html">Box</a><a
+                        href="../data_type/Shared/Shared.html">Shared</a><a
+                        href="../data_type/Weak/Weak.html">Weak</a><a
+                        href="../data_type/Atomic/Atomic.html">Atomic</a><a
+                        href="../data_type/Mutex/Mutex.html">Mutex</a><a
+                        href="../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../data_type/Map/Map.html">Map</a><a
+                        href="../data_type/Set/Set.html">Set</a><a href="../data_type/Tensor/Tensor.html">Tensor</a><a
+                        href="../data_type/Quantized/Quantized.html">Quantized</a><a href="../data_type/Simd/Simd.html">Simd</a><a
+                        href="../data_type/Task/Task.html">Task</a><a
+                        href="../data_type/Pending/Pending.html">Pending</a></div>
+            </details>
+            <a href="../grammar/index.html">문법</a></nav>
+        <span class="draft-badge">0.2 구현 문서</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../data_type/index.html">언어 레퍼런스</a><span
+            class="separator" aria-hidden="true">/</span><a href="index.html">선언</a><span class="separator"
+                                                                                                    aria-hidden="true">/</span><span
+            aria-current="page">함수 선언</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">선언 문서</p>
+            <h1>함수 선언</h1>
+            <p class="doc-subtitle">반환형 우선 구문, 명시적 인수 권한, 정상 경로의 명시적 반환.</p>
+            <div class="doc-meta"><span class="meta-chip">함수 선언</span><span class="meta-chip">0.2 구현 프로필</span><a
+                    href="../data_type/index.html#Language-Rules">언어 규칙 개요</a></div>
+            <dl class="doc-stats">
+                <div class="doc-stat">
+                    <dt>상태</dt>
+                    <dd>0.2 핵심 기능과 명시된 제한</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>매개변수</dt>
+                    <dd>값 / &amp;T / &amp;mut T</dd>
+                </div>
+                <div class="doc-stat">
+                    <dt>반환</dt>
+                    <dd>모든 정상 non-void 종료에서 명시</dd>
+                </div>
+            </dl>
+        </div>
+        <div class="type-mark" aria-hidden="true"><strong>f() 함수</strong><span>선언</span></div>
+    </header>
+    <div class="docs-layout">
+        <aside class="table" aria-label="레퍼런스 탐색">
+            <details class="toc" open>
+                <summary>이 페이지의 내용</summary>
+                <ol>
+                    <li><a href="#overview"><span class="toc-number">01</span><span>함수 선언: 확정된 계약</span></a>
+                    </li>
+                    <li><a href="#declaration-form"><span class="toc-number">02</span><span>반환형, 이름, 매개변수 순서</span></a>
+                    </li>
+                    <li><a href="#parameter-forms"><span class="toc-number">03</span><span>매개변수 형태와 맞는 호출</span></a>
+                    </li>
+                    <li><a href="#by-value"><span class="toc-number">04</span><span>값 입력: 스칼라 복사와 소유 값 이동</span></a>
+                    </li>
+                    <li><a href="#parameter-immutability"><span class="toc-number">05</span><span>매개변수 바인딩은 기본적으로 불변</span></a>
+                    </li>
+                    <li><a href="#mutable-value-parameters"><span class="toc-number">06</span><span>mut은 함수 내부 지역 값을 변경</span></a>
+                    </li>
+                    <li><a href="#read-borrows"><span class="toc-number">07</span><span>공유 읽기 매개변수는 &amp;T 사용</span></a>
+                    </li>
+                    <li><a href="#write-borrows"><span class="toc-number">08</span><span>독점 쓰기 매개변수는 &amp;mut T 사용</span></a>
+                    </li>
+                    <li><a href="#forwarding-and-views"><span class="toc-number">09</span><span>기존 참조와 대여한 뷰는 그대로 전달</span></a>
+                    </li>
+                    <li><a href="#overlap-and-lifetimes"><span class="toc-number">10</span><span>대여는 겹치는 저장소와 마지막 사용을 따름</span></a>
+                    </li>
+                    <li><a href="#explicit-return"><span class="toc-number">11</span><span>정상 non-void 경로의 명시적 반환</span></a>
+                    </li>
+                    <li><a href="#unit-void-never"><span class="toc-number">12</span><span>unit·void·never의 서로 다른 계약</span></a>
+                    </li>
+                    <li><a href="#result-and-optional"><span class="toc-number">13</span><span>오류와 부재도 일반 반환 값</span></a>
+                    </li>
+                    <li><a href="#diagnostics"><span class="toc-number">14</span><span>진단 분류와 거부 예제</span></a>
+                    </li>
+                    <li><a href="#costs-and-compilation"><span class="toc-number">15</span><span>호출은 소유권·비용 계약을 유지</span></a>
+                    </li>
+                    <li><a href="#closures"><span class="toc-number">16</span><span>명시적 클로저와 호출 가능 계약</span></a>
+                    </li>
+                    <li><a href="#open-decisions"><span class="toc-number">17</span><span>구현된 추가 기능과 남은 제한</span></a>
+                    </li>
+                    <li><a href="#Sources"><span class="toc-number">18</span><span>출처와 설계 참고 자료</span></a>
+                    </li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="선언 페이지"><h2>선언 문서</h2>
+                <div class="family-links"><a href="index.html">개요</a><a
+                        href="Variable_Declaration.html">변수</a><a href="Function_Declaration.html"
+                                                                         aria-current="page">함수</a></div>
+            </nav>
+            <nav class="family-nav" aria-label="관련 레퍼런스"><h2>관련 레퍼런스</h2>
+                <div class="family-links"><a href="../data_type/index.html">전체 29개 타입</a><a
+                        href="../data_type/Unit/Unit.html">unit</a><a href="../data_type/Never/Never.html">never</a><a
+                        href="../data_type/Result/Result.html">Result</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="함수 선언 참조">
+            <section id="overview" aria-labelledby="overview-heading"><h2 id="overview-heading">1. 함수 선언: 확정된 계약</h2>
+                <p>함수는 계산에 이름을 붙이고 입력을 받는 방식과 정상 완료의 반환 값을 선언합니다. Aevix는 함수 이름 앞에 반환형을, 각 매개변수 이름 앞에 타입을 적습니다. 매개변수 바인딩은 기본적으로 불변이며 호출부에서 소유권 이전과 대여를 확인할 수 있습니다.</p>
+                <p>이 페이지는 구현된 0.2의 선언·클로저 규칙을 설명하며 남은 설계 제한은 따로 적습니다. 연결된 자료형 카탈로그에는 미래 API가 포함될 수 있습니다. 일반 함수 구문이 안정된 외부 ABI를 보장하지는 않습니다. 선택된 조건문·반복문은 다음에 설명합니다: <a href="../grammar/control_flow/index.html">제어 흐름</a>. 남은 기능은 구현 범위 절에서 구분합니다.</p></section>
+            <section id="declaration-form" aria-labelledby="declaration-form-heading"><h2 id="declaration-form-heading">
+                2. 반환형, 이름, 매개변수 순서</h2>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">i32 identity(i32 value) {
+    return value;
+}
+
+i32 use_identity() {
+    i32 source = 12;
+    rsn result = identity(source);
+    return result;
+}</code></pre>
+                <p>identity는 i32 값을 받아 명시적으로 반환합니다. 빈 괄호는 매개변수가 없음을 뜻하며 호출 인수는 매개변수 순서에 맞춰 전달합니다. 선언·대입·호출 문장·return을 포함한 모든 문장은 세미콜론으로 끝납니다. 중괄호는 함수·제어 흐름 블록을 구분하며 함수 본문 뒤에는 세미콜론을 추가하지 않습니다.</p>
+                <p>rsn은 호출에서 result를 i32로 정적 추론하며 동적 타입을 요청하지 않습니다. 이 선언들의 반환형·매개변수형은 명시적입니다. 지역 타입 추론이 미래의 함수 시그니처 추론 축약을 확정하지는 않습니다.</p><p>같은 반환형 우선 선언을 다음 타입 안에서도 사용합니다: <a href="../grammar/user_defined_types/Methods_and_Factories.html">struct와 enum</a>. self receiver가 없는 함수는 User.new(...)처럼 타입을 통해 호출합니다. 일반 함수 이름 new가 숨은 힙 할당을 요청하지는 않습니다. 인스턴스 메서드는 &amp;User self, &amp;mut User self, User self를 명시하며 호출에서 receiver 대여는 자동 또는 명시적으로 할 수 있습니다.</p></section>
+            <section id="parameter-forms" aria-labelledby="parameter-forms-heading"><h2 id="parameter-forms-heading">3. 매개변수 형태와 맞는 호출</h2>
+                <div class="table-wrap">
+                    <div class="table-scroll" role="region" aria-label="매개 변수 양식 및 일치하는 호출 데이터 테이블">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th scope="col">매개변수 선언</th>
+                                <th scope="col">호출 인수</th>
+                                <th scope="col">권한과 소유권</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr id="function-param-value">
+                                <td>T 값</td>
+                                <td>지원하다</td>
+                                <td>Copy 값은 복사하고 소유한 non-Copy 값은 함수로 이동합니다.</td>
+                            </tr>
+                            <tr id="function-param-read">
+                                <td>&amp;T 값</td>
+                                <td>&amp;x에서</td>
+                                <td>공유 읽기 대여. 호출자가 소유권과 호환되는 읽기 별칭을 유지합니다.</td>
+                            </tr>
+                            <tr id="function-param-write">
+                                <td>&amp;mut T 값</td>
+                                <td>&amp;mut 엑스</td>
+                                <td>독점 쓰기 대여. 일반 소유 값의 쓰기 대여에는 mut 바인딩이 필요합니다.</td>
+                            </tr>
+                            <tr id="function-param-local-mut">
+                                <td>mut T 값</td>
+                                <td>지원하다</td>
+                                <td>함수 내부의 가변 지역 값이며 호출자의 저장소를 바꿀 권한을 새로 주지 않습니다.</td>
+                            </tr>
+                            <tr id="function-param-reference">
+                                <td>&amp;T 값 또는 &amp;mut T 값</td>
+                                <td>기존_참조</td>
+                                <td>이미 호환되는 참조는 &amp;를 더하지 않고 그대로 전달합니다.</td>
+                            </tr>
+                            <tr id="function-param-view">
+                                <td>Slice&lt;T&gt;, MutSlice&lt;T&gt; 또는 string_view</td>
+                                <td>기존_보기</td>
+                                <td>뷰에는 이미 대여 권한이 있으므로 그대로 전달합니다. 선언된 MutSlice 매개변수는 아래 규칙에 따라 기존 독점 뷰를 재대여합니다.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <p>T는 설명용 타입 표기이며 제네릭 함수 선언이 아닙니다. 구체 예제에서는 i32·string·기존 컨테이너를 사용합니다. mut T와 &amp;mut T는 컴파일러의 인라인 여부와 무관하게 변경 가능한 저장소를 구분합니다.</p></section>
+            <section id="by-value" aria-labelledby="by-value-heading"><h2 id="by-value-heading">4. 값 입력은 스칼라를 복사하고 소유 값을 이동합니다</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">string relay_owned(string value) {
+    return value;
+}
+
+string transfer_once(string original) {
+    string moved = relay_owned(original);
+    return moved;
+}</code></pre>
+                <p>i32는 Copy이므로 identity(source) 호출 후에도 source를 사용할 수 있습니다. 소유 string을 값으로 전달하면 이동합니다. transfer_once에서는 relay_owned가 받은 뒤 original을 사용할 수 없고, moved가 반환된 소유 값을 받아 이 함수의 호출자에게 다시 넘깁니다. 문자열 내용을 조용히 깊은 복사하지 않습니다.</p>
+                <p>불변 소유 값도 이동할 수 있습니다. 불변성은 일반 수정·재대입을 금지하지만 소유권을 그 자리에 고정하지 않습니다. 잠시 접근하면서 호출자 소유권을 유지하려면 대여하세요. 독립적인 복제에는 명시적 copy/clone과 해당 비용·오류 계약이 필요합니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: original has already moved into relay_owned.
+string use_after_move(string original) {
+    string moved = relay_owned(original);
+    return original;
+}</code></pre>
+            </section>
+            <section id="parameter-immutability" aria-labelledby="parameter-immutability-heading"><h2
+                    id="parameter-immutability-heading">5. 매개변수 바인딩은 기본적으로 불변입니다</h2>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: value is an immutable by-value parameter.
+i32 overwrite_parameter(i32 value) {
+    value = 0;
+    return value;
+}</code></pre>
+                <p>함수는 타입에 따라 value를 읽거나 이동할 수 있지만 mut 없이 그 바인딩에 재대입할 수는 없습니다. 호출자 쪽 가변성과 무관하게 함수 안에서 적용됩니다. 가변 i32를 전달해도 별도로 복사한 스칼라이며 호출자의 mut 권한이 값 인수로 전달되지는 않습니다.</p>
+                <p>소유 인수는 대신 이동합니다. 이동한 소유 값을 변경해도 소유권을 잃은 호출자 바인딩의 별칭이 생기지는 않습니다. 참조 바인딩의 가변성과 참조 대상의 접근 권한도 별개입니다.</p></section>
+            <section id="mutable-value-parameters" aria-labelledby="mutable-value-parameters-heading"><h2
+                    id="mutable-value-parameters-heading">6. mut은 함수 내부의 지역 값을 변경합니다</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 reset_copy(mut i32 value) {
+    value = 0;
+    return value;
+}
+
+i32 keep_original() {
+    i32 original = 10;
+    i32 changed = reset_copy(original);
+    return original;
+}</code></pre>
+                <p>reset_copy는 자신의 지역 복사본을 교체할 수 있습니다. changed는 0이고 original은 10을 유지합니다. 쓰기 대여를 요청하지 않으므로 호출자 바인딩에 mut이 필요 없습니다. 여기서는 오버플로나 산술 오류 처리에 관한 가정을 피하려고 산술 대신 대입을 사용합니다.</p>
+                <p>소유 값의 경우 mut은 이동 이후 함수 내부의 수정을 허용합니다. 소유권을 자동으로 돌려주지는 않습니다. 반환·저장·파괴는 함수 본문과 자원 계약을 따릅니다.</p></section>
+            <section id="read-borrows" aria-labelledby="read-borrows-heading"><h2 id="read-borrows-heading">7. 공유 읽기 매개변수는 &amp;T를 사용합니다</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 read_value(&amp;i32 value) {
+    return *value;
+}
+
+i32 read_original() {
+    i32 number = 10;
+    &amp;i32 reference = &amp;number;
+    i32 first = read_value(&amp;number);
+    i32 second = read_value(reference);
+    return second;
+}</code></pre>
+                <p>&amp;number는 공유 읽기 대여를 만듭니다. *value는 대여한 i32에 접근하고 이를 반환하면 스칼라를 복사합니다. 함수가 number의 소유권을 얻지는 않습니다. reference와 first를 위한 임시 대여를 포함해 호환되는 읽기 대여는 공존할 수 있습니다.</p>
+                <p>reference는 이미 &amp;i32 타입입니다. read_value(reference)는 권한을 그대로 전달하며 &amp;를 더하면 참조가 한 겹 더 생깁니다. 공유 참조는 대상의 일반 쓰기를 허용하지 않습니다. 내부 동기화 타입에는 별도로 선언된 계약이 적용됩니다.</p></section>
+            <section id="write-borrows" aria-labelledby="write-borrows-heading"><h2 id="write-borrows-heading">8. 독점 쓰기 매개변수는 &amp;mut T를 사용합니다</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">void set_value(&amp;mut i32 target, i32 value) {
+    *target = value;
+}
+
+i32 update_original() {
+    mut i32 number = 10;
+    set_value(&amp;mut number, 20);
+    return number;
+}</code></pre>
+                <p>*target = value는 호출자의 저장소를 바꾸므로 일반 쓰기 대여를 만들 number에 mut이 필요합니다. 호출의 대여가 끝나면 호출자는 number에서 20을 읽습니다.</p>
+                <p>target 바인딩은 불변이어도 &amp;mut i32 권한으로 대상을 쓸 수 있습니다. target을 다른 참조로 재대입하는 것은 바인딩 변경이므로 여기서는 허용되지 않습니다. 공유 &amp;i32 바인딩을 지역적으로 가변으로 만들어도 대상 권한은 높아지지 않습니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: number is not a mutable owner binding.
+void borrow_immutable_owner() {
+    i32 number = 10;
+    set_value(&amp;mut number, 20);
+}</code></pre>
+            </section>
+            <section id="forwarding-and-views" aria-labelledby="forwarding-and-views-heading"><h2
+                    id="forwarding-and-views-heading">9. 기존 참조와 대여한 뷰는 그대로 전달합니다</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">void forward_write(&amp;mut i32 target, i32 value) {
+    set_value(target, value);
+}
+
+usize count_values(Slice&lt;i32&gt; values) {
+    return Slice.len(values);
+}
+
+usize forward_view(Slice&lt;i32&gt; values) {
+    return count_values(values);
+}</code></pre>
+                <p>forward_write는 이미 독점 참조를 받습니다. target을 그대로 넘기면 요청된 접근 권한을 전달하며 별도의 두 번째 쓰기 권한을 만들지 않습니다. 겹침·수명 검사는 그대로 적용됩니다. 기계적으로 &amp;를 더하는 것은 변환 규칙이 아닙니다.</p>
+                <p>Slice&lt;T&gt;·MutSlice&lt;T&gt;·string_view에는 이미 대여 권한이 있습니다. count_values는 원소 할당의 소유권이 아니라 Slice 설명자를 그대로 받습니다. 반면 Vector&lt;i32&gt; 값 인수는 소유 컨테이너를 이동하고 &amp;Vector&lt;i32&gt;는 그 소유자를 대여합니다. 시그니처에 의도한 경계를 표시해야 하며 일반 뷰를 참조로 자동 포장하지 않습니다.</p>
+                <h3 id="reborrowing">알려진 독점 매개변수는 재대여하고 일반 값은 이동합니다</h3>
+                <p>아래 규칙은 매개변수가 선언된 일반 호출에 적용됩니다. 컴파일러 intrinsic은 뷰를 명시적으로 소비할 수 있습니다. 0.2의 다음 호출은 <code>Slice.slice_mut(source, start, end)</code> MutSlice 입력을 검사하는 하위 뷰 연산으로 이동합니다. 원본 뷰 설명자는 이후 재사용할 수 없습니다. 이 예외가 일반 매개변수의 재대여를 약화하지는 않습니다. 자세한 내용은 <a href="../data_type/Slice/Slice.html">Slice와 MutSlice</a>.</p>
+                <p>타입 정규화 뒤에 바깥 형태가 다음과 같이 알려진 형식 매개변수는
+                    <code>&amp;mut U</code> 또는 <code>MutSlice&lt;U&gt;</code> 그대로 전달한 호환 독점 참조·뷰를 자동 재대여합니다. U 자체는 제네릭 타입 매개변수여도 됩니다. 파생 권한을 빌려줄 뿐 원본 바인딩을 이동하거나 독점 대여를 복사하지 않습니다. 파생 대여가 끝날 때까지 원본 권한과 충돌하는 사용은 금지됩니다.</p>
+                <p>API가 대여한 참조·뷰·반복자를 반환할 때도 같습니다. Optional·Result 등 반환 값 안에 중첩된 대여는 원본과 계속 연결됩니다. 호출이 끝났다고 바로 원본 권한을 되찾지는 않습니다. 정리 중 발생할 수 있는 접근까지 포함해 남은 모든 파생 대여가 끝나야 합니다. 호환되는 공유 참조·읽기 뷰 인수도 원래 수명을 유지합니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">void reverse_twice(MutSlice&lt;i32&gt; values) {
+    Slice.reverse(values);
+    Slice.reverse(values);
+    return;
+}</code></pre>
+                <p>각 reverse 호출은 MutSlice 매개변수를 선언하고 다음 호출 전에 임시 재대여를 끝냅니다. values 바인딩에 mut은 필요 없습니다. 기존 독점 대상 권한으로 재대여할 수 있지만 설명자를 재대입하려면 별도의 바인딩 가변성이 필요합니다.</p>
+                <p>일반 제네릭 형태로 선언한 매개변수는 <code>T value</code> 값 전달을 유지합니다. 나중에 T를 다음으로 구체화해도 <code>&amp;mut i32</code> 또는 <code>MutSlice&lt;i32&gt;</code>, non-Copy 권한은 이동합니다. 제네릭 구체화가 선언을 대여 매개변수로 바꾸지는 않습니다. 일반 값 대입·초기화·반환에도 같은 이동 규칙이 적용됩니다. non-Copy 뷰를 Optional.some·Result.ok 또는 다음 함수의 제네릭 값 매개변수에 전달해도
+                    <code>identity&lt;T&gt;</code> 이동합니다. 최종 구체 타입만을 이유로 자동 재대여가 생기지 않습니다. 이 규칙은 일반 move 표현식을 추가하지 않습니다.</p>
+                <p>대여 동작은 선언된 매개변수와 API 계약을 따릅니다. 메서드 receiver 자동 대여는 보편적인 래퍼 변환이나 독점 대여의 지연 활성화가 아닙니다. 자세한 내용은 <a href="../grammar/functions/Generic_Functions.html">제네릭 함수 계약</a> 및 <a href="../data_type/Slice/Slice.html#Parameter-Reborrowing">Slice 매개변수 전달 방식</a>.</p>
+                <p><a href="../data_type/Slice/Slice.html">Slice와 MutSlice</a> · <a
+                        href="../data_type/Vector/Vector.html">Vector 소유권</a></p></section>
+            <section id="overlap-and-lifetimes" aria-labelledby="overlap-and-lifetimes-heading"><h2
+                    id="overlap-and-lifetimes-heading">10. 대여는 겹치는 저장소와 마지막 사용을 따릅니다</h2>
+                <p>겹치는 영역의 일반 안전 접근에는 호환되는 공유 읽기 여러 개 또는 독점 쓰기 대여 하나를 허용합니다. 쓰기 대여는 권한과 영역이 겹치는 다른 활성 접근과 충돌합니다. 서로 다른 변수도 같은 할당을 볼 수 있습니다. 컬렉션 API는 독점 접근을 나누기 전에 겹치지 않음을 증명해야 합니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 last_use_example() {
+    mut i32 number = 10;
+    &amp;i32 observed = &amp;number;
+    i32 snapshot = *observed;
+    set_value(&amp;mut number, 20);
+    return number;
+}</code></pre>
+                <p>observed의 마지막 사용이 set_value보다 앞이므로 읽기 대여와 뒤쪽 쓰기가 충돌하지 않습니다. 그 참조를 나중에 다시 사용하면 대여가 쓰기 구간에 걸쳐 충돌합니다:</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: reader remains live across the exclusive write.
+i32 conflicting_borrow() {
+    mut i32 number = 10;
+    &amp;i32 reader = &amp;number;
+    set_value(&amp;mut number, 20);
+    return *reader;
+}</code></pre>
+                <p>마지막 사용 분석은 원본 소유 값의 저장 수명을 늘리지 않습니다. 대여한 결과는 원본보다 오래 살 수 없고 파괴될 지역 값의 대여를 함수에서 반환할 수 없습니다. 대여 입력이 하나면 의미상 원본이 분명하지만 여러 입력에는 명확한 관계가 필요합니다. 참조 반환 시그니처의 정확한 수명 표기·생략 규칙은 미정이므로 추측한 문법은 제시하지 않습니다.</p></section>
+            <section id="explicit-return" aria-labelledby="explicit-return-heading"><h2 id="explicit-return-heading">11. 정상적인 non-void 경로는 모두 명시적으로 반환합니다</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 choose_value(bool outer, bool inner, i32 left, i32 middle, i32 right) {
+    if (outer) {
+        if (inner) {
+            return left;
+        } else {
+            return middle;
+        }
+    } else {
+        return right;
+    }
+}</code></pre>
+                <p>이 조건문 예제의 모든 정상 경로는 i32를 명시적으로 반환합니다. return은 선언된 값으로 현재 함수를 끝냅니다. 마지막 표현식은 암묵적 반환이 아닙니다. 도달 가능한 non-void 본문 끝을 기본 결과로 채우지 말고 거부해야 합니다.</p>
+                <p><strong>계획된 0.3 추가 기능:</strong> 스칼라 정수 반환의 명시적 return에서 bool을 0 또는 1로 바꾸는 기능입니다. 현재 0.2에는 포함되지 않으며 return 명시 요구도 없어지지 않습니다. 다음 문서에서 <a href="../roadmap/Convenience_0_3.html#boolean-return">return 전용 변환 계획</a> 의 제한된 범위를 확인하세요.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: evaluating value does not return it.
+i32 no_implicit_return(i32 value) {
+    value;
+}</code></pre>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: the false path falls through without a result.
+i32 missing_path(bool enabled, i32 value) {
+    if (enabled) {
+        return value;
+    }
+}</code></pre>
+                <p>실제로 발산하는 경로는 정상 완료하지 않으므로 불가능한 반환이 필요 없습니다. 이 예외는 실제 연산 계약을 따릅니다. 분기가 실행되지 않을 것이라는 예상만으로 도달 가능한 반환 누락을 정당화할 수는 없습니다.</p></section>
+            <section id="unit-void-never" aria-labelledby="unit-void-never-heading"><h2 id="unit-void-never-heading">12. unit·void·never의 계약은 서로 다릅니다</h2>
+                <div class="table-wrap">
+                    <div class="table-scroll" role="region"
+                         aria-label="unit, void 및 never에는 다른 계약 데이터 테이블이 있습니다">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th scope="col">반환 표기</th>
+                                <th scope="col">정상 완료</th>
+                                <th scope="col">반환 요구</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr id="function-return-ordinary">
+                                <td>i32·string 등 값 타입</td>
+                                <td>선언된 값을 생성합니다.</td>
+                                <td>모든 정상 경로에서 호환 값을 명시합니다.</td>
+                            </tr>
+                            <tr id="function-return-unit">
+                                <td>unit</td>
+                                <td>유일한 값을 생성합니다.</td>
+                                <td>모든 정상 경로에 return Unit.value();를 명시합니다.</td>
+                            </tr>
+                            <tr id="function-return-void">
+                                <td>void</td>
+                                <td>값 없이 완료합니다.</td>
+                                <td>본문 끝까지 진행하거나 값 없는 return;을 허용합니다.</td>
+                            </tr>
+                            <tr id="function-return-never">
+                                <td>never</td>
+                                <td>정상 완료할 수 없습니다.</td>
+                                <td>가짜 값이나 불가능한 반환은 요구하지 않습니다.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">unit complete_value() {
+    return Unit.value();
+}
+
+void complete_without_value() {
+    return;
+}
+
+void empty_action() {
+}</code></pre>
+                <p>unit은 컨테이너·Result에서 사용하는 일반 값 타입입니다. unit 반환 함수는 non-void입니다. void는 반환 위치 표시이며 저장 가능한 값이나 컨테이너 원소가 아닙니다. empty_action을 문장으로 호출한다고 unit 값이 암묵적으로 생성되지는 않습니다.</p>
+                <p>never에는 유효한 값이 없습니다. 기본 생성자·암묵적 0·가짜 결과가 존재하지 않습니다. 발산은 끝나지 않는 작업·종료·정말 반환하지 않는 다른 연산일 수 있으며 자원 동작은 그 연산 계약에 속합니다. never 선언만으로 정리를 보장하지는 않습니다.</p>
+                <p><a href="../data_type/Unit/Unit.html">unit과 void</a> · <a href="../data_type/Never/Never.html">never</a>
+                </p></section>
+            <section id="result-and-optional" aria-labelledby="result-and-optional-heading"><h2
+                    id="result-and-optional-heading">13. 오류와 부재도 일반 반환 값입니다</h2>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;i32, i32&gt; require_available(bool available, i32 value) {
+    if (available) {
+        return Result.ok(value);
+    }
+    return Result.err(404);
+}
+
+Optional&lt;i32&gt; maybe_value(bool present, i32 value) {
+    if (present) {
+        return Optional.some(value);
+    }
+    return Optional.none&lt;i32&gt;();
+}</code></pre>
+                <p>Err는 오류 페이로드를 담은 일반 완료이며 None은 부재를 나타냅니다. 예제는 래퍼 값을 명시적으로 반환합니다. Result 반환 함수는 Err를, Optional 반환 함수는 None을 후위 연산자로 전파할 수 있습니다: <code>?</code>. 일반적인 성공 반환에는 여전히 다음이 필요합니다:
+                    <code>return</code>. 선언된 반환형이 Result.ok·Result.err 생성자의 문맥을 제공합니다. 항목을 생성하는 것만으로 제어 흐름이 이동하지는 않습니다.</p>
+                <p>호출자는 선언된 Result 또는 Optional을 받습니다. <a
+                        href="../grammar/operators/Error_Propagation.html">후위 <code>?</code></a> 는 Ok·Some을 꺼내거나 호환되는 Result·Optional 반환 함수에서 Err·None을 명시적으로 반환합니다. <a
+                            href="../grammar/operators/Checked_Arithmetic.html"><code>checked(expression)</code></a>
+                    는 복구 가능한 계산에 대해 선택된 설계이며 구현된 0.2 구문은 아닙니다. 이름 있는 checked 산술 API도 카탈로그 상태를 유지합니다. 암묵적 unwrap·오류 변환·예외 포착 구문은 추가하지 않습니다. 소유 페이로드는 여전히 이동하고 대여 페이로드는 원본 수명의 제한을 받습니다.</p>
+                <p><a href="../data_type/Result/Result.html">Result</a> · <a href="../data_type/Optional/Optional.html">Optional</a>
+                </p></section>
+            <section id="diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">14. 진단 분류와 거부 예제</h2>
+                <p>이는 필수 의미 규칙에 따른 거부 분류이지 구현된 오류 코드나 정확한 컴파일러 메시지가 아닙니다. 의도적인 거부 코드는 data-expected=&quot;compile-error&quot; 메타데이터로 표시합니다. 이 문장들도 세미콜론을 사용합니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix"
+                                                                            data-language="aevix">// Rejected: bool is not the declared i32 return type.
+i32 wrong_result() {
+    return true;
+}</code></pre>
+                <div class="table-wrap">
+                    <div class="table-scroll" role="region"
+                         aria-label="진단 범주 및 거부된 예제 데이터 테이블">
+                        <table>
+                            <thead>
+                            <tr>
+                                <th scope="col">분류</th>
+                                <th scope="col">이유</th>
+                                <th scope="col">수정 방법</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr id="function-diagnostic-immutable">
+                                <th scope="row">불변 바인딩</th>
+                                <td>불변 매개변수나 참조 바인딩에 대입.</td>
+                                <td>지역 재대입이 목적일 때만 mut을 쓰세요.</td>
+                            </tr>
+                            <tr id="function-diagnostic-move">
+                                <th scope="row">이동한 소유 값</th>
+                                <td>값으로 이동한 뒤 소유 값 사용.</td>
+                                <td>대여하거나 소유권을 반환하거나 명시적으로 clone하세요.</td>
+                            </tr>
+                            <tr id="function-diagnostic-write">
+                                <th scope="row">쓰기 권한</th>
+                                <td>일반 불변 소유 값의 &amp;mut 또는 &amp;T를 통한 쓰기.</td>
+                                <td>mut 소유 값과 적절한 독점 대여를 사용하세요.</td>
+                            </tr>
+                            <tr id="function-diagnostic-overlap">
+                                <th scope="row">대여 충돌</th>
+                                <td>겹치는 저장소의 충돌하는 활성 대여.</td>
+                                <td>이전 대여를 끝내거나 영역이 실제로 분리됨을 증명하세요.</td>
+                            </tr>
+                            <tr id="function-diagnostic-return">
+                                <th scope="row">반환 계약</th>
+                                <td>반환 누락, 값 반환 함수의 값 없는 return, 호환되지 않는 결과 타입.</td>
+                                <td>모든 정상 경로에서 호환 값을 반환하세요.</td>
+                            </tr>
+                            <tr id="function-diagnostic-escape">
+                                <th scope="row">수명 이탈</th>
+                                <td>대여한 출력이 원본보다 오래 살아남을 수 있음.</td>
+                                <td>소유 값을 반환하거나 유효한 원본 수명을 확보하세요.</td>
+                            </tr>
+                            <tr id="function-diagnostic-void">
+                                <th scope="row">값 없는 완료</th>
+                                <td>void 완료를 저장 가능한 값으로 취급.</td>
+                                <td>값이 필요하면 unit 반환 계약을 사용하세요.</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <section id="costs-and-compilation" aria-labelledby="costs-and-compilation-heading"><h2
+                    id="costs-and-compilation-heading">15. 호출은 소유권·비용 계약을 유지합니다</h2>
+                <p>인라인, 불필요한 스칼라 복사 제거, 이동 표현의 최적화는 관찰 가능한 값·소유권·별칭 제한·선언된 실패를 보존해야 합니다. 값 입력은 깊은 복사를 조용히 허용하지 않습니다. 생성된 기계어가 주소를 통해 쓸 수 있다는 이유로 공유 대여에 일반 쓰기 권한이 생기지도 않습니다.</p>
+                <p>AOT와 JIT는 같은 함수 의미를 유지합니다. 이 구문만으로 Task를 예약하거나 GPU 작업을 제출하거나 버퍼를 전송하지 않습니다. Atomic·Mutex는 자신의 규칙 아래 공유 상태의 동기화된 수정을 허용할 수 있지만 임의의 &amp;T에 같은 권한이 생기지는 않습니다. 함수 선언은 안정된 외부 호출 규약을 보장하지 않습니다.</p></section>
+            <section id="closures" aria-labelledby="closures-heading"><h2 id="closures-heading">16. 명시적 클로저와 호출 가능 계약</h2>
+                <p>클로저는 캡처 목록, 타입이 있는 매개변수, 명시적인 다음 반환형, <code>-&gt; ReturnType</code>그리고 블록 본문을 선언합니다. 캡처는 명시적입니다: <code>[value]</code> 는 값을 이전하거나 복사하고, <code>[&amp;read]</code> 는 공유 저장소를 대여하며, <code>[&amp;mut write]</code> 는 독점 저장소를 대여합니다. 클로저 밖의 이름은 캡처하지 않으면 사용할 수 없습니다.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">i32 apply&lt;F&gt;(&amp;F callback, i32 value)
+    where F implements Fn&lt;Tuple&lt;i32&gt;, i32&gt; {
+    return callback(value);
+}
+
+void use_closures() {
+    i32 base = 40;
+    rsn add = [base](i32 value) -&gt; i32 {
+        return base + value;
+    };
+    i32 answer = apply(&amp;add, 2);
+
+    mut i32 total = 0;
+    mut rsn set = [&amp;mut total](i32 value) -&gt; void {
+        total = value;
+        return;
+    };
+    set(answer);
+    return;
+}</code></pre>
+                <p>클로저 표현식은 상위 선언의 세미콜론으로 끝납니다. non-void 클로저도 이름 있는 함수처럼 모든 정상 종료에서 값을 명시적으로 반환해야 합니다. void 클로저는 다음을 사용하거나 <code>return;</code> 본문 끝까지 진행할 수 있습니다. 다음 기호 뒤의 반환형은 <code>-&gt;</code> 필수이며 마지막 표현식은 암묵적 반환이 아닙니다.</p>
+                <div class="table-wrap"><div class="table-scroll" role="region" aria-label="폐쇄 호출 기능"><table><thead><tr><th scope="col">제약</th><th scope="col">receiver</th><th scope="col">현재 구현 범위</th></tr></thead><tbody>
+                <tr><td><code>Fn&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td><code>&amp;F</code></td><td>공유 호출. 읽기 전용 캡처와 공유 receiver임이 명확한 캡처 대상의 메서드.</td></tr>
+                <tr><td><code>FnMut&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td><code>&amp;mut F</code></td><td>호출이 캡처 환경을 바꿀 수 있으며 클로저 바인딩도 변경을 허용해야 합니다.</td></tr>
+                <tr><td><code>FnOnce&lt;Tuple&lt;Args...&gt;, Output&gt;</code></td><td><code>F</code></td><td>호출이 환경을 소비합니다. 현재 컴파일러는 값을 통해 소유한 non-Copy 캡처를 이렇게 분류하며 읽기에만 쓰는 소유 string도 포함합니다.</td></tr>
+                </tbody></table></div></div>
+                <p>Fn 클로저는 FnMut·FnOnce 요구도, FnMut 클로저는 FnOnce 요구도 충족합니다. 캡처한 대여는 일반 수명·독점성 검사를 유지합니다. 이 호출 제약은 정적 특수화를 사용하며 함수 포인터 변환·dyn 호출 객체 소거·암묵적 캡처·숨은 박싱을 추가하지 않습니다.</p>
+                <p class="callout warning"><strong>허용되지 않는 예제.</strong> non-void 클로저는 본문 끝까지 그냥 진행할 수 없습니다.</p>
+                <pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void missing_closure_return() {
+    rsn invalid = [](i32 value) -&gt; i32 {
+        value;
+    };
+    return;
+}</code></pre>
+            </section>
+            <section id="open-decisions" aria-labelledby="open-decisions-heading"><h2 id="open-decisions-heading">17. 구현된 추가 기능과 남은 제한</h2>
+                <p>제네릭 함수·오버로드·뒤쪽 상수 기본값·이름 지정 인수와 다음 <code>i32 values[]</code> 가변 매개변수 표기는 다음에서 정했습니다: <a href="../grammar/functions/index.html">함수와 호출</a>. 전체 모듈 경로와 import 조회는 다음에서 정했습니다: <a href="../grammar/modules/index.html">모듈과 import</a>. 명시적 캡처·타입 시그니처를 가진 클로저와 위의 정적 Fn/FnMut/FnOnce 계약은 구현되어 있습니다. 제네릭 함수 인수는 앞부분을 명시하고 나머지를 추론·뒤쪽 기본값으로 채울 수 있습니다. const 함수·함수 포인터형·독립적인 전방 선언 프로토타입·async/GPU 선언 문법은 이 범위에 없습니다. 초기 실행 진입 함수는 <a href="../grammar/foundations/Compilation_Model.html#entry-contract">i32 main()</a> 이며 선택한 진입 모듈에 둡니다. 반환 참조의 수명 표기·생략 규칙도 아직 미정입니다. 선택된 <code>public</code>/<code>private</code> 접근 권한 규칙은 다음에서 설명합니다: <a href="../grammar/scope_and_comments/Scope_and_Visibility.html">스코프와 접근 권한</a>. 모듈 함수와 접근 가능한 타입 메서드는 별도 프로토타입 없이 나중에 정의된 함수·메서드를 호출할 수 있습니다. 본문 전에 시그니처를 수집합니다. 지역 변수는 여전히 선언·초기화 순서를 따라야 합니다. 자세한 내용은 <a href="../roadmap/Functions_and_Errors_0_3.html#declaration-order">정의보다 앞선 호출</a>. 이 일반 함수 예제들이 전방 선언 프로토타입 구문을 도입하지는 않습니다. <a href="../grammar/interfaces/Interfaces.html">interface 필수 메서드</a> 는 본문 없는 메서드 선언을 사용합니다. 기본 메서드는 본문을 제공할 수 있으며 교체하려면 override가 필요합니다.</p>
+                <p>mut·rsn·const·persist는 변수 선언에 설명된 확정 개념입니다. const는 const 함수 한정자를 도입하지 않으며 persist는 정적 메서드나 함수 멤버가 아니라 저장 기간을 나타냅니다. 일반 불변 바인딩은 실행 중 결과로 초기화할 수 있습니다.</p>
+                <p>아래 1차 자료는 비교 목적으로 읽었습니다. Aevix는 이 페이지의 선택을 따르며 다른 언어의 암묵적 반환·프로토타입·기본 인수·ABI 규칙을 자동 도입하지 않습니다. 구현된 제네릭 호출·클로저 예제는 0.2 컴파일러로 확인했습니다. 연결된 설계 카탈로그가 그 실행 범위를 넓히지는 않습니다.</p>
+                <p><a href="Variable_Declaration.html">변수 선언</a> · <a href="../data_type/index.html">자료형 문서</a> · <a href="../data_type/Vector/Vector.html">Vector</a> · <a
+                        href="../data_type/Slice/Slice.html">Slice</a></p><p><a href="../grammar/generics/Generic_Types.html">사용자 정의 타입의 제네릭</a> 은 &lt;T&gt;를 사용하고 <a href="../grammar/generics/Type_Constraints.html">타입 제약</a> 은 where T implements Copy를 사용합니다. 제네릭 함수는 다음을 <code>&lt;T&gt;</code> 함수 이름 뒤에, 다음을 <code>where</code> 매개변수 목록 뒤에 둡니다. 여러 요구 사항은 쉼표로 나누고 대상을 반복합니다. 자세한 내용은 <a href="../grammar/functions/Generic_Functions.html">제네릭 함수</a>. enum도 struct의 타입 함수·self 메서드를 사용하고 일반 interface를 구현할 수 있습니다.</p></section>
+            <section id="Sources" aria-labelledby="Sources-heading"><h2 id="Sources-heading">18. 출처와 설계 참고 자료</h2>
+                <p>이 문서는 Aevix 규칙을 확정·미정으로 구분합니다. 1차 자료는 비교를 제공하며 다른 언어 규칙을 조용히 받아들이지 않습니다.</p>
+                <ul class="source-list">
+                    <li><a href="https://doc.rust-lang.org/reference/items/functions.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Reference — 함수(비교 자료)</a></li>
+                    <li><a href="https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html" target="_blank"
+                           rel="noopener noreferrer">The Rust Programming Language — 참조와 대여</a></li>
+                    <li><a href="https://eel.is/c++draft/dcl.fct" target="_blank" rel="noopener noreferrer">C++ 작업 초안 — 함수 선언자</a></li>
+                    <li><a href="https://eel.is/c++draft/stmt.return" target="_blank" rel="noopener noreferrer">C++ 작업 초안 — return 문장</a></li>
+                </ul>
+            </section>
+            <nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a
+                    href="Variable_Declaration.html"><span>이전 레퍼런스</span>변수</a></nav>
+        </article>
+    </div>
+    <footer class="page-footer"><span>Aevix 언어 · 선언 문서</span><span>Aevix 0.2 · 남은 설계 제한을 명시</span>
+    </footer>
+</main>
+</body>
+</html>

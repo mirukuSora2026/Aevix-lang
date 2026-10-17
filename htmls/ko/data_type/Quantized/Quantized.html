@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="검증된 정수 코드, 명시적 스케일, 의도된 정밀도 손실.">
+  <title>Quantized — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Quantized/Quantized.html">
+<link rel="alternate" hreflang="ko" href="Quantized.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Quantized.html" aria-current="true">Quantized</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Quantized.html">Quantized</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Quantized</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Quantized</h1><p class="doc-subtitle">검증된 정수 코드, 명시적 스케일, 의도된 정밀도 손실.</p><div class="doc-meta"><span class="meta-chip">Quantized&lt;Storage, Scheme&gt;</span><span class="meta-chip">Quantized. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>42</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>Q는</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#overview"><span class="toc-number">01</span><span>유효 숫자 의미를 가진 Integer 페이로드</span></a></li><li><a href="#notation"><span class="toc-number">02</span><span>계획, 기록 및 오류</span></a></li><li><a href="#formula"><span class="toc-number">03</span><span>affine 라운딩을 위한 정확한 순서</span></a></li><li><a href="#dequantization"><span class="toc-number">04</span><span>재구축 및 유한가치 정책</span></a></li><li><a href="#metadata-contract"><span class="toc-number">05</span><span>스케일, 제로 포인트 및 축별 소유권</span></a></li><li><a href="#arithmetic-contract"><span class="toc-number">06</span><span>Quantized 산술은 원시 byte 산술이 아닙니다.</span></a></li><li><a href="#construct-functions"><span class="toc-number">07</span><span>건설, 검증 및 메타데이터</span></a></li><li><a href="#conversion-functions"><span class="toc-number">08</span><span>정량화 및 숫자 변환</span></a></li><li><a href="#numeric-functions"><span class="toc-number">09</span><span>비교, 보정 방식 및 산술</span></a></li><li><a href="#examples"><span class="toc-number">10</span><span>눈금 및 반올림 표시 유지</span></a></li><li><a href="#interop"><span class="toc-number">11</span><span>교환 및 비용 경계</span></a></li><li><a href="#Sources"><span class="toc-number">12</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Quantized 페이지"><h2>Quantized 참조</h2><div class="family-links"><a href="Quantized.html" aria-current="page">Quantized</a><a href="Quantized_Affine.html">Affine 정량화</a><a href="Quantized_PerAxis.html">축당 정량화</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="Quantized.html" aria-current="true">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Quantized 참조">
+<section id="overview" aria-labelledby="overview-heading">
+<h2 id="overview-heading">1입니다. 유효 숫자 의미를 가진 Integer 페이로드
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 여기에 설명된 Quantized 및 quantization descriptors는 기본 전주곡과 구현된 0.2 type/API 하위 집합을 제외한 전문 라이브러리 디자인입니다. 최종 사용은 명시적인 가져오기가 필요하며, 이 카탈로그에서 내장된 0.2 모듈이 제공되지 않습니다. 가져오기 예제는 의도된 라이브러리 경계를 설명하며, 사용 가능한 0.2 백엔드 또는 패키지는 설명하지 않습니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>Quantized&lt;Storage, Scheme&gt;는 정수 페이로드와 불변의 양자화 메타데이터를 페어링하는 제안된 라이브러리 값입니다. 저장소는 하나의 정수 또는 정수 Tensor를 소유할 수 있습니다. Scheme은 정수 코드가 실제 값에 대응하는 방법을 설명합니다. 메타데이터는 페이로드 소유자에 한 번 첨부되며 모든 텐서 요소 옆에 복제되지 않습니다. Copy 및 이동 동작은 페이로드 및 메타데이터 소유권을 모두 따르며, 텐서 페이로드는 암시적으로 딥 카피되지 않습니다.
+</p>
+<p>초기 affine 프로파일은 i8, u8, i16 및 u16 정수 저장소를 f32 또는 f64 스케일로 제안합니다. 더 넓은 축산기, 포장된 저비트 형식 및 백엔드 확장에는 명시적인 기능이 필요합니다. FP8 형식은 자체 지수 및 NaN 규칙으로 부동 소수점 형식으로 유지되며, 확장된 정수의 별칭이 아닙니다. 일반적인 매개 변수 표기 및 지원 레코드는 ABI가 구현되지 않은 초안 라이브러리 디자인입니다.
+</p>
+</section>
+<section id="notation" aria-labelledby="notation-heading">
+<h2 id="notation-heading">2입니다. 계획, 기록 및 오류
+</h2>
+<p>Affine&lt;I, F&gt;는 1개의 유효하게 한 긍정적인 가늠자의 F 및 I.에서 대표할 수 있는 0 점을 저장합니다. PerAxis&lt;I, F&gt;는 축 플러스 소유 규모와 제로 포인트 배열을 저장합니다. I는 정수 저장소 유형이고 F는 부동 계산 유형입니다. 시그니처에서 Q는 이미 공유된 퀀타이드 입력: &amp;Quantized&lt;Storage, Scheme&gt; 또는 QuantizedView에 대한 카탈로그 변수입니다. R은 해당 실제 스칼라 또는 실제 텐서 view/input를 나타내며 S는 원시 페이로드 유형이며 I/F는 이러한 의미를 유지합니다. 퀀타이즈 입력을 소유하는 것은 호출시 &amp;owner를 사용합니다; 기존 QuantizedView는 직접 전달됩니다. Tensor 출력은 논리적 모양을 보존하고 Tensor에서 명시적인 배치 규칙을 사용합니다.
+</p>
+<p>QuantizationError는 InvalidScale, InvalidZeroPoint, NonFiniteInput, Range, Axis, MetadataLength, Shape, Overflow, Allocation, Unsupported 및 InvalidEncoding 케이스가 포함된 제안된 태그 오류 레코드입니다. ConversionError&lt;Owner&gt;는 실패한 표현 변환에서 소비된 소유자를 보존합니다. RoundingMode, QuantizationPolicy, PackedFormat 및 QuantizationReport는 라이브러리 레코드를 제안합니다. _in이라는 메서드는 호출자 저장소를 재사용하고 쓰기 전에 모든 메타데이터와 금지된 별칭을 검증합니다. 늦은 arithmetic/device 실패는 롤백이 아닙니다.
+</p>
+<p>QuantizationInputError&lt;Input&gt;는 소비 된 입력 소유자를 운반하는 제안 된 유효성 검사 오류입니다. 거부된 메타데이터 어레이가 복구 가능한 상태로 유지될 것을 계약이 약속할 때 사용됩니다. QuantizationError 단독으로는 암시적 형식 삭제 소유자가 없습니다.
+</p>
+<p>QuantizedView, SchemeView, ShapeLike, 실제 텐서 입력 뷰 및 MutRawView/MutRealView는 이미 빌린 설명자입니다. 실제 스칼라 입력은 Copy입니다. 값에 의해 전달된 구체적인 소유 매개변수는 메타데이터 벡터를 포함하여 소유자를 이동시킵니다. 매개 변수 형식은 정해집니다; return-reference lifetimes의 이름을 지정하는 정확한 문법은 여전히 개념적입니다.
+</p>
+</section>
+<section id="formula" aria-labelledby="formula-heading">
+<h2 id="formula-heading">3입니다. affine 라운딩을 위한 정확한 순서
+</h2>
+<p>유한 실수 입력 x, 스케일 s 및 정수 0 점 z의 경우 제안된 정수 공식은 q = clamp_I(round_mode(x / s) + z입니다. 분할은 명시 적으로 선택된 계산 유형 F에서 평가되며, 반올림은 정확한 정수 도메인 0 점 추가 전에 해당 비율에 적용됩니다. 기본 모드는 TiesEven입니다. checked 변형 오류는 반올림된 코드 더하기 z가 I 외부에 있을 때 발생합니다. 포화 변형은 정수 끝점에 고정됩니다. Integer 도메인 중간체는 구현 정수를 오버플로우해서는 안 됩니다.
+</p>
+<p>비율을 반올림 한 다음 홀수 0 점을 추가하는 것은 이동 비율을 반올림하는 것과 교환 할 수 없습니다. x/s = 0.5 및 z = 1를 사용하면이 계약은 TiesEven에서 1를 제공하는 반면 1.5는 2를 제공합니다. Import/export 어댑터는 모든 양자화 규정이 동등하다고 가정하기보다는 선택한 외부 운영자 버전과 참조 동작을 확인해야 합니다.
+</p>
+</section>
+<section id="dequantization" aria-labelledby="dequantization-heading">
+<h2 id="dequantization-heading">4입니다. 재구축 및 유한가치 정책
+</h2>
+<p>실제 재구성은 (q - z) * s입니다. 코드 뺄셈은 선언 된 부동 계산 유형으로 변환하기 전에 정확하게 수행됩니다. i8 또는 u8에서 뺄셈 및 래핑은 금지되어 있습니다. Dequantization은 엄격한 스칼라 프로파일 하에 부동 결과를 반환하며, 선택한 출력 유형이 재구성된 값을 나타낼 수 없는 경우 무한대로 오버플로우될 수 있습니다. 대신 checked_dequantize는 유한 결과를 필요로 하고 Range를 보고합니다.
+</p>
+<p>기본 양자화는 NaN 및 두 무한대를 거부합니다. 계산된 비율이 F를 초과한 유한한 x의 경우, 변환 포화도는 기호를 적절한 정수 엔드포인트로 매핑합니다. checked 변환은 Range를 보고합니다. 유한 정수로 반올림 된 비율은 정확한 정수 도메인으로 변환 된 다음 범위-checked로 변환됩니다. 어떤 성공 경로도 정의되지 않은 float-to-integer 변환에 의존하지 않습니다. F 또는 라운딩 모드를 변경하면 코드를 변경할 수 있으며 명시적이어야합니다.
+</p>
+</section>
+<section id="metadata-contract" aria-labelledby="metadata-contract-heading">
+<h2 id="metadata-contract-heading">5입니다. 스케일, 제로 포인트 및 축별 소유권
+</h2>
+<p>각 스케일은 유한하고 엄격하게 0보다 커야 합니다; -0, +0, NaN 및 무한대는 유효하지 않습니다. 모든 제로 포인트는 스토리지 유형 범위에 있습니다. Per-axis 배열은 선택된 텐서 넓이와 동일한 길이를 갖는다. Axis 유효성 검사는 순위 인식 방식이며 음수 축을 자동으로 정규화하지 않습니다. 선택한 축이 비어 있으면 비어있는 메타데이터 배열이 허용되며, 요소에 접근하지 않습니다. 빈 샘플 세트의 캘리브레이션은 여전히 오류입니다.
+</p>
+<p>연결된 페이로드 뷰 또는 대기열 작업이 사용하는 동안 유효성이 검사된 메타데이터는 변경할 수 없습니다. 메타데이터 업데이트는 새로운 검증된 스킴을 구성하고 값을 명시적으로 재정렬하거나 별도로 명명된 연산을 통해 숫자 의미를 재해석합니다. 내보낸 ABI 디스크립터는 메타데이터 소유권 또는 범위 대여을 유지합니다. 장치 제출은 페이로드의 CPU 사본을 묵시적으로 복사하지 않고 정지할 때까지 페이로드와 메타데이터 임대를 모두 유지합니다.
+</p>
+</section>
+<section id="arithmetic-contract" aria-labelledby="arithmetic-contract-heading">
+<h2 id="arithmetic-contract-heading">6입니다. Quantized 산술은 원시 byte 산술이 아닙니다.
+</h2>
+<p>정수 코드를 추가하거나 곱하는 것은 일반적으로 재구성 된 실제 값을 추가하거나 곱하는 것이 아닙니다. 따라서 라이브러리는 모든 산술 연산에서 입력 방식, 누산기 유형, 출력 방식 및 반올림 정책을 지정합니다. 점 곱셈 전에 점 곱셈 곱셈 곱셈 전에 점 곱셈을 빼고 명시적으로 선택된 축산기를 사용합니다. 별도로 명명된 포화 정책이 요청되지 않는 한 누적 오버플로는 checked입니다. Requantization은 의도적 인 손실 전환입니다.
+</p>
+<p>백엔드는 스케일 레이아웃, 라운딩, 누산기 및 채도 시맨틱이 오퍼레이션 계약과 일치하는 경우에만 정수 커널을 구현할 수 있습니다. AOT 및 JIT는 다른 양자화 의미를 자동으로 선택할 수 없습니다. 명시적 근사 커널은 선택적 숫자 프로파일에 속하며 error/rounding 가정을 보고해야 합니다. 이 참조에서는 네이티브 매트릭스 또는 SIMD 처리량을 약속하지 않습니다.
+</p>
+<p>페이로드 요소를 읽거나 변환하거나 비교하는 모든 준비 함수는 이 프로파일에서 quantize, dequantize, requantize, clone 및 same_encoding을 포함하여 Cpu 전용입니다. 메타데이터 전용 작업 및 뷰는 호스트에서 장치 요소를 읽지 않고도 장치 배치를 유지할 수 있습니다. GPU 등가물은 명시적인 Quantized.submit 작업 설명자와 return Pending를 사용합니다.
+</p>
+</section>
+<section id="construct-functions" aria-labelledby="construct-functions-heading">
+<h2 id="construct-functions-heading">7입니다. 건설, 검증 및 메타데이터
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="건설, 검증 및 메타데이터 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-affine"><td><code>Quantized.affine&lt;I, F&gt;(F scale, I zero_point)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>유한 긍정적 인 규모; 제로 포인트는 이미 입력 및 표현.</td><td>O(1); 힙 할당이 없습니다.</td>
+</tr>
+<tr id="Quantized-per_axis"><td><code>Quantized.per_axis&lt;I, F&gt;(usize axis, Vector&lt;F&gt; scales, Vector&lt;I&gt; zero_points, ShapeLike shape)</code></td><td><code>Result&lt;PerAxis&lt;I, F&gt;, QuantizationInputError&lt;(Vector&lt;F&gt;, Vector&lt;I&gt;)&gt;&gt;</code></td><td>유효 축과 그 범위와 일치하는 동일한 메타데이터 길이; 배열은 성공 시에만 소비되거나 오류 페이로드에서 반환됩니다.</td><td>O(channels); 유효성 검사.</td>
+</tr>
+<tr id="Quantized-from_raw"><td><code>Quantized.from_raw&lt;S, Scheme&gt;(S payload, Scheme scheme)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>scheme/payload 호환성을 검증합니다. 정수 저장소 유형의 모든 원시 코드를 표시할 수 있습니다.</td><td>O(metadata); 소유권 이동.</td>
+</tr>
+<tr id="Quantized-from_raw_copy"><td><code>Quantized.from_raw_copy(Slice&lt;I&gt; payload, Scheme scheme)</code></td><td><code>Result&lt;Quantized&lt;Vector&lt;I&gt;, Scheme&gt;, QuantizationError&gt;</code></td><td>명백한 페이로드 사본 및 메타데이터 유효성 검사.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Quantized-validate"><td><code>Quantized.validate(Q value)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>실제 값을 변환하지 않고 internal/foreign 메타데이터와 레이아웃을 검증합니다.</td><td>O(metadata + layout rank).</td>
+</tr>
+<tr id="Quantized-scheme"><td><code>Quantized.scheme(Q value)</code></td><td><code>SchemeView</code></td><td>읽기 전용 메타데이터는 소유자 수명에 묶여 있습니다.</td><td>O(1); 페이로드 복사본이 없습니다.</td>
+</tr>
+<tr id="Quantized-scale"><td><code>Quantized.scale(Q value)</code></td><td><code>Result&lt;F, QuantizationError&gt;</code></td><td>텐서당 스케일을 반환합니다. 하나의 채널을 선택하는 대신 축별 스킴을 거부합니다.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-zero_point"><td><code>Quantized.zero_point(Q value)</code></td><td><code>Result&lt;I, QuantizationError&gt;</code></td><td>tensor 구성표 당 스칼라 0 점만 반환합니다.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-storage_type"><td><code>Quantized.storage_type(Q value)</code></td><td><code>TypeDescriptor</code></td><td>Integer 코드 유형과 너비, 부동 계산 정밀도가 아닙니다.</td><td>O(1) 메타데이터.</td>
+</tr>
+<tr id="Quantized-shape"><td><code>Quantized.shape(Q value)</code></td><td><code>ShapeView</code></td><td>Tensor 페이로드 논리 모양; 스칼라 페이로드는 0 순위가 있습니다.</td><td>O(1); 빌린 메타데이터.</td>
+</tr>
+<tr id="Quantized-raw_view"><td><code>Quantized.raw_view(Q value)</code></td><td><code>RawView</code></td><td>읽기 전용 정수 페이로드 보기; 코드를 변경하려면 명시적 전용 작업이 필요합니다.</td><td>O(1); 사본 없음.</td>
+</tr>
+<tr id="Quantized-into_raw"><td><code>Quantized.into_raw(Quantized&lt;S, Scheme&gt; value)</code></td><td><code>S</code></td><td>래퍼를 사용하고 페이로드를 반환합니다. 뷰가 없거나 리스가 남아 있는 후에만 메타데이터를 삭제합니다.</td><td>O(1) 이동합니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="conversion-functions" aria-labelledby="conversion-functions-heading">
+<h2 id="conversion-functions-heading">8입니다. 정량화 및 숫자 변환
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="정량화 및 숫자 변환 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-quantize_checked"><td><code>Quantized.quantize_checked&lt;I, F&gt;(R input, Scheme scheme, RoundingMode rounding)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>유한 입력; 비율 반올림 후 정수 번역; 모든 범위 밖의 코드 오류.</td><td>O(N); 텐서 입력에 할당합니다.</td>
+</tr>
+<tr id="Quantized-quantize_saturating"><td><code>Quantized.quantize_saturating&lt;I, F&gt;(R input, Scheme scheme, RoundingMode rounding)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>유한 입력; 둥근 코드는 I로 고정; 비유한 입력은 여전히 오류입니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Quantized-quantize_into"><td><code>Quantized.quantize_into(MutRawView&lt;I&gt; output, R input, Scheme scheme, QuantizationPolicy policy)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>정확한 출력 형태와 별개의 input/output 스토리지; 명시적인 rounding/range 정책.</td><td>O(N); 결과 할당이 없습니다.</td>
+</tr>
+<tr id="Quantized-dequantize"><td><code>Quantized.dequantize&lt;F&gt;(Q value)</code></td><td><code>Result&lt;R, QuantizationError&gt;</code></td><td>정확한 정수 뺄셈은 그 때 F 변환과 엄격한 곱셈을 선언했다; 무한대는 유래할지도 모른다.</td><td>O(N); 텐서 출력 할당.</td>
+</tr>
+<tr id="Quantized-checked_dequantize"><td><code>Quantized.checked_dequantize&lt;F&gt;(Q value)</code></td><td><code>Result&lt;R, QuantizationError&gt;</code></td><td>동일한 평가가 필요하지만 복원 된 모든 결과가 유한합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Quantized-dequantize_into"><td><code>Quantized.dequantize_into(MutRealView&lt;F&gt; output, Q value)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>Shape/type checked; 선언된 F 계산 사용; IEEE 오버플로우 허용.</td><td>O(N); 발신자 대상.</td>
+</tr>
+<tr id="Quantized-requantize"><td><code>Quantized.requantize(Q value, Scheme target, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S2, Scheme&gt;, QuantizationError&gt;</code></td><td>이름있는 컴퓨팅 유형, 라운딩 및 범위 정책을 의미하는 명시적 decode/re-encode.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Quantized-requantize_into"><td><code>Quantized.requantize_into(MutRawView&lt;I2&gt; output, Q value, Scheme target, QuantizationPolicy policy)</code></td><td><code>Result&lt;unit, QuantizationError&gt;</code></td><td>동등한 모양 독점적인 산출로 명백한 lossy 재 코딩.</td><td>O(N); 숨겨진 스테이징 없음.</td>
+</tr>
+<tr id="Quantized-reinterpret_scheme"><td><code>Quantized.reinterpret_scheme(Quantized&lt;S, OldScheme&gt; value, NewScheme scheme)</code></td><td><code>Result&lt;Quantized&lt;S, NewScheme&gt;, ConversionError&lt;Quantized&lt;S, OldScheme&gt;&gt;&gt;</code></td><td>정수 코드를 변경하지 않고 수치 해석을 변경합니다. 호환성을 검증하고 오차 시 소유자를 유지합니다.</td><td>O(metadata); 요소 변환이 없습니다.</td>
+</tr>
+<tr id="Quantized-convert_storage"><td><code>Quantized.convert_storage&lt;I2&gt;(Q value)</code></td><td><code>Result&lt;Quantized&lt;S2, Scheme2&gt;, QuantizationError&gt;</code></td><td>정확한 코드와 제로 포인트 변환, 실제 구성표를 보존; 범위 실패 checked.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Quantized-min_real"><td><code>Quantized.min_real&lt;F&gt;(&amp;Scheme scheme)</code></td><td><code>Result&lt;F, QuantizationError&gt;</code></td><td>F에서 최소 코드를 재구성합니다; 요청된 finite result 오버플로우의 경우 오류.</td><td>O(1) 전용.</td>
+</tr>
+<tr id="Quantized-max_real"><td><code>Quantized.max_real&lt;F&gt;(&amp;Scheme scheme)</code></td><td><code>Result&lt;F, QuantizationError&gt;</code></td><td>F의 최대 코드를 재구성합니다. 요청된 경우 오류가 finite result overflows.</td><td>O(1) 전용.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="numeric-functions" aria-labelledby="numeric-functions-heading">
+<h2 id="numeric-functions-heading">9입니다. 비교, 보정 방식 및 산술
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="비교, 보정된 방식 및 산술 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Quantized-same_encoding"><td><code>Quantized.same_encoding(Q a, Q b)</code></td><td><code>bool</code></td><td>동일한 저장소 유형, 코드 값 및 scale/zero-point 표현; 구성표 간에 숫자적 평등이 아닙니다.</td><td>O(N + metadata).</td>
+</tr>
+<tr id="Quantized-equal_real"><td><code>Quantized.equal_real&lt;F&gt;(Q a, Q b)</code></td><td><code>Result&lt;bool, QuantizationError&gt;</code></td><td>명시적 F 재구성과 숫자 평등; 반올림은 서로 다른 정확한 유리수를 동일하게 비교할 수 있습니다.</td><td>O(N); 대략적인 공차가 함축되어 있지 않습니다.</td>
+</tr>
+<tr id="Quantized-compare_real"><td><code>Quantized.compare_real&lt;F&gt;(Q a, Q b)</code></td><td><code>Result&lt;Ordering, QuantizationError&gt;</code></td><td>스칼라 페이로드만; 선언된 F 재구성 값을 비교합니다.</td><td>O(1).</td>
+</tr>
+<tr id="Quantized-add"><td><code>Quantized.add&lt;A, F&gt;(Q a, Q b, Scheme output, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>모양 방송; 산술 evaluation/accumulator A 및 출력 레코딩 명시적.</td><td>O(N); 할당; Cpu 준비 양식.</td>
+</tr>
+<tr id="Quantized-subtract"><td><code>Quantized.subtract&lt;A, F&gt;(Q a, Q b, Scheme output, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>뺄셈은 원시 코드가 아닌 의미를 재구성했습니다; accumulator와 recoding이라고 이름지었습니다.</td><td>O(N); 할당; Cpu.</td>
+</tr>
+<tr id="Quantized-multiply"><td><code>Quantized.multiply&lt;A, F&gt;(Q a, Q b, Scheme output, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>스케일 팩터와 제로 포인트 모두에 대한 계정입니다. 원시 코드 곱셈 단축키가 없습니다.</td><td>O(N); 할당; Cpu.</td>
+</tr>
+<tr id="Quantized-dot"><td><code>Quantized.dot&lt;A&gt;(Q a, Q b, AccumulatorSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;A, QuantizationError&gt;</code></td><td>Rank-one 동일한 길이; 코드 오프셋, 스케일 해석 및 checked 누산기가 지정됩니다.</td><td>O(N); Cpu; 숨겨지은 quantize 없음.</td>
+</tr>
+<tr id="Quantized-matmul"><td><code>Quantized.matmul&lt;A&gt;(Q a, Q b, Scheme output, QuantizedMatmulSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>검증 된 contraction/batch 모양, 스케일 축 매핑, 누산기 및 출력 라운딩.</td><td>O(batch*M*N*K); 기능 checked.</td>
+</tr>
+<tr id="Quantized-sum"><td><code>Quantized.sum&lt;A&gt;(Q value, QuantizedReductionSpec&lt;A&gt; spec)</code></td><td><code>Result&lt;R, QuantizationError&gt;</code></td><td>이름있는 축과 순서; 명시적으로 선언 된 real/accumulator 출력을 반환하며 원시 코드 합계는 반환하지 않습니다.</td><td>O(N); Cpu입니다.</td>
+</tr>
+<tr id="Quantized-clamp"><td><code>Quantized.clamp(Q value, RealBounds bounds, QuantizationPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>지정된 유한 범위를 검증하고 임계값을 명시적으로 정량화하며 리코딩 정책을 보고합니다.</td><td>O(N) · 메모리를 할당합니다.</td>
+</tr>
+<tr id="Quantized-calibrate_minmax"><td><code>Quantized.calibrate_minmax&lt;I, F&gt;(R samples, CalibrationPolicy policy)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>비어있지 않은 유한한 샘플; 범위가 퇴화되려면 양수 최소 크기 정책 또는 오류라는 이름이 필요합니다.</td><td>O(N); 침묵하는 엡실론 없음.</td>
+</tr>
+<tr id="Quantized-calibrate_symmetric"><td><code>Quantized.calibrate_symmetric&lt;I, F&gt;(R samples, CalibrationPolicy policy)</code></td><td><code>Result&lt;Affine&lt;I, F&gt;, QuantizationError&gt;</code></td><td>부호 있는 스토리지, 제로 포인트 0; 범위 및 최소 규모의 전략 명시적.</td><td>O(N); 유한 샘플만.</td>
+</tr>
+<tr id="Quantized-error_report"><td><code>Quantized.error_report&lt;F&gt;(R original, Q quantized)</code></td><td><code>Result&lt;QuantizationReport&lt;F&gt;, QuantizationError&gt;</code></td><td>동등한 모양; 선언 된 F 재구성; max/mean 오류 및 채도 count를 사용할 수 있다고보고합니다.</td><td>O(N); 숨겨지은 본래 보유 없음.</td>
+</tr>
+<tr id="Quantized-clone"><td><code>Quantized.clone(Q value)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>페이로드 및 소유 메타 데이터의 명시적 깊은 사본; 뷰는 이름있는 소유자 생성을 통해서만 복사됩니다.</td><td>O(N + metadata); 할당합니다.</td>
+</tr>
+<tr id="Quantized-export_descriptor"><td><code>Quantized.export_descriptor(Q value)</code></td><td><code>QuantizedDescriptorView</code></td><td>수명 및 구성표 버전으로 ABI 중립적 인 설명을 대여했습니다. 안정적인 C 구조체 레이아웃이 아닙니다.</td><td>O(1) 설명자입니다.</td>
+</tr>
+<tr id="Quantized-import_descriptor"><td><code>Quantized.import_descriptor(ForeignQuantizedDescriptor descriptor, ImportPolicy policy)</code></td><td><code>Result&lt;Quantized&lt;S, Scheme&gt;, QuantizationError&gt;</code></td><td>lifetime/ownership, 모양, 스토리지 인코딩 및 정확한 외부 라운딩 의미 검증.</td><td>Validation/copy의 가격은 명확합니다.</td>
+</tr>
+<tr id="Quantized-submit"><td><code>Quantized.submit(&amp;Queue queue, QuantizedOp&lt;Inputs, Out&gt; operation, Inputs inputs)</code></td><td><code>Result&lt;Pending&lt;Out&gt;, SubmitError&gt;</code></td><td>장치 작업은 페이로드 및 구성 임대를 유지하며 숨겨진 Cpu 대체가 아닌 지원되지 않는 의미론 오류가 발생합니다.</td><td>- queued operation 을 수행한다.</td>
+</tr>
+<tr id="Quantized-supports"><td><code>Quantized.supports(DeviceId device, QuantizedOp&lt;Inputs, Out&gt; operation)</code></td><td><code>CapabilityReport</code></td><td>스토리지, 스케일 레이아웃, 누산기 및 라운딩 커널 지원을 별도로 확인합니다.</td><td>쿼리; 처리량 보장 없음.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">10입니다. 눈금 및 반올림 표시 유지
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;Affine&lt;i8, f32&gt;, QuantizationError&gt; scheme = Quantized.affine&lt;i8, f32&gt;(0.5, 0);
+// Given a validated scheme named parameters.
+Result&lt;Quantized&lt;i8, Affine&lt;i8, f32&gt;&gt;, QuantizationError&gt; code_value = Quantized.quantize_checked&lt;i8, f32&gt;(1.25, parameters, RoundingMode.TiesEven);</code></pre>
+<p>제한되지 않은 경우 문자 그대로 실제 기본값은 f64입니다. 위의 명시적인 일반 및 매개 변수 컨텍스트는 계산을 f32로 제한합니다. rsn는 고정 정적 유형을 추론 할 수 있지만 검증 된 affine 스키마를 동적 숫자 유형으로 전환하거나 Result를 지우지 않습니다. 가변 버퍼는 명시적인 mut 선언과 배타적 대여을 필요로 한다.
+</p>
+</section>
+<section id="interop" aria-labelledby="interop-heading">
+<h2 id="interop-heading">11입니다. 교환 및 비용 경계
+</h2>
+<p>페이로드 byte 덤프는 완전한 양자화된 값이 아닙니다. 스토리지 폭, 정수 서명, 축 의미, 스케일 정밀도, 영점, 반올림 순서 및 패킹 컨벤션이 필요합니다. 장치 레이아웃과 컴파일된 커널은 이러한 사실에 따라 달라질 수 있습니다. 교환 어댑터는 이를 보존하거나 명시적으로 변환해야 합니다. 직렬화는 네이티브 객체 메모리가 아닌 버전별 명시적 형식을 사용합니다.
+</p>
+<p><a href="Quantized_Affine.html">Affine 세부사항</a> · <a href="Quantized_PerAxis.html">축별 메타데이터</a> · <a href="../Tensor/Tensor.html">Tensor 소유권</a> · <a href="../Float/Float_8.html">FP8 형식</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">12. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://onnx.ai/onnx/operators/onnx__QuantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX Quantize리니어 오퍼레이터</a>
+</li>
+<li><a href="https://onnx.ai/onnx/operators/onnx__DequantizeLinear.html" target="_blank" rel="noopener noreferrer">ONNX Dequantize리니어 연산자</a>
+</li>
+<li><a href="https://mlir.llvm.org/docs/Dialects/QuantDialect/" target="_blank" rel="noopener noreferrer">MLIR 양자화 방언</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Quantized_Affine.html"><span>다음 레퍼런스</span>Affine 정량화</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

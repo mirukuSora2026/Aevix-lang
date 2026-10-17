@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="완전한 초기화, 개인 액세스 경계, 불변 소유자 및 checked 차입을 포함한 구체적인 이름 필드 값.">
+<title>구조체 — Aevix 문서</title>
+<link rel="stylesheet" href="../../../css/root.css?v=7">
+<link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/user_defined_types/Structs.html">
+<link rel="alternate" hreflang="ko" href="Structs.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">char</a><a href="../../data_type/Byte/Byte.html">byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Unit/Unit.html">unit</a><a href="../../data_type/index.html">29개 자료형 계열 전체</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+<nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">사용자 정의 타입</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">구조체</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">언어 디자인 참고</p><h1>구조체</h1><p class="doc-subtitle">완전한 초기화, 개인 액세스 경계, 불변 소유자 및 checked 차입을 포함한 구체적인 이름 필드 값.</p><div class="doc-meta"><span class="meta-chip">확정된 규칙 + 공개 결정</span><span class="meta-chip">영어 원문 문서</span></div><dl class="doc-stats"><div class="doc-stat"><dt>필드</dt><dd>기본적으로 사생활 보호</dd></div><div class="doc-stat"><dt>회사연혁</dt><dd>명명된 필드</dd></div><div class="doc-stat"><dt>소유권</dt><dd>기본적으로 이동</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>{ }</strong><span>구조체 값</span></div></header>
+<div class="docs-layout">
+<aside class="table" aria-label="레퍼런스 탐색">
+<details class="toc" open><summary>이 페이지의 내용</summary><ol>
+<li><a href="#declaration"><span class="toc-number">01</span><span>구조체와 그 필드 선언</span></a></li>
+<li><a href="#visibility"><span class="toc-number">02</span><span>기본적으로 필드 가시성은 비공개입니다.</span></a></li>
+<li><a href="#named-initialization"><span class="toc-number">03</span><span>필드 이름으로 초기화</span></a></li>
+<li><a href="#private-initialization"><span class="toc-number">04</span><span>초기 액세스는 checked</span></a></li>
+<li><a href="#evaluation-order"><span class="toc-number">05</span><span>초기화 표현식을 한 번, 왼쪽에서 오른쪽으로 평가</span></a></li>
+<li><a href="#mutability"><span class="toc-number">06</span><span>일반적인 필드 쓰기는 소유자 가변성을 따릅니다.</span></a></li>
+<li><a href="#borrowing"><span class="toc-number">07</span><span>값을 옮기지 않고 빌려준다.</span></a></li>
+<li><a href="#ownership"><span class="toc-number">08</span><span>기본값으로 전체 값 전송 이동</span></a></li>
+<li><a href="#scope"><span class="toc-number">09</span><span>로컬 및 이름이 모호하지 않게 유지</span></a></li>
+<li><a href="#cost-and-cleanup"><span class="toc-number">10</span><span>할당 및 정리 계약 분리</span></a></li>
+<li><a href="#open-decisions"><span class="toc-number">11</span><span>구조체 정책 열기</span></a></li>
+<li><a href="#related"><span class="toc-number">12</span><span>통화, Copy 및 제네릭 계속</span></a></li>
+</ol></details>
+<nav class="family-nav" aria-label="사용자 정의 타입 페이지"><h2>사용자 정의 타입</h2><div class="family-links">
+<a href="index.html">개요</a>
+<a href="Structs.html" aria-current="page">구조체</a>
+<a href="Methods_and_Factories.html">방법 및 팩토리</a>
+<a href="Copy.html">Copy 및 이동</a>
+</div></nav>
+<nav class="family-nav" aria-label="관련 언어 섹션"><h2>언어 레퍼런스</h2><div class="family-links"><a href="../index.html">문법 개요</a><a href="../foundations/index.html">기반</a><a href="index.html">사용자 정의 타입</a><a href="../enums/Enums.html">열거형</a><a href="../generics/Generic_Types.html">제네릭 타입</a><a href="../../declaration/index.html">선언</a><a href="../../data_type/index.html">자료형</a></div></nav>
+</aside>
+<article class="content" aria-label="구조체 참조">
+<section id="declaration" aria-labelledby="declaration-heading">
+<h2 id="declaration-heading">1입니다. 구조체와 그 필드 선언</h2>
+<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">struct Point {
+    public f64 x;
+    public f64 y;
+};
+
+Point origin = Point { x = 0.0, y = 0.0 };
+f64 horizontal = origin.x;</code></pre><p>변수 이름 앞에 형식 이름이 있습니다.The type name before the variable name. 모든 필드 선언과 변수 초기화는 세미콜론으로 끝납니다; 완전한 구조체 선언은 };로 끝납니다. 필드는 유형과 이름으로 선언됩니다. 이러한 예제는 이름이 아닌 명시적 형식을 사용합니다: 유형 구문.</p><p>포인트는 f64 필드가 Copy임에도 불구하고 이동 유형입니다. Copy 필드를 읽는 것은 전체 소유자를 전송하지 않고 해당 필드를 복사할 수 있습니다. 자동 집계 평등, 순서, 또는 물리적 표현이 함축되지 않습니다.</p>
+</section>
+
+<section id="visibility" aria-labelledby="visibility-heading">
+<h2 id="visibility-heading">2입니다. 기본적으로 필드 가시성은 비공개입니다.</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct User {
+    string name;
+    public i32 level;
+};</code></pre><div class="table-scroll" role="region" aria-label="Struct 필드 가시성">
+<table>
+<thead><tr>
+<th scope="col">필드 폼</th>
+<th scope="col">접근 경계</th>
+<th scope="col">변환 권한</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row"><code>string name;</code></th>
+<td>선언 형식에 대한 개인 정보입니다.</td>
+<td>가시성은 가변적인 소유자 또는 대여을 생성하지 않습니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>private string name;</code></th>
+<td>명시적 개인은 동일한 필드 액세스 경계를 가지고 있습니다.</td>
+<td>정상적인 대여 및 소유권은 여전히 적용됩니다.</td>
+</tr>
+<tr>
+<th scope="row"><code>public i32 level;</code></th>
+<td>형식 자체에 액세스할 수 있는 형식 외부에서 사용할 수 있습니다.</td>
+<td>일반적인 쓰기에는 쓰기 가능한 장소와 호환되는 전용 대여이 필요합니다.</td>
+</tr>
+</tbody>
+</table>
+</div><p>가시성 수정자는 로컬 바인딩이 아닌 module/type 선언에 속합니다. 공개 필드는 액세스 할 수없는 유형 경계를 통해 해당 포함 유형을 노출 할 수 없습니다. 다른 모든 선언 범주의 기본 표시는 필드 규칙으로 지정되지 않습니다.</p>
+</section>
+
+<section id="named-initialization" aria-labelledby="named-initialization-heading">
+<h2 id="named-initialization-heading">3입니다. 필드 이름으로 초기화</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point point = Point { x = 1.0, y = 2.0 };
+Point reordered = Point { y = 4.0, x = 3.0 };</code></pre><p>각 초기화 키는 선언된 필드를 선택합니다. 필드 표기은 목적지를 결정하고, 서면 순서는 표현 평가를 결정합니다. 이니셜라이저는 필수 필드 완전성, 중복 키, 알 수 없는 이름, 유형 호환성 및 액세스 권한을 확인합니다.</p><div class="table-scroll" role="region" aria-label="이름있는 초기화 검사">
+<table>
+<thead><tr>
+<th scope="col">조건</th>
+<th scope="col">선택한 결과</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row">필요한 필드가 누락되었습니다.</th>
+<td>컴파일 시간 거부; 부분적으로 초기화 된 안전한 구조체는 노출되지 않습니다.</td>
+</tr>
+<tr>
+<th scope="row">필드는 한 번 이상 지정됩니다.</th>
+<td>컴파일 시간 거부.</td>
+</tr>
+<tr>
+<th scope="row">알 수 없는 필드 이름이 지정되었습니다.</th>
+<td>컴파일 시간 거부.</td>
+</tr>
+<tr>
+<th scope="row">값이 호환되지 않는 필드 유형입니다.</th>
+<td>컴파일 시간 거부; 이미 입력된 숫자는 암시적 프로모션을 받지 못합니다.</td>
+</tr>
+<tr>
+<th scope="row">호출자가 지정한 개인 필드에 접근할 수 없습니다.</th>
+<td>컴파일 시간 거부.</td>
+</tr>
+</tbody>
+</table>
+</div><blockquote class="callout warning"><p><strong>예를 거부합니다.</strong> 이러한 조각은 의도적으로 별도의 이니셜라이저 규칙을 위반합니다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Point missing = Point { x = 1.0 }; // Invalid: y is missing.
+Point duplicate = Point { x = 1.0, x = 2.0, y = 3.0 }; // Invalid: duplicate x.
+Point unknown = Point { x = 1.0, y = 2.0, z = 3.0 }; // Invalid: no z field.
+i32 typed_integer = 1;
+Point wrong_type = Point { x = typed_integer, y = 2.0 }; // Invalid: typed i32 is not f64.</code></pre>
+</section>
+
+<section id="private-initialization" aria-labelledby="private-initialization-heading">
+<h2 id="private-initialization-heading">4입니다. 초기 액세스는 checked</h2>
+<p>명명된 이니셜라이저는 사설 필드 경계를 통한 이스케이프 해치가 아닙니다. 외부 코드는 단순히 이름을 표기으로 개인 필드를 설정할 수 없습니다. 필요한 개인 필드가 초기화되어야 하는 경우, 접근 가능한 타입-내부 팩토리은 초기화를 수행할 수 있고 return는 완전한 소유자가 될 수 있다.</p><blockquote class="callout warning"><p><strong>외부 조각이 거부되었습니다.</strong> User.name는 비공개입니다. 이 함수는 사용자 선언 외부에 있으며 이미 소유한 string를 수신합니다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">User invalid_external_initialization(string owned_name) {
+    return User { name = owned_name, level = 1 }; // Invalid: private name.
+}</code></pre><p>현재 <a href="Methods_and_Factories.html">팩토리 참고</a> 에서는 확정된 타입 내부 함수 문법을 설명합니다. 필드 기본값은 0.2 프로필에 포함되지 않습니다. 암시적인 0, 빈 string, 임시 대체 값을 넣어 주지 않습니다. <a href="../../roadmap/Convenience_0_3.html#fields">계획 0.3 필드 속기</a> 필요한 값을 생략하거나 개인 액세스를 우회하지 않고 지정된 이니셜라이저를 축약합니다.</p>
+</section>
+
+<section id="evaluation-order" aria-labelledby="evaluation-order-heading">
+<h2 id="evaluation-order-heading">5입니다. 초기화 표현식을 한 번, 왼쪽에서 오른쪽으로 평가</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">struct OrderSample {
+    public i32 first;
+    public i32 second;
+};
+
+i32 next(&amp;mut i32 running_count) {
+    return ++(*running_count);
+}
+
+mut i32 counter = 0;
+OrderSample ordered = OrderSample {
+    second = next(&amp;mut counter),
+    first = next(&amp;mut counter)
+};</code></pre><p>작성된 두 번째 표현식이 먼저 실행되고 1가 생성되며, 작성된 첫 번째 표현식이 2를 생성한다. 선언 순서는 관찰 가능한 이니셜라이저 효과를 재정렬하지 않습니다. 여기서 완료된 각 호출은 스칼라를 반환하고 대여을 보유하지 않으므로 다음 호출은 자체 독점 대여을 만들 수 있습니다.</p><p>나중에 실패하면 이전 효과 또는 이동된 입력이 롤백되지 않습니다. 기존 소유권 정리 규칙은 여전히 평가에 의해 소유 된 값을 관리합니다. 부분적으로 구성된 집계에 대한 정확한 진단 및 구현 메커니즘은 컴파일러 설계의 일부로 남아 있습니다.</p>
+</section>
+
+<section id="mutability" aria-labelledby="mutability-heading">
+<h2 id="mutability-heading">6입니다. 일반적인 필드 쓰기는 소유자 가변성을 따릅니다.</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point fixed = Point { x = 1.0, y = 2.0 };
+mut Point editable = Point { x = 1.0, y = 2.0 };
+editable.x = 3.0;</code></pre><p>일반 변경할 수 없는 소유자의 허가는 읽히지만 직접 필드는 기록하지 않습니다. mut는 소유자 수준의 쓰기 권한을 제공합니다. 가시성과 대여은 여전히 액세스를 허용해야 합니다. 공개 필드는 불변의 인스턴스를 가변으로 만들지 않습니다.</p><blockquote class="callout warning"><p><strong>글 쓰기를 거부했습니다.</strong> 고정은 일반적인 불변의 소유자입니다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">fixed.x = 3.0; // Invalid: immutable owner.</code></pre><p>내부 동기화 유형은 자체 계약을 유지합니다. 그들의 존재는 관련없는 불변의 필드에 임의의 쓰기를 부여하지 않습니다. 필드 당 불변성 수정자와 필드 기본값은 여기에 소개되지 않습니다.</p>
+</section>
+
+<section id="borrowing" aria-labelledby="borrowing-heading">
+<h2 id="borrowing-heading">7입니다. 값을 옮기지 않고 빌려준다.</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point point = Point { x = 5.0, y = 6.0 };
+&amp;Point read_view = &amp;point;
+f64 observed = (*read_view).x;
+
+mut Point editable = Point { x = 7.0, y = 8.0 };
+&amp;mut Point write_view = &amp;mut editable;
+(*write_view).x = 9.0;</code></pre><p>Shared 대여은 읽기 액세스를 보존하고 충돌하는 쓰기를 제외합니다. 독점 대여은 하나의 호환 가능한 기능을 통해 액세스를 허용하고 중복되는 충돌을 제외합니다. &amp;mut를 저장하는 불변의 바인딩 포인트는 참조자를 수정할 수 있다; 그 자체의 바인딩 가변성은 그 참조를 리바인딩하는 것에 관한 것이다.</p><p>명백한 변론은 의도적입니다. 필드 자동 역참조는 메서드 호출 편의 규칙에 의해 선택되지 않습니다. 대여은 그들의 근원 수명에 의해 경계 하 고, 입증 된 disjoint 필드 대여은 임의 중복을 허용 하지 않고 허용 될 수 있습니다.</p>
+</section>
+
+<section id="ownership" aria-labelledby="ownership-heading">
+<h2 id="ownership-heading">8입니다. 기본값으로 전체 값 전송 이동</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point initial = Point { x = 1.0, y = 2.0 };
+Point destination = initial;
+f64 observed = destination.x;</code></pre><p>대상은 포인트 소유자를 받습니다. 포인트가 Copy를 선택하지 않았기 때문에 이니셜은 더 이상 라이브 값으로 사용할 수 없습니다. 할당, 값 매개 변수 및 반환은 자동으로 딥 클로닝 필드가 아닌 선택한 소유권 모델을 따릅니다.</p><blockquote class="callout warning"><p><strong>사용을 거부했습니다.</strong> 주인은 이미 움직였다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">f64 stale = initial.x; // Invalid: initial was moved.</code></pre><p>Copy를 추가하는 것은 형식에 대한 별도의 명시적인 결정이며 컴파일러-checked입니다. 전체 값 전송은 물리적으로 memcpy, 포인터 전용 이동 또는 특정 스택 레이아웃을 약속하지 않습니다. 현장 수준의 부분 이동 및 사용자 정의 정리와의 상호 작용은 열려 있습니다.</p>
+</section>
+
+<section id="scope" aria-labelledby="scope-heading">
+<h2 id="scope-heading">9입니다. 로컬 및 이름이 모호하지 않게 유지</h2>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">Point point = Point { x = 1.0, y = 2.0 };
+{
+    f64 local_coordinate = point.x;
+    f64 adjusted_coordinate = local_coordinate + 1.0;
+}
+f64 outside_coordinate = point.y;</code></pre><p>로컬 이름은 어휘 영역과 하위 영역에서 사용할 수 있습니다. 새로운 변수는 보이는 변수를 포함하여 이미 보이는 변수를 숨기지 않아야 합니다. Public/private는 범위를 넓히거나 수명을 연장하기 위해 로컬 변수를 장식할 수 없습니다.</p><blockquote class="callout warning"><p><strong>섀도우를 거부한다.</strong> 내부는 눈에 띄는 소유자를 숨길 것입니다.</p></blockquote><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Point point = Point { x = 1.0, y = 2.0 };
+{
+    Point point = Point { x = 3.0, y = 4.0 }; // Invalid: visible-variable shadowing.
+}</code></pre><p>독립적인 열거형 스위치 브랜치는 개별적으로 선택된 스코프를 가지고 있습니다. <a href="../enums/Enums.html">열거형</a>. 이러한 필드 및 소유자 규칙은 다른 모든 선언 컨텍스트에서 형제 재사용을 독립적으로 결정하지 않습니다.</p>
+</section>
+
+<section id="cost-and-cleanup" aria-labelledby="cost-and-cleanup-heading">
+<h2 id="cost-and-cleanup-heading">10입니다. 할당 및 정리 계약 분리</h2>
+<p>명명된 이니셜라이저는 구체적인 값을 만듭니다. Type.new는 신체가 작업을 결정하는 일반적인 기능입니다. 표기은 Box 할당, 공유 소유권, 딥 클론 또는 CPU/GPU 전송을 암시적으로 요청하지 않습니다. 필드 이니셜라이저 또는 호출된 API는 자체적인 명시적 할당 및 리소스 비용을 가질 수 있습니다.</p><p>정상적인 스코프 출구에서 현재 소유된 초기화된 값은 설정된 소유권 규칙에 따라 한 번 청소됩니다. 이전 된 소유자는 목적지에서 청소되며 다시 원래 위치에서 청소되지 않습니다. 보존된 참조는 여전히 원래의 백업 소유자가 유효한 상태로 유지되어야 합니다.</p><div class="table-scroll" role="region" aria-label="가치 창출 및 자원 경계">
+<table>
+<thead><tr>
+<th scope="col">작동</th>
+<th scope="col">선택된 의미</th>
+<th scope="col">철자에서 유추되지 않음</th>
+</tr></thead>
+<tbody>
+<tr>
+<th scope="row"><code>Point { x = 1.0, y = 2.0 }</code></th>
+<td>완전히 초기화 된 구체적인 값을 만듭니다.</td>
+<td>힙 배치, 안정적인 외국 레이아웃 또는 자동 딥 카피.</td>
+</tr>
+<tr>
+<th scope="row"><code>Point.new(1.0, 2.0)</code></th>
+<td>선언된 receiverless 형식 함수를 호출합니다.</td>
+<td>특별한 생성자 할당 규칙.</td>
+</tr>
+<tr>
+<th scope="row"><code>Point destination = initial;</code></th>
+<td>비Copy 포인트에 대한 소유권을 이전합니다.</td>
+<td>CPU/GPU 전송 또는 복제.</td>
+</tr>
+<tr>
+<th scope="row"><code>&amp;point</code></th>
+<td>checked 읽기 대여을 만듭니다.</td>
+<td>소유권은 원래의 삶을 넘어서 확장됩니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section id="open-decisions" aria-labelledby="open-decisions-heading">
+<h2 id="open-decisions-heading">11입니다. 구조체 정책 열기</h2>
+<ul>
+<li>필드 기본 표현식, 대체 생략된 필드 메커니즘 및 초기화 update/spread 구문.</li>
+<li>사용자 정의 파괴자 표기, 집계 내의 필드 정리 순서 및 부분 이동 제한.</li>
+<li>필드 자동 역참조는 메서드 호출 차입 편의의 외부에 남아 있습니다. 0.2에서는 field/method 이름 충돌이 거부되며, 고유한 메서드 시그니처이 오버로드되고 나중에 정의된 메서드는 프로토타입 없이 호출될 수 있습니다. 더 보기 <a href="../functions/Overloading.html">과부하</a> 및 <a href="Methods_and_Factories.html">메서드 호출</a>.</li>
+<li>메모리 레이아웃, 정렬 지시어, ABI 보증, 외부 표현 주석.</li>
+<li>자동 비교, 연산자 파생, 상속 또는 공유 힙 ID는 여기에서 선택되지 않습니다.</li>
+<li>Reference-return 수명 주석 구문과 완전한 수정자 문법은 열려 있습니다.</li>
+</ul>
+</section>
+
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">12입니다. 통화, Copy 및 제네릭 계속</h2>
+<nav class="page-navigation" aria-label="관련 struct 참조">
+<a href="Methods_and_Factories.html"><span>의미론 호출</span><strong>방법 및 팩토리</strong><p>입력 된 수신기, 일반 팩토리 반환 및 명시적 또는 자동 차입.</p></a>
+<a href="Copy.html"><span>전송 시맨틱</span><strong>Copy 및 이동</strong><p>명시적 Copy 선언 및 전체 필드 검사.</p></a>
+<a href="../generics/Generic_Types.html"><span>형식 매개 변수</span><strong>일반 유형</strong><p>Angle-bracket 선언과 명시적 제약 조건.</p></a>
+</nav>
+</section>
+</article>
+</div>
+<footer class="page-footer"><span>Aevix 언어 · 사용자 정의 유형</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+</main>
+</body>
+</html>

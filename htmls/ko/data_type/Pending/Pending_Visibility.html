@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Quiescence, 성공, 메모리 도메인 및 호스트 가독성.">
+  <title>Pending 가시성 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Pending/Pending_Visibility.html">
+<link rel="alternate" hreflang="ko" href="Pending_Visibility.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Pending.html" aria-current="true">Pending</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="Pending.html" aria-current="true">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Pending.html">Pending</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Pending 가시성</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Pending 가시성</h1><p class="doc-subtitle">Quiescence, 성공, 메모리 도메인 및 호스트 가독성.</p><div class="doc-meta"><span class="meta-chip">CompletionToken / DeviceReady&lt;T&gt; / HostReady&lt;T&gt;</span><span class="meta-chip">Pending. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>12</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>…</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#distinctions"><span class="toc-number">01</span><span>4개의 개별 질문</span></a></li><li><a href="#order"><span class="toc-number">02</span><span>실행 순서 및 메모리 의존성</span></a></li><li><a href="#host"><span class="toc-number">03</span><span>호스트 획득 및 매핑</span></a></li><li><a href="#failure"><span class="toc-number">04</span><span>실패와 알 수없는 quiescence</span></a></li><li><a href="#bridge"><span class="toc-number">05</span><span>호스트 작업 및 가시성 증거</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>준비는 타이핑 된 증거입니다</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>백엔드 경계</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Pending 페이지"><h2>Pending 참조</h2><div class="family-links"><a href="Pending.html">Pending</a><a href="Pending_Transfer.html">Pending 전송</a><a href="Pending_Visibility.html" aria-current="page">Pending 가시성</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="Pending.html" aria-current="true">Pending</a></div></nav></aside><article class="content" aria-label="Pending 가시성 참조">
+<section id="distinctions" aria-labelledby="distinctions-heading">
+<h2 id="distinctions-heading">1입니다. 4개의 개별 질문
+</h2>
+<p>소비자는 생산자가 자원에 대한 접근을 중단했는지, 성공했는지, 그 기록이 소비자 도메인에서 볼 수 있는지, 그리고 소비자가 스토리지를 다룰 수 있는지 여부를 구별해야 한다. 완성된 실패는 유효한 산출 없이 quiescent 일 수 있다. 성공적인 장치 지원 스토리지는 호스트 포인터에 계속 액세스할 수 없습니다. 이러한 사실은 확인되지 않은 bool 하나로 압축할 수 없습니다.
+</p>
+<p>CompletionToken은 유지된 세대별 의존성 기능입니다. DeviceReady&lt;T&gt;는 성공적인 출력을 장치 사용 준비성과 페어링합니다. HostReady&lt;T&gt;는 또한 소유권이나 매핑 대여을 유지하면서 지원되는 호스트 액세스 및 필요한 acquire/cache 작업을 증명합니다. 아무도 관련없는 할당이나 미래의 제출을위한 보편적 인 울타리가 아닙니다.
+</p>
+</section>
+<section id="order" aria-labelledby="order-heading">
+<h2 id="order-heading">2입니다. 실행 순서 및 메모리 의존성
+</h2>
+<p>대기열 순서는 선택한 대기열 프로필에서 명령이 실행될 때를 결정합니다. 메모리 의존성은 또한 관련 쓰기를 사용할 수 있게 하고 특정 소비자가 볼 수 있게 합니다. 교차 큐 또는 교차 장치 사용에는 명시적 어댑터 지원 종속성 및 메모리 도메인 전환이 필요합니다. 가시성이 설정되지 않은 경우 읽기 후 쓰기 종속성에 대한 실행 전용 이벤트가 충분하지 않습니다.
+</p>
+<p>종속성 이름 생성, 할당 액세스, 소비자 queue/domain 및 관련 액세스 모드. 네이티브 이벤트 객체를 재사용하려면 새로운 토큰 생성이 필요합니다. 외부 토큰을 가져오려면 문서화된 생산자 범위와 소유권 수명이 필요합니다; 원시 정수 이벤트 핸들은 이러한 사실을 증명할 수 없습니다. 종속성 주기와 호환되지 않는 장치 ID는 감지 가능한 경우 checked 오류입니다.
+</p>
+</section>
+<section id="host" aria-labelledby="host-heading">
+<h2 id="host-heading">3입니다. 호스트 획득 및 매핑
+</h2>
+<p>호스트 획득은 호스트 액세스 가능한 출력에만 허용됩니다. 필요한 성공적인 완료를 기다리거나 확인하고, 필요할 때 백엔드 캐시 무효화 또는 도메인 작업을 수행하고 호스트 액세스 대여 또는 소유자를 부여합니다. 장치 전용 할당 return UnsupportedHostAccess; 호출자는 명시적 다운로드를 요청합니다. 공유 가상 주소만으로는 충분하지 않습니다.
+</p>
+<p>매핑은 할당을 유지하고 매핑된 대여에 대해 충돌하는 장치 액세스를 금지합니다. 호스트 맵을 해제하려면 후속 장치가 읽기 전에 명시적인 release/flush 작업이 필요할 수 있습니다. 일관된 메모리 능력은 순서 및 대여 배타성을 그대로 유지하면서 특정 캐시 단계를 제거 할 수 있습니다. Safe API는 초기화되지 않았거나 부분적으로 실패한 출력을 일반 초기화된 Slice로 노출해서는 안 됩니다.
+</p>
+</section>
+<section id="failure" aria-labelledby="failure-heading">
+<h2 id="failure-heading">4입니다. 실패와 알 수없는 quiescence
+</h2>
+<p>정지 실행 오류는 출력 유효성과 함께 실패한 작업에서 더 이상 액세스할 수 없음을 보고합니다. 자원 정리 및 대여 대여은 선언 된 보고서를 따를 수 있습니다. 장치 또는 세션 손실은 정지를 알 수 없게 할 수 있습니다. 이 경우 정상적인 오류 return는 장치가 여전히 액세스 할 수있는 메모리에 대한 할당, 변경 또는 범위 종료를 승인해서는 안됩니다.
+</p>
+<p>어댑터는 안전한 일시 중지, retain/quarantine 소유 저장소를 설정하거나 빌린 저장소를 릴리스하기 전에 명시적으로 치명적인 종료 정책을 사용해야 합니다. 댕글링 있는 장치 참조를 사용하여 안전 코드로 돌아가는 것은 금지되어 있습니다. 시간 초과 또는 취소 요청은 사용자가 더 이상 결과에 신경 쓰지 않더라도 이 증명을 대신할 수 없습니다.
+</p>
+</section>
+<section id="bridge" aria-labelledby="bridge-heading">
+<h2 id="bridge-heading">5입니다. 호스트 작업 및 가시성 증거
+</h2>
+<p>Pending를 기다리는 호스트 Task는 장치 완성을 스케줄러와 통합할 수 있습니다. 동일한 장치 리소스 임대를 유지하며 호스트 일관성을 발명하지 않습니다. Gpu 텐서를 생성하는 Task는 Cpu 인덱싱 전에 다운로드를 요구하면서 장치 지원 값을 성공적으로 수행할 수 있습니다. 작업 scheduling/lifecycle 실패가 장치 Result를 둘러싸고 있습니다.
+</p>
+<p>잠금 및 호스트 원자는 장치 메모리 가시성을 자동으로 설정하지 않습니다. Shared&lt;T&gt; 참조 카운팅은 메모리를 유지하지만 GPU 캐시를 플러시하거나 동시 변경를 허용하지 않습니다. 장치 범위 완료, 호스트 획득 및 명시적 릴리스는 법적 핸드오프 포인트를 정의합니다. 정확한 대상 장벽은 어댑터 책임이며 언어 수준 bool의 암묵적인 결과는 아닙니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 준비는 타이핑 된 증거입니다
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">// Given an accepted submission whose output is host-accessible.
+mut Pending&lt;HostBuffer&lt;f32&gt;&gt; pending_host_output = prepared_host_output;
+Result&lt;Optional&lt;HostReady&lt;HostBuffer&lt;f32&gt;&gt;&gt;, DeviceError&gt; readable = Pending.acquire_host(&amp;mut pending_host_output);
+// Existing producer token is moved into a dependency on the borrowed destination queue.
+Result&lt;QueueDependency, DeviceError&gt; ordered = Pending.after(&amp;consumer_queue, producer_token);</code></pre>
+<p>누락된 읽을 수 있는 값은 복용을 위해 출력을 사용할 수 없음을 의미합니다. 성공적인 주문 의존성은 선언된 생산자-소비자 관계를 스케줄링한다; 그것은 어느 하나의 할당에 즉각적인 호스트 접근을 주지 않는다.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Pending-quiescence"><td><code>Pending.quiescence(&amp;Pending&lt;T&gt; operation)</code></td><td><code>Quiescence</code></td><td>ProvenActive, ProvenQuiescent 또는 Unknown 분류; 알 수없는 never는 대여을 출시합니다.</td><td>비차단 query/report.</td>
+</tr>
+<tr id="Pending-visibility"><td><code>Pending.visibility(&amp;Pending&lt;T&gt; operation)</code></td><td><code>VisibilityReport</code></td><td>준비된 소비자 도메인 및 뛰어난 획득 요구 사항 선언.</td><td>진단 쿼리; 액세스 권한이 없습니다.</td>
+</tr>
+<tr id="Pending-validate_dependency"><td><code>Pending.validate_dependency(&amp;CompletionToken producer, &amp;Queue consumer, AccessSpec access)</code></td><td><code>Result&lt;DependencyReport, DeviceError&gt;</code></td><td>생성, 장치, 액세스 범위 및 호환 가능한 메모리 전환을 확인합니다.</td><td>호스트 유효성 검사; 백엔드를 쿼리할 수 있습니다.</td>
+</tr>
+<tr id="Pending-acquire_device"><td><code>Pending.acquire_device(DeviceReady&lt;T&gt; value, &amp;Queue consumer, AccessSpec access)</code></td><td><code>Result&lt;DeviceReady&lt;T&gt;, DeviceError&gt;</code></td><td>명시적 장치 소비자 dependency/visibility 전환; 호스트 전송 없음.</td><td>barrier/wait를 저장할 수 있습니다.</td>
+</tr>
+<tr id="Pending-map_host"><td><code>Pending.map_host(HostReady&lt;T&gt; value, HostAccess access)</code></td><td><code>Result&lt;HostMap&lt;T&gt;, DeviceError&gt;</code></td><td>호스트 주소를 지정할 수 있는 초기화된 저장소에 대해서만 범위가 지정된 맵 대여을 생성합니다. checked.</td><td>5월 map/invalidate; 암시적 대량 다운로드가 없습니다.</td>
+</tr>
+<tr id="Pending-host_slice"><td><code>Pending.host_slice(&amp;HostMap&lt;T&gt; mapping)</code></td><td><code>Slice&lt;T&gt;</code></td><td>빌린 초기화된 호스트 요소; 맵보다 오래 살 수 없거나 독점 장치 사용과 충돌할 수 없습니다.</td><td>O(1); 호스트 읽기 가능한 매핑만.</td>
+</tr>
+<tr id="Pending-host_slice_mut"><td><code>Pending.host_slice_mut(&amp;mut HostMap&lt;T&gt; mapping)</code></td><td><code>MutSlice&lt;T&gt;</code></td><td>독점 초기화된 호스트 요소; 맵 접근 모드는 반드시 쓰기를 허용해야 합니다.</td><td>O(1); 지도 대여 유지.</td>
+</tr>
+<tr id="Pending-release_host"><td><code>Pending.release_host(HostMap&lt;T&gt; mapping, &amp;Queue consumer)</code></td><td><code>Result&lt;DeviceReady&lt;T&gt;, DeviceError&gt;</code></td><td>호스트 맵, flushes/releases를 필요에 따라 사용하고 법적 장치 핸드 오프를 설정합니다.</td><td>동기화 가능; 충돌하는 동시 접근 없음.</td>
+</tr>
+<tr id="Pending-token_generation"><td><code>Pending.token_generation(&amp;CompletionToken token)</code></td><td><code>SubmissionGeneration</code></td><td>불변의 세대 정체성; 새로운 네이티브 이벤트 기록을 인증할 수 없습니다.</td><td>O(1).</td>
+</tr>
+<tr id="Pending-import_token"><td><code>Pending.import_token(ForeignCompletion descriptor, ImportPolicy policy)</code></td><td><code>Result&lt;CompletionToken, DeviceError&gt;</code></td><td>검증 된 소유권, 생성, 완료 범위 및 메모리 도메인 시맨틱이 필요합니다.</td><td>어댑터 관련 오류 가능성 가져오기.</td>
+</tr>
+<tr id="Pending-session_status"><td><code>Pending.session_status(&amp;DeviceContext device)</code></td><td><code>DeviceSessionStatus</code></td><td>healthy/lost/quarantined 상태를 보고합니다. 모든 리스가 정지된 것으로는 증명되지 않습니다.</td><td>런타임 쿼리입니다.</td>
+</tr>
+<tr id="Pending-drain_device"><td><code>Pending.drain_device(&amp;DeviceContext device)</code></td><td><code>Result&lt;DeviceDrainReport, DeviceError&gt;</code></td><td>허용된 추적 작업에 대한 일시 중지를 설정하거나 복구할 수 없는 세션 정책을 따릅니다. never는 오류가 발생하면 라이브 빌린 저장소를 해제합니다.</td><td>기대해도 좋고, 완성도가 높지 않습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 백엔드 경계
+</h2>
+<p>장치 어댑터는 제안된 계약을 실제 큐, 이벤트, 캐시 및 할당 규칙에 매핑해야 합니다. CUDA 및 Vulkan 소스는 비동기 명명, 이벤트 완료 및 메모리 가시성이 하나의 보편적 보증으로 처리 될 수없는 이유를 보여줍니다. 이 문서는 필요한 동작을 지정합니다; 어떤 장치에서도 작동 구현을 증명하지 않습니다.
+</p>
+<p><a href="Pending.html">Pending 공통 참조</a> · <a href="Pending_Transfer.html">전송</a> · <a href="Pending_Visibility.html">접근 권한</a> · <a href="../Tensor/Tensor_Device.html">Tensor 장치 작동</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/cuda_runtime_api/group__CUDART__EVENT.html" target="_blank" rel="noopener noreferrer">CUDA 런타임 이벤트 관리</a>
+</li>
+<li><a href="https://docs.nvidia.com/cuda/cuda-runtime-api/api-sync-behavior.html" target="_blank" rel="noopener noreferrer">CUDA API 동기화 동작</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/chapters/synchronization.html" target="_blank" rel="noopener noreferrer">Vulkan 동기화 및 메모리 종속성</a>
+</li>
+<li><a href="https://docs.vulkan.org/spec/latest/appendices/memorymodel.html" target="_blank" rel="noopener noreferrer">Vulkan 메모리 모델</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Pending_Transfer.html"><span>이전 레퍼런스</span>Pending 전송</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

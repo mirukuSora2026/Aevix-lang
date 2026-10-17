@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="빌린 작업은 저장 공간이 범위를 떠나기 전에 완료됩니다.">
+  <title>Task 범위 — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Task/Task_Scope.html">
+<link rel="alternate" hreflang="ko" href="Task_Scope.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Task.html" aria-current="true">Task</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Task.html">Task</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Task 범위</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Task 범위</h1><p class="doc-subtitle">빌린 작업은 저장 공간이 범위를 떠나기 전에 완료됩니다.</p><div class="doc-meta"><span class="meta-chip">TaskScope / LocalTaskScope</span><span class="meta-chip">Task. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 초안</dd></div><div class="doc-stat"><dt>함수</dt><dd>12</dd></div><div class="doc-stat"><dt>실행</dt><dd>AOT / JIT</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>작업</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#lifetime"><span class="toc-number">01</span><span>범위 경계는 수명 증명입니다.</span></a></li><li><a href="#exit"><span class="toc-number">02</span><span>일반 return, 초기 return 및 풀림</span></a></li><li><a href="#capture"><span class="toc-number">03</span><span>읽기, 독점 및 소유 캡처</span></a></li><li><a href="#result"><span class="toc-number">04</span><span>결과, 실패 및 입학 마감</span></a></li><li><a href="#locks"><span class="toc-number">05</span><span>서스펜션 및 동기화</span></a></li><li><a href="#examples"><span class="toc-number">06</span><span>범위는 의무 부담 값입니다.</span></a></li><li><a href="#functions"><span class="toc-number">07</span><span>특수 함수 참조</span></a></li><li><a href="#related"><span class="toc-number">08</span><span>설계 요구 사항 및 소스</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Task 페이지"><h2>Task 참조</h2><div class="family-links"><a href="Task.html">Task</a><a href="Task_Scope.html" aria-current="page">Task 범위</a><a href="Task_Cancellation.html">Task 취소</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="Task.html" aria-current="true">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Task 범위 참조">
+<section id="lifetime" aria-labelledby="lifetime-heading">
+<h2 id="lifetime-heading">1입니다. 범위 경계는 수명 증명입니다.
+</h2>
+<p>작업 범위는 자녀 작업이 캡처된 빌린 저장소에 액세스할 수 있는 간격을 정의합니다. 빌린 환경은 그 간격을 극복해야합니다. 범위에 의해 허용 된 모든 어린이는 실행되기 전에 등록됩니다. 범위 완료는 입학을 종료하고 허용 된 자녀가 더 이상 대여에 액세스 할 수 없을 때까지 기다립니다. 어린이 핸들은 수명 보증의 원천이 아닌 결과를 관찰하는 방법입니다.
+</p>
+<p>로컬 배열을 빌리는 범위는 더 긴 수명 컨테이너에 반환, 분리 또는 저장할 수 없습니다. Task 핸들을 이동하면 빌린 저장소가 소유자로 이동되지 않습니다. 컴파일러는 코드가 나중에 참여하려는 경우에도 이스케이프 관계를 거부합니다. 런타임 추적은 핸들을 잊어버린 후에 허용된 작업을 독립적으로 처리합니다.
+</p>
+</section>
+<section id="exit" aria-labelledby="exit-heading">
+<h2 id="exit-heading">2입니다. 일반 return, 초기 return 및 풀림
+</h2>
+<p>Normal scope exit은 명시적인 조인 경계입니다. 초기 return는 빌린 값을 파괴하기 전에 동일한 필요한 드레인을 통해 라우팅해야 합니다. unwind 가 선택된 런타임 프로파일의 일부인 경우, unwind 중에 취소가 요청될 수 있지만, 모든 사용이 중단될 때까지 구현은 빌린 저장소를 해제할 수 없습니다. 정리 중 두 번째 실패는 라이브 참조와 함께 안전한 Result를 발명하는 대신 선택한 치명적인 정책을 따릅니다.
+</p>
+<p>안전한 완료를 설정할 수 없는 런타임은 스토리지를 보존하거나 치명적인 정책에 따라 종료해야 합니다. 자식 참조를 사용하여 호출자를 다시 시작할 수 없습니다. 이것은 메모리 안전 요구 사항이며 무제한 대기로 이어질 수 있습니다. 이는 임의의 애플리케이션 코드가 협력하거나 종료된다는 것을 의미하지는 않습니다.
+</p>
+</section>
+<section id="capture" aria-labelledby="capture-heading">
+<h2 id="capture-heading">3입니다. 읽기, 독점 및 소유 캡처
+</h2>
+<p>읽기 전용 캡처는 요소 유형이 관련 공유 규칙을 충족할 때 공유할 수 있습니다. 독점 캡처는 자녀 간격에 대해 고유 한 대여을 이체합니다. 가변 컬렉션을 분리된 슬라이스로 분할하면 독립적인 작업이 가능하지만 중복될 수 있는 두 인덱스 범위는 거부되거나 산란 전에 checked가 됩니다. Shared&lt;T&gt;는 할당을 유지하고 T에 대한 스레드 안전 액세스를 자동으로 설정하지 않습니다.
+</p>
+<p>Owned captures는 값을 작업으로 옮기고 숨겨진 환경 대여이없는 경우 명시적인 분리를 지원할 수 있습니다. Scope-owned 작업은 캡처가 Scope보다 오래 지속될 수 있는 경우에도 기본적으로 결합됩니다. LocalTaskScope 는 non-Send 값만 허용하지만 실행은 호환 가능한 로컬 실행기에 머물러 있습니다.
+</p>
+</section>
+<section id="result" aria-labelledby="result-heading">
+<h2 id="result-heading">4입니다. 결과, 실패 및 입학 마감
+</h2>
+<p>모든 작업 결과는 한 번에 수행 할 수 있습니다. 범위 보고서는 어린이가 반환한 Result를 자동으로 평평하게 만들지 않고 모든 어린이가 안전한 후에 관찰되지 않은 수명 주기 결과를 수집합니다. 응용 프로그램 오류는 일반적인 반환 값으로 남아 있습니다. 닫는 입장은 새로운 산란 시도를 거절한다; 그것은 이미 받아 들여진 아이들을 취소하지 않거나 즉시 캡처 한 데이터를 파괴하지 않는다.
+</p>
+<p>닫는 동안 동적 자식 생성은 명확한 등록 선형화 지점이 필요합니다. 등록이 성공하고 자녀가 드레인 세트에 속하거나 작업이 시작되기 전에 실패합니다. 일반 스폰은 작업 값을 소비하고 실패 시 시작되지 않은 캡처를 안전하게 파괴합니다. API는 return를 형식화된 소유권 보존 오류 페이로드로 재사용할 것을 약속합니다. 등록되지 않은 작업은 스코프 데이터를 빌리거나 시작할 수 없습니다. 정상 작동 중에 실패를 요약한 보고서가 할당될 수 있으며, 필요한 안전 정리는 성공적인 늦은 할당에 의존해서는 안 됩니다.
+</p>
+</section>
+<section id="locks" aria-labelledby="locks-heading">
+<h2 id="locks-heading">5입니다. 서스펜션 및 동기화
+</h2>
+<p>안전 프로파일은 비동기 서스펜션을 통해 잠금 가드를 운반하고 가드를 장치 작업에 전달하는 것을 금지합니다. 수율, 수면, 아이를 기다리거나 GPU 작업을 제출하기 전에 해제하십시오. 이것은 대여 범위와 호환됩니다 : 수명 안전한 캡처는 다른 어린이가 필요로하는 자원을 보유하고 있다면 교착 상태가 발생할 수 있습니다.
+</p>
+<p>executor worker 내부의 blocking join은 단일 스레드 스케줄러를 교착시킬 수 있습니다. 런타임은 호환되지 않는 차단 컨텍스트를 진단하거나 명시적으로 차단 실행자 경계가 필요합니다. 다중 관찰자로부터 동일한 작업을 기다리는 것은 T의 다중 이동을 허용하지 않습니다; 관찰과 배타적 인 작업은 다른 작업으로 남아 있습니다.
+</p>
+</section>
+<section id="examples" aria-labelledby="examples-heading">
+<h2 id="examples-heading">6입니다. 범위는 의무 부담 값입니다.
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Result&lt;TaskScope, SpawnError&gt; opened = Task.open_scope(&amp;executor, scope_options);
+// After handling opened as active_scope and preparing lifetime-safe work.
+Result&lt;Task&lt;i32&gt;, SpawnError&gt; child = Task.spawn&lt;i32&gt;(&amp;active_scope, borrowed_work);
+// At the required explicit boundary, after resolving handle ownership.
+Result&lt;ScopeReport, ScopeError&gt; report = Task.close_scope(active_scope);</code></pre>
+<p>TaskScope는 특별히 렉시컬 규칙과 런타임 레지스트리에 의해 추적된다; 핸들들의 리스트를 조인하는 소멸자를 작성하는 것은 그 자체로 불충분하다. 이 예제는 미래의 scope-body 구문이 어떻게 그 경계를 철자할지 선택하지 않습니다.
+</p>
+</section>
+<section id="functions" aria-labelledby="functions-heading">
+<h2 id="functions-heading">7입니다. 특수 함수 참조
+</h2>
+<div class="table-wrap">
+<div class="table-scroll" role="region" aria-label="특수 함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th>함수 시그니처</th><th>반환</th><th>계약</th><th>Cost / availability</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Task-scope_id"><td><code>Task.scope_id(&amp;TaskScope scope)</code></td><td><code>ScopeId</code></td><td>범위 수명 도중 안정되어 있는 기록기 신원.</td><td>O(1).</td>
+</tr>
+<tr id="Task-scope_status"><td><code>Task.scope_status(&amp;TaskScope scope)</code></td><td><code>ScopeStatus</code></td><td>개방, 폐쇄 또는 배수 스냅 샷; 배수는 남은 범위 대여 사용을 증명하지 않습니다.</td><td>O(1).</td>
+</tr>
+<tr id="Task-close_admission"><td><code>Task.close_admission(&amp;TaskScope scope)</code></td><td><code>Result&lt;unit, ScopeError&gt;</code></td><td>기존 등록을 중지하고 기존 작업을 계속 진행합니다.</td><td>O(1) 동기화 전환.</td>
+</tr>
+<tr id="Task-active_count"><td><code>Task.active_count(&amp;TaskScope scope)</code></td><td><code>usize</code></td><td>등록되지 않은 어린이의 스냅 샷; 독립 실행 형 동기화 증명이 아닙니다.</td><td>O(1) 또는 레지스트리 쿼리.</td>
+</tr>
+<tr id="Task-request_scope_cancel"><td><code>Task.request_scope_cancel(&amp;TaskScope scope)</code></td><td><code>Result&lt;CancelRequest, ScopeError&gt;</code></td><td>등록 된 모든 어린이와 전파하는 토큰 자손 신호; 그들을 배수하지 않습니다.</td><td>O(children) 알림 가능.</td>
+</tr>
+<tr id="Task-await_scope"><td><code>Task.await_scope(TaskScope scope)</code></td><td><code>Awaitable&lt;Result&lt;ScopeReport, ScopeError&gt;&gt;</code></td><td>입장료는 폐쇄 필요; 반환하기 전에 모든 어린이를 배수 및 범위 대여을 해제.</td><td>Suspends; never는 비협조적인 일을 위해 완료할지도 모릅니다.</td>
+</tr>
+<tr id="Task-join_set"><td><code>Task.join_set&lt;T&gt;(&amp;TaskScope scope)</code></td><td><code>Result&lt;JoinSet&lt;T&gt;, SpawnError&gt;</code></td><td>기존 범위에 연결된 결과 그룹을 만듭니다; 그룹을 삭제해도 작업이 추적을 해제되지 않습니다.</td><td>그룹화 상태를 할당합니다.</td>
+</tr>
+<tr id="Task-insert"><td><code>Task.insert&lt;T&gt;(&amp;mut JoinSet&lt;T&gt; set, Task&lt;T&gt; task)</code></td><td><code>Result&lt;unit, JoinInsertError&lt;Task&lt;T&gt;&gt;&gt;</code></td><td>동일한 호환 범위가 필요하며 결과가 없습니다. 오류는 핸들을 유지합니다.</td><td>Registration/bookkeeping 비용.</td>
+</tr>
+<tr id="Task-join_next"><td><code>Task.join_next&lt;T&gt;(&amp;mut JoinSet&lt;T&gt; set)</code></td><td><code>Awaitable&lt;Result&lt;Optional&lt;Result&lt;T, TaskError&gt;&gt;, JoinError&gt;&gt;</code></td><td>완료된 작업 결과 하나를 반환합니다. admission/group 멤버십이 소진되었을 때만 부재합니다.</td><td>Suspends; 하나의 결과를 제거한다.</td>
+</tr>
+<tr id="Task-drain"><td><code>Task.drain&lt;T&gt;(JoinSet&lt;T&gt; set)</code></td><td><code>Awaitable&lt;Result&lt;Vector&lt;Result&lt;T, TaskError&gt;&gt;, JoinError&gt;&gt;</code></td><td>반환하기 전에 모든 등록된 그룹 결과를 수집합니다; 범위 의무는 할당 오류에서 추적됩니다.</td><td>O(tasks); 출력 할당.</td>
+</tr>
+<tr id="Task-local_scope"><td><code>Task.local_scope&lt;T&gt;(&amp;LocalExecutor executor, ScopeBody&lt;T&gt; body)</code></td><td><code>Result&lt;T, ScopeError&gt;</code></td><td>범위와 아이들은 같은 로컬 실행자에 머물; 빌린 데이터는 여전히 탈출 할 수 없습니다.</td><td>스케줄링 및 드레인 비용.</td>
+</tr>
+<tr id="Task-validate_captures"><td><code>Task.validate_captures(Work&lt;T&gt; work, ScopeDescriptor scope)</code></td><td><code>CaptureReport</code></td><td>전송 및 수명 요구 사항에 대한 Compile-time/diagnostic보기; 동적 바이패스가 아닙니다.</td><td>진단; 일정 없음.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="related" aria-labelledby="related-heading">
+<h2 id="related-heading">8입니다. 설계 요구 사항 및 소스
+</h2>
+<p>이러한 계약에는 컴파일러 수명 분석과 런타임 추적이 모두 필요합니다. 사용자 핸들 소멸기, Rust 스레드 인터페이스 또는 Tokio 동작으로부터 자동으로 유추되지 않습니다. 참조된 시스템은 비교점을 제공합니다; Aevix는 의도적으로 자체 구조화된 기본값과 오류-값 정책을 지정합니다. 구현, 제한된 종료 보증 또는 교착 상태의 자유는 주장되지 않습니다.
+</p>
+<p><a href="Task.html">Task 공통 참조</a> · <a href="Task_Scope.html">범위</a> · <a href="Task_Cancellation.html">취소</a> · <a href="../Pending/Pending.html">장치 완료</a>
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/future/trait.Future.html" target="_blank" rel="noopener noreferrer">Rust 미래 투표 계약</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/thread/fn.scope.html" target="_blank" rel="noopener noreferrer">Rust 범위 스레드 및 수명 경계</a>
+</li>
+<li><a href="https://docs.rs/tokio/latest/tokio/task/struct.JoinHandle.html" target="_blank" rel="noopener noreferrer">Tokio JoinHandle 라이프사이클</a>
+</li>
+<li><a href="https://tokio.rs/tokio/topics/shutdown" target="_blank" rel="noopener noreferrer">Tokio 우아한 종료</a>
+</li>
+<li><a href="https://docs.rs/tokio-util/latest/tokio_util/sync/struct.CancellationToken.html" target="_blank" rel="noopener noreferrer">Tokio 취소토큰</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Task.html"><span>이전 레퍼런스</span>Task</a><a href="Task_Cancellation.html"><span>다음 레퍼런스</span>Task 취소</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

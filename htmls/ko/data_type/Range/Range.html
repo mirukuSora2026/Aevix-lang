@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="경계·방향·명시적인 양의 간격으로 표현하는 유한 정수 수열입니다.">
+  <title>Range — Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Range/Range.html">
+<link rel="alternate" hreflang="ko" href="Range.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Range.html" aria-current="true">Range</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="Range.html" aria-current="true">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Range.html">Range</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Range</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Range</h1><p class="doc-subtitle">경계·방향·명시적인 양의 간격으로 표현하는 유한 정수 수열입니다.</p><div class="doc-meta"><span class="meta-chip">Range&lt;T&gt;</span><span class="meta-chip">Range. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>디자인 초안</dd></div><div class="doc-stat"><dt>도메인</dt><dd>고정폭 정수</dd></div><div class="doc-stat"><dt>저장 방식</dt><dd>바운딩된 설명자</dd></div><div class="doc-stat"><dt>API 함수</dt><dd>29</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>한국어 (ko)</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>개요</span></a></li><li><a href="#Construction"><span class="toc-number">02</span><span>경계 및 선언</span></a></li><li><a href="#Step"><span class="toc-number">03</span><span>Stepping 및 정확한 멤버십</span></a></li><li><a href="#Cardinality"><span class="toc-number">04</span><span>카디널리티 및 목표 범위</span></a></li><li><a href="#Value-Semantics"><span class="toc-number">05</span><span>값 의미론과 반복자 상태</span></a></li><li><a href="#Function-Reference"><span class="toc-number">06</span><span>함수 참조</span></a></li><li><a href="#Indexing"><span class="toc-number">07</span><span>범위 및 컬렉션 색인</span></a></li><li><a href="#Errors"><span class="toc-number">08</span><span>오류 값 및 구체화</span></a></li><li><a href="#Parallel-Device"><span class="toc-number">09</span><span>병렬 파티셔닝 및 장치</span></a></li><li><a href="#Examples"><span class="toc-number">10</span><span>예제 및 경계 사례</span></a></li><li><a href="#Sources"><span class="toc-number">11</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Range 페이지"><h2>Range 참조</h2><div class="family-links"><a href="Range.html" aria-current="page">Range</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="../Byte/Byte.html">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="Range.html" aria-current="true">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Range 참조">
+<section id="Overview" aria-labelledby="Overview-heading">
+<h2 id="Overview-heading">1입니다. 개요
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> <code>Range&lt;T&gt;</code> 는 i128/u128을 포함해 지원하는 정수 기본 타입에 import 없이 사용할 수 있습니다. 구현된 생성자는 <code>new</code>, <code>closed</code>, <code>descending</code> 및 <code>descending_closed</code>; <code>0..10</code> 및 <code>0..=10</code> 는 오름차순 형식의 축약 표기입니다. <code>Range.with_step(range, magnitude)</code> 및 <code>Range.len(&amp;range)</code> 는 구현된 다음 오류를 담은 Result를 반환합니다: <code>RangeError.InvalidStep</code>/<code>CountOverflow</code> . 다른 조회·반복자 객체·컬렉션 생성 보조 함수는 아직 제안입니다. 자세한 내용: <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p><strong>카탈로그 상태.</strong> 지원 범위 알림은 구현된 부분집합을 밝히며 다른 API는 제안된 Aevix 계약입니다. 선택된 매개변수 형식: <code>T value</code>, <code>&amp;T value</code>, 및 <code>&amp;mut T value</code>. 타입 팩·호출 가능 타입·반환 참조의 명시적 수명 표기·오류 enum은 표시된 곳에서 설명용으로 남습니다. 모든 연산은 네임스페이스 함수를 사용하며 값 메서드 별칭은 없습니다.
+</p>
+<p>Range는 소유하지 않는 값 설명자입니다. 할당된 컨테이너나 컬렉션의 대여가 아닙니다. 선택된 범위 리터럴 <code>0..10</code> 은 다음과 같은 설명자를 만듭니다: <code>Range.new(0, 10)</code>동안 <code>0..=10</code> 에 대응하는 설명자: <code>Range.closed(0, 10)</code>. 리터럴과 기존 Range 값 모두 범위 형식의 <code>for</code>에서 사용할 수 있습니다. 자세한 내용: <a href="../../grammar/control_flow/Loops.html">반복문</a>. 이 첫 설계는 정수 기본 타입과 대상 크기 정수를 지원합니다. 부동소수점 범위·유니코드 순회·끝이 없는 경계·임의의 사용자 정의 간격에는 별도 계약이 필요합니다.</p>
+</section>
+<section id="Construction" aria-labelledby="Construction-heading">
+<h2 id="Construction-heading">2입니다. 경계 및 선언
+</h2>
+<p><code>Range.new(start, end)</code> 는 start를 포함하고 end를 제외합니다. 닫힌 생성자는 도달 가능한 end 값을 포함합니다. 내림차순 생성자는 부호와 독립적으로 방향을 표현하므로 부호 없는 카운트다운에 음의 부호 없는 정수가 필요하지 않습니다.
+</p><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Range&lt;i32&gt; indices = Range.new(0, 5);
+Range&lt;i32&gt; closed = Range.closed(0, 5);
+u8 countdown_start = 3;
+u8 countdown_end = 0;
+Range&lt;u8&gt; countdown = Range.descending_closed(countdown_start, countdown_end);</code></pre>
+</section>
+<section id="Step" aria-labelledby="Step-heading">
+<h2 id="Step-heading">3입니다. Stepping 및 정확한 멤버십
+</h2>
+<p>간격의 크기는 T와 같은 폭의 부호 없는 U이며 반드시 양수여야 합니다. 시작 0, 끝 6 포함, 간격 크기 4이면 결과는 0과 4입니다. 6은 포함 가능한 경계이지만 도달할 수 없습니다. contains는 경계뿐 아니라 간격도 검사합니다.
+</p>
+<p>방향과 반대인 시작·끝 쌍은 빈 범위이며 자동 정규화하지 않습니다. 마지막 유효 값 뒤로 진행할 때는 검사된 비교로 종료합니다. 종료를 알아내기 위해 오버플로하는 증가 연산을 수행하지 않습니다.
+</p>
+</section>
+<section id="Cardinality" aria-labelledby="Cardinality-heading">
+<h2 id="Cardinality-heading">4입니다. 카디널리티 및 목표 범위
+</h2>
+<p>표현 가능한 두 끝점으로 usize가 셀 수 있는 것보다 많은 값을 나타낼 수 있습니다. 전체 닫힌 u64 영역에는 2^64개 값이 있으므로 64비트 usize도 길이를 표현할 수 없습니다. 이때 Range.len은 CountOverflow를 반환하지만 설명자와 독립적으로 진행하는 반복자는 여전히 의미가 있습니다.
+</p>
+<p>부호 있는 최솟값부터 최댓값까지의 거리도 검사된 중간값이나 충분히 넓은 중간값으로 계산합니다. 먼저 T 안에서 끝점을 빼 오버플로해서는 안 됩니다. 컬렉션 생성은 추가로 바이트 크기·주소 공간·할당자 한계를 검증합니다.
+</p>
+</section>
+<section id="Value-Semantics" aria-labelledby="Value-Semantics-heading">
+<h2 id="Value-Semantics-heading">5입니다. 값 의미론과 반복자 상태
+</h2>
+<p>정수 범위 설명자는 소유 할당이 없는 Copy 값입니다. 반복자를 만들면 별도 커서 상태를 생성합니다. 반복자 하나를 소비한다고 설명자의 다른 복사본이 몰래 변경되지는 않습니다. Range.end는 경계이고 Range.last는 실제 마지막 요소입니다.
+</p>
+<p>take·skip·split·reverse는 문서화된 수열을 보존하면서 끝점 표기를 정규화할 수 있습니다. Range.equal은 설명자 필드를 비교합니다. Range.sequence_equal은 빈 수열·원소 하나의 수열을 표기보다 수열의 의미로 비교합니다.
+</p>
+</section>
+<section id="Function-Reference" aria-labelledby="Function-Reference-heading">
+<h2 id="Function-Reference-heading">6입니다. 함수 참조
+</h2>
+<p><code>T value</code> 는 값을 전달합니다. Copy 타입은 복사하며 소유 non-Copy 값은 깊은 clone 없이 이동합니다. <code>&amp;T value</code> 는 공유 읽기 대여이고 <code>&amp;mut T value</code> 는 배타적 변경 대여입니다. 호출 시 각각 <code>x</code>, <code>&amp;x</code>, 또는 <code>&amp;mut x</code> 를 사용합니다. 이미 대여한 참조·뷰 값은 직접 전달하며 &amp;를 하나 더 붙이면 타입이 바뀝니다. <code>*ref</code> 는 참조 대상을 읽고 씁니다. 일반적인 <code>&amp;mut x</code> 에는 <code>mut</code> 소유자가 필요합니다. <code>mut T value</code> 만으로는 값 매개변수가 함수 안에서 변경 가능해질 뿐 호출자의 값을 변경하지 않습니다. 겹치는 활성 대여는 마지막 사용까지 검사합니다. 서로 겹치지 않는 영역은 안전하게 나눌 수 있으며 대여는 원본보다 오래 살 수 없습니다. 동기화된 내부 변경은 해당 타입의 계약을 따릅니다. <code>Fn(A) -&gt; B</code> 는 호출 가능한 값을 설명하며 반환 참조의 수명 관계는 본문으로 문서화합니다.
+</p>
+<p><code>U</code> 는 T와 비트 폭이 같은 부호 없는 정수를 뜻합니다. <code>RangeDirection</code>, <code>RangeError</code>, 및 <code>RangeIterator&lt;T&gt;</code> 는 제안된 라이브러리 보조 타입이며 추가 수치 기본 타입이 아닙니다.
+</p>
+<div class="table-scroll" role="region" aria-label="함수 참조 데이터 테이블">
+<table>
+<thead>
+<tr><th scope="col">제안된 시그니처</th><th scope="col">반환</th><th scope="col">계약 및 제약</th><th scope="col">비용</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Range-new"><td><code>Range.new(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>반쯤 열린 unit-단계 범위로 오름. 시작 &gt;= 끝은 비어 있습니다. T는 지원되는 고정폭 정수입니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-closed"><td><code>Range.closed(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>포함 unit-단계 범위 상승; 시작 &gt; 끝은 비어 있습니다. 끝점 T 최대값이 유효합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-descending"><td><code>Range.descending(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>반쯤 열린 unit-step 범위 내림; 시작 &lt;= 끝은 비어 있습니다. Unsigned T 가 지원됩니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-descending_closed"><td><code>Range.descending_closed(T start, T end)</code></td><td><code>Range&lt;T&gt;</code></td><td>내림차순 포함 unit-step 범위; start &lt; end is empty.</td><td>O(1)</td>
+</tr>
+<tr id="Range-empty"><td><code>Range.empty&lt;T&gt;()</code></td><td><code>Range&lt;T&gt;</code></td><td>정수 T에 대한 캐노니컬 빈 기술자; 첫 번째 또는 마지막 요소가 없습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-start"><td><code>Range.start(&amp;Range&lt;T&gt; range)</code></td><td><code>T</code></td><td>빈 기술자를 포함한 기술자 시작 바인딩을 리턴합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-end"><td><code>Range.end(&amp;Range&lt;T&gt; range)</code></td><td><code>T</code></td><td>설명자 끝 바운드를 반환합니다. 포함은 별도로 쿼리됩니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-direction"><td><code>Range.direction(&amp;Range&lt;T&gt; range)</code></td><td><code>RangeDirection</code></td><td>오름차순 또는 내림차순; 방향은 잠재적으로 넘칠 수 있는 부호 있는 단계로 인코딩되지 않습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-is_inclusive"><td><code>Range.is_inclusive(&amp;Range&lt;T&gt; range)</code></td><td><code>bool</code></td><td>최종 경계가 정확히 도달했을 때 포함될 수 있는지 여부.</td><td>O(1)</td>
+</tr>
+<tr id="Range-step_magnitude"><td><code>Range.step_magnitude(&amp;Range&lt;T&gt; range)</code></td><td><code>U</code></td><td>Same-width unsigned 크기; 유효한 비정통 설명자에 대해 항상 양수입니다. Canonical empty는 1를 사용합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-with_step"><td><code>Range.with_step(Range&lt;T&gt; range, U magnitude)</code></td><td><code>Result&lt;Range&lt;T&gt;, RangeError&gt;</code></td><td>0은 InvalidStep입니다. 그렇지 않으면 양수 크기를 대체하고 bounds/direction를 유지합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-step_by"><td><code>Range.step_by(Range&lt;T&gt; range, U factor)</code></td><td><code>Result&lt;Range&lt;T&gt;, RangeError&gt;</code></td><td>긍정적인 요인은 기존 크기를 곱합니다; 0 또는 대표할 수 없는 제품은 빈 범위 조차를 위한 과실입니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-is_empty"><td><code>Range.is_empty(&amp;Range&lt;T&gt; range)</code></td><td><code>bool</code></td><td>설명자가 열거하지 않고 값을 산출하는지 여부를 결정합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-contains"><td><code>Range.contains(&amp;Range&lt;T&gt; range, T value)</code></td><td><code>bool</code></td><td>단계 크기별로 시작부터 방향 경계 및 분할 여부를 확인합니다.</td><td>O(1) 정수 연산</td>
+</tr>
+<tr id="Range-len"><td><code>Range.len(&amp;Range&lt;T&gt; range)</code></td><td><code>Result&lt;usize, RangeError&gt;</code></td><td>정확한 요소 count; 대상 usize에 맞지 않는 경우 CountOverflow. 포장 또는 절단 없음.</td><td>O(1) checked 산술</td>
+</tr>
+<tr id="Range-first"><td><code>Range.first(&amp;Range&lt;T&gt; range)</code></td><td><code>Optional&lt;T&gt;</code></td><td>먼저 산출된 값, 또는 비어있는 값 없음.</td><td>O(1)</td>
+</tr>
+<tr id="Range-last"><td><code>Range.last(&amp;Range&lt;T&gt; range)</code></td><td><code>Optional&lt;T&gt;</code></td><td>마지막 도달 가능한 값, 단계가 스팬을 분할하지 않을 때 포괄적 인 끝과 다를 수 있습니다.</td><td>O(1) checked 산술</td>
+</tr>
+<tr id="Range-get"><td><code>Range.get(&amp;Range&lt;T&gt; range, usize index)</code></td><td><code>Optional&lt;T&gt;</code></td><td>0-기반 서수 조회; 부재시 없음. usize에 맞는 총 count가 필요하지 않습니다.</td><td>O(1) checked 산술</td>
+</tr>
+<tr id="Range-at"><td><code>Range.at(&amp;Range&lt;T&gt; range, usize index)</code></td><td><code>Result&lt;T, RangeError&gt;</code></td><td>None 대신 OutOfBounds를 사용한 서수 조회.</td><td>O(1) checked 산술</td>
+</tr>
+<tr id="Range-take"><td><code>Range.take(Range&lt;T&gt; range, usize count)</code></td><td><code>Range&lt;T&gt;</code></td><td>대부분의 첫 번째 count 결과값에 대한 설명자를 반환합니다. count 0 은 비어 있습니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-skip"><td><code>Range.skip(Range&lt;T&gt; range, usize count)</code></td><td><code>Range&lt;T&gt;</code></td><td>최대 count의 수익률을 제거합니다. 끝 값을 건너뛰면 빈 값이 됩니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-split_at"><td><code>Range.split_at(Range&lt;T&gt; range, usize index)</code></td><td><code>Result&lt;Tuple&lt;Range&lt;T&gt;, Range&lt;T&gt;&gt;, RangeError&gt;</code></td><td>인덱스는 카디널리티보다 크지 않아야 합니다; 열거하지 않고 서수 prefix/suffix를 반환합니다.</td><td>O(1) checked 산술</td>
+</tr>
+<tr id="Range-reverse"><td><code>Range.reverse(Range&lt;T&gt; range)</code></td><td><code>Range&lt;T&gt;</code></td><td>first/last 도달 가능한 값과 반대 방향을 사용하여 유한 시퀀스를 반전합니다. never는 부호 없는 단계를 무효화합니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-iter"><td><code>Range.iter(Range&lt;T&gt; range)</code></td><td><code>RangeIterator&lt;T&gt;</code></td><td>독립 커서를 만듭니다. usize에 맞게 전체 count를 할당하거나 요구하지 않습니다.</td><td>O(1) 체제; 품목 당 O(1)</td>
+</tr>
+<tr id="Range-rev_iter"><td><code>Range.rev_iter(Range&lt;T&gt; range)</code></td><td><code>RangeIterator&lt;T&gt;</code></td><td>마지막으로 도달할 수 있는 값에서 커서를 시작합니다.</td><td>O(1) 체제; 품목 당 O(1)</td>
+</tr>
+<tr id="Range-collect_vector"><td><code>Range.collect_vector(Range&lt;T&gt; range)</code></td><td><code>Result&lt;Vector&lt;T&gt;, CollectionError&gt;</code></td><td>모든 값을 구체화합니다. 할당 전에 표현 가능한 length/allocation 크기를 검증합니다.</td><td>O(n) 시간 및 스토리지</td>
+</tr>
+<tr id="Range-to_array"><td><code>Range.to_array&lt;N&gt;(Range&lt;T&gt; range)</code></td><td><code>Result&lt;Array&lt;T, N&gt;, RangeError&gt;</code></td><td>정확한 count는 정적 N과 같아야 합니다. 타겟 레이아웃 경계는 여전히 적용됩니다.</td><td>O(N) 쓰기</td>
+</tr>
+<tr id="Range-equal"><td><code>Range.equal(&amp;Range&lt;T&gt; left, &amp;Range&lt;T&gt; right)</code></td><td><code>bool</code></td><td>경계, 방향, 포함 및 크기의 설명자 평등; 시퀀스 평등이 아닙니다.</td><td>O(1)</td>
+</tr>
+<tr id="Range-sequence_equal"><td><code>Range.sequence_equal(&amp;Range&lt;T&gt; left, &amp;Range&lt;T&gt; right)</code></td><td><code>bool</code></td><td>표시된 유한 시퀀스를 비교합니다. 모든 빈 시퀀스는 동일하며, 싱글톤 스텝의 차이는 무관합니다.</td><td>O(1) 정확한 설명자 산술</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="Indexing" aria-labelledby="Indexing-heading">
+<h2 id="Indexing-heading">7입니다. 범위 및 컬렉션 색인
+</h2>
+<p>숫자 Range 자체는 소유자 접근 권한이 아닙니다. 컬렉션 슬라이싱은 현재 길이에 대해 경계를 따로 검사하고 수명을 검사한 Slice·MutSlice를 만듭니다. 간격이 1보다 크면 연속 Slice가 아닙니다. 반복자나 명시적인 strided 뷰를 사용하세요.
+</p>
+<p>인덱스는 바이트·유니코드 자소 군집이 아니라 요소를 셉니다. usize Range는 컬렉션 위치를 표현할 수 있지만 i32 Range를 암시적으로 변환하지는 않습니다. 음수·오버플로 변환은 명시적으로 실패합니다.
+</p>
+</section>
+<section id="Errors" aria-labelledby="Errors-heading">
+<h2 id="Errors-heading">8입니다. 오류 값 및 구체화
+</h2>
+<p>구현된 RangeError variant는 <code>InvalidStep</code> 및 <code>CountOverflow</code>. <code>StepOverflow</code>, <code>OutOfBounds</code> 및 <code>LengthMismatch</code> 는 제안된 추가 범위 연산용이며 0.2 enum에는 포함되지 않습니다. 실패하지 않는 설명자 생성은 반대 경계를 빈 수열로 허용합니다. 실제 컬렉션 생성은 크기·할당 실패를 보존하는 CollectionError를 사용합니다.
+</p>
+<p>오류 반환 시 부분 초기화된 Array·Vector가 보이면 안 됩니다. 향후 확장에서 요소 생성 실패 전에 앞부분을 초기화했다면 안전하게 정리해야 합니다. 현재 정수 수열 자체에는 실패 가능한 요소 콜백이 없습니다.
+</p>
+</section>
+<section id="Parallel-Device" aria-labelledby="Parallel-Device-heading">
+<h2 id="Parallel-Device-heading">9입니다. 병렬 파티셔닝 및 장치
+</h2>
+<p>유한 정수 설명자는 CPU나 지원되는 GPU 작업으로 복사할 수 있지만 호스트에서 수집했다고 데이터가 GPU에 놓이지는 않습니다. 병렬 분할은 순번을 겹침·누락 없이 나누고 경계 산술을 검사해야 합니다.
+</p>
+<p>서로 겹치지 않는 인덱스의 범위만으로 메모리 대여도 겹치지 않는다고 증명할 수는 없습니다. 대여를 만드는 컬렉션 API가 실제 영역을 검증하고 기록합니다. 축약 순서·정수 오버플로·재현성은 연산 계약을 따릅니다.
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">10입니다. 예제 및 경계 사례
+</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Result&lt;Range&lt;i32&gt;, RangeError&gt; strided = Range.with_step(Range.closed(0, 6), 4);
+u64 smallest = 0;
+u64 largest = 18446744073709551615;
+Range&lt;u64&gt; full = Range.closed(smallest, largest);
+Result&lt;usize, RangeError&gt; too_many = Range.len(&amp;full);
+Optional&lt;u8&gt; last = Range.last(&amp;countdown);
+Result&lt;Vector&lt;i32&gt;, CollectionError&gt; values = Range.collect_vector(indices);</code></pre>
+<p>전체 영역의 개수는 지원하는 64비트 ARM64·x86-64 대상의 usize를 초과하므로 실패합니다. 부호 없는 내림차순 범위는 255로 순환하지 않고 0에서 끝납니다. 타입 우선 선언은 큰 리터럴 각각에 명시적인 정수 문맥을 제공합니다.
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">11입니다. 소스 및 디자인 참조
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+</p>
+<ul class="source-list">
+<li><a href="https://doc.rust-lang.org/std/ops/struct.Range.html" target="_blank" rel="noopener noreferrer">Rust Range 참조: 반 개방 범위 및 멤버십</a>
+</li>
+<li><a href="https://doc.rust-lang.org/std/ops/struct.RangeInclusive.html" target="_blank" rel="noopener noreferrer">Rust 범위포함 참조: 포괄적 엔드포인트</a>
+</li>
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="벡터, 빌린 슬라이스, 명시적 텍스트 또는 16진수 코덱을 소유합니다.">
+  <title>Byte 버퍼 - Aevix 문서</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../data_type/Byte/Byte_Buffer.html">
+<link rel="alternate" hreflang="ko" href="Byte_Buffer.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <header class="site-header"><div class="header">
+    <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+    <nav class="header-nav" aria-label="자료형 계열"><a href="../../errors/index.html">오류</a><a href="Byte.html" aria-current="true">Byte</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></details></nav>
+    <span class="draft-badge">설계 초안</span>
+  <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+  <main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="Byte.html">Byte</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Byte 버퍼</span></nav>
+    <header class="doc-intro"><div><p class="eyebrow">자료형 레퍼런스</p><h1>Byte 버퍼</h1><p class="doc-subtitle">벡터, 빌린 슬라이스, 명시적 텍스트 또는 16진수 코덱을 소유합니다.</p><div class="doc-meta"><span class="meta-chip">Vector&lt;byte&gt; / Slice&lt;byte&gt;</span><span class="meta-chip">Byte. 네임스페이스</span><span>제안된 API · 예제 문법 검토 중</span><a href="../index.html#Language-Rules">확정된 언어 규칙</a></div><dl class="doc-stats"></dl></div><div class="type-mark" aria-hidden="true"><strong>byte</strong><span>자료형 레퍼런스</span></div></header>
+    <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Basic-Information"><span class="toc-number">01</span><span>소유자 및 빌린 의견</span></a></li><li><a href="#Allocation"><span class="toc-number">02</span><span>할당 및 초기화된 길이</span></a></li><li><a href="#Growth"><span class="toc-number">03</span><span>성장, 운동, 실패</span></a></li><li><a href="#Views"><span class="toc-number">04</span><span>경계와 빌린 조각</span></a></li><li><a href="#Searching"><span class="toc-number">05</span><span>검색 및 반복</span></a></li><li><a href="#Codecs"><span class="toc-number">06</span><span>텍스트 및 Hex Codecs</span></a></li><li><a href="#Serialization"><span class="toc-number">07</span><span>더 넓은 분야와 실행 장소</span></a></li><li><a href="#Examples"><span class="toc-number">08</span><span>예제 및 관련 유형</span></a></li><li><a href="#Sources"><span class="toc-number">09</span><span>출처 및 설계 참고 자료</span></a></li></ol></details><nav class="family-nav" aria-label="Byte 페이지"><h2>Byte 참조</h2><div class="family-links"><a href="Byte.html">Byte</a><a href="Byte_Buffer.html" aria-current="page">Byte 버퍼</a><a href="Byte_Order.html">Byte 순서</a></div></nav><nav class="family-nav family-index" aria-label="모든 자료형 계열"><h2>자료형 살펴보기</h2><div class="family-links"><a href="../Boolean/Boolean.html">Boolean</a><a href="../Integer/Integer.html">Integer</a><a href="../Float/Float.html">Float</a><a href="../Complex/Complex.html">Complex</a><a href="../Char/Char.html">Char</a><a href="Byte.html" aria-current="true">Byte</a><a href="../String/string.html">string</a><a href="../Array/Array.html">Array</a><a href="../Vector/Vector.html">Vector</a><a href="../Slice/Slice.html">Slice</a><a href="../Tuple/Tuple.html">Tuple</a><a href="../Unit/Unit.html">Unit</a><a href="../Never/Never.html">Never</a><a href="../Range/Range.html">Range</a><a href="../Optional/Optional.html">Optional</a><a href="../Result/Result.html">Result</a><a href="../Box/Box.html">Box</a><a href="../Shared/Shared.html">Shared</a><a href="../Weak/Weak.html">Weak</a><a href="../Atomic/Atomic.html">Atomic</a><a href="../Mutex/Mutex.html">Mutex</a><a href="../Rwlock/Rwlock.html">RwLock</a><a href="../Map/Map.html">Map</a><a href="../Set/Set.html">Set</a><a href="../Tensor/Tensor.html">Tensor</a><a href="../Quantized/Quantized.html">Quantized</a><a href="../Simd/Simd.html">Simd</a><a href="../Task/Task.html">Task</a><a href="../Pending/Pending.html">Pending</a></div></nav></aside><article class="content" aria-label="Byte 버퍼 참조">
+<section id="Basic-Information" aria-labelledby="Basic-Information-heading">
+<h2 id="Basic-Information-heading">1입니다. 소유자 및 빌린 의견
+</h2>
+<div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> 원시 저장소는 구현 된 Array/Vector/Slice 유형을 사용하여 <code>byte</code> 요소. <code>Byte.from_u8</code>/<code>Byte.to_u8</code> 하나의 요소를 명시적으로 변환합니다. <code>string.as_bytes</code> 유효한 텍스트 바이트를 대여합니다. <code>string.from_utf8</code> 는 바이트를 검증하여 소유 string으로 변환합니다. 이 변환은 실패할 수 있습니다. <code>Byte.</code> 여기에 나열된 allocation/search/codec 함수는 0.2 API를 구현하지 않습니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<p>byte 버퍼는 일반 <code>Vector&lt;byte&gt;</code> 소유, 새로운 스칼라 프리미티브가 아닙니다.
+                    <code>Slice&lt;byte&gt;</code> initialized range(초기화된 범위)를 빌리는 것 <code>MutSlice&lt;byte&gt;</code>
+                    독점적 인 쓰기 권한을 수행합니다. 스토리지 수명을 연장하거나 소유하지 않습니다. 고정 <code>Array&lt;byte,
+                        N&gt;</code> 따라 The <a href="../Array/Array.html">Array</a> 계약. 명시적 디코더 또는 필드 스키마가 의미를 할당할 때까지 바이트는 원시 상태로 유지됩니다.
+
+</p>
+
+<blockquote class="callout note">
+
+<p><strong>설계 초안.</strong> 이름, 지원 레코드 및 개념 구문은 제안된 Aevix 계약을 설명합니다. 그들은 실행을 주장하거나 성과를 측정하지 않습니다. 선언은 형식을 먼저 놓고 바인딩은 기본적으로 변경할 수 없습니다. MutSlice&lt;T&gt;는 독점적인 쓰기 가능 뷰를 나타냅니다. <code>mut</code>, <code>&amp;T</code>, 및 <code>&amp;mut T</code> 선택한 선언을 따르고 규칙을 대여하십시오. 카탈로그 관련 지원 기록 및 시그니처은 제안으로 남아 있습니다.
+
+</p>
+
+</blockquote>
+</section>
+<section id="Allocation" aria-labelledby="Allocation-heading">
+<h2 id="Allocation-heading">2입니다. 할당 및 초기화된 길이
+</h2>
+<p>할당은 시그니처 및 Result 계약에 표시됩니다. 새로운 논리적 요소가 초기화됩니다. 예약 용량은 안전한 읽기를 위해 초기화되지 않은 바이트를 노출하지 않습니다. 길이 및 용량은 메모리를 요청하기 전에 checked 추가 및 제품과 함께 usize를 사용합니다. 실패는 가상의 초기화 길이를 가진 사용 가능한 벡터를 남길 수 없습니다. 반환된 소유자는 달리 명시하지 않는 한 독립적입니다. 하나의 byte를 복사하는 것은 벡터를 복사하는 것과 비용이나 소유권이 동일하지 않습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="할당 및 초기화된 길이 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">시그니처</th>
+                            <th scope="col">반환</th>
+                            <th scope="col">계약 및 비용</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Byte-allocate">
+                            <th scope="row"><code>Byte.allocate(usize length)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>길이를 초기화되지 않은 바이트로 할당합니다. 크기 오버플로와 할당 실패를 거부합니다.
+                            </td>
+
+</tr>
+
+<tr id="Byte-with_capacity">
+                            <th scope="row"><code>Byte.with_capacity(usize capacity)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>논리 길이 0을 할당합니다. 예비 용량은 읽을 수 있는 초기화된 데이터가 아닙니다.</td>
+
+</tr>
+
+<tr id="Byte-from_slice">
+                            <th scope="row"><code>Byte.from_slice(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>모든 소스 바이트의 독립 복사본을 할당합니다.</td>
+
+</tr>
+
+<tr id="Byte-len">
+                            <th scope="row"><code>Byte.len(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>usize</code></td>
+                            <td>초기화된 논리 길이를 반환합니다. 할당이 없습니다.</td>
+
+</tr>
+
+<tr id="Byte-is_empty">
+                            <th scope="row"><code>Byte.is_empty(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>bool</code></td>
+                            <td>논리 길이 0을 테스트합니다.</td>
+
+</tr>
+
+<tr id="Byte-capacity">
+                            <th scope="row"><code>Byte.capacity(&amp;Vector&lt;byte&gt; input)</code></th>
+                            <td><code>usize</code></td>
+                            <td>소유권을 이동하지 않고 예약된 저장소 용량을 반환합니다.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Growth" aria-labelledby="Growth-heading">
+<h2 id="Growth-heading">3입니다. 성장, 운동, 실패
+</h2>
+<p>구조 변경는 독점적인 소유권 접근이 필요하며 라이브 빌린 뷰를 무효화해서는 안 된다. 예비, 추가, 삽입 및 크기 조정은 스토리지를 할당하거나 재배치 할 수 있습니다. 제거는 할당없이도 접미사를 이동할 수 있습니다. 실패한 범위 검사가 수정 전에 있습니다. 구조적 작업을 할당하면 할당 실패 시 원래 소유자가 유지됩니다. 논리적인 내용을 명확하고 잘린 상태로 공개하지만 암호화 삭제는 약속하지 않습니다. 쓰기 가능한 소유자는 선택한 &amp;mut Vector&lt;byte&gt; 매개 변수 양식을 사용합니다. 발신자는 일반 mut 소유자로부터 &amp;mut 버퍼를 전달합니다. MutSlice&lt;byte&gt;는 이미 독점적 인보기이며 직접 전달됩니다.
+
+</p>
+
+<p>알려진 <code>MutSlice&lt;byte&gt;</code> Byte 버퍼 및 byte 순서 작업의 매개 변수는 호출에 대한 기존 쓰기 가능한 기능을 대여합니다. 반환 된 byte 하위 뷰는 Result 내부의 하위 뷰를 포함하여 파생 된 대여을 유지하므로 충돌하는 부모 액세스는 마지막 사용 또는 정리를 통해 일시 중지 된 상태로 유지됩니다. 이러한 호출은 원본 설명자를 사용하지 않습니다. 일반 값 이동 및 일반 T 값 인수는 여전히 비 Copy 보기를 전송합니다. 기존 뷰를 다시 빌리는 것은 설명자(descriptor)를 다시 묶을 필요가 없습니다; 소유자로부터 새로 쓰기를 빌리는 것은 여전히 소유자의 mut 권한이 필요합니다. 자세히 보기 <a href="../Slice/Slice.html#Parameter-Reborrowing">공유 Slice 계약</a>.</p>
+<div class="table-scroll" role="region" aria-label="성장, 이동 및 실패 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">시그니처</th>
+                            <th scope="col">반환</th>
+                            <th scope="col">계약 및 비용</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Byte-reserve">
+                            <th scope="row"><code>Byte.reserve(&amp;mut Vector&lt;byte&gt; buffer, usize
+                                additional)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>길이 더하기 추가를 검사하십시오; 무효한 살아있는 뷰을 요구하는 저장을 이전할지도 모르다.
+                            </td>
+
+</tr>
+
+<tr id="Byte-resize">
+                            <th scope="row"><code>Byte.resize(&amp;mut Vector&lt;byte&gt; buffer, usize length, byte
+                                fill)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>초기 채우기 바이트 또는 자르기로 성장; 할당 할 수 있습니다.</td>
+
+</tr>
+
+<tr id="Byte-clear">
+                            <th scope="row"><code>Byte.clear(&amp;mut Vector&lt;byte&gt; buffer)</code></th>
+                            <td><code>unit</code></td>
+                            <td>길이를 0으로 설정하고 용량은 유지합니다. 보안상 안전한 메모리 삭제를 보장하지 않습니다.</td>
+
+</tr>
+
+<tr id="Byte-truncate">
+                            <th scope="row"><code>Byte.truncate(&amp;mut Vector&lt;byte&gt; buffer, usize length)</code>
+                            </th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>논리 길이보다 큰 길이가 필요하지 않습니다. 할당이 없습니다.</td>
+
+</tr>
+
+<tr id="Byte-push">
+                            <th scope="row"><code>Byte.push(&amp;mut Vector&lt;byte&gt; buffer, byte value)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>초기화된 byte를 하나 추가합니다. 할당할 수 있습니다.</td>
+
+</tr>
+
+<tr id="Byte-pop">
+                            <th scope="row"><code>Byte.pop(&amp;mut Vector&lt;byte&gt; buffer)</code></th>
+                            <td><code>Optional&lt;byte&gt;</code></td>
+                            <td>마지막 byte 또는 return 제거 할당없이 없음.</td>
+
+</tr>
+
+<tr id="Byte-extend">
+                            <th scope="row"><code>Byte.extend(&amp;mut Vector&lt;byte&gt; buffer, Slice&lt;byte&gt;
+                                input)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>복사된 바이트를 추가합니다; 길이와 할당을 먼저 검사합니다; 대여은 충돌할 수 없습니다.</td>
+
+</tr>
+
+<tr id="Byte-insert">
+                            <th scope="row"><code>Byte.insert(&amp;mut Vector&lt;byte&gt; buffer, usize offset, byte
+                                value)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>길이를 통해 오프셋 허용; 접미사를 이동하고 할당할 수 있습니다.</td>
+
+</tr>
+
+<tr id="Byte-remove">
+                            <th scope="row"><code>Byte.remove(&amp;mut Vector&lt;byte&gt; buffer, usize offset)</code>
+                            </th>
+                            <td><code>Result&lt;byte, ByteError&gt;</code></td>
+                            <td>길이 아래의 오프셋이 필요합니다. 할당 없이 접미사를 옮깁니다.</td>
+
+</tr>
+
+<tr id="Byte-split_off">
+                            <th scope="row"><code>Byte.split_off(&amp;mut Vector&lt;byte&gt; buffer, usize
+                                offset)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>이전:[좋은 성경 구 구하라 그러면 너희에게 주실것이요</td>
+
+</tr>
+
+<tr id="Byte-append">
+                            <th scope="row"><code>Byte.append(&amp;mut Vector&lt;byte&gt; destination, &amp;mut Vector&lt;byte&gt;
+                                source)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>소스 내용을 대상으로 이동; 성공 후 소스가 비워집니다; 할당할 수 있습니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Views" aria-labelledby="Views-heading">
+<h2 id="Views-heading">4입니다. 경계와 빌린 조각
+</h2>
+<p>범위는 반쯤 열려 있습니다. 시작은 길이에 빈 범위를 포함하여 끝과 같을 수 있다; 요소 접근은 여전히 길이보다 엄격하게 오프셋을 필요로 한다. bounds arithmetic은 구애받지 않는다. 하위 뷰는 관련 없는 소유자 핸들을 통해 탈출 하기 보다는 수명 및 독점성을 상속 합니다. 충돌하는 read/write 별칭이 거부됩니다. 단일 전용 copy_within 호출은 이동 시맨틱을 사용하여 의도적으로 오버랩을 지원할 수 있습니다. Fixed-size copy_from은 동일한 길이를 필요로하며 부분 복사 정책을 계약에서 제외합니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="경계 및 빌린 슬라이스 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">시그니처</th>
+                            <th scope="col">반환</th>
+                            <th scope="col">계약 및 비용</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Byte-slice">
+                            <th scope="row"><code>Byte.slice(Slice&lt;byte&gt; input, Range&lt;usize&gt; range)</code>
+                            </th>
+                            <td><code>Result&lt;Slice&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>상속 된 수명과 checked 반 개방 범위를 빌려; 아니 할당.</td>
+
+</tr>
+
+<tr id="Byte-slice_mut">
+                            <th scope="row"><code>Byte.slice_mut(MutSlice&lt;byte&gt; input, Range&lt;usize&gt;
+                                range)</code></th>
+                            <td><code>Result&lt;MutSlice&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>독점 하위 대여을 만듭니다; 부모 액세스는 살아있는 동안 충돌할 수 없습니다.</td>
+
+</tr>
+
+<tr id="Byte-get">
+                            <th scope="row"><code>Byte.get(Slice&lt;byte&gt; input, usize offset)</code></th>
+                            <td><code>Optional&lt;byte&gt;</code></td>
+                            <td>Copy 하나 byte 또는 return 없음 범위 밖에 있을 때.</td>
+
+</tr>
+
+<tr id="Byte-set">
+                            <th scope="row"><code>Byte.set(MutSlice&lt;byte&gt; output, usize offset, byte value)</code>
+                            </th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>초기화된 byte를 수정하기 전에 오프셋을 검증합니다.</td>
+
+</tr>
+
+<tr id="Byte-copy_from">
+                            <th scope="row"><code>Byte.copy_from(MutSlice&lt;byte&gt; destination, Slice&lt;byte&gt;
+                                source)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>같은 길이와 충돌하지 않는 대여이 필요합니다. 초기화된 바이트를 복사하십시오.</td>
+
+</tr>
+
+<tr id="Byte-copy_within">
+                            <th scope="row"><code>Byte.copy_within(MutSlice&lt;byte&gt; buffer, Range&lt;usize&gt;
+                                source, usize destination)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>하나의 단독 버퍼 내에서 중복 안전 이동 확인; 할당 없음.</td>
+
+</tr>
+
+<tr id="Byte-fill">
+                            <th scope="row"><code>Byte.fill(MutSlice&lt;byte&gt; output, byte value)</code></th>
+                            <td><code>unit</code></td>
+                            <td>모든 초기화 된 요소를 하나의 독점적 인 대여을 통해 작성하십시오.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Searching" aria-labelledby="Searching-heading">
+<h2 id="Searching-heading">5입니다. 검색 및 반복
+</h2>
+<p>검색은 원시 패턴을 비교하므로 UTF-8의 연속 바이트나 정수 필드의 중간에서도 일치할 수 있습니다. 따라서 오프셋은 스칼라나 자소 클러스터가 아닌 바이트 단위입니다. 지연 분할과 청크 디스크립터는 입력을 대여하며 결과 컬렉션을 할당하지 않습니다. 입력보다 오래 살아남을 수 없고, 자신을 무효화하는 구조 변경과 동시에 존재할 수도 없습니다. 결과를 소유 벡터로 수집하는 작업은 별도의 메모리 할당을 수반합니다. 검색 알고리즘의 복잡도를 공개해야 하며, 모든 경우에 빠르다는 주장으로 이를 감춰서는 안 됩니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="검색 및 반복 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">시그니처</th>
+                            <th scope="col">반환</th>
+                            <th scope="col">계약 및 비용</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Byte-compare_lexicographic">
+                            <th scope="row"><code>Byte.compare_lexicographic(Slice&lt;byte&gt; left, Slice&lt;byte&gt;
+                                right)</code></th>
+                            <td><code>Ordering</code></td>
+                            <td>부호 없는 byte 값과 길이를 비교합니다. 텍스트 데이터 정렬이나 할당이 없습니다.</td>
+
+</tr>
+
+<tr id="Byte-starts_with">
+                            <th scope="row"><code>Byte.starts_with(Slice&lt;byte&gt; input, Slice&lt;byte&gt;
+                                prefix)</code></th>
+                            <td><code>bool</code></td>
+                            <td>텍스트 경계 가정 없이 byte 접두사를 테스트합니다.</td>
+
+</tr>
+
+<tr id="Byte-ends_with">
+                            <th scope="row"><code>Byte.ends_with(Slice&lt;byte&gt; input, Slice&lt;byte&gt;
+                                suffix)</code></th>
+                            <td><code>bool</code></td>
+                            <td>할당 없이 byte 접미사를 테스트합니다.</td>
+
+</tr>
+
+<tr id="Byte-find">
+                            <th scope="row"><code>Byte.find(Slice&lt;byte&gt; input, byte value)</code></th>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>첫 번째 일치하는 byte 오프셋; 선형 스캔을 반환합니다.</td>
+
+</tr>
+
+<tr id="Byte-find_subsequence">
+                            <th scope="row"><code>Byte.find_subsequence(Slice&lt;byte&gt; input, Slice&lt;byte&gt;
+                                needle)</code></th>
+                            <td><code>Optional&lt;usize&gt;</code></td>
+                            <td>첫 번째 일치를 반환합니다; 빈 바늘은 0과 일치합니다; 알고리즘 경계를 게시합니다.</td>
+
+</tr>
+
+<tr id="Byte-split">
+                            <th scope="row"><code>Byte.split(Slice&lt;byte&gt; input, byte separator)</code></th>
+                            <td><code>ByteSplit</code></td>
+                            <td>빈 필드를 포함한 lazy separator 반복자를 빌려옵니다; 결과 수집 할당이 없습니다.
+                            </td>
+
+</tr>
+
+<tr id="Byte-chunks">
+                            <th scope="row"><code>Byte.chunks(Slice&lt;byte&gt; input, usize width)</code></th>
+                            <td><code>Result&lt;ByteChunks, ByteError&gt;</code></td>
+                            <td>0이 아닌 너비가 필요합니다. 짧은 꼬리를 포함한 청크를 빌리십시오.</td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Codecs" aria-labelledby="Codecs-heading">
+<h2 id="Codecs-heading">6입니다. 텍스트 및 Hex Codecs
+</h2>
+<p>엄격한 검증은 명시적으로 손실이 있는 디코딩과 다릅니다. 대체 결과는 원본 바이트가 유효하거나 가역적이었다는 증거가 아니라 유용한 텍스트입니다. Unicode 최대 부분 치환은 다음과 같은 유효한 시퀀스를 오류로 삼킬 수 없습니다. Hex는 자체 고정 ASCII 문법을 사용합니다. 전체 입력 코덱은 잘못된 후행 데이터를 거부합니다. 증분 스트리밍은 부분 시퀀스 상태를 별도로 유지해야 하며, 발신자는 임의 전송 청크를 독립적으로 안전하게 디코딩할 수 없으며 스칼라와 경계를 같이 가정할 수 없습니다.
+
+</p>
+
+<div class="table-scroll" role="region" aria-label="텍스트 및 Hex Codecs 데이터 테이블">
+<table>
+
+<thead>
+
+<tr>
+                            <th scope="col">시그니처</th>
+                            <th scope="col">반환</th>
+                            <th scope="col">계약 및 비용</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr id="Byte-utf8_validate">
+                            <th scope="row"><code>Byte.utf8_validate(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;unit, ByteError&gt;</code></td>
+                            <td>전체 시퀀스의 엄격한 검증; byte 오프셋 보고; 출력 할당 없음.</td>
+
+</tr>
+
+<tr id="Byte-decode_utf8">
+                            <th scope="row"><code>Byte.decode_utf8(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;string, ByteError&gt;</code></td>
+                            <td>소유된 UTF-8 텍스트를 엄격하게 검증하고 할당합니다. 잘못된 입력은 오류입니다.</td>
+
+</tr>
+
+<tr id="Byte-decode_utf8_lossy">
+                            <th scope="row"><code>Byte.decode_utf8_lossy(Slice&lt;byte&gt; input)</code></th>
+                            <td><code>Result&lt;string, ByteError&gt;</code></td>
+                            <td>텍스트를 할당하여 각 최대 잘못된 형식의 하위 파트를 U+FFFD로 바꿉니다.</td>
+
+</tr>
+
+<tr id="Byte-encode_utf8">
+                            <th scope="row"><code>Byte.encode_utf8(string_view input)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>검증된 UTF-8 텍스트의 byte 복사본을 할당합니다.</td>
+
+</tr>
+
+<tr id="Byte-encode_hex">
+                            <th scope="row"><code>Byte.encode_hex(Slice&lt;byte&gt; input, bool uppercase)</code></th>
+                            <td><code>Result&lt;string, ByteError&gt;</code></td>
+                            <td>byte 당 두 개의 ASCII 숫자를 할당합니다. 길이 곱셈을 확인합니다.</td>
+
+</tr>
+
+<tr id="Byte-decode_hex">
+                            <th scope="row"><code>Byte.decode_hex(string_view input)</code></th>
+                            <td><code>Result&lt;Vector&lt;byte&gt;, ByteError&gt;</code></td>
+                            <td>짝수의 ASCII 16진수 숫자를 필요로 합니다. 접두사나 공백이 필요 없습니다. 바이트를 할당합니다.
+                            </td>
+
+</tr>
+
+</tbody>
+
+</table>
+</div>
+</section>
+<section id="Serialization" aria-labelledby="Serialization-heading">
+<h2 id="Serialization-heading">7입니다. 더 넓은 분야와 실행 장소
+</h2>
+<p>숫자 필드는 너비, 서명 및 byte 순서가 필요합니다. <a href="Byte_Order.html">Byte 순서</a>. 디코딩 never는 정렬 가정 또는 포인터 별칭 캐스트를 승인합니다. CPU/GPU 버퍼는 배치 규칙을 유지합니다. 즉, 뷰가 메모리를 자동으로 마이그레이션할 수 없으며 제출된 작업은 실제 작업이 완료될 때까지 리소스를 유지합니다. 호스트 판독 가능한 출력은 적절한 전송 및 가시성 동기화가 추가로 필요합니다. 원시 소유권은 수명 수표의 예외는 아닙니다. 버퍼 성장은 활성 충돌 GPU 대여을 통해 진행할 수 없습니다.
+
+</p>
+</section>
+<section id="Examples" aria-labelledby="Examples-heading">
+<h2 id="Examples-heading">8입니다. 예제 및 관련 유형
+</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">Byte.allocate(16); // Result with zero-initialized logical contents
+Byte.with_capacity(16); // Result with logical length zero
+byte separator = Byte.from_u8(0x00);
+Byte.decode_hex(&quot;41ff&quot;); // allocating byte decoder
+Byte.encode_utf8(&quot;A&quot;); // allocating UTF-8 copy</code></pre>
+
+<p>참고: <a href="Byte.html">Byte</a> 스칼라 비트를 위해, <a href="../Char/Unicode_Scalar.html">Unicode 스칼라</a> 정확히 하나의 디코딩을 위해, 그리고 <a href="../String/string.html">string</a> 텍스트 시퀀스입니다.The text sequence. ByteError와 빌린 이터레이터는 지원 레코드를 제안합니다. 참조는 특정 할당자, 네이티브 라이브러리 또는 측정 된 성과 결과가 아닌 독립적 인 계약에 동기를 부여합니다.
+
+</p>
+</section>
+<section id="Sources" aria-labelledby="Sources-heading">
+<h2 id="Sources-heading">9. 출처 및 설계 참고 자료
+</h2>
+<p>아래 자료는 설계에 참고했습니다. Aevix의 이름, 시그니처, 계약은 자체 설계 제안입니다.
+
+</p>
+
+<ul class="source-list">
+
+<li><a href="https://docs.python.org/3/library/codecs.html" target="_blank"
+                           rel="noopener noreferrer">Python 코덱 — 명시적 엄격 및 대체 디코딩</a>
+
+</li>
+
+<li><a href="https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/" target="_blank"
+                           rel="noopener noreferrer">Unicode 코어 사양 — 인코딩 및 오류 대체</a>
+
+</li>
+
+<li><a href="https://docs.python.org/3/library/struct.html" target="_blank"
+                           rel="noopener noreferrer">Python 구조체 — 명시적 byte 순서, 크기 및 정렬</a>
+
+</li>
+
+<li><a href="https://doc.rust-lang.org/std/primitive.u8.html" target="_blank"
+                           rel="noopener noreferrer">Rust u8 — 비트 조작과 byte 순서 비교</a>
+
+</li>
+
+</ul>
+</section><nav class="page-navigation" aria-label="이전·다음 레퍼런스"><a href="Byte.html"><span>이전 레퍼런스</span>Byte</a><a href="Byte_Order.html"><span>다음 레퍼런스</span>Byte 순서</a></nav></article></div>
+    <footer class="page-footer"><span>Aevix 언어 · 자료형 레퍼런스</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer>
+  </main>
+</body>
+</html>

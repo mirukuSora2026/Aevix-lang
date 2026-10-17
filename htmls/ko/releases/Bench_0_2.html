@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="함수별 경과 시간과 표본으로 측정한 프로세스 메모리를 정상 종료 시 자동으로 보고합니다.">
+  <title>@bench로 함수 측정하기 — Aevix 0.2</title>
+  <link rel="stylesheet" href="../../css/root.css?v=7">
+  <link rel="preload" href="../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../releases/Bench_0_2.html">
+<link rel="alternate" hreflang="ko" href="Bench_0_2.html">
+<script src="../../js/language.js?v=1" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header">
+  <a class="brand" href="../index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
+  <nav class="header-nav" aria-label="문서"><a href="0_2.html">0.2 프로필</a><a href="../data_type/index.html">자료형</a><a href="../grammar/index.html">문법</a><a href="../errors/index.html">오류</a></nav>
+  <span class="draft-badge">0.2V 프리뷰</span>
+<label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell">
+  <nav class="breadcrumbs" aria-label="현재 위치"><a href="../index.html">문서</a><span class="separator" aria-hidden="true">/</span><a href="0_2.html">0.2</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">@bench로 함수 측정하기</span></nav>
+  <header class="doc-intro"><div><p class="eyebrow">구현된 언어 범위</p><h1>@bench로 함수 측정하기</h1><p class="doc-subtitle">함수별 경과 시간과 표본으로 측정한 프로세스 메모리를 정상 종료 시 자동으로 보고합니다.</p><div class="doc-meta"><span class="meta-chip">0.2 미리보기</span><span class="meta-chip">AOT / ORC JIT</span><a href="0_2.html#limits">릴리스의 한계</a></div></div><div class="type-mark" aria-hidden="true"><strong>ms</strong><span>0.2 참조</span></div></header>
+  <div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#start"><span class="toc-number">01</span><span>측정할 함수에 계측 표기 붙이기</span></a></li><li><a href="#run"><span class="toc-number">02</span><span>실행하고 확인하기</span></a></li><li><a href="#fields"><span class="toc-number">03</span><span>보고서 읽기</span></a></li><li><a href="#time"><span class="toc-number">04</span><span>경과 시간에는 중첩 호출의 작업도 포함됩니다</span></a></li><li><a href="#memory"><span class="toc-number">05</span><span>메모리는 프로세스 전체를 표본 측정합니다</span></a></li><li><a href="#overhead"><span class="toc-number">06</span><span>측정에도 비용이 듭니다</span></a></li><li><a href="#checks"><span class="toc-number">07</span><span>검사한 동작</span></a></li></ol></details><nav class="family-nav" aria-label="0.2 참조"><h2>0.2 참조</h2><div class="family-links"><a href="0_2.html">0.2 구현 프로필</a><a href="Closures_0_2.html">클로저와 호출 계약</a><a href="Parallel_0_2.html">CPU 병렬 순회</a><a href="Bench_0_2.html" aria-current="page">함수 측정</a></div></nav></aside><article class="content">
+<section id="start" aria-labelledby="start-heading"><h2 id="start-heading">측정할 함수에 계측 표기 붙이기</h2>
+<p>본문이 있는 함수 선언 앞에 <code>@bench</code> 를 붙이세요. import는 필요하지 않습니다. 프로그램을 평소처럼 실행하면 완료된 호출을 집계하고 정상 프로세스 종료 시 표준 오류로 보고서를 출력합니다.</p><pre class="code-block"><code id="Aevix">@bench i32 leaf(bool early) {
+    if (early) return 7;
+    return 8;
+}
+
+@bench i32 main() {
+    i32 first = leaf(true);
+    i32 second = leaf(false);
+    return first == 7 &amp;&amp; second == 8 ? 0 : 1;
+}</code></pre><p>제네릭 함수에도 사용할 수 있습니다. 조기 return이나 <code>?</code> 를 통한 오류 전파도 현재 호출의 측정을 마칩니다. 재귀 호출은 각각 기록합니다.</p><p><code>@bench</code> 는 소스 문법이며 문서 주석의 태그와는 다릅니다. 같은 함수에 중복해서 붙이면 오류입니다. 타입, 변수와 본문 없는 함수 선언에는 붙일 수 없습니다.</p>
+</section>
+<section id="run" aria-labelledby="run-heading"><h2 id="run-heading">실행하고 확인하기</h2>
+<p>네이티브 AOT 실행과 ORC JIT 실행 모두 측정 런타임을 사용합니다. 별도의 벤치마크 스위치는 필요하지 않습니다.</p><pre><code class="language-shell">aevixc measured.avx
+aevixc --jit measured.avx
+aevixc measured.avx 2&gt; bench.txt</code></pre><p>소스 검사와 LLVM 출력은 측정 대상 함수를 실행하지 않습니다. 계측 표기는 컴파일된 프로그램에도 남으며, 그 프로그램을 실행하면 보고서가 출력됩니다.</p><p>레이블에는 논리적인 함수 이름과 다음과 같은 컴파일러 식별 접미사가 포함됩니다: <code>leaf#42</code>. 이 접미사는 안정된 공개 식별자가 아니며 제네릭 특수화마다 레이블이 다를 수 있습니다. 표준 출력은 프로그램 자체의 출력에 계속 사용할 수 있습니다.</p>
+</section>
+<section id="fields" aria-labelledby="fields-heading"><h2 id="fields-heading">보고서 읽기</h2>
+<div class="table-scroll" role="region" aria-label="참조 표"><table><thead><tr><th>필드</th><th>의미</th></tr></thead><tbody><tr><td><code>calls</code></td><td>기록된 완료 호출 수입니다.</td></tr><tr><td><code>time_total_ms</code></td><td>해당 호출들의 총 경과 시간이며 단위는 밀리초입니다.</td></tr><tr><td><code>time_mean_ms</code></td><td>기록된 총 경과 시간을 호출 수로 나눈 값입니다.</td></tr><tr><td><code>time_max_ms</code></td><td>기록된 호출 중 가장 긴 실행 시간입니다.</td></tr><tr><td><code>memory_peak_mib</code></td><td>이 함수가 활성 상태일 때 관측한 최대 프로세스 상주 메모리 크기이며 단위는 MiB입니다.</td></tr><tr><td><code>memory_mean_mib</code></td><td>이 함수가 활성 상태일 때 수집한 상주 메모리 표본의 산술평균입니다.</td></tr><tr><td><code>samples</code></td><td>상주 메모리 크기를 성공적으로 관측한 횟수입니다.</td></tr><tr><td><code>rss_unavailable_samples</code></td><td>상주 메모리 크기를 읽지 못한 횟수입니다.</td></tr><tr><td><code>active_calls</code></td><td>보고서의 스냅샷을 생성할 때 아직 활성 상태인 호출 수입니다. 실행이 모두 끝났다면 보통 0입니다.</td></tr></tbody></table></div><p>헤더에는 측정값이 경과 시간과 표본 기반 프로세스 RSS임을 표시합니다. 운영체제가 메모리를 성공적으로 관측하지 못하면 메모리 필드에 <code>unavailable</code> 를 표시할 수 있습니다.</p>
+</section>
+<section id="time" aria-labelledby="time-heading"><h2 id="time-heading">경과 시간에는 중첩 호출의 작업도 포함됩니다</h2>
+<p>각 호출은 단조 시계로 기록한 진입 시점부터 종료 시점까지 측정합니다. 경과 시간에는 대기, 스케줄링과 호출한 함수에서 보낸 시간도 포함됩니다. CPU 시간을 세는 카운터는 아닙니다.</p><p>중첩·재귀 호출의 시간은 내부 작업을 포함합니다. 바깥 호출 시간에는 안쪽 호출 시간이 포함되고, 안쪽 호출도 별도 행에 나타납니다. 따라서 모든 행을 더해도 프로그램 전체 실행 시간이 되지는 않습니다. 동시 호출의 시간도 서로 겹칠 수 있습니다.</p><pre class="code-block"><code class="language-aevix">@bench i32 recursive(i32 depth) {
+    if (depth == 0) return 0;
+    return recursive(depth - 1) + 1;
+}
+
+i32 main() {
+    return recursive(3) == 3 ? 0 : 1;
+}</code></pre><p>이 예제는 recursive 호출 4개를 기록합니다. 총시간에는 여러 재귀 깊이에서 중복 계산된 시간이 포함됩니다.</p>
+</section>
+<section id="memory" aria-labelledby="memory-heading"><h2 id="memory-heading">메모리는 프로세스 전체를 표본 측정합니다</h2>
+<p>런타임은 측정 대상의 진입·종료 시점에 상주 메모리를 표본 측정합니다. 호출이 활성 상태인 동안에는 백그라운드 샘플러도 약 10밀리초 간격으로 관측을 요청합니다. 스케줄링에 따라 관측이 늦어질 수 있으며 표본 사이의 짧은 메모리 급증은 놓칠 수 있습니다.</p><p>표본은 프로세스 전체를 측정합니다. 코드, 스택, 런타임 관리 데이터와 무관한 할당도 포함됩니다. JIT 모드에서는 호스트 컴파일러와 JIT 상태도 포함됩니다. 이 값은 한 함수가 할당한 바이트 수나 예약된 관리 힙의 크기가 아닙니다.</p><p>각 표본 시점에는 재귀 깊이와 관계없이 활성 함수마다 관측값 하나를 기록합니다. 같은 순간 활성 상태인 중첩 함수에는 같은 프로세스 전체 값이 기록될 수 있습니다. 보고된 평균은 관측값의 산술평균이며 시간 가중 평균이 아닙니다.</p><p>샘플러 스레드를 시작할 수 없으면 보고서에 이를 표시하고 진입·종료 시점의 관측으로 대체합니다. 플랫폼 메모리 조회는 별도로 실패할 수 있으며, 수집하지 못한 관측 횟수를 기록합니다.</p>
+</section>
+<section id="overhead" aria-labelledby="overhead-heading"><h2 id="overhead-heading">측정에도 비용이 듭니다</h2>
+<p>계측에는 타임스탬프 읽기, 동기화된 관리 작업, 메모리 조회와 보고 비용이 추가됩니다. 프로파일러는 자체 메타데이터를 할당하고 샘플링 스레드를 만들 수 있습니다. 아주 짧은 함수는 이 오버헤드가 측정값의 대부분을 차지할 수 있습니다.</p><p>계측 표기가 없는 함수에는 프로파일러 진입·종료 훅이 추가되지 않습니다. 계측 표기가 전혀 없는 프로그램은 이 프로파일러를 시작하지 않습니다. 일반적인 컴파일러·런타임 비용은 그대로 적용됩니다.</p><p>비교할 때는 대상, 컴파일러 설정과 작업 부하를 같게 하고, 준비 실행 조건을 일정하게 유지하며 여러 번 표본을 수집하세요. AOT와 JIT의 프로세스 RSS는 서로 다른 측정 환경입니다. 계측된 호출 한 번만으로 최적화의 효과를 입증해서는 안 됩니다.</p><div class="callout warning"><strong>정상 종료 시 보고.</strong> 프로세스 abort, 강제 종료와 치명적인 런타임 실패에서는 최종 보고서를 보장하지 않습니다. 메타데이터 할당 한계 때문에 일부 호출이 기록되지 않을 수도 있으며, 이때 런타임은 진단 메시지를 출력합니다.</div>
+</section>
+<section id="checks" aria-labelledby="checks-heading"><h2 id="checks-heading">검사한 동작</h2>
+<p>통합 검사는 계측 표기가 있는 코드를 AOT와 ORC JIT로 실행하여 중첩 호출, 재귀, 제네릭 특수화, 조기 return과 Result 전파를 확인합니다. 보고서 필드, 호출 수와 정상 완료 후 활성 호출이 남지 않는지도 검사합니다.</p><p>별도의 네이티브 런타임 검사로 동시 기록과 상주 메모리 관측을 확인합니다. 계측 표기가 없는 실행은 보고서를 출력하지 않고, 계측 표기가 없는 LLVM에는 프로파일러 훅이 없으며, 소스 검사는 측정을 실행하지 않습니다. 플랫폼별 릴리스 검증 현황: <a href="0_2.html#limits">0.2 구현 프로필</a>.</p>
+</section>
+<nav class="page-navigation" aria-label="관련 문서"><a href="0_2.html"><span>릴리스 참조</span>0.2 구현 범위로 돌아가기</a></nav>
+  </article></div>
+  <footer class="page-footer"><span>Aevix · 0.2 미리보기</span><span>구현 참조 · 플랫폼 지원 범위는 0.2 구현 범위에 명시</span></footer>
+</main>
+</body>
+</html>

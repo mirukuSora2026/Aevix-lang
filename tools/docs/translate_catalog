@@ -1,0 +1,421 @@
+#!/usr/bin/env python3.14
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : translate_catalog
+#
+# Description :
+#     고정된 공개 번역 모델을 로컬에서 실행하고 문서 번역 사전을 재개 가능하게 생성한다.
+#     Run a pinned public translation model locally and create a resumable documentation catalog.
+#
+# ========================
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import ssl
+import sys
+import tempfile
+import time
+import urllib.request
+
+
+MODEL = "Helsinki-NLP/opus-mt-tc-big-en-ko"
+REVISION = "ae8606b7b29a495f31ce679cee2007f536a3a5ce"
+FILES = (
+    "README.md", "config.json", "generation_config.json", "model.safetensors",
+    "source.spm", "target.spm", "special_tokens_map.json",
+    "tokenizer_config.json", "vocab.json",
+)
+# 코드 노드를 추출하는 책임은 HTML 생성기에 있다. 여기서는 남은 식별자와 수치를 보존한다.
+# The HTML exporter excludes code nodes; preserve remaining identifiers and numbers here.
+PROTECTED = re.compile(
+    r"\b[A-Za-z_][\w.]*<[^<>]*(?:<[^<>]*>[^<>]*)*>"
+    r"|<[A-Za-z_][^<>]*(?:<[^<>]*>[^<>]*)*>"
+    r"|\b[A-Za-z_][\w-]*(?:/[A-Za-z_][\w.-]*)+(?:#[\w.-]+)?\b"
+    r"|\b[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)+\b"
+    r"|\bO\([^)]*\)|\b[A-Z][A-Za-z_0-9]*Error\b"
+    r"|\b(?:i8|i16|i32|i64|i128|u8|u16|u32|u64|u128|isize|usize|"
+    r"f8|f16|bf16|f32|f64|int|float|bool|char|byte|string_view|string|void|unit|never)\b"
+    r"|\b(?:checked|try|return|break|count|mut|persist|rsn|const|dyn|Self)\b"
+    r"|\b(?:Aevix|LLVM|MLIR|CTranslate2|Helsinki-NLP|Rust|Python|Java|macOS|Windows|Linux|"
+    r"ARM64|AArch64|x86-64|AOT|JIT|SIMD|UTF-8|UTF-16|UTF-32|Unicode|"
+    r"Optional|Result|Tensor|Box|Array|Vector|Slice|MutSlice|Tuple|Range|Copy|FnMut|FnOnce|Fn|"
+    r"Integer|Float|Boolean|Char|Byte|Unit|Never|Shared|Weak|Atomic|Mutex|RwLock|Quantized|Pending|Task)\b"
+    r"|C\+\+"
+    r"|(?<!\w)[−+\-]?\d+(?:[.,]\d+)*(?:(?:\s*(?:<=|>=|==|!=|<<|>>|\*\*|[-+*/^×÷−=<>≤≥–])\s*)(?:[−+\-]?\d+(?:[.,]\d+)*|[A-Za-z_]\w*))*"
+)
+
+
+def atomic_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for data in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(data)
+    return h.hexdigest()
+
+
+def context():
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
+def request(url):
+    return urllib.request.urlopen(
+        urllib.request.Request(url, headers={"User-Agent": "Aevix-docs-local-translation/1"}),
+        context=context(), timeout=60,
+    )
+
+
+def prepare(directory, attribution_path):
+    import importlib.metadata
+    from ctranslate2.converters import TransformersConverter
+
+    source = directory / "source"
+    converted = directory / "int8"
+    source.mkdir(parents=True, exist_ok=True)
+    manifest_path = directory / "download-manifest.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    else:
+        with request(f"https://huggingface.co/api/models/{MODEL}/revision/{REVISION}?blobs=true") as response:
+            manifest = json.load(response)
+        atomic_json(manifest_path, manifest)
+    if manifest.get("sha") != REVISION:
+        raise RuntimeError("The model metadata does not match the pinned revision.")
+    records = {entry["rfilename"]: entry for entry in manifest["siblings"]}
+    checksums = {}
+    for name in FILES:
+        target = source / name
+        record = records[name]
+        wanted_hash = record.get("lfs", {}).get("sha256")
+        valid = target.is_file() and target.stat().st_size == record["size"]
+        if valid and wanted_hash:
+            valid = digest(target) == wanted_hash
+        if not valid:
+            print(f"Downloading {name} ({record['size']:,} bytes)", flush=True)
+            partial = target.with_name(name + ".partial")
+            for attempt in range(3):
+                try:
+                    with request(f"https://huggingface.co/{MODEL}/resolve/{REVISION}/{name}") as response, partial.open("wb") as output:
+                        last_report = time.monotonic()
+                        while chunk := response.read(1024 * 1024):
+                            output.write(chunk)
+                            if time.monotonic() - last_report > 20:
+                                print(f"  {name}: {output.tell():,}/{record['size']:,} bytes", flush=True)
+                                last_report = time.monotonic()
+                    if partial.stat().st_size != record["size"]:
+                        raise RuntimeError("The downloaded model file has an unexpected size.")
+                    if wanted_hash and digest(partial) != wanted_hash:
+                        raise RuntimeError("The downloaded model file failed its upstream SHA-256 check.")
+                    partial.replace(target)
+                    break
+                except Exception as error:
+                    # 일시적인 서명 URL이나 인증 정보를 오류 메시지에 노출하지 않는다.
+                    # Do not print temporary signed URLs or authentication data from exceptions.
+                    print(f"Download attempt {attempt + 1} failed: {type(error).__name__}", file=sys.stderr, flush=True)
+                    if attempt == 2:
+                        raise RuntimeError(f"Could not download {name}.") from None
+                    time.sleep(2 * (attempt + 1))
+        checksums[name] = digest(target)
+    attribution = {
+        "model": MODEL,
+        "revision": REVISION,
+        "source": f"https://huggingface.co/{MODEL}/tree/{REVISION}",
+        "developer": "Language Technology Research Group at the University of Helsinki",
+        "model_license": "CC-BY-4.0",
+        "model_license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "model_card": f"https://huggingface.co/{MODEL}/blob/{REVISION}/README.md",
+        "use": "Local English-to-Korean draft translation of Aevix documentation; reviewed overrides take precedence.",
+        "runtime": "CTranslate2",
+        "runtime_license": "MIT",
+        "runtime_license_url": "https://github.com/OpenNMT/CTranslate2/blob/master/LICENSE",
+        "versions": {name: importlib.metadata.version(name) for name in ("ctranslate2", "transformers", "torch", "sentencepiece")},
+        "files_sha256": checksums,
+        "quantization": "int8_float32",
+    }
+    conversion_stamp = converted / "aevix-model.json"
+    if not (converted / "model.bin").is_file() or not conversion_stamp.is_file():
+        print("Converting the pinned model to CTranslate2 int8_float32 on CPU.", flush=True)
+        started = time.monotonic()
+        converter = TransformersConverter(str(source), trust_remote_code=False)
+        converter.convert(str(converted), quantization="int8_float32", force=True)
+        atomic_json(conversion_stamp, attribution)
+        print(f"Conversion completed in {time.monotonic() - started:.1f}s.", flush=True)
+    # upstream main은 한국어 어휘를 영어 입력에도 사용한다. 원본 SPM ID를 분리해 복구한다.
+    # Upstream main uses the Korean vocabulary for English input; restore separate original SPM IDs.
+    import sentencepiece
+    fixed_source = directory / "source-fixed"
+    fixed_converted = directory / "int8-fixed"
+    fixed_source.mkdir(exist_ok=True)
+    fixed_converted.mkdir(exist_ok=True)
+    vocabularies = {}
+    for side in ("source", "target"):
+        model = sentencepiece.SentencePieceProcessor(model_file=str(source / f"{side}.spm"))
+        vocabularies[side] = [model.id_to_piece(index) for index in range(model.get_piece_size())]
+        atomic_json(fixed_converted / f"{side}_vocabulary.json", vocabularies[side])
+    expected_target = {token: index for index, token in enumerate(vocabularies["target"])}
+    expected_target["<pad>"] = 32000
+    if expected_target != json.loads((source / "vocab.json").read_text(encoding="utf-8")):
+        raise RuntimeError("The upstream target vocabulary does not match its SentencePiece IDs.")
+    for file in FILES:
+        if file in ("vocab.json", "tokenizer_config.json"):
+            continue
+        target = fixed_source / file
+        if not target.exists():
+            target.symlink_to(source / file)
+    source_vocabulary = {token: index for index, token in enumerate(vocabularies["source"])}
+    source_vocabulary["<pad>"] = 32000
+    atomic_json(fixed_source / "vocab.json", source_vocabulary)
+    atomic_json(fixed_source / "target_vocab.json", expected_target)
+    tokenizer_config = json.loads((source / "tokenizer_config.json").read_text(encoding="utf-8"))
+    tokenizer_config["separate_vocabs"] = True
+    atomic_json(fixed_source / "tokenizer_config.json", tokenizer_config)
+    for file in ("model.bin", "config.json"):
+        target = fixed_converted / file
+        if not target.exists():
+            target.symlink_to(converted / file)
+    attribution["tokenizer_correction"] = {
+        "reason": "Upstream main incorrectly uses target vocabulary IDs for source English tokens.",
+        "upstream_issue": "https://github.com/Helsinki-NLP/OPUS-MT-train/issues/81",
+        "upstream_related_pr": "https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-en-ko/discussions/7",
+        "method": "Derive separate source/target vocabularies directly from the pinned original SentencePiece IDs; original model weights unchanged.",
+        "corrected_files_sha256": {
+            f"source-fixed/{name}": digest(fixed_source / name)
+            for name in ("vocab.json", "target_vocab.json", "tokenizer_config.json")
+        } | {
+            f"int8-fixed/{name}": digest(fixed_converted / name)
+            for name in ("source_vocabulary.json", "target_vocabulary.json", "model.bin")
+        },
+    }
+    atomic_json(attribution_path, attribution)
+    return fixed_source, fixed_converted, attribution
+
+
+def read_strings(path):
+    data = json.loads(path.read_text(encoding="utf-8"))
+    values = data.get("strings", []) if isinstance(data, dict) else data
+    if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+        raise ValueError("Source must be a JSON string array or an object containing a strings array.")
+    return list(dict.fromkeys(value for value in values if value.strip()))
+
+
+class Engine:
+    def __init__(self, source, converted, threads, beam):
+        import ctranslate2
+        from transformers import MarianTokenizer
+        self.tokenizer = MarianTokenizer.from_pretrained(
+            str(source), target_vocab_file=str(source / "target_vocab.json"), local_files_only=True,
+        )
+        self.translator = ctranslate2.Translator(
+            str(converted), device="cpu", compute_type="int8_float32",
+            inter_threads=1, intra_threads=threads,
+        )
+        self.beam = beam
+        self.fallbacks = 0
+        self.output_tokens = 0
+        self.review = set()
+        self.cache_path = converted.parent / f"raw-translation-cache-separated-vocab-beam{beam}.json"
+        self.cache = json.loads(self.cache_path.read_text(encoding="utf-8")) if self.cache_path.is_file() else {}
+
+    def pieces(self, text):
+        # 문단 전체를 한 번에 번역할 때 문장이 누락되지 않도록 문장 단위로 보존한다.
+        # Preserve sentence units so a paragraph cannot lose an entire sentence during decoding.
+        sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z(\"“])', text)
+        if len(sentences) > 1:
+            return [part for sentence in sentences for part in self.pieces(sentence) if part]
+        ids = self.tokenizer.encode(text)
+        if len(ids) <= 480:
+            return [text]
+        sentences = re.split(r"(?<=[.!?;])\s+", text)
+        if len(sentences) > 1:
+            return [part for sentence in sentences for part in self.pieces(sentence) if part]
+        # 긴 한 문장은 단어 경계를 사용한다. 입력을 조용히 잘라 버리지는 않는다.
+        # Split long sentences at word boundaries instead of silently truncating input.
+        words = text.split()
+        if len(words) < 2:
+            return [text]
+        middle = len(words) // 2
+        return self.pieces(" ".join(words[:middle])) + self.pieces(" ".join(words[middle:]))
+
+    def batch(self, texts):
+        if not texts:
+            return []
+        missing = list(dict.fromkeys(text for text in texts if text not in self.cache))
+        if not missing:
+            return [self.cache[text] for text in texts]
+        # 분리 어휘의 convert_ids_to_tokens는 대상 사전을 사용하므로 원본 SPM 조각을 직접 보낸다.
+        # With separate vocabularies convert_ids_to_tokens uses the target dictionary; send source SPM pieces directly.
+        tokens = [self.tokenizer.spm_source.encode(text, out_type=str) + [self.tokenizer.eos_token] for text in missing]
+        if any(len(value) > 512 for value in tokens):
+            raise ValueError("An indivisible input exceeds the model's token limit.")
+        translated = self.translator.translate_batch(
+            tokens, beam_size=self.beam, max_input_length=512,
+            max_decoding_length=512, return_scores=False,
+            batch_type="tokens", max_batch_size=2048,
+        )
+        for text, value in zip(missing, translated):
+            self.output_tokens += len(value.hypotheses[0])
+            self.cache[text] = self.tokenizer.spm_target.decode([
+                token for token in value.hypotheses[0] if token not in self.tokenizer.all_special_tokens
+            ]).strip()
+        atomic_json(self.cache_path, self.cache)
+        return [self.cache[text] for text in texts]
+
+    def translate(self, texts):
+        entries = []
+        owners = []
+        for owner, text in enumerate(texts):
+            for piece in self.pieces(text):
+                protected = []
+                def replace(match):
+                    protected.append(match.group())
+                    return f"ZXQ{len(protected) - 1}XQZ"
+                masked = PROTECTED.sub(replace, piece)
+                entries.append((piece, masked, protected))
+                owners.append(owner)
+        results = self.batch([entry[1] for entry in entries])
+        assembled = [[] for _ in texts]
+        for owner, (original, masked, protected), target in zip(owners, entries, results):
+            markers = re.findall(r"ZXQ(\d+)XQZ", target)
+            if sorted(int(index) for index in markers) == list(range(len(protected))):
+                # 겹친 마커를 허용하지 않고 한 번에 복원해 인접 식별자 손상을 방지한다.
+                # Restore nonoverlapping markers in one pass so adjacent identifiers cannot corrupt each other.
+                target = re.sub(r"ZXQ(\d+)XQZ", lambda match: protected[int(match.group(1))], target)
+            elif protected:
+                self.fallbacks += 1
+                fragments = []
+                end = 0
+                for match in PROTECTED.finditer(original):
+                    fragments.append((False, original[end:match.start()]))
+                    fragments.append((True, match.group()))
+                    end = match.end()
+                fragments.append((False, original[end:]))
+                natural = [value.strip() for keep, value in fragments if not keep and re.search(r"[A-Za-z]", value)]
+                translations = iter(self.batch(natural))
+                restored = []
+                for keep, value in fragments:
+                    if keep or not re.search(r"[A-Za-z]", value):
+                        restored.append(value)
+                    else:
+                        leading = value[:len(value) - len(value.lstrip())]
+                        trailing = value[len(value.rstrip()):]
+                        translated = next(translations)
+                        if not translated:
+                            self.review.add(texts[owner])
+                            translated = value.strip()
+                        restored.append(leading + translated + trailing)
+                target = "".join(restored)
+            if not target:
+                self.review.add(texts[owner])
+                target = original
+            assembled[owner].append(target)
+        result = []
+        for original, parts in zip(texts, assembled):
+            value = " ".join(parts)
+            # 용어 교정이 API 경로 또는 복원된 코드 조각 내부까지 바꾸지 않게 한다.
+            # Keep glossary corrections outside restored API paths and code fragments.
+            glossary_values = sorted(set(PROTECTED.findall(original)), key=len, reverse=True)
+            if glossary_values:
+                glossary_ids = {text: index for index, text in enumerate(glossary_values)}
+                glossary_pattern = re.compile("|".join(re.escape(text) for text in glossary_values))
+                value = glossary_pattern.sub(lambda match: f"GXQ{glossary_ids[match.group()]}QXG", value)
+            if re.search(r"\b(?:(?:re)?borrow\w*|loans?)\b", original, re.I):
+                value = value.replace("대출", "대여").replace("차용", "대여").replace("빌림", "대여").replace("빌립니다", "대여합니다")
+            if re.search(r"\bdangling\b", original, re.I):
+                value = value.replace("매달려", "댕글링").replace("매달린", "댕글링")
+            if re.search(r"\blifetime\w*\b", original, re.I):
+                value = value.replace("일생", "수명").replace("생애", "수명").replace("평생", "수명")
+            if re.search(r"structural\s+mutation", original, re.I):
+                value = value.replace("구조적 돌연변이", "구조 변경").replace("구조적 변이", "구조 변경")
+            if re.search(r"\bgrapheme\w*\b", original, re.I):
+                value = re.sub(r"\bgraphemes?\b", "자소 클러스터", value).replace("그래핀", "자소 클러스터")
+            if re.search(r"\bstride\w*\b", original, re.I) and re.search(r"layout|element|contigu|memory", original, re.I):
+                value = value.replace("stride", "스트라이드").replace("보폭", "스트라이드")
+            if re.search(r"\bviews?\b", original, re.I):
+                value = value.replace("전망", "뷰")
+            if re.search(r"\border(?:ing)?\b", original, re.I):
+                value = value.replace("주문", "순서")
+            if "half-open" in original:
+                value = value.replace("반열", "반개구간")
+            if glossary_values:
+                value = re.sub(r"GXQ(\d+)QXG", lambda match: glossary_values[int(match.group(1))], value)
+            result.append(value)
+        return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Build an offline Korean draft catalog from normalized English text.")
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--model-dir", type=Path, default=Path(tempfile.gettempdir()) / "aevix-ko-model")
+    parser.add_argument("--attribution", type=Path, default=Path(tempfile.gettempdir()) / "aevix-ko-model-attribution.json")
+    parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--limit", type=int, default=0, help="Translate only this many missing strings; zero means all.")
+    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--beam-size", type=int, default=2)
+    args = parser.parse_args()
+    if args.batch_size < 1 or args.threads < 1 or args.beam_size < 1 or args.limit < 0:
+        parser.error("Batch, thread and beam sizes must be positive; limit must be nonnegative.")
+    # HF/Torch 캐시도 임시 모델 디렉터리에 고정해 개인 전역 캐시를 건드리지 않는다.
+    # Keep HF and Torch caches in the temporary model directory, away from global user caches.
+    for name, path in (("HF_HOME", "hf-cache"), ("HUGGINGFACE_HUB_CACHE", "hf-cache/hub"), ("TORCH_HOME", "torch-cache")):
+        os.environ[name] = str(args.model_dir / path)
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    source, converted, attribution = prepare(args.model_dir, args.attribution)
+    if args.prepare_only:
+        return
+    if not args.source or not args.output:
+        parser.error("--source and --output are required unless --prepare-only is selected.")
+    strings = read_strings(args.source)
+    existing = json.loads(args.output.read_text(encoding="utf-8")) if args.output.is_file() else {}
+    allowed = set(strings)
+    translations = {key: value for key, value in existing.get("translations", {}).items()
+                    if key in allowed and isinstance(value, str) and value.strip()}
+    missing = [value for value in strings if value not in translations]
+    if args.limit:
+        missing = missing[:args.limit]
+    engine = Engine(source, converted, args.threads, args.beam_size)
+    engine.review.update(value for value in existing.get("metadata", {}).get("needs_manual_review", [])
+                         if value in allowed)
+    started = time.monotonic()
+    words = 0
+    for offset in range(0, len(missing), args.batch_size):
+        batch = missing[offset:offset + args.batch_size]
+        targets = engine.translate(batch)
+        translations.update(zip(batch, targets))
+        words += sum(len(value.split()) for value in batch)
+        elapsed = time.monotonic() - started
+        metadata = {
+            "model": attribution["model"], "revision": REVISION,
+            "source_sha256": digest(args.source), "source_strings": len(strings),
+            "translated_strings": len(translations), "current_run_strings": offset + len(batch),
+            "current_run_seconds": round(elapsed, 3), "current_run_source_words": words,
+            "source_words_per_second": round(words / elapsed, 3),
+            "output_tokens": engine.output_tokens, "protected_token_fallbacks": engine.fallbacks,
+            "beam_size": args.beam_size, "cpu_threads": args.threads,
+            "needs_manual_review": sorted(engine.review),
+            "machine_translation": True, "reviewed": False,
+        }
+        atomic_json(args.output, {"translations": translations, "metadata": metadata})
+        print(f"Translated {offset + len(batch)}/{len(missing)} missing strings; {words / elapsed:.1f} source words/s; {elapsed:.1f}s", flush=True)
+
+
+if __name__ == "__main__":
+    main()

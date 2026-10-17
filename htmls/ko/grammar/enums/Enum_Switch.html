@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="입력된 명명 패턴, 사설 필드 검사 및 철저한 범위의 열거형을 읽거나 수정하거나 소비합니다.">
+  <title>이넘 스위치 — Aevix Docs</title>
+  <link rel="stylesheet" href="../../../css/root.css?v=7">
+  <link rel="preload" href="../../../css/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="../../../js/docs.js?v=5" defer></script>
+<link rel="icon" type="image/png" href="../../../images/aevix-favicon.png">
+<link rel="alternate" hreflang="en" href="../../../grammar/enums/Enum_Switch.html">
+<link rel="alternate" hreflang="ko" href="Enum_Switch.html">
+<script src="../../../js/language.js?v=1" defer></script>
+</head>
+<body><a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<header class="site-header"><div class="header"><a class="brand" href="../../data_type/index.html" aria-label="Aevix 문서"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="레퍼런스 항목"><a href="../../errors/index.html">오류</a><a href="../index.html" aria-current="true">문법</a><a href="../../declaration/index.html">선언</a><details class="type-menu"><summary>모든 자료형</summary><div class="type-menu-links"><a href="../../data_type/Boolean/Boolean.html">Boolean</a><a href="../../data_type/Integer/Integer.html">Integer</a><a href="../../data_type/Float/Float.html">Float</a><a href="../../data_type/Complex/Complex.html">Complex</a><a href="../../data_type/Char/Char.html">Char</a><a href="../../data_type/Byte/Byte.html">Byte</a><a href="../../data_type/String/string.html">string</a><a href="../../data_type/Array/Array.html">Array</a><a href="../../data_type/Vector/Vector.html">Vector</a><a href="../../data_type/Slice/Slice.html">Slice</a><a href="../../data_type/Tuple/Tuple.html">Tuple</a><a href="../../data_type/Unit/Unit.html">Unit</a><a href="../../data_type/Never/Never.html">Never</a><a href="../../data_type/Range/Range.html">Range</a><a href="../../data_type/Optional/Optional.html">Optional</a><a href="../../data_type/Result/Result.html">Result</a><a href="../../data_type/Box/Box.html">Box</a><a href="../../data_type/Shared/Shared.html">Shared</a><a href="../../data_type/Weak/Weak.html">Weak</a><a href="../../data_type/Atomic/Atomic.html">Atomic</a><a href="../../data_type/Mutex/Mutex.html">Mutex</a><a href="../../data_type/Rwlock/Rwlock.html">RwLock</a><a href="../../data_type/Map/Map.html">Map</a><a href="../../data_type/Set/Set.html">Set</a><a href="../../data_type/Tensor/Tensor.html">Tensor</a><a href="../../data_type/Quantized/Quantized.html">Quantized</a><a href="../../data_type/Simd/Simd.html">Simd</a><a href="../../data_type/Task/Task.html">Task</a><a href="../../data_type/Pending/Pending.html">Pending</a></div></details></nav><span class="draft-badge">설계 레퍼런스</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
+<main id="main-content" class="page-shell"><nav class="breadcrumbs" aria-label="현재 위치"><a href="../../data_type/index.html">언어 레퍼런스</a><span class="separator" aria-hidden="true">/</span><a href="../index.html">문법</a><span class="separator" aria-hidden="true">/</span><a href="index.html">열거형</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">Enum Switch</span></nav>
+<header class="doc-intro"><div><p class="eyebrow">사용자 정의 형식 참조User-DEFINED TYPE Reference</p><h1>Enum Switch</h1><p class="doc-subtitle">입력된 명명 패턴, 사설 필드 검사 및 철저한 범위의 열거형을 읽거나 수정하거나 소비합니다.</p><div class="doc-meta"><span class="meta-chip">Read / modify / consume</span><span class="meta-chip">독립적인 케이스 스코프</span><span class="meta-chip">적용 checked</span><span>확정된 규칙과 미정 사항</span></div><dl class="doc-stats"><div class="doc-stat"><dt>상태</dt><dd>설계 문서</dd></div><div class="doc-stat"><dt>변형</dt><dd>Empty / named 페이로드</dd></div><div class="doc-stat"><dt>소유권</dt><dd>기본적으로 이동</dd></div></dl></div><div class="type-mark" aria-hidden="true"><strong>케이스 T</strong><span>enum 참조</span></div></header>
+<div class="docs-layout"><aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#Overview"><span class="toc-number">01</span><span>읽기, 수정 또는 사용 모드를 명시적으로 선택</span></a></li><li><a href="#Example-Type"><span class="toc-number">02</span><span>예제에 대한 공개 페이로드 스키마</span></a></li><li><a href="#Read-Mode"><span class="toc-number">03</span><span>기본 디스패치 로컬 소유자를 읽고 보존</span></a></li><li><a href="#Read-Patterns"><span class="toc-number">04</span><span>명시적 및 편리성 읽기-대여 바인딩이 모두 지원됩니다.</span></a></li><li><a href="#Modify-Mode"><span class="toc-number">05</span><span>명시적으로 빌린 필드를 수정하는 독점 디스패치</span></a></li><li><a href="#Consume-Mode"><span class="toc-number">06</span><span>페이로드 필드 소유 디스패치 이동 소비</span></a></li><li><a href="#Subset-And-Tag"><span class="toc-number">07</span><span>필드의 부분집합이나 변형 태그만 묶기</span></a></li><li><a href="#Case-Scopes"><span class="toc-number">08</span><span>각 case와 default는 고유의 렉시컬 스코프를 가지고 있습니다.</span></a></li><li><a href="#Exhaustiveness"><span class="toc-number">09</span><span>모든 변형을 덮거나 기본값 제공</span></a></li><li><a href="#Private-Variants"><span class="toc-number">10</span><span>외부 스위치는 숨겨진 변형에 대해 기본값이 필요합니다.</span></a></li><li><a href="#Diagnostics"><span class="toc-number">11</span><span>거부된 범위, 필드 및 소유권 패턴</span></a></li><li><a href="#Open-Decisions"><span class="toc-number">12</span><span>오픈 스위치 세부 정보 및 링크된 계약</span></a></li></ol></details><nav class="family-nav" aria-label="Enum 페이지"><h2>열거형 참조</h2><div class="family-links"><a href="index.html">개요</a><a href="Enums.html">열거형</a><a href="Enum_Switch.html" aria-current="page">Enum 스위치</a></div></nav><nav class="family-nav" aria-label="관련 문법"><h2>관련 레퍼런스</h2><div class="family-links"><a href="../user_defined_types/index.html">사용자 정의 타입</a><a href="../user_defined_types/Copy.html">Copy</a><a href="../interfaces/Interfaces.html">인터페이스</a><a href="../generics/Generic_Types.html">제네릭 타입</a><a href="../control_flow/Switch.html">기본 전환</a><a href="../scope_and_comments/Resource_Cleanup.html">자원 정리</a></div></nav></aside><article class="content" aria-label="Enum 스위치 참조">
+<section id="Overview" aria-labelledby="Overview-heading"><h2 id="Overview-heading">1입니다. 읽기, 수정 또는 사용 모드를 명시적으로 선택</h2><div class="table-wrap"><div class="table-scroll" role="region" aria-label="Enum 스위치 소유권 모드"><table><thead><tr><th scope="col">헤더</th><th scope="col">모드</th><th scope="col">스위치 후 소스</th></tr></thead><tbody><tr><td><code>switch(event)</code></td><td>Shared 대여 읽기.</td><td>소유자 유지됨; 읽기 바인딩을 통한 일반 변경를 사용할 수 없습니다.</td></tr><tr><td><code>switch(&amp;mut event)</code></td><td>변제자금 대여</td><td>소유자 유지; 명시적으로 바인딩된 쓰기 가능한 필드는 변경될 수 있습니다.</td></tr><tr><td><code>switch(move event)</code></td><td>소유하지 않은 비 Copy 열거형에 대한 명백한 소모적 파견.</td><td>소비 후 원본 소스를 사용할 수 없습니다. 필드를 소유하면 바인딩으로 이동할 수 있습니다.</td></tr></tbody></table></div></div><p>셀렉터는 한 번 평가됩니다. 일치하는 브랜치만 실행됩니다. 모든 case와 모든 written default는 독립적인 렉시컬 스코프를 가지며 다음과 같이 끝난다. <code>break;</code>. implicit fallthrough 는 없습니다. 이전 return, 루프 계속, 발산 및 Result <code>?</code> 허용되는, 그러나 각 써진 분지는 아직도로 끝난다 <code>break;</code>. 도달 할 수없는 필요한 break는 그 이유만으로 오류 나 경고가 아닙니다. 이것은 일반적인 unreachable-code 정책을 설정하지 않습니다. 더 보기 <a href="../operators/Parsing_Rules.html#case-exits">case 종료</a>.</p><p>이동 마커는 enum 스위치 헤더에 대해 승인됩니다. 이것은 언어의 어느 곳에서도 일반적인 이동 표현을 설정하지 않습니다. 명시적인 소비 스위치의 참조 소스 모드 추론, 임시 수명 및 Copy 열거형의 특수 처리는 열려 있습니다.</p></section>
+<section id="Example-Type" aria-labelledby="Example-Type-heading"><h2 id="Example-Type-heading">2입니다. 예제에 대한 공개 페이로드 스키마</h2><pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">public enum Event {
+    Quit;
+    Move {
+        public i32 x;
+        public i32 y;
+    };
+    Message {
+        public string text;
+    };
+};</code></pre><p>이러한 필드는 공개되어 있으므로 아래 무료 함수가 바인딩될 수 있습니다. 필드 개인 정보는 이니셜라이저와 패턴에 적용됩니다. Event.Quit는 빈 변형 값이며, Event.Message는 건설을 위해 소유 텍스트 페이로드가 제공 될 때까지 태그 전용 케이스 표기입니다.</p><p>참고: <a href="Enums.html#Visibility">enum 시정</a> 및 <a href="Enums.html#Factories">개인 팩토리</a> 개인 페이로드 데이터를 유지하면서 공개 변형을 노출합니다.</p></section>
+<section id="Read-Mode" aria-labelledby="Read-Mode-heading"><h2 id="Read-Mode-heading">3입니다. 기본 디스패치 로컬 소유자를 읽고 보존</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Event inspect_event(Event event) {
+    mut i32 code = 0;
+    switch (event) {
+        case Event.Quit:
+            code = 1;
+            break;
+        case Event.Move { i32 dx = x, i32 dy = y }:
+            code = dx + dy;
+            break;
+        case Event.Message { &amp;string message = &amp;text }:
+            bool empty = string.is_empty(message);
+            code = empty ? 0 : 2;
+            break;
+    }
+    return event;
+}</code></pre><p>패턴 이름 dx와 dy는 새로 바인드된 변수이며, 오른쪽 이름 페이로드 필드에는 x와 y가 있습니다. i32 필드는 Copy이므로 읽기 스위치 중에 값이 복사될 수 있습니다. 대신 비 Copy string는 클론을 소유하지 않고 읽기 참조로 바인딩됩니다.</p><p>switch(event)는 이벤트 소유자를 보존하여 최종 명시적 return가 이벤트 소유자를 전송할 수 있도록 합니다. by-value 함수 매개 변수는 이미 함수 항목에 대한 호출자 소유권을받습니다. 스위치 자체는 다른 이동을 추가하지 않습니다. 이 예제에서는 호출 소유권과 디스패치 소유권을 구분합니다.</p><p>읽기 바인딩은 페이로드 필드에 일반 쓰기를 승인할 수 없습니다. 호환 가능한 별칭과 이스케이프 참조는 소스 출처와 수명에 따라 유지됩니다.</p></section>
+<section id="Read-Patterns" aria-labelledby="Read-Patterns-heading"><h2 id="Read-Patterns-heading">4입니다. 명시적 및 편리성 읽기-대여 바인딩이 모두 지원됩니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">bool message_empty(Event event) {
+    mut bool empty = false;
+    switch (event) {
+        case Event.Message { &amp;string message = text }:
+            empty = string.is_empty(message);
+            break;
+        case Event.Move:
+            empty = false;
+            break;
+        case Event.Quit:
+            empty = false;
+            break;
+    }
+    return empty;
+}</code></pre><div class="table-wrap"><div class="table-scroll" role="region" aria-label="필드 바인딩 의미Field binding means"><table><thead><tr><th scope="col">패턴 조각</th><th scope="col">의미</th></tr></thead><tbody><tr><td><code>i32 dx = x</code></td><td>Copy 보이는 i32 필드 x를 불변의 로컬 dx로 만듭니다.</td></tr><tr><td><code>&amp;string message = &amp;text</code></td><td>보이는 비 Copy 필드 텍스트를 명시적으로 읽어옵니다.</td></tr><tr><td><code>&amp;string message = text</code></td><td>enum 패턴 안에서의 편리한 읽기-대여 표기 지원.</td></tr><tr><td><code>&amp;mut i32 dx = &amp;mut x</code></td><td>독점적 인 수정 스위치에서 명시적인 쓰기 가능한 필드 대여.</td></tr><tr><td><code>string message = text</code></td><td>소유 필드를 소비 모드로 이동하십시오. 숨겨진 복제본이 없습니다.</td></tr></tbody></table></div></div><p>공유 수신기 방법은 스위치(*self)와 함께 자신의 열거형 참조자를 명시적으로 선택할 수 있다; This can explicitly select its enum referent with switch (*self); 이것은 참조로부터의 값 이동이 아니라 참조 장소의 읽기 대부를 선택한다. 특수화되지 않은 switch(self) 소스 모드 추론은 열려 있습니다. 읽기 편의 규칙은 열거형 패턴 바인딩에만 적용됩니다. 일반적인 로컬 선언이나 함수 인수에 암시적 읽기 대여을 추가하지 않습니다. 바인딩 선언은 해당 유형으로 시작되며, 그 이름은 보이는 외부 로컬 이름을 숨기지 않을 수 있습니다.</p></section>
+<section id="Modify-Mode" aria-labelledby="Modify-Mode-heading"><h2 id="Modify-Mode-heading">5입니다. 명시적으로 빌린 필드를 수정하는 독점 디스패치</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">Event shift_event(Event input) {
+    mut Event event = input;
+    switch (&amp;mut event) {
+        case Event.Move { &amp;mut i32 dx = &amp;mut x, &amp;mut i32 dy = &amp;mut y }:
+            *dx += 1;
+            *dy -= 1;
+            break;
+        case Event.Message:
+            break;
+        case Event.Quit:
+            break;
+    }
+    return event;
+}</code></pre><p>변경 가능한 로컬 이벤트는 독점 기능을 제공합니다. dx와 dy는 활성 Move 페이로드의 별도의 필드에 대한 명시적인 쓰기 가능한 참조입니다. 에넘 소유자는 유지되며 변경 후 반환될 수 있습니다.</p><p>활성 대여 충돌은 중복 스토리지에 대한 checked입니다. 이미 빌린 참조를 직접 읽는 것은 다른 &amp;를 삽입하지 않습니다. 독점 스위치는 모든 필드에 대해 쓰기 가능한 참조를 자동으로 노출하지 않습니다.</p><p>축약형 &amp;mut i32 dx = x 는 아직 선택되지 않았습니다. 예시는 명시적 &amp;mut 필드 양식을 사용합니다. 필드 대여이 활성 상태로 유지되는 동안 활성 변형을 교체하는 것은 ownership/overlap 검사를 따릅니다.</p></section>
+<section id="Consume-Mode" aria-labelledby="Consume-Mode-heading"><h2 id="Consume-Mode-heading">6입니다. 페이로드 필드 소유 디스패치 이동 소비</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">usize consume_message_bytes(Event event) {
+    mut usize bytes = 0;
+    switch (move event) {
+        case Event.Message { string message = text }:
+            bytes = string.byte_len(&amp;message);
+            break;
+        case Event.Move:
+            bytes = 0;
+            break;
+        case Event.Quit:
+            bytes = 0;
+            break;
+    }
+    return bytes;
+}</code></pre><p>이벤트가 소유되지 않은 비Copy 값입니다. 스위치는 이를 소비하며, 원래의 이벤트 바인딩은 이후에 사용할 수 없습니다. 메시지의 경우, 소유 텍스트 필드는 메시지로 이동합니다. 읽기 길이 연산은 새 소유자를 명시적으로 대여합니다; 텍스트 클론을 생성하지 않습니다.</p><p>case exit에서, 그 case가 그 case의 소유로 남아 있을 경우 메세지는 정리된다. 이동된 바인딩 자체가 다른 유효한 소유자에게 전송된 경우 대신 해당 대상을 정리합니다. 이동되지 않은 활성 페이로드 필드는 정확히 한 번 정리됩니다.</p><p>오직 활성 변형만이 라이브 페이로드 자원을 가지고 있습니다. 사용자 정의 정리 구현과 부분 이동과의 호환성은 열려 있습니다. 이 예제에서는 사용자 지정 enum 소멸자를 정의하지 않습니다.</p></section>
+<section id="Subset-And-Tag" aria-labelledby="Subset-And-Tag-heading"><h2 id="Subset-And-Tag-heading">7입니다. 필드의 부분집합이나 변형 태그만 묶기</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">enum Envelope {
+    End;
+    Data {
+        public string body;
+        public string note;
+    };
+};
+
+usize consume_body_bytes(Envelope envelope) {
+    mut usize bytes = 0;
+    switch (move envelope) {
+        case Envelope.Data { string payload = body }:
+            bytes = string.byte_len(&amp;payload);
+            break;
+        case Envelope.End:
+            break;
+    }
+    return bytes;
+}</code></pre><p>데이터 패턴은 본문만 바인딩하며 노트는 의도적으로 생략됩니다. 소모 스위치에서 생략된 소유 페이로드는 스위치 정리의 일부로 남아 있으며 정확히 한 번 해제됩니다. 읽기 또는 수정 모드에서 생략된 필드는 암시적으로 이동되거나 복제되지 않고 소스 소유자와 함께 유지됩니다.</p><p>메시지에 페이로드 필드가 있더라도 Event.Message:와 같은 태그 전용 케이스가 허용됩니다. 그것은 어떤 페이로드 액세스 권한을 부여하고 그 필드가 개인 보이는 변형과 일치 할 수 있습니다. 소비 모드에서는 모든 언바운드 페이로드 소유자를 정리할 수 있습니다.</p><p>태그 전용 케이스 문법은 생성자 철자가 아닙니다: Event.Message 단독은 완전히 초기화된 페이로드 값이 아닙니다.</p></section>
+<section id="Case-Scopes" aria-labelledby="Case-Scopes-heading"><h2 id="Case-Scopes-heading">8입니다. 각 case와 default는 고유의 렉시컬 스코프를 가지고 있습니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 move_component(Event event) {
+    mut i32 component = 0;
+    switch (event) {
+        case Event.Move { i32 local = x }:
+            component = local;
+            break;
+        case Event.Message:
+            i32 local = 0;
+            component = local;
+            break;
+        case Event.Quit:
+            i32 local = -1;
+            component = local;
+            break;
+    }
+    return component;
+}</code></pre><p>세 개의 로컬 이름은 독립적인 형제 사례 범위에 속한다. 다른 형제 사건 바인딩이 보이지 않기 때문에 이름을 재사용하는 것이 허용됩니다. 이미 보이는 외부 로컬을 숨기는 패턴이나 바디 바인딩은 여전히 거부됩니다.</p><p>패턴 바인딩과 body locals는 브랜치에 렉시컬 스코프를 남긴다. 기존에 있던 소유자들은 역초기화 순서로 정리된다. 중첩 블록 정리는 터미널 break에서 반복되지 않습니다.</p><p>대여 수명은 구속력있는 이름 범위와 동일하지 않습니다. 출처 출처와 주변의 대여 규칙이 허용하는 경우 참조는 사건 이후에도 유효할 수 있으며, 사례 로컬 소유 스토리지에 대한 참조는 스토리지 수명에서 벗어날 수 없습니다. break에 도달했기 때문에 모든 소스 대여이 끝나야한다고 가정하지 마십시오.</p></section>
+<section id="Exhaustiveness" aria-labelledby="Exhaustiveness-heading"><h2 id="Exhaustiveness-heading">9입니다. 모든 변형을 덮거나 기본값 제공</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">i32 event_category(Event event) {
+    mut i32 category = 0;
+    switch (event) {
+        case Event.Quit:
+            category = 1;
+            break;
+        default:
+            category = 2;
+            break;
+    }
+    return category;
+}</code></pre><p>열거형 스위치는 명시적인 경우 또는 기본 분기를 통해 모든 변형을 포함해야 합니다. 기본값 없이 선언된 변형을 생략하는 것은 컴파일 타임 오류입니다. 이전 전체 이벤트 스위치는 각 변형이 적용되기 때문에 기본값이 필요하지 않습니다.</p><p>태그 전용 케이스는 모든 페이로드 필드를 바인딩할 필요 없이 해당 변형을 커버합니다. 기본값은 나중에 열거형에 추가된 변형을 포함하여 명시적으로 처리되지 않은 모든 변형을 포함하므로 이러한 추가에 대한 누락된 변형 진단을 억제합니다.</p><p>이 보증 계약은 enum 파견에 속합니다. 그것은 일반 스칼라 스위치에 동일한 완전한 유한 도메인 규칙을 자동으로 부과하지 않습니다. 보호 패턴과 그 범위의 의미는 열려 있습니다.</p></section>
+<section id="Private-Variants" aria-labelledby="Private-Variants-heading"><h2 id="Private-Variants-heading">10입니다. 외부 스위치는 숨겨진 변형에 대해 기본값이 필요합니다.</h2><pre class="code-block"><code class="language-aevix" data-language="aevix">public enum Credential {
+    Token {
+        string secret;
+    };
+    private Internal;
+
+    public Credential issue(string initial_secret) {
+        return Credential.Token { secret = initial_secret };
+    }
+};
+
+bool externally_is_token(Credential credential) {
+    mut bool token = false;
+    switch (credential) {
+        case Credential.Token:
+            token = true;
+            break;
+        default:
+            token = false;
+            break;
+    }
+    return token;
+}</code></pre><p>외부 코드는 비공개로 공개 토큰을 태그 일치시킬 수 있습니다. private Internal의 이름을 지정할 수 없으므로 숨겨진 가능성을 커버하려면 기본값이 필요합니다. 개인 정보 보호는 열거형 유형이나 철저한 검사에서 변형을 지우지 않습니다.</p><p>열거 안에 액세스 할 수있는 코드는 개인 변형의 이름을 지정할 수 있으며 완전한 명시 적 적용 범위를 제공 할 수 있습니다. 기본 브랜치는 여전히 독립적 인 어휘 범위를 가지고 있으며 break로 끝납니다. 숨겨진 페이로드에 대한 액세스 권한을 부여하지 않습니다.</p></section>
+<section id="Diagnostics" aria-labelledby="Diagnostics-heading"><h2 id="Diagnostics-heading">11입니다. 거부된 범위, 필드 및 소유권 패턴</h2><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void missing_variant(Event event) {
+    switch (event) {
+        case Event.Quit:
+            break;
+        case Event.Move:
+            break;
+    }
+}</code></pre><p>메시지가 발견되지만 기본값은 없습니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void duplicate_field(Event event) {
+    switch (event) {
+        case Event.Move { i32 first = x, i32 second = x }:
+            break;
+        default:
+            break;
+    }
+}</code></pre><p>페이로드 필드는 한 패턴에서 두 번 바인딩할 수 없습니다. 이것은 독립적 인 형제 자매 사례에서 지역 이름을 재사용하는 것과는 다릅니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void unknown_field(Event event) {
+    switch (event) {
+        case Event.Move { i32 depth = z }:
+            break;
+        default:
+            break;
+    }
+}</code></pre><p>Move 는 z 필드를 선언하지 않습니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">void inaccessible_field(Credential credential) {
+    switch (credential) {
+        case Credential.Token { &amp;string exposed = &amp;secret }:
+            break;
+        default:
+            break;
+    }
+}</code></pre><p>이 함수는 자격 증명 외부에 있으며 개인 기밀을 바인딩할 수 없습니다. 공개 태그 전용 케이스는 여전히 허용됩니다.</p><p class="callout warning"><strong>허용되지 않는 예제.</strong> 확정된 규칙을 의도적으로 위반하므로 유효한 Aevix 코드가 아닙니다.</p><pre class="code-block" data-expected="compile-error"><code class="language-aevix" data-language="aevix">Event consumed_then_returned(Event event) {
+    switch (move event) {
+        case Event.Quit:
+            break;
+        case Event.Move:
+            break;
+        case Event.Message:
+            break;
+    }
+    return event;
+}</code></pre><p>소유한 non-Copy 이벤트가 소비되었습니다. 원래의 바인딩을 반환한 후 소유권을 침해합니다. 이러한 예제는 실행된 진단이 아닌 의도된 컴파일 시간 거부를 정의합니다.</p></section>
+<section id="Open-Decisions" aria-labelledby="Open-Decisions-heading"><h2 id="Open-Decisions-heading">12입니다. 오픈 스위치 세부 정보 및 링크된 계약</h2><ul><li>보호 패턴, 그룹화된 레이블, 와일드카드 표기 및 풍부한 nested/destructuring 패턴.</li><li>임시 선택자, 빌린 선택자에 대한 자세한 수명 규칙 및 소스 표현식이 이미 참조일 때의 추론.</li><li>명시적 &amp;mut 소스 마커 없이 암시적인 가변 필드 바인딩.</li><li>사용자 지정 청소 후크 및 이러한 후크에 의해 부과 부분 이동 제한.</li><li>명시적 switch(move ...) 헤더에서 Copy 열거형의 정확한 처리.</li><li>일반적으로 도달할 수 없는 코드 처리는 문법적으로 필요한 터미널 break에 대해 선택한 예외를 넘어 열려 있습니다. 정상적인 return/continue/Err 출구는 그들의 정규적인 정리를 적용합니다; nontermination와 강제적인 정지는 정상 출구 보증을 얻지 않습니다.</li><li>일반 이동 표현식은 열거형 스위치를 벗어나고 미래 형식 구문에 대한 전체 파서 문법을 사용합니다.</li></ul><p>패턴에서 누락된 필드는 이미 허용된 반면, 생성자에서 누락된 필수 필드는 거부됩니다. 일반적인 산술 실패와 전파는 별도의 계약을 유지합니다. 더 보기 <a href="../control_flow/Switch.html">Switch</a>, <a href="../user_defined_types/Copy.html">Copy</a>, <a href="../interfaces/Interfaces.html">인터페이스</a> 및 <a href="../generics/Generic_Types.html">일반 유형</a>.</p></section>
+<nav class="page-navigation" aria-label="관련된 enum 참조"><a href="Enums.html"><span>형식 정의</span>열거형</a><a href="Enum_Switch.html"><span>소유권 및 패턴</span>Enum Switch</a><a href="../index.html"><span>언어 문법</span>문법 개요</a></nav>
+</article></div><footer class="page-footer"><span>Aevix 언어 · 열거된 참조</span><span>설계 명세 · 컴파일러의 구현 여부와는 별개</span></footer></main></body>
+</html>
