@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Build Aevix, run your first program, and check which language features the 0.2 development compiler supports.">
+    <meta name="description" content="Install the Aevix 0.2V preview, run your first program, and check which language features the compiler supports.">
     <title>Aevix — Documentation</title>
     <link rel="stylesheet" href="css/root.css?v=6">
     <script src="js/docs.js?v=4" defer></script>
@@ -24,7 +24,7 @@
             <a href="data_type/index.html">Types</a>
             <a href="grammar/index.html">Grammar</a>
         </nav>
-        <span class="draft-badge">0.2 DEVELOPMENT</span>
+        <span class="draft-badge">0.2V PREVIEW</span>
     </div>
 </header>
 <main id="main-content" class="page-shell type-index">
@@ -33,7 +33,7 @@
             <p class="eyebrow">AEVIX LANGUAGE REFERENCE</p>
             <h1>Aevix documentation</h1>
             <p class="doc-subtitle">Run a small program, check the supported features, then explore the language.</p>
-            <div class="doc-meta"><span>0.2 development · The published release is still 0.1V</span></div>
+            <div class="doc-meta"><span>0.2V preview · Native CPU execution</span></div>
         </div>
         <div class="type-mark" aria-hidden="true"><strong>A</strong><span>language reference</span></div>
     </header>
@@ -46,23 +46,24 @@
             <li>
                 <div class="quick-step-heading"><span class="step-number" aria-hidden="true">01</span><h3>Get the compiler</h3></div>
                 <div class="quick-step-body">
-                    <p>Build the compiler from source below. The 0.2 compiler is a development checkout; compiler installers are not published yet. The <a href="https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0">published 0.1V release</a> contains the VS Code extension and setup instructions, with the compiler built separately. See the <a href="https://github.com/mirukuSora2026/Aevix-lang#readme">repository README</a> for the available revision's setup.</p>
-                    <details open><summary>Source build: macOS ARM64 / Linux ARM64 or x86-64</summary>
+                    <p>Download the compiler installer for your platform from <a href="https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0">0.2V preview</a> and follow its <a href="https://github.com/mirukuSora2026/Aevix-lang/releases/download/v0.2.0/INSTALL.txt">installation guide</a>. Packages include the Aevix runtime and register PATH. Install Clang and the platform linker/SDK separately for native compilation, then open a new terminal. The VS Code extension is a separate download on the same release page.</p>
+                    <p class="quick-note">Package filenames retain <code>0.2.0-dev</code>. macOS packages require Apple Silicon and macOS 26.0+. Linux packages target Ubuntu 24.04/glibc 2.39; Windows x86-64 is experimental and AOT-only.</p>
+                    <details><summary>Source build: macOS ARM64 / Linux ARM64 or x86-64</summary>
                         <p>These steps target Apple Silicon Macs and Linux hosts on ARM64 or x86-64.</p>
                         <p>Install Git, CMake 3.20+, a C compiler and a C++20 compiler. Native execution also needs Clang, a linker and the platform C runtime/SDK. This build uses AOT and does not require LLVM development libraries.</p>
                         <pre><code class="language-sh">git clone https://github.com/mirukuSora2026/Aevix-lang.git
 cd Aevix-lang
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAEVIX_ENABLE_JIT=OFF
 cmake --build build --config Release --parallel 2</code></pre>
-                        <p>These commands build the revision available in the repository. For the 0.2 features, use a checkout containing the 0.2 implementation described in the <a href="releases/0_2.html">profile</a>.</p>
+                        <p>These commands build the current repository revision. See the <a href="releases/0_2.html">0.2 implementation profile</a> for supported features and the <a href="https://github.com/mirukuSora2026/Aevix-lang#readme">README</a> for JIT build options.</p>
                     </details>
-                    <p class="quick-note">The commands below use <code>./build/aevixc</code> from the source build. With an installed compiler, use <code>aevixc</code> instead.</p>
+                    <p class="quick-note">The commands below use an installed <code>aevixc</code> on PATH. After a source build, use <code>./build/aevixc</code> instead.</p>
                 </div>
             </li>
             <li>
                 <div class="quick-step-heading"><span class="step-number" aria-hidden="true">02</span><h3>Save <code>hello.avx</code></h3></div>
                 <div class="quick-step-body">
-                    <p>Create this file in the repository directory. No imports are needed for basic integer arithmetic.</p>
+                    <p>Create this file in your working directory. No imports are needed for basic integer arithmetic.</p>
                     <pre><code id="Aevix">i32 square(i32 value) {
     return value * value;
 }
@@ -75,11 +76,11 @@ i32 main() {
             <li>
                 <div class="quick-step-heading"><span class="step-number" aria-hidden="true">03</span><h3>Check and run</h3></div>
                 <div class="quick-step-body">
-                    <pre><code class="language-sh">./build/aevixc --check hello.avx
-./build/aevixc hello.avx
+                    <pre><code class="language-sh">aevixc --check hello.avx
+aevixc hello.avx
 echo $?</code></pre>
                     <p>Expected exit status: <strong>0</strong>. This example prints nothing. The first command checks types and ownership; the second compiles and runs the program, then removes its temporary executable.</p>
-                    <p class="quick-note">On Windows, a Visual Studio source build uses <code>.\build\Release\aevixc.exe</code>; PowerShell reports the exit status through <code>$LASTEXITCODE</code>. Native Windows execution of the 0.2 development artifacts remains unverified.</p>
+                    <p class="quick-note">On Windows, PowerShell reports the exit status through <code>$LASTEXITCODE</code>. A Visual Studio source build uses <code>.\build\Release\aevixc.exe</code>. The Windows preview package is experimental.</p>
                 </div>
             </li>
         </ol>
@@ -91,7 +92,7 @@ echo $?</code></pre>
         <a class="type-card" href="releases/0_2.html">
             <span class="type-card-title">0.2 implementation</span>
             <p>Check supported compiler features, CPU execution, tools, and current release boundaries.</p>
-            <span class="type-card-meta">Development profile</span>
+            <span class="type-card-meta">0.2V preview scope</span>
         </a>
         <a class="type-card" href="data_type/index.html">
             <span class="type-card-title">Types</span>

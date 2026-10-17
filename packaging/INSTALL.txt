@@ -10,8 +10,15 @@
 #
 # ========================
 
-Aevix 0.2 installers
-====================
+Aevix 0.2V preview installers
+============================
+
+Download the compiler package for your platform and aevix-0.2.0.vsix from:
+https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0
+
+The compiler packages retain their 0.2.0-dev filenames. The POSIX installers
+and Windows Setup also use that package version; the macOS PKG receipt uses
+0.2.0. The compiler and VS Code extension both report version 0.2.0.
 
 These installers include aevixc, the matching Aevix runtime, and the bundled
 numeric/complex library modules. When required,
@@ -25,7 +32,8 @@ target-aware report. GNU GCC is not a universal requirement.
 macOS on Apple Silicon
 ----------------------
 
-Open Aevix-0.2.0-macOS-arm64.pkg and follow Apple's Installer. The package installs
+These preview packages require macOS 26.0 or newer on Apple Silicon.
+Open Aevix-0.2.0-dev-macOS-arm64.pkg and follow Apple's Installer. The package installs
 under /Library/Aevix and adds /Library/Aevix/bin to /etc/paths.d/aevix. No personal
 shell configuration is changed by the PKG. Open a new terminal after installing.
 
@@ -43,16 +51,19 @@ Remove the system installation by opening /Library/Aevix/uninstall.command.
 It asks for administrator access and removes only the managed installation and
 its matching paths.d entry.
 
-A per-user .run alternative is also generated. It follows the Linux procedure
-below and does not require administrator access.
+A per-user alternative does not require administrator access:
+
+    sh Aevix-0.2.0-dev-Darwin-arm64.run
+
+It uses the same per-user paths and shell PATH setup described below for Linux.
 
 Linux on ARM64 or x86-64
 ------------------------
 
 Use the installer matching the machine architecture:
 
-    sh Aevix-0.2.0-Linux-arm64.run
-    sh Aevix-0.2.0-Linux-x86_64.run
+    sh Aevix-0.2.0-dev-Linux-arm64.run
+    sh Aevix-0.2.0-dev-Linux-x86_64.run
 
 Only run one of those commands, according to the machine. The default install
 directory is ~/.local/share/aevix. The command ~/.local/bin/aevixc is a symlink
@@ -77,19 +88,21 @@ Removal deletes the installer-owned command link and marked PATH blocks; it does
 not remove other PATH entries. For another installation prefix, run uninstall.sh
 inside that prefix instead.
 
-The package uses the host system's C runtime. Build Linux packages on the oldest
-supported distribution when wider glibc compatibility is needed. An ARM64 build
+These preview packages are built for Ubuntu 24.04/glibc 2.39 environments.
+They use the host system's C runtime. Other distributions may need a source
+build; these packages do not target musl. Build on the oldest supported
+distribution when wider glibc compatibility is needed. An ARM64 build
 does not run on x86-64, and an x86-64 build does not run natively on ARM64.
 
 Windows on x86-64
 -----------------
 
-The current Windows development compiler is AOT-only. Its package does not
+The Windows x86-64 package is experimental and AOT-only. Its package does not
 include an LLVM-enabled Windows JIT build.
 This MinGW-w64 build needs Clang and a matching MinGW-w64 linker/runtime for AOT
 execution. Run aevixc --check-deps to diagnose missing tools after installation.
 
-Open Aevix-0.2.0-Windows-x86_64-Setup.exe. The native installer needs no separate
+Open Aevix-0.2.0-dev-Windows-x86_64-Setup.exe. The native installer needs no separate
 NSIS, Inno Setup, PowerShell package, or administrator account. It installs under
 %LOCALAPPDATA%\Programs\Aevix, adds its bin directory to the current user's PATH,
 and broadcasts the Windows environment-change notification. Open a new terminal
@@ -101,14 +114,39 @@ that entry. Other user PATH entries and additional user files are preserved.
 Uninstalling uses a temporary copy of the setup executable so that the installed
 Uninstall.exe can be deleted; the temporary copy may remain in Windows TEMP.
 
-The installer executable is unsigned. A local cross-build verifies compilation
-and PE format, but does not establish successful execution on a Windows machine.
-Native Windows installation and uninstall checks remain a release requirement.
+The installer executable is unsigned. A portable alternative is supplied as
+Aevix-0.2.0-dev-Windows-x86_64-portable.zip. Extract the Aevix directory and use
+its bin\aevixc.exe directly, or add that bin directory to your user PATH.
+The portable ZIP does not register PATH automatically.
 
 For unattended use, pass --silent. Uninstallation uses --uninstall --silent.
 The installed share/aevix/licenses directory includes the GCC runtime exception,
 GPLv3 text, MinGW-w64 notice, and their source references. Aevix's own Apache
 license is supplied separately.
+
+After installation
+-------------------
+
+Open a new terminal and run:
+
+    aevixc --version
+    aevixc --check-deps
+
+Save a program as main.avx, then run aevixc main.avx to compile and execute it.
+The runtime and compiler dependencies are included, but Clang and the platform
+linker/SDK still need to be available for AOT compilation.
+
+VS Code extension
+------------------
+
+Requires VS Code 1.96 or newer. Download aevix-0.2.0.vsix and use
+Extensions > ... > Install from VSIX..., or run:
+
+    code --install-extension aevix-0.2.0.vsix
+
+The extension and compiler are installed separately. Set aevix.compilerPath
+to the installed compiler if it is not found on PATH. Remote workspaces need
+the compiler on the same host as the extension and source files.
 
 Building installers
 -------------------
@@ -145,6 +183,7 @@ That command uses x86_64-w64-mingw32-g++ and x86_64-w64-mingw32-windres. Overrid
 them with AEVIX_WINDOWS_CXX and AEVIX_WINDOWS_WINDRES if needed. The compiler
 payload must be statically linked; the setup does not currently bundle DLLs.
 
-Outputs default to releases/0.2V/installers. SHA256SUMS records installer checksums.
-Generated installers are local artifacts and are not published automatically.
+Outputs default to releases/0.2V/installers. The build commands above use version
+0.2.0; use --version 0.2.0-dev to retain the preview package names. SHA256SUMS
+records installer checksums. Building packages does not publish them automatically.
 CPack source packaging is disabled; use the repository's public GitHub source archives.
