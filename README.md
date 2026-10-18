@@ -46,7 +46,7 @@ aevixc --version
 aevixc --check-deps
 ```
 
-The packages include the Aevix runtime and required compiler libraries. AOT execution still needs an external Clang driver, linker and matching C runtime/SDK; these are not bundled. Use `--clang /path/to/clang` if discovery fails. GNU GCC is not required on every platform.
+The packages include the Aevix runtime and required compiler libraries. AOT execution still needs an external Clang driver, linker and matching C/C++ runtime and development libraries/SDK; these are not bundled. Use `--clang /path/to/clang` if discovery fails. GNU GCC is not required on every platform.
 
 `--check-deps` compiles and links a small runtime probe without executing it. Use `-c` for an object-generation-only probe. Full cross-target checks need a matching runtime through `--runtime FILE` and the target toolchain/sysroot.
 
