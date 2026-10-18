@@ -1,0 +1,53 @@
+import boolean;
+import error { AnyError };
+extern "C" void boolean_fault_point(u32 point);
+extern "C" u32 boolean_attempts();
+extern "C" u32 boolean_outstanding();
+bool allocation_failed(Result<string,boolean.BooleanError> input) {
+    switch (move input) {
+        case Result<string,boolean.BooleanError>.Ok: return false; break;
+        case Result<string,boolean.BooleanError>.Err { boolean.BooleanError cause = error }:
+            switch (cause) { case boolean.BooleanError.AllocationFailure: return true; break; default: return false; break; }
+            break;
+    }
+}
+T success<T,E>(Result<T,E> input) { switch (move input) { case Result<T,E>.Ok { T value = value }: return value; break; default: Never.unreachable(); break; } }
+i32 main() {
+    boolean_fault_point(1);
+    if (!allocation_failed(boolean.format(true)) || boolean_attempts() != 1u32 || boolean_outstanding() != 0u32) return 1;
+    boolean_fault_point(1);
+    if (!allocation_failed(boolean.format(false)) || boolean_attempts() != 1u32 || boolean_outstanding() != 0u32) return 2;
+    boolean_fault_point(1);
+    boolean.BooleanError original = boolean.BooleanError.BufferTooSmall { required = 5usize, available = 4usize };
+    Result<AnyError,InputError<boolean.BooleanError>> packed = AnyError.pack(original);
+    switch (move packed) {
+        case Result<AnyError,InputError<boolean.BooleanError>>.Ok: return 3; break;
+        case Result<AnyError,InputError<boolean.BooleanError>>.Err { InputError<boolean.BooleanError> retained = error }:
+            switch (retained) {
+                case InputError<boolean.BooleanError>.AllocationFailure { boolean.BooleanError kept = input }:
+                    switch (kept) { case boolean.BooleanError.BufferTooSmall { usize required = required, usize available = available }: if (required != 5usize || available != 4usize) return 4; break; default: return 5; break; }
+                    break;
+                default: return 11; break;
+            }
+            break;
+    }
+    if (boolean_attempts() != 1u32 || boolean_outstanding() != 0u32) return 6;
+    boolean_fault_point(1);
+    mut byte short_output[3] = [Byte.from_u8(99u8),Byte.from_u8(98u8),Byte.from_u8(97u8)];
+    Result<usize,boolean.BooleanError> rejected = boolean.format_into(false,Slice.from_array_mut(&mut short_output));
+    if (!Result.is_err(&rejected) || Byte.to_u8(short_output[0]) != 99u8 || Byte.to_u8(short_output[1]) != 98u8 || Byte.to_u8(short_output[2]) != 97u8 || boolean_attempts() != 0u32) return 7;
+    success(boolean.from_integer(1u128));
+    boolean.from_nonzero(-1i128);
+    boolean.to_integer<u128>(true);
+    boolean.parse("true");
+    boolean.parse("True");
+    if (boolean_attempts() != 0u32) return 8;
+    boolean_fault_point(0);
+    {
+        string yes = success(boolean.format(true));
+        string no = success(boolean.format(false));
+        AnyError owned_error = success(AnyError.pack(original));
+        if (!string.equals(string.view(&yes),"true") || !string.equals(string.view(&no),"false") || !string.equals(owned_error.code(),"boolean.buffer_too_small")) return 9;
+    }
+    return boolean_attempts() == 3u32 && boolean_outstanding() == 0u32 ? 0 : 10;
+}

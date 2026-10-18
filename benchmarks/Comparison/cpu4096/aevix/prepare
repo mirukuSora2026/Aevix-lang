@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : prepare
+#
+# Description :
+#     측정 workload를 실행하지 않고 AOT·LLVM 산출물과 정확한 명령 기록을 준비한다.
+#     Prepare AOT/LLVM artifacts and exact command records without running measured workloads.
+#
+# ========================
+from pathlib import Path
+import argparse,hashlib,json,subprocess,time
+
+ROOT=Path(__file__).resolve().parents[4]
+SOURCE=Path(__file__).resolve().parent
+parser=argparse.ArgumentParser(description='Build Aevix cpu4096 fixtures, retaining raw IR; never execute a measured benchmark.')
+parser.add_argument('--compiler',type=Path,required=True)
+parser.add_argument('--clang',type=Path)
+parser.add_argument('--artifacts',type=Path,default=Path('build/bench-cpu4096/aevix'))
+parser.add_argument('--expected-compiler-sha256',default='14e539e98708b8a0b3b8985574a66794d44329bf5c1f63c7e4baba49eeb96e16')
+parser.add_argument('--functional-check',action='store_true',help='Execute only the untimed four-input smoke program, never a 4096-element benchmark')
+args=parser.parse_args()
+compiler=args.compiler if args.compiler.is_absolute()else ROOT/args.compiler
+artifacts=args.artifacts if args.artifacts.is_absolute()else ROOT/args.artifacts
+artifacts.mkdir(parents=True,exist_ok=True)
+sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+if sha(compiler)!=args.expected_compiler_sha256:parser.exit(1,'Compiler snapshot hash differs from the requested baseline.\n')
+def relative(path):
+    try:return str(path.resolve().relative_to(ROOT))
+    except ValueError:return str(path)
+compiler_arg=relative(compiler)
+records=[]
+manifest={'schema_version':1,'compiler':compiler_arg,'compiler_sha256':sha(compiler),'working_directory':'project_root','spec':'benchmarks/Comparison/cpu4096/spec.json','spec_sha256':sha(SOURCE.parent/'spec.json'),'optimization':'-O2','fast_math':False,'measured_programs_executed':False,'input_seed_tokens_per_program':6,'stdin_seed_file':relative(artifacts/'seeds.txt'),'worker_field':'Configured parallel.worker_count, capped by the unchanged runtime; source does not expose the number of successfully started threads if runtime fallback occurs.','records':records}
+manifest_path=artifacts/'preparation.json'
+def save():manifest_path.write_bytes((json.dumps(manifest,indent=2)+'\n').encode('utf-8'))
+def command(argv,label,stdout_path=None,timeout=180,input_bytes=None):
+    start=time.monotonic()
+    if stdout_path:
+        with stdout_path.open('wb')as output:p=subprocess.run(argv,cwd=ROOT,stdout=output,stderr=subprocess.PIPE,timeout=timeout,input=input_bytes)
+        text=''
+    else:
+        p=subprocess.run(argv,cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout,input=input_bytes);text=p.stdout.decode('utf-8','replace')
+    row={'label':label,'argv':argv,'exit_code':p.returncode,'preparation_seconds':round(time.monotonic()-start,3),'stdout_file':relative(stdout_path)if stdout_path else None,'stdout':text,'stderr':p.stderr.decode('utf-8','replace')};records.append(row);save()
+    if p.returncode!=0:parser.exit(1,label+' failed: '+row['stderr']+'\n'+text)
+    print(label+' OK',flush=True)
+command([relative(SOURCE/'generate'),'--functional-output',relative(artifacts/'functional_smoke.avx')],'generate')
+command([relative(SOURCE/'generate'),'--functional-output',relative(artifacts/'functional_smoke.avx'),'--verify'],'verify_generated_bytes')
+command([compiler_arg,'--version'],'compiler_version')
+(artifacts/'seeds.txt').write_bytes(b'0\n'*6)
+clang_flags=['--clang',str(args.clang)]if args.clang else[]
+programs=[]
+spec=json.loads((SOURCE.parent/'spec.json').read_bytes().decode('utf-8'))
+for case in spec['cases']:
+    for mode in spec['modes']:
+        name=case+'_'+mode;source=SOURCE/(name+'.avx');binary=artifacts/name;ir=artifacts/(name+'.raw.ll')
+        command([compiler_arg,'--check',relative(source)],name+':check')
+        command([compiler_arg,'--build','-O2',*clang_flags,'-o',relative(binary),relative(source)],name+':aot_build')
+        command([compiler_arg,'--emit-llvm','-O2',relative(source)],name+':raw_llvm',stdout_path=ir)
+        programs.append({'case':case,'mode':mode,'source':relative(source),'source_sha256':sha(source),'binary':relative(binary),'binary_sha256':sha(binary),'raw_llvm':relative(ir),'raw_llvm_sha256':sha(ir),'run_argv':[relative(binary)],'stdin_file':relative(artifacts/'seeds.txt')})
+manifest['programs']=programs
+smoke=artifacts/'functional_smoke';smoke_source=artifacts/'functional_smoke.avx'
+command([compiler_arg,'--check',relative(smoke_source)],'functional_smoke:check')
+command([compiler_arg,'--build','-O2',*clang_flags,'-o',relative(smoke),relative(smoke_source)],'functional_smoke:build')
+if args.functional_check:
+    command([relative(smoke)],'functional_smoke:untimed_run',timeout=60)
+manifest['functional_check']={'executed':args.functional_check,'input_values':[0,1,4094,4095],'cases':4,'modes':2,'exact_outputs_checked':32,'clock_calls':0,'elements_per_case':4}
+manifest['final_compiler_sha256']=sha(compiler)
+if manifest['final_compiler_sha256']!=manifest['compiler_sha256']:parser.exit(1,'Compiler changed during preparation.\n')
+save();print(json.dumps({'programs_built':len(programs),'measured_programs_executed':False,'manifest':relative(manifest_path)}))

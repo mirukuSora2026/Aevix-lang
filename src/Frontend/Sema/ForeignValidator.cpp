@@ -11,6 +11,7 @@
 // ========================
 
 #include "aevix/Frontend/Sema/ForeignValidator.hpp"
+#include "aevix/Native/Contract.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -79,7 +80,9 @@ namespace aevix
             };
             if (node.kind != "Function" || members.contains(&node))
             { error("extern declarations must be module-level function prototypes."); continue; }
-            if (!linkName(node.value)) error("unsupported or reserved external symbol name '" + node.value + "'.");
+            if (nativeBridgeOperation(node.value))
+                error("native bridge operations are compiler-managed and cannot be declared through source extern.");
+            else if (!linkName(node.value)) error("unsupported or reserved external symbol name '" + node.value + "'.");
             if (child(node, "Block")) error("external function declarations cannot have a body.");
             if (const auto* generic = child(node, "GenericParameters"); generic && !generic->children.empty())
                 error("external functions cannot have generic parameters.");

@@ -1,46 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="The Aevix 0.3 console IO plan: system imports, borrowed output composition, checked printf, line input, errors, and explicit flushing.">
-  <title>System console IO in 0.3 — Aevix</title>
-  <link rel="stylesheet" href="../css/root.css?v=7">
-  <script src="../js/docs.js?v=5" defer></script>
-  <link rel="icon" type="image/png" href="../images/aevix-favicon.png">
-<link rel="alternate" hreflang="en" href="System_IO_0_3.html">
-<link rel="alternate" hreflang="ko" href="../ko/roadmap/System_IO_0_3.html">
-<script src="../js/language.js?v=1" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+          content="The Aevix 0.3 console IO plan: system imports, borrowed output composition, checked printf, line input, errors, and explicit flushing.">
+    <title>System console IO in 0.3 — Aevix</title>
+    <link rel="stylesheet" href="../css/root.css?v=7">
+    <script src="../js/docs.js?v=5" defer></script>
+    <link rel="icon" type="image/png" href="../images/aevix-favicon.png">
+    <link rel="alternate" hreflang="en" href="System_IO_0_3.html">
+    <link rel="alternate" hreflang="ko" href="../ko/roadmap/System_IO_0_3.html">
+    <script src="../js/language.js?v=1" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main-content">Skip to content</a>
-  <header class="site-header"><div class="header">
-    <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a>
-    <nav class="header-nav" aria-label="Roadmap"><a href="index.html">Roadmap</a><a href="System_IO_0_3.html" aria-current="page">0.3 console IO</a><a href="Library_Foundation.html">Library foundations</a><a href="../releases/0_2.html">0.2 profile</a></nav>
-    <span class="draft-badge">0.3 PLAN · NOT IMPLEMENTED</span>
-  <label class="language-switch" translate="no"><span class="sr-only">Documentation language</span><select id="docs-language" class="language-select"><option value="en" lang="en" selected>English</option><option value="ko" lang="ko">한국어</option></select></label></div></header>
-  <main id="main-content" class="page-shell">
-    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Roadmap</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">System console IO in 0.3</span></nav>
-    <header class="doc-intro"><div><p class="eyebrow">LANGUAGE AND LIBRARY PLANNING</p><h1>System console IO in 0.3</h1><p class="doc-subtitle">A small console surface over the resource, text, formatting, and IO foundations.</p><div class="doc-meta"><span class="meta-chip">import system;</span><span class="meta-chip">Four functions selected</span><span class="meta-chip">Detailed API under review</span></div></div></header>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header">
+    <div class="header">
+        <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span
+                class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span
+                class="brand-label">Documentation</span></a>
+        <nav class="header-nav" aria-label="Roadmap"><a href="index.html">Roadmap</a><a href="System_IO_0_3.html"
+                                                                                        aria-current="page">0.3 console
+            IO</a><a href="Library_Foundation.html">Library foundations</a><a href="../releases/0_2.html">0.2
+            profile</a></nav>
+        <span class="draft-badge">0.3 DEVELOPMENT · NOT RELEASED</span>
+        <label class="language-switch" translate="no"><span class="sr-only">Documentation language</span><select
+                id="docs-language" class="language-select">
+            <option value="en" lang="en" selected>English</option>
+            <option value="ko" lang="ko">한국어</option>
+        </select></label></div>
+</header>
+<main id="main-content" class="page-shell">
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Roadmap</a><span class="separator"
+                                                                                           aria-hidden="true">/</span><span
+            aria-current="page">System console IO in 0.3</span></nav>
+    <header class="doc-intro">
+        <div><p class="eyebrow">LANGUAGE AND LIBRARY PLANNING</p>
+            <h1>System console IO in 0.3</h1>
+            <p class="doc-subtitle">A small console surface over the resource, text, formatting, and IO foundations.</p>
+            <div class="doc-meta"><span class="meta-chip">import system;</span><span class="meta-chip">Console and logging API</span><span
+                    class="meta-chip">0.3 implementation in progress</span></div>
+        </div>
+    </header>
     <div class="docs-layout">
-      <aside class="table" aria-label="Reference navigation"><details class="toc" open><summary>On this page</summary><ol>
-        <li><a href="#status">Selected scope and status</a></li><li><a href="#imports">Imports and call forms</a></li><li><a href="#output">Output and errors</a></li><li><a href="#composition">Output composition with +</a></li><li><a href="#format">Checked printf</a></li><li><a href="#input">Line input and UTF-8</a></li><li><a href="#flush">Buffering, flushing, and resources</a></li><li><a href="#review">Review and implementation gates</a></li>
-      </ol></details><nav class="family-nav" aria-label="Related plans"><h2>Related reference</h2><div class="family-links"><a href="Library_Foundation.html">Library foundations</a><a href="Convenience_0_3.html">0.3 convenience plan</a><a href="index.html">Version roadmap</a><a href="../grammar/modules/index.html">Module rules</a><a href="../grammar/functions/Variadic_Parameters.html">Current variadic parameters</a></div></nav></aside>
-      <article class="content" aria-label="System console IO plan">
-<section id="status"><h2>Selected scope and status</h2>
-<p><strong>Selected 0.3 scope:</strong> an explicitly imported <code>system</code> module exposing <code>print</code>, <code>println</code>, <code>printf</code>, and <code>input</code>. Calls to print and println accept text or a built-in scalar directly, and also join text and typed values with <code>+</code>. This adds console IO to the existing resource/FFI and library foundation goals; the output-only formatting and composition rules are specified below.</p>
-<p><strong>Not implemented in 0.2.</strong> The examples below are proposed 0.3 source forms, not programs accepted by the shipped 0.2 compiler. Selecting the four names does not finalize their signatures, formatting grammar, buffering, or error variants. Those details are recommendations for the 0.3 API review.</p>
-<table><thead><tr><th scope="col">Selected function</th><th scope="col">Planned purpose</th><th scope="col">Recommended result</th></tr></thead><tbody>
-<tr><td><code>system.print(value_or_composition)</code></td><td>Write borrowed text, a built-in scalar, or composed segments without appending a newline.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
-<tr><td><code>system.println(value_or_composition)</code></td><td>Write borrowed text, a built-in scalar, or composed segments and append a newline.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
-<tr><td><code>system.printf(format, values...)</code></td><td>Write formatted output, with no automatic newline.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
-<tr><td><code>system.input()</code></td><td>Read one UTF-8 line from standard input.</td><td><code>Result&lt;Optional&lt;string&gt;, system.IoError&gt;</code></td></tr>
-</tbody></table>
-<p>The table shows call shapes, not variadic function declarations or a new general-purpose composition type. A no-argument <code>println()</code> overload, user-defined printable types, and additional stream operations require separate review.</p>
-</section>
-<section id="imports"><h2>Imports and call forms</h2>
-<p>A whole-module <code>import system;</code> uses qualified calls such as <code>system.print(...)</code> and the exported error name <code>system.IoError</code>. IO types are not added to the automatic prelude.</p>
-<pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">import system;
+        <aside class="table" aria-label="Reference navigation">
+            <details class="toc" open>
+                <summary>On this page</summary>
+                <ol>
+                    <li><a href="#status">Selected scope and status</a></li>
+                    <li><a href="#imports">Imports and call forms</a></li>
+                    <li><a href="#output">Output and errors</a></li>
+                    <li><a href="#composition">Output composition with +</a></li>
+                    <li><a href="#format">Checked printf</a></li>
+                    <li><a href="#input">Typed input and UTF-8</a></li>
+                    <li><a href="#logging">Structured logging</a></li>
+                    <li><a href="#flush">Buffering, flushing, and resources</a></li>
+                    <li><a href="#review">Review and implementation gates</a></li>
+                </ol>
+            </details>
+            <nav class="family-nav" aria-label="Related plans"><h2>Related reference</h2>
+                <div class="family-links"><a href="Library_Foundation.html">Library foundations</a><a
+                        href="Convenience_0_3.html">0.3 convenience plan</a><a href="index.html">Version roadmap</a><a
+                        href="../grammar/modules/index.html">Module rules</a><a
+                        href="../grammar/functions/Variadic_Parameters.html">Current variadic parameters</a></div>
+            </nav>
+        </aside>
+        <article class="content" aria-label="System console IO plan">
+            <section id="status"><h2>Selected scope and status</h2>
+                <p><strong>Selected 0.3 scope:</strong> an explicitly imported <code>system</code> module exposing
+                    <code>print</code>, <code>println</code>, <code>printf</code>, <code>input</code>,
+                    <code>flush</code>, and <code>log</code>. Calls to print and println accept text or a built-in
+                    scalar directly, and also join text and typed values with <code>+</code>. This adds console IO to
+                    the existing resource/FFI and library foundation goals; the output-only formatting and composition
+                    rules are specified below.</p>
+                <p><strong>Not implemented in 0.2.</strong> The examples below target the development compiler; they are
+                    not programs accepted by the shipped 0.2 compiler. The working tree now contains compiler and
+                    runtime implementations; AOT/JIT regression tests are being completed before a 0.3 release. The
+                    contracts below distinguish this implementation from the broader library catalog.</p>
+                <table>
+                    <thead>
+                    <tr>
+                        <th scope="col">Selected function</th>
+                        <th scope="col">Planned purpose</th>
+                        <th scope="col">Recommended result</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><code>system.print(value_or_composition)</code></td>
+                        <td>Write borrowed text, a built-in scalar, or composed segments without appending a newline.
+                        </td>
+                        <td><code>Result&lt;unit, system.IoError&gt;</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>system.println(value_or_composition)</code></td>
+                        <td>Write borrowed text, a built-in scalar, or composed segments and append a newline.</td>
+                        <td><code>Result&lt;unit, system.IoError&gt;</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>system.printf(format, values...)</code></td>
+                        <td>Write formatted output, with no automatic newline.</td>
+                        <td><code>Result&lt;unit, system.IoError&gt;</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>system.input&lt;T = string&gt;()</code></td>
+                        <td>Read a complete UTF-8 line for string, or one whitespace-delimited token for a supported
+                            scalar.
+                        </td>
+                        <td><code>Result&lt;Optional&lt;T&gt;, system.ReadError&gt;</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>system.flush()</code></td>
+                        <td>Explicitly flush standard output.</td>
+                        <td><code>Result&lt;unit, system.IoError&gt;</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>system.log(level, message, code = &quot;&quot;)</code></td>
+                        <td>Write an info, warning, or error record to standard error. The text code is optional.</td>
+                        <td><code>Result&lt;unit, system.IoError&gt;</code></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p>The table shows call shapes, not variadic function declarations or a new general-purpose composition
+                    type. Print and println require one value; printf and log have the separate checked forms below.
+                    User-defined printable types are not implemented.</p>
+            </section>
+            <section id="imports"><h2>Imports and call forms</h2>
+                <p>A whole-module <code>import system;</code> uses qualified calls such as
+                    <code>system.print(...)</code> and the exported error name <code>system.IoError</code>. IO types are
+                    not added to the automatic prelude.</p>
+                <pre class="code-block"><code id="Aevix" class="language-aevix" data-language="aevix">import system;
 
 Result&lt;unit, system.IoError&gt; write_summary(string_view label, i32 count) {
     system.print("Summary: ")?;
@@ -48,26 +138,62 @@ Result&lt;unit, system.IoError&gt; write_summary(string_view label, i32 count) {
     system.printf("%s: %d\n", label, count)?;
     return Result.ok(Unit.value());
 }</code></pre>
-<p>This is a proposed helper returning Result. It does not change the selected <code>i32 main()</code> convention or make <code>?</code> valid in an incompatible integer-returning main.</p>
-<p>Selective imports retain the existing rules. In a separate file, the following form exposes only the selected names; unrelated system exports still require their own import. Name collisions use imported module-qualified paths, with no new alias or overload-merging rule.</p>
-<pre class="code-block"><code class="language-aevix" data-language="aevix">import system { println, IoError };
+                <p>This is a proposed helper returning Result. It does not change the selected <code>i32 main()</code>
+                    convention or make <code>?</code> valid in an incompatible integer-returning main.</p>
+                <p>Selective imports retain the existing rules. In a separate file, the following form exposes only the
+                    selected names; unrelated system exports still require their own import. Name collisions use
+                    imported module-qualified paths, with no new alias or overload-merging rule.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">import system { println, IoError };
 
 Result&lt;unit, IoError&gt; announce() {
     println("ready")?;
     return Result.ok(Unit.value());
 }</code></pre>
-</section>
-<section id="output"><h2>Output and errors</h2>
-<p>Recognized print and println calls accept <code>string_view</code>, a borrowed owning <code>string</code>, a built-in scalar, or the output composition described below. An owning string argument is automatically read by borrow in this output context; an explicit <code>string.view(owner)</code> remains valid. The same non-consuming borrow rule applies to owning string segments. No owner is moved or cloned, and neither form may retain a caller's borrow after returning. Formatting and internal buffering copies or allocations must have documented costs and failure behavior.</p>
-<p>Output returns <code>Result&lt;unit, system.IoError&gt;</code> because writes and resource operations can fail. An Err can follow a successfully written prefix; it cannot roll back terminal output. Lower-level short writes should be handled under a documented write-all policy, without promising that a caller can blindly retry the entire message after an error.</p>
-<p>Recommended error categories include read, write, and flush failures; invalid UTF-8; input-size limits; allocation failure; and unavailable or closed standard streams. These are categories for review, not frozen enum variant names. Preserve an OS error code when meaningful, without making callers interpret EOF as an OS error. Broken-pipe and signal handling also need an explicit per-platform policy; the convenience API must not silently install a process-wide handler.</p>
-</section>
-<section id="composition"><h2>Output composition with +</h2>
-<p><strong>Recommended 0.3 semantics:</strong> inside the output argument of a recognized <code>system.print</code> or <code>system.println</code> call, a <code>+</code> node with a text operand joins output segments. An existing composition also counts as a text operand, so a chain can continue with more typed values. The compiler resolves the real imported declaration, including selective imports; an unrelated function named print or println receives no special behavior. This is an output-call construct, not a global string operator or an implicit scalar-to-string conversion.</p>
-<p>The initial supported values, both as direct arguments and as composition segments, are <code>string</code>, <code>string_view</code>, the built-in signed and unsigned integers, floating types, <code>bool</code>, <code>char</code>, and <code>byte</code>. A direct value uses the same built-in formatter as a segment. Text keeps its UTF-8 bytes; integers use decimal digits, bool uses <code>true</code> or <code>false</code>, and char writes its Unicode scalar as UTF-8. A byte uses <code>0x</code> followed by exactly two lowercase hexadecimal digits, keeping its display distinct from numeric u8.</p>
-<p>Finite floats use locale-independent shortest round-trip decimal text for their source floating format. Preserve the sign of negative zero; nonfinite values use <code>nan</code>, <code>inf</code>, or <code>-inf</code>. Do not promise to preserve a NaN payload in text. The precise fixed-versus-exponent choice and equivalent shortest-representation tie policy must be specified and tested before implementation. No arbitrary struct/interface conversion, implicit unwrap, or conversion of a Result or Optional payload is added.</p>
-<p>Normal precedence, grouping, and left associativity remain in force. Two numeric operands still calculate a numeric result with the existing type and arithmetic-failure rules. A string elsewhere in the expression must not cause an earlier numeric subtree to be flattened into separate display values.</p>
-<pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import system;
+            </section>
+            <section id="output"><h2>Output and errors</h2>
+                <p>Recognized print and println calls accept <code>string_view</code>, a borrowed owning
+                    <code>string</code>, a built-in scalar, or the output composition described below. An owning string
+                    argument is automatically read by borrow in this output context; an explicit <code>string.view(owner)</code>
+                    remains valid. The same non-consuming borrow rule applies to owning string segments. No owner is
+                    moved or cloned, and neither form may retain a caller's borrow after returning. Formatting and
+                    internal buffering copies or allocations must have documented costs and failure behavior.</p>
+                <p>Output returns <code>Result&lt;unit, system.IoError&gt;</code> because writes and resource operations
+                    can fail. An Err can follow a successfully written prefix; it cannot roll back terminal output.
+                    Lower-level short writes should be handled under a documented write-all policy, without promising
+                    that a caller can blindly retry the entire message after an error.</p>
+                <p>The error module defines ReadFailed, WriteFailed, FlushFailed, Interrupted, WouldBlock, Closed,
+                    InvalidUtf8, InputTooLong, AllocationFailure, SizeOverflow, and Unsupported. Read/write failures
+                    retain an OS code and payload-byte progress when available. EOF is an Optional absence, not an OS
+                    error. The runtime does not install a process-wide signal handler: broken-pipe signals follow the
+                    host process policy and may terminate the process before a Result is returned.</p>
+            </section>
+            <section id="composition"><h2>Output composition with +</h2>
+                <p><strong>Recommended 0.3 semantics:</strong> inside the output argument of a recognized <code>system.print</code>
+                    or <code>system.println</code> call, a <code>+</code> node with a text operand joins output
+                    segments. An existing composition also counts as a text operand, so a chain can continue with more
+                    typed values. The compiler resolves the real imported declaration, including selective imports; an
+                    unrelated function named print or println receives no special behavior. This is an output-call
+                    construct, not a global string operator or an implicit scalar-to-string conversion.</p>
+                <p>The initial supported values, both as direct arguments and as composition segments, are
+                    <code>string</code>, <code>string_view</code>, the built-in signed and unsigned integers, f32/f64,
+                    <code>bool</code>, <code>char</code>, and <code>byte</code>. A direct value uses the same built-in
+                    formatter as a segment. Text keeps its UTF-8 bytes; integers use decimal digits, bool uses <code>true</code>
+                    or <code>false</code>, and char writes its Unicode scalar as UTF-8. A byte uses <code>0x</code>
+                    followed by exactly two lowercase hexadecimal digits, keeping its display distinct from numeric u8.
+                </p>
+                <p>Supported f32/f64 values use locale-independent shortest round-trip decimal text for their source
+                    floating format. The console specialization currently rejects f16 and bf16. Preserve the sign of
+                    negative zero; nonfinite values use <code>nan</code>, <code>inf</code>, or <code>-inf</code>. Do not
+                    promise to preserve a NaN payload in text. Finite formatting uses the linked C++ runtime's
+                    std::to_chars shortest-round-trip conversion. Fixed-versus-exponent spelling is not a version-stable
+                    serialization format; use a separately specified codec for stable persisted text. No arbitrary
+                    struct/interface conversion, implicit unwrap, or conversion of a Result or Optional payload is
+                    added.</p>
+                <p>Normal precedence, grouping, and left associativity remain in force. Two numeric operands still
+                    calculate a numeric result with the existing type and arithmetic-failure rules. A string elsewhere
+                    in the expression must not cause an earlier numeric subtree to be flattened into separate display
+                    values.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import system;
 
 Result&lt;unit, system.IoError&gt; write_count(i32 count) {
     system.println("count: " + count)?;
@@ -78,59 +204,211 @@ Result&lt;unit, system.IoError&gt; write_count(i32 count) {
     system.println(1 + 2 + " apples")?;
     return Result.ok(Unit.value());
 }</code></pre>
-<p>For a count of 5, the lines are <code>count: 5</code>, <code>5</code>, <code>6</code>, <code>sum: 12</code>, <code>sum: 3</code>, and <code>3 apples</code>, in that order. The fourth line displays two integer segments; the third, fifth, and sixth first compute their numeric sum. A bool value remains logical text even when a separate return-only bool-to-integer convenience is available; see the <a href="Convenience_0_3.html">0.3 convenience plan</a>.</p>
-<h3>Evaluation, ownership, and cost</h3>
-<p>Evaluate operands once, from left to right, before this output call writes its first byte. Preserve numeric subexpressions and ordinary short-circuit or conditional evaluation inside an operand. A leaf expression can have its own side effects, including another output call; those effects are not rolled back. If evaluation exits through <code>?</code> or never completes, this outer call has not begun writing.</p>
-<p>Borrow owning strings for reading and keep each text loan and temporary owner alive until the call returns. Copy scalar segment values according to their ordinary Copy rules. No implicit owner move or deep clone is performed. A later operand that tries to modify an already borrowed string is rejected by the borrow checker. For example, a composition that reads name and then calls a function requiring <code>&amp;mut name</code> cannot keep both accesses alive.</p>
-<pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import system;
+                <p>For a count of 5, the lines are <code>count: 5</code>, <code>5</code>, <code>6</code>, <code>sum:
+                    12</code>, <code>sum: 3</code>, and <code>3 apples</code>, in that order. The fourth line displays
+                    two integer segments; the third, fifth, and sixth first compute their numeric sum. A bool value
+                    remains logical text even when a separate return-only bool-to-integer convenience is available; see
+                    the <a href="Convenience_0_3.html">0.3 convenience plan</a>.</p>
+                <h3>Evaluation, ownership, and cost</h3>
+                <p>Evaluate operands once, from left to right, before this output call writes its first byte. Preserve
+                    numeric subexpressions and ordinary short-circuit or conditional evaluation inside an operand. A
+                    leaf expression can have its own side effects, including another output call; those effects are not
+                    rolled back. If evaluation exits through <code>?</code> or never completes, this outer call has not
+                    begun writing.</p>
+                <p>Borrow owning strings for reading and keep each text loan and temporary owner alive until the call
+                    returns. Copy scalar segment values according to their ordinary Copy rules. No implicit owner move
+                    or deep clone is performed. A later operand that tries to modify an already borrowed string is
+                    rejected by the borrow checker. For example, a composition that reads name and then calls a function
+                    requiring <code>&amp;mut name</code> cannot keep both accesses alive.</p>
+                <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import system;
 
 Result&lt;unit, system.IoError&gt; show_label(&amp;string label, i32 count) {
     system.println(*label)?;
     system.println("label: " + *label + ", count: " + count)?;
     return Result.ok(Unit.value());
 }</code></pre>
-<p>Both calls read the existing owner through label; neither consumes it. Each text borrow remains valid through its call's write, including any internal buffering work.</p>
-<p>The construct requires no intermediate owned string. Work still includes scalar formatting and copying bytes into the output stream. If formatting or buffering allocates, allocation and capacity failures must remain explicit in the call's <code>Result&lt;unit, system.IoError&gt;</code> contract. Do not advertise a universal allocation-free guarantee. A write failure can follow partial output, and appending println's newline is part of the same fallible call.</p>
-<p>Acquire any call-level output lock after operand evaluation, then serialize the composed segments and newline as one call relative to other calls using the same stream API. Several calls are not one transaction, and independent OS writers are outside this promise. Output does not implicitly flush.</p>
-<h3>Boundary outside output</h3>
-<p>A composition is consumed by its recognized output call; it cannot be assigned to a variable, returned, captured, or passed to an arbitrary helper as a hidden string value. Grouping the complete composition does not turn it into an owner. Numeric <code>+</code> and existing type compatibility rules elsewhere stay unchanged. General owned text construction remains a separate fallible operation: the proposed <a href="../data_type/String/string.html#string-concat">string.concat</a> and <a href="../data_type/String/string.html#string-format">string.format</a> APIs return <code>Result&lt;string, TextError&gt;</code>. Those catalog entries are not implemented 0.2 alternatives.</p>
-<p>This construct does not relax printf's compile-time format requirement, change homogeneous <code>values[]</code> variadics, or add general user-defined operator overloading. The precise direct-call lowering and accepted composition contexts need acceptance and rejection tests before implementation.</p>
-</section>
-<section id="format"><h2>Checked printf without C varargs</h2>
-<p>The recommended initial <code>printf</code> uses familiar percent-style conversions while checking the format, argument count, and argument types at compile time. Its format should initially be a literal or supported compile-time string. The sample uses <code>%s</code> for a string_view, <code>%d</code> for i32, and <code>%%</code> for a literal percent; the complete conversion, width, and precision grammar remains a review item. Forbid unsafe conversions such as <code>%n</code>.</p>
-<p><strong>Mixed-type arguments need a 0.3 intrinsic design.</strong> The string_view and i32 arguments in the example are intentionally heterogeneous. They are not an extension of the existing homogeneous <code>i32 values[]</code> variadic parameter syntax. Keep that syntax and its ownership rules unchanged, and approve a separate compiler-checked intrinsic or typed argument representation before implementing printf.</p>
-<p>Do not lower this interface to unchecked C varargs or rely on C's default argument promotions. No implicit ownership move, deep clone, or arbitrary printable-type conversion is introduced by a format string. Invalid static formats should be compile errors; actual output/resource failures remain Result values.</p>
-</section>
-<section id="input"><h2>Line input, EOF, and UTF-8</h2>
-<p>The recommended <code>input()</code> result is <code>Result&lt;Optional&lt;string&gt;, system.IoError&gt;</code>. The outer Result reports failure; the inner Optional distinguishes a line from EOF. Returning an owned string makes the allocation and ownership transfer part of the contract.</p>
-<table><thead><tr><th scope="col">Observed input</th><th scope="col">Recommended result</th></tr></thead><tbody>
-<tr><td>A line containing text followed by a terminator</td><td><code>Ok(Some(text))</code>, with the terminator removed.</td></tr>
-<tr><td>An empty line</td><td><code>Ok(Some(""))</code>; it is not EOF.</td></tr>
-<tr><td>EOF before any bytes of another line</td><td><code>Ok(None)</code>.</td></tr>
-<tr><td>A final line without a terminator, followed by EOF</td><td><code>Ok(Some(text))</code>, then None on the next successful read.</td></tr>
-<tr><td>Invalid UTF-8, an IO failure, a size-limit failure, or allocation failure</td><td><code>Err(...)</code> under the reviewed error policy.</td></tr>
-</tbody></table>
-<p>The table uses outcome notation rather than constructor syntax; the empty-line payload is an owned empty string. Review terminal input and redirected-byte encodings separately on each OS rather than assuming every native console stream already supplies UTF-8.</p>
-<p>Recommend recognizing LF and CRLF line endings, removing the full terminator, and never replacing invalid UTF-8 silently. The treatment of a lone CR, maximum line size, interrupted reads, already consumed bytes after failure, and recovery after malformed input must be finalized before implementation.</p>
-<pre class="code-block"><code class="language-aevix" data-language="aevix">import system;
+                <p>Both calls read the existing owner through label; neither consumes it. Each text borrow remains valid
+                    through its call's write, including any internal buffering work.</p>
+                <p>The construct requires no intermediate owned string. Work still includes scalar formatting and
+                    copying bytes into the output stream. If formatting or buffering allocates, allocation and capacity
+                    failures must remain explicit in the call's <code>Result&lt;unit, system.IoError&gt;</code>
+                    contract. Do not advertise a universal allocation-free guarantee. A write failure can follow partial
+                    output, and appending println's newline is part of the same fallible call.</p>
+                <p>Acquire any call-level output lock after operand evaluation, then serialize the composed segments and
+                    newline as one call relative to other calls using the same stream API. Several calls are not one
+                    transaction, and independent OS writers are outside this promise. Output does not implicitly
+                    flush.</p>
+                <h3>Boundary outside output</h3>
+                <p>A composition is consumed by its recognized output call; it cannot be assigned to a variable,
+                    returned, captured, or passed to an arbitrary helper as a hidden string value. Grouping the complete
+                    composition does not turn it into an owner. Numeric <code>+</code> and existing type compatibility
+                    rules elsewhere stay unchanged. General owned text construction remains a separate fallible
+                    operation: the proposed <a href="../data_type/String/string.html#string-concat">string.concat</a>
+                    and <a href="../data_type/String/string.html#string-format">string.format</a> APIs return <code>Result&lt;string,
+                        TextError&gt;</code>. Those catalog entries are not implemented 0.2 alternatives.</p>
+                <p>This construct does not relax printf's compile-time format requirement, change homogeneous <code>values[]</code>
+                    variadics, or add general user-defined operator overloading. AOT/JIT acceptance and rejection cases
+                    cover recognized declarations, composition boundaries, evaluation order, and loan lifetimes.</p>
+            </section>
+            <section id="format"><h2>Checked printf without C varargs</h2>
+                <p>The recommended initial <code>printf</code> uses familiar percent-style conversions while checking
+                    the format, argument count, and argument types at compile time. Its format should initially be a
+                    literal or supported compile-time string. The sample uses <code>%s</code> for a string_view, <code>%d</code>
+                    for i32, and <code>%%</code> for a literal percent; The implemented conversions are <code>%s</code>
+                    for text, <code>%d</code> for signed integers, <code>%u</code> for unsigned integers,
+                    <code>%f</code> and <code>%g</code> for f32/f64, <code>%c</code> for char, <code>%b</code> for bool,
+                    and <code>%%</code> for a literal percent. Both float conversions use shortest round-trip text; they
+                    do not promise C printf's default six fractional digits. Width, precision, length modifiers, and
+                    other conversions are rejected at compile time. Forbid unsafe conversions such as <code>%n</code>.
+                </p>
+                <p><strong>Mixed-type arguments use a checked compiler intrinsic.</strong> The string_view and i32
+                    arguments in the example are intentionally heterogeneous. They are not an extension of the existing
+                    homogeneous <code>i32 values[]</code> variadic parameter syntax. The compiler checks every
+                    placeholder and value without changing that syntax or its ownership rules.</p>
+                <p>Do not lower this interface to unchecked C varargs or rely on C's default argument promotions. No
+                    implicit ownership move, deep clone, or arbitrary printable-type conversion is introduced by a
+                    format string. Invalid static formats should be compile errors; actual output/resource failures
+                    remain Result values.</p>
+            </section>
+            <section id="input"><h2>Typed input, EOF, and UTF-8</h2>
+                <p><code>input()</code> and <code>input&lt;string&gt;()</code> return <code>Result&lt;Optional&lt;string&gt;,
+                    system.ReadError&gt;</code>. A string preserves every space in one line: input <code>he ll o</code>
+                    produces exactly that text. LF and CRLF terminators are removed; a lone CR remains text. The inner
+                    Optional distinguishes an empty line from EOF. The owned string exposes the allocation and ownership
+                    transfer.</p>
+                <p><code>input&lt;i32&gt;()</code> and other supported scalar specializations skip leading ASCII
+                    whitespace and read one token. Three integer reads from <code>10 20 30</code> produce 10, 20, and
+                    30. The delimiter after a token remains in the stream: a following string input can therefore read
+                    an empty remainder of that line. No automatic line skipping is added. Character input reads a
+                    single-scalar token. This is whitespace token extraction, not a promise of all C++ iostream
+                    numeric-prefix and locale behavior.</p>
+                <p>Scalar tokens use the same strict full-input conversion as <code>T.parse(value)</code>: integers
+                    8–128 bits and aliases, f32/f64, bool, char, and byte. Nonfinite floats and malformed or
+                    out-of-range values are errors. <code>ReadError.Io</code> carries an <code>IoError</code>; <code>ReadError.Parse</code>
+                    carries a <code>ParseError</code>. Failed input may already have consumed bytes. A malformed token
+                    is consumed so a subsequent token read can progress.</p>
+                <table>
+                    <thead>
+                    <tr>
+                        <th scope="col">Observed input</th>
+                        <th scope="col">Recommended result</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>A line containing text followed by a terminator</td>
+                        <td><code>Ok(Some(text))</code>, with the terminator removed.</td>
+                    </tr>
+                    <tr>
+                        <td>An empty line</td>
+                        <td><code>Ok(Some(""))</code>; it is not EOF.</td>
+                    </tr>
+                    <tr>
+                        <td>EOF before any bytes of another line</td>
+                        <td><code>Ok(None)</code>.</td>
+                    </tr>
+                    <tr>
+                        <td>A final line without a terminator, followed by EOF</td>
+                        <td><code>Ok(Some(text))</code>, then None on the next successful read.</td>
+                    </tr>
+                    <tr>
+                        <td>Invalid UTF-8, an IO failure, a size-limit failure, or allocation failure</td>
+                        <td><code>Err(...)</code> under the reviewed error policy.</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p>The table uses outcome notation rather than constructor syntax; the empty-line payload is an owned
+                    empty string. The native stream boundary consumes and emits UTF-8 bytes. macOS ARM64 is locally
+                    executed; native Linux and Windows console behavior remains a target-specific gate, including
+                    Windows console code-page handling.</p>
+                <p>The implementation recognizes LF and CRLF line endings, removes their terminators, preserves a lone
+                    CR, and rejects invalid UTF-8 without replacement. Buffers cannot exceed the target ptrdiff limit. A
+                    failed read preserves its reported OS error and payload-byte progress when available; allocation or
+                    decoding failure does not rewind already consumed input.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">import system;
 
-Result&lt;Optional&lt;string&gt;, system.IoError&gt; read_next_line() {
+Result&lt;Optional&lt;string&gt;, system.ReadError&gt; read_next_line() {
     return system.input();
 }</code></pre>
-</section>
-<section id="flush"><h2>Buffering, flushing, and resource boundaries</h2>
-<p>Separate writing, flushing a library buffer, and releasing a resource. A successful buffered write need not mean the terminal has displayed the text. Appending a newline should not imply an undocumented flush.</p>
-<p><strong>Recommended additional operation:</strong> an explicit <code>system.flush()</code> returning <code>Result&lt;unit, system.IoError&gt;</code>, particularly before waiting for input after printing a prompt. Its name and inclusion are not part of the four confirmed functions and still need API approval.</p>
-<p>Define standard-stream ownership, redirection, and closure behavior on each supported OS. Automatic cleanup cannot guarantee a successful fallible flush. Recommend thread-safe, call-level stream serialization after operand evaluation, while leaving the relative order of racing calls unspecified; several calls do not automatically form one output transaction.</p>
-<p>The public system surface should be a convenience layer over the reviewed text/format and io/resource facilities. It must not bypass bounded byte loans, ownership, OS error translation, or safe FFI rules. This plan does not add async IO, GPU behavior, shell execution, or a complete general IO library to 0.3.</p>
-</section>
-<section id="review"><h2>Review and implementation gates</h2>
-<ol><li>Finalize direct text/scalar and composition call forms, exact result types, error categories, newline policy, and the explicit flush stage.</li><li>Specify shortest-float representation ties and fixed-versus-exponent selection; test signed zero, nonfinite values, and two-digit lowercase byte output. Specify recognized imported callees, composition contexts, evaluation order, loan/temporary lifetimes, and fallible allocation without changing general numeric +.</li><li>Approve the heterogeneous printf intrinsic and its checked format grammar without changing homogeneous variadics.</li><li>Finish the resource/FFI, byte, UTF-8, allocation, and error foundations needed by synchronous standard streams.</li><li>Test direct scalar and borrowed-owner arguments, text/scalar chains, grouped numeric sums, integer overflow, one-time evaluation, conflicting mutation, temporary cleanup, and exits before output. Reject stored compositions, unrelated same-named callees, and unsupported printable types.</li><li>Implement and test empty input, empty lines, CRLF, final unterminated lines, malformed UTF-8, size limits, allocation failure, short/interrupted writes, partial output, broken pipes, redirected streams, flush errors, and concurrent calls.</li><li>Verify the same language and ownership behavior in AOT and JIT on the supported targets. Only then describe these functions as implemented.</li></ol>
-<p><a href="Library_Foundation.html">Library foundations</a> records the wider implementation order. The <a href="../releases/0_2.html">0.2 executable profile</a> remains unchanged by this planning document.</p>
-</section>
-      </article>
+            </section>
+            <section id="logging"><h2>Structured logging</h2>
+                <p><code>system.log(level, message, code)</code> accepts <code>system.info</code>,
+                    <code>system.warn</code>, or <code>system.error</code>, which identify the corresponding <code>system.LogLevel</code>
+                    variants. Omit the final text code when it is unnecessary. Logging writes to stderr and returns
+                    <code>Result&lt;unit, system.IoError&gt;</code>; the caller can propagate a write failure. It does
+                    not change the control flow into an exception.</p>
+                <pre class="code-block"><code class="language-aevix" data-language="aevix">import system;
+
+Result&lt;unit, system.IoError&gt; announce() {
+    system.log(system.info, "Compiler ready")?;
+    system.log(system.warn, "Cache entry ignored", "W1001")?;
+    system.log(system.error, "Cannot open source", "E1001")?;
+    return Result.ok(Unit.value());
+}</code></pre>
+                <p>The records are <code>[INFO] Compiler ready</code>, <code>[WARN W1001] Cache entry ignored</code>,
+                    and <code>[ERROR E1001] Cannot open source</code>, each followed by one newline. A call holds its
+                    output lock for the complete record after evaluating and formatting its operands. Logging does not
+                    add a timestamp, color, file sink, automatic flush, or persistent error-code registry. Codes are
+                    application-supplied text. The planned <a href="Diagnostics_0_5.html">0.5 compiler diagnostics</a>
+                    have their own versioned compiler codes and source-location model.</p>
+            </section>
+            <section id="flush"><h2>Buffering, flushing, and resource boundaries</h2>
+                <p>Separate writing, flushing a library buffer, and releasing a resource. A successful buffered write
+                    need not mean the terminal has displayed the text. Appending a newline should not imply an
+                    undocumented flush.</p>
+                <p><strong>Selected additional operation:</strong> an explicit <code>system.flush()</code> returning
+                    <code>Result&lt;unit, system.IoError&gt;</code>, particularly before waiting for input after
+                    printing a prompt. It is included in the 0.3 console implementation.</p>
+                <p>Define standard-stream ownership, redirection, and closure behavior on each supported OS. Automatic
+                    cleanup cannot guarantee a successful fallible flush. Recommend thread-safe, call-level stream
+                    serialization after operand evaluation, while leaving the relative order of racing calls
+                    unspecified; several calls do not automatically form one output transaction.</p>
+                <p>The public system surface should be a convenience layer over the reviewed text/format and io/resource
+                    facilities. It must not bypass bounded byte loans, ownership, OS error translation, or safe FFI
+                    rules. This console implementation is synchronous and does not implement GPU operations or shell
+                    execution. The approved wider CPU library work remains separate.</p>
+            </section>
+            <p>The current AOT path links the matching Aevix C++ runtime archive and a C++ standard library: libc++ on
+                macOS, or libstdc++ on Linux and GNU Windows. Linux also requires pthread support. Cross-target objects
+                may contain unresolved runtime calls; an executable needs a matching target runtime, linker, and
+                sysroot.</p>
+            <section id="review"><h2>Review and implementation gates</h2>
+                <ol>
+                    <li>Finalize direct text/scalar and composition call forms, exact result types, error categories,
+                        newline policy, and the explicit flush stage.
+                    </li>
+                    <li>Specify shortest-float representation ties and fixed-versus-exponent selection; test signed
+                        zero, nonfinite values, and two-digit lowercase byte output. Specify recognized imported
+                        callees, composition contexts, evaluation order, loan/temporary lifetimes, and fallible
+                        allocation without changing general numeric +.
+                    </li>
+                    <li>Approve the heterogeneous printf intrinsic and its checked format grammar without changing
+                        homogeneous variadics.
+                    </li>
+                    <li>Finish the resource/FFI, byte, UTF-8, allocation, and error foundations needed by synchronous
+                        standard streams.
+                    </li>
+                    <li>Test direct scalar and borrowed-owner arguments, text/scalar chains, grouped numeric sums,
+                        integer overflow, one-time evaluation, conflicting mutation, temporary cleanup, and exits before
+                        output. Reject stored compositions, unrelated same-named callees, and unsupported printable
+                        types.
+                    </li>
+                    <li>Implement and test empty input, empty lines, CRLF, final unterminated lines, malformed UTF-8,
+                        size limits, allocation failure, short/interrupted writes, partial output, broken pipes,
+                        redirected streams, flush errors, and concurrent calls.
+                    </li>
+                    <li>Verify the same language and ownership behavior in AOT and JIT on the supported targets. Only
+                        then describe these functions as implemented.
+                    </li>
+                </ol>
+                <p><a href="Library_Foundation.html">Library foundations</a> records the wider implementation order. The
+                    <a href="../releases/0_2.html">0.2 executable profile</a> remains unchanged by this planning
+                    document.</p>
+            </section>
+        </article>
     </div>
-    <footer class="page-footer"><span>Aevix · 0.3 console IO plan</span><span>Not implemented in 0.2 · detailed API under review</span></footer>
-  </main>
+    <footer class="page-footer"><span>Aevix · 0.3 console IO plan</span><span>Not implemented in 0.2 · detailed API under review</span>
+    </footer>
+</main>
 </body>
 </html>

@@ -26,7 +26,7 @@ file(WRITE "${TEST_DIR}/src/uninitialized.avx"
 file(WRITE "${TEST_DIR}/src/missing_return.avx"
     "i32 main() {}\n")
 file(WRITE "${TEST_DIR}/src/bad_library.avx"
-    "public i32 number() { return false; }\n")
+    "public i32 number() { return 1.5; }\n")
 file(WRITE "${TEST_DIR}/src/import_error.avx"
     "import bad_library { number };\ni32 main() { return number(); }\n")
 file(WRITE "${TEST_DIR}/src/unknown_name.avx"

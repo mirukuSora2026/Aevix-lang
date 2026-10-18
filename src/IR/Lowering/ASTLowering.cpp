@@ -11,7 +11,10 @@
 // ========================
 
 #include "aevix/IR/Lowering/ASTLowering.hpp"
+#include "aevix/Native/SyncOperation.hpp"
+#include "aevix/Native/TaskOperation.hpp"
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <map>
 #include <set>
@@ -104,6 +107,8 @@ namespace aevix
             std::vector<AIRScopeId> scopes_;
             std::unordered_map<const Node*, SymbolId> declarations_;
             std::unordered_map<SymbolId, AIRLocalId> locals_;
+            SymbolId closureReceiver_ = InvalidSymbolId;
+            std::unordered_map<std::string, AIRLocalId> closureFields_;
             std::unordered_set<SymbolId> globalSymbols_;
             struct Loop { AIRBlockId stop; AIRBlockId next; std::size_t breakDepth; std::size_t continueDepth; };
             std::vector<Loop> loops_;
@@ -133,7 +138,7 @@ namespace aevix
             }
             void collect(const Node& node, bool member)
             {
-                if (child(node, "CompilerBox")) return;
+                if (child(node,"CompilerTask") || child(node,"CompilerTaskScope") || child(node, "CompilerCancellationSource") || child(node, "CompilerCancellationToken") || child(node, "CompilerMutex") || child(node, "CompilerRwLock") || child(node, "CompilerMutexGuard") || child(node, "CompilerReadGuard") || child(node, "CompilerWriteGuard") || child(node, "CompilerBox") || child(node, "CompilerShared") || child(node, "CompilerWeak") || child(node, "CompilerAtomic")) return;
                 if (node.kind == "CompilerTemplate" || node.kind == "CompilerContract"
                     || child(node, "CompilerTemplate") || child(node, "CompilerContract") || child(node, "CompilerIntrinsic")) return;
                 if (node.kind == "Function" && child(node, "Block") && typed_.symbolTypes.contains(id(node)))
@@ -159,7 +164,7 @@ namespace aevix
                 else if ((node.kind == "Struct" || node.kind == "Enum") && typed_.symbolTypes.contains(id(node)))
                 {
                     AIRRecord record;
-                    record.type = symbolType(id(node));
+                    record.type = symbolType(id(node)); record.source = &node;
                     record.isEnum = node.kind == "Enum";
                     if (record.isEnum)
                         for (const auto& variant : node.children)
@@ -432,6 +437,10 @@ namespace aevix
             AIRPlace place(const Node& node)
             {
                 if (node.kind == "Group") return place(*node.children[0]);
+                if (node.kind == "Member" && node.children.size() == 1
+                    && node.children[0]->kind == "Name" && id(*node.children[0]) == closureReceiver_)
+                    if (const auto captured = closureFields_.find(node.value); captured != closureFields_.end())
+                        return localPlace(captured->second);
                 if (node.kind == "Name" || (node.kind == "Member" && id(node) != InvalidSymbolId))
                     return symbolPlace(id(node), type(node));
                 if (node.kind == "Prefix" && node.value == "*")
@@ -482,10 +491,10 @@ namespace aevix
             bool containsReference(TypeId valueType, std::unordered_set<TypeId>& visiting) const
             {
                 const auto& value = typed_.types.get(valueType);
-                if (value.kind == TypeKind::Reference || value.kind == TypeKind::Slice || value.kind == TypeKind::StringView) return true;
+                if (syncGuard(value.kind) || value.kind == TypeKind::Reference || value.kind == TypeKind::Slice || value.kind == TypeKind::StringView) return true;
                 if (!visiting.insert(valueType).second) return false;
                 if (value.kind == TypeKind::Box && typed_.types.get(value.element).kind == TypeKind::Dynamic) return true;
-                if (value.kind == TypeKind::Array || value.kind == TypeKind::Vector || value.kind == TypeKind::Box) return containsReference(value.element, visiting);
+                if (syncOwner(value.kind) || value.kind == TypeKind::Array || value.kind == TypeKind::Vector || value.kind == TypeKind::Box || value.kind == TypeKind::Shared || value.kind == TypeKind::Weak) return containsReference(value.element, visiting);
                 if (value.kind == TypeKind::Tuple)
                 { for (const auto field : value.parameters) if (containsReference(field, visiting)) return true; return false; }
                 if (value.kind != TypeKind::Nominal) return false;
@@ -500,7 +509,7 @@ namespace aevix
             {
                 const auto& value = typed_.types.get(valueType);
                 if (value.kind == TypeKind::Reference || value.kind == TypeKind::Slice) return !value.isMutable;
-                if (value.kind == TypeKind::Array || value.kind == TypeKind::Tuple || value.kind == TypeKind::Vector || value.kind == TypeKind::Box || value.kind == TypeKind::String) return false;
+                if (taskOwner(value.kind) || cancellationOwner(value.kind) || syncOwner(value.kind) || syncGuard(value.kind) || value.kind == TypeKind::Array || value.kind == TypeKind::Tuple || value.kind == TypeKind::Vector || value.kind == TypeKind::Box || value.kind == TypeKind::Shared || value.kind == TypeKind::Weak || value.kind == TypeKind::Atomic || value.kind == TypeKind::String) return false;
                 if (value.kind != TypeKind::Nominal) return true;
                 if (value.declaration >= names_.symbols.size()) return false;
                 const auto* declaration = names_.symbols[value.declaration].declaration;
@@ -832,6 +841,91 @@ namespace aevix
             {
                 const auto input = [&](std::size_t index) -> const Node&
                 { return node.kind == "CompilerTextExpression" ? *node.children[index] : *node.children[index]->children[0]; };
+                if (operation.starts_with("cancel."))
+                {
+                    std::vector<AIRValueId> values;
+                    for (std::size_t index = 1; index < node.children.size(); ++index)
+                    {
+                        const auto& argument = input(index);
+                        values.push_back(argumentExpression(argument, type(argument)));
+                    }
+                    auto& item = instruction(AIROpcode::CancellationIntrinsic, &node, type(node), true);
+                    item.operation = operation.substr(7); item.operands = std::move(values); return item.result;
+                }
+                if (operation.starts_with("os."))
+                {
+                    const auto callee = typed_.calls.at(&node);
+                    const auto* parameters = child(*names_.symbols[callee].declaration, "Parameters");
+                    std::vector<AIRValueId> values(node.children.size() - 1, InvalidAIRId);
+                    // 계산 순서는 호출부 순서이고, 네이티브 ABI 인수는 선언 순서로 배치한다.
+                    // Evaluate in call-site order and arrange native ABI arguments in declaration order.
+                    for (std::size_t index = 1; index < node.children.size(); ++index)
+                    {
+                        std::size_t slot = index - 1;
+                        if (!node.children[index]->value.empty() && parameters)
+                            for (std::size_t parameter = 0; parameter < parameters->children.size(); ++parameter)
+                                if (parameters->children[parameter]->value == node.children[index]->value) slot = parameter;
+                        values[slot] = expression(input(index));
+                    }
+                    auto& item = instruction(AIROpcode::OsIntrinsic, &node, type(node), true);
+                    item.callee = callee; item.operation = operation.substr(3); item.operands = std::move(values);
+                    return item.result;
+                }
+                if (operation.starts_with("system."))
+                {
+                    const bool output = operation != "system.input";
+                    if (output) enter(&node);
+                    std::vector<AIRValueId> values;
+                    std::vector<std::string> roles;
+                    for (std::size_t index = 1; index < node.children.size(); ++index)
+                    {
+                        const auto& part = input(index);
+                        roles.push_back(part.kind == "CompilerSystemArgument" ? part.value : "");
+                        const auto& source = part.kind == "CompilerFormatValue" || part.kind == "CompilerSystemArgument" ? *part.children[0] : part;
+                        if (const auto borrowed = typed_.systemBorrows.find(&source); borrowed != typed_.systemBorrows.end())
+                        {
+                            const Node* base = &source;
+                            while (base->kind == "Group") base = base->children[0].get();
+                            AIRPlace address;
+                            if (base->kind == "Name" || base->kind == "Member" || base->kind == "Index"
+                                || (base->kind == "Prefix" && base->value == "*")) address = place(source);
+                            else
+                            {
+                                const auto value = expression(source);
+                                const auto slot = local(nullptr, type(source), "$system.text");
+                                write(localPlace(slot), value, source); address = localPlace(slot);
+                            }
+                            auto& loan = instruction(AIROpcode::BorrowShared, &source, borrowed->second, true);
+                            loan.place = address; values.push_back(loan.result);
+                        }
+                        else values.push_back(expression(source));
+                    }
+                    if (operation == "system.log")
+                    {
+                        std::vector<AIRValueId> ordered;
+                        for (const auto& role : {"level", "message", "code"})
+                            for (std::size_t index = 0; index < values.size(); ++index) if (roles[index] == role) ordered.push_back(values[index]);
+                        values = std::move(ordered);
+                    }
+                    auto& item = instruction(AIROpcode::SystemIntrinsic, &node, type(node), true);
+                    item.operation = operation.substr(7); item.operands = std::move(values);
+                    if (!output)
+                    {
+                        const auto& result = typed_.carriers.at(type(node));
+                        item.dynamicSignature = typed_.carriers.at(result.value).value;
+                    }
+                    const auto result = item.result;
+                    if (output) leave(&node);
+                    return result;
+                }
+                if (operation == "text.parse")
+                {
+                    const auto source = expression(input(1));
+                    auto& item = instruction(AIROpcode::ParseIntrinsic, &node, type(node), true);
+                    item.operation = "scalar.parse"; item.operands = {source};
+                    item.dynamicSignature = typed_.carriers.at(type(node)).value;
+                    return item.result;
+                }
                 if (operation == "byte.from_u8" || operation == "byte.to_u8")
                 {
                     const auto source = expression(input(1));
@@ -852,7 +946,7 @@ namespace aevix
                     for (std::size_t index = 0; index < owners.size(); ++index) if (owners[index] != InvalidAIRId) values[index] = read(localPlace(owners[index]), node, true);
                     auto& item = instruction(AIROpcode::Aggregate, &node, type(node), true); item.operands = std::move(values); return item.result;
                 }
-                if (operation.starts_with("tuple.") || operation == "slice.view"
+                if (operation.starts_with("tuple.") || operation == "array.copy" || operation == "slice.view"
                     || ((operation == "text.view" || operation == "text.as_bytes") && typed_.types.get(type(input(1))).kind == TypeKind::Reference))
                 {
                     const auto& source = input(1); AIRPlace address;
@@ -860,7 +954,7 @@ namespace aevix
                     else { address.pointer = pointerExpression(source); address.type = typed_.types.get(type(source)).element; }
                     if (operation == "tuple.len" || operation == "tuple.is_empty")
                         return constant(type(node), operation == "tuple.len" ? std::to_string(typed_.types.get(address.type).parameters.size()) : typed_.types.get(address.type).parameters.empty() ? "true" : "false", &node);
-                    if (operation == "tuple.copy") return read(address, node, false);
+                    if (operation == "tuple.copy" || operation == "array.copy") return read(address, node, false);
                     if (operation == "tuple.get" || operation == "tuple.get_mut")
                     {
                         const auto index = typed_.tupleIndices.at(&node);
@@ -1043,26 +1137,50 @@ namespace aevix
                 block_ = done; leave(&node);
                 return read(localPlace(resultSlot), node, true);
             }
-            AIRValueId vectorGrowth(const Node& node, bool push)
+            AIRValueId vectorGrowth(const Node& node, bool push, bool insert = false)
             {
                 const auto receiver = expression(*node.children[1]->children[0]);
                 const auto vector = typed_.types.get(type(*node.children[1]->children[0])).element;
-                const auto input = expression(*node.children[2]->children[0]);
-                const auto inputType = push ? typed_.types.get(vector).element : typed_.types.builtin("usize");
+                const bool ownedInput = push || insert;
+                const auto position = insert ? expression(*node.children[2]->children[0]) : InvalidAIRId;
+                const auto input = expression(*node.children[insert ? 3 : 2]->children[0]);
+                const auto inputType = ownedInput ? typed_.types.get(vector).element : typed_.types.builtin("usize");
                 const auto inputSlot = local(nullptr, inputType, "$vector.input"); write(localPlace(inputSlot), input, node);
-                const auto additional = push ? constant(typed_.types.builtin("usize"), "1", &node) : read(localPlace(inputSlot), node);
+                const auto resultSlot = local(nullptr, type(node), "$vector.result");
+                const auto yes = block("vector.grow.ok"), no = block("vector.grow.failed"), size = block("vector.grow.overflow"), allocation = block("vector.grow.allocation"), done = block("vector.grow.done");
+                const auto& carrier = typed_.carriers.at(type(node));
+                const auto fail = [&](AIRBlockId blockId, std::string_view name)
+                {
+                    block_ = blockId; SymbolId variant = InvalidSymbolId;
+                    for (const auto& [id, info] : typed_.enumVariants) if (info.type == carrier.error && names_.symbols[id].name == name) variant = id;
+                    if (variant == InvalidSymbolId) { error(node, "Missing collection mutation error variant."); return; }
+                    std::vector<AIRValueId> values;
+                    if (ownedInput) values.push_back(read(localPlace(inputSlot), node, true));
+                    auto& errorValue = instruction(AIROpcode::EnumConstruct, &node, carrier.error, true); errorValue.callee = variant; errorValue.operands = std::move(values); const auto error = errorValue.result;
+                    auto& returned = instruction(AIROpcode::EnumConstruct, &node, type(node), true); returned.callee = carrier.failure; returned.operands = {error}; const auto result = returned.result;
+                    write(localPlace(resultSlot), result, node); jump(done, &node);
+                };
+                if (insert)
+                {
+                    auto& length = instruction(AIROpcode::VectorLength, &node, typed_.types.builtin("usize"), true); length.operands = {receiver};
+                    const auto within = binary("<=", position, length.result, typed_.types.builtin("bool"), node);
+                    const auto valid = block("vector.insert.bounds.ok"), invalid = block("vector.insert.bounds.error");
+                    branch(within, valid, invalid, node); fail(invalid, "OutOfBounds"); block_ = valid;
+                }
+                const auto additional = ownedInput ? constant(typed_.types.builtin("usize"), "1", &node) : read(localPlace(inputSlot), node);
                 auto& reserve = instruction(AIROpcode::VectorReserve, &node, typed_.types.builtin("u32"), true);
                 reserve.place.pointer = receiver; reserve.place.type = vector; reserve.operands = {additional}; const auto status = reserve.result;
                 const auto zero = constant(typed_.types.builtin("u32"), "0", &node);
                 const auto success = binary("==", status, zero, typed_.types.builtin("bool"), node);
-                const auto resultSlot = local(nullptr, type(node), "$vector.result");
-                const auto yes = block("vector.grow.ok"), no = block("vector.grow.failed"), size = block("vector.grow.overflow"), allocation = block("vector.grow.allocation"), done = block("vector.grow.done");
-                const auto& carrier = typed_.carriers.at(type(node));
                 branch(success, yes, no, node); block_ = yes;
-                if (push)
+                if (ownedInput)
                 {
                     const auto value = read(localPlace(inputSlot), node, true);
-                    auto& append = instruction(AIROpcode::VectorAppend, &node, vector); append.place.pointer = receiver; append.place.type = vector; append.operands = {value};
+                    auto& append = instruction(insert ? AIROpcode::VectorInsert : AIROpcode::VectorAppend, &node,
+                        insert ? typed_.types.builtin("unit") : vector, insert);
+                    append.place.pointer = receiver; append.place.type = vector;
+                    append.operation = insert ? "insert" : "";
+                    append.operands = insert ? std::vector<AIRValueId>{position, value} : std::vector<AIRValueId>{value};
                 }
                 const auto unit = constant(typed_.types.builtin("unit"), "zeroinitializer", &node);
                 auto& complete = instruction(AIROpcode::EnumConstruct, &node, type(node), true); complete.callee = carrier.success; complete.operands = {unit};
@@ -1070,19 +1188,48 @@ namespace aevix
                 block_ = no;
                 const auto overflow = constant(typed_.types.builtin("u32"), "2", &node);
                 const auto tooLarge = binary("==", status, overflow, typed_.types.builtin("bool"), node); branch(tooLarge, size, allocation, node);
-                const auto fail = [&](AIRBlockId blockId, std::string_view name)
-                {
-                    block_ = blockId; SymbolId variant = InvalidSymbolId;
-                    for (const auto& [id, info] : typed_.enumVariants) if (info.type == carrier.error && names_.symbols[id].name == name) variant = id;
-                    if (variant == InvalidSymbolId) { error(node, "Missing collection growth error variant."); return; }
-                    std::vector<AIRValueId> values;
-                    if (push) values.push_back(read(localPlace(inputSlot), node, true));
-                    auto& errorValue = instruction(AIROpcode::EnumConstruct, &node, carrier.error, true); errorValue.callee = variant; errorValue.operands = std::move(values); const auto error = errorValue.result;
-                    auto& returned = instruction(AIROpcode::EnumConstruct, &node, type(node), true); returned.callee = carrier.failure; returned.operands = {error}; const auto result = returned.result;
-                    write(localPlace(resultSlot), result, node); jump(done, &node);
-                };
                 fail(size, "SizeOverflow"); fail(allocation, "AllocationFailure"); block_ = done;
                 return read(localPlace(resultSlot), node, true);
+            }
+            AIRValueId vectorMutation(const Node& node, const std::string& operation)
+            {
+                const auto receiver = expression(*node.children[1]->children[0]);
+                const auto vector = typed_.types.get(type(*node.children[1]->children[0])).element;
+                if (operation == "clear" || operation == "truncate")
+                {
+                    const auto count = operation == "clear" ? constant(typed_.types.builtin("usize"), "0", &node)
+                        : expression(*node.children[2]->children[0]);
+                    auto& truncate = instruction(AIROpcode::VectorTruncate, &node, type(node), true);
+                    truncate.operation = operation; truncate.place.pointer = receiver; truncate.place.type = vector; truncate.operands = {count};
+                    return truncate.result;
+                }
+                const auto position = operation == "pop" ? InvalidAIRId : expression(*node.children[2]->children[0]);
+                auto& size = instruction(AIROpcode::VectorLength, &node, typed_.types.builtin("usize"), true); size.operands = {receiver};
+                const auto length = size.result;
+                const auto zero = constant(typed_.types.builtin("usize"), "0", &node);
+                const auto valid = operation == "pop" ? binary("!=", length, zero, typed_.types.builtin("bool"), node)
+                    : binary("<", position, length, typed_.types.builtin("bool"), node);
+                const auto slot = local(nullptr, type(node), "$vector.mutation.result");
+                const auto yes = block("vector.take.ok"), no = block("vector.take.empty"), done = block("vector.take.done");
+                const auto& carrier = typed_.carriers.at(type(node));
+                branch(valid, yes, no, node); block_ = yes;
+                const auto selected = operation == "pop" ? binary("-", length, constant(typed_.types.builtin("usize"), "1", &node), typed_.types.builtin("usize"), node) : position;
+                auto& take = instruction(AIROpcode::VectorTake, &node, carrier.value, true);
+                take.operation = operation; take.place.pointer = receiver; take.place.type = vector; take.operands = {selected}; const auto taken = take.result;
+                auto& good = instruction(AIROpcode::EnumConstruct, &node, type(node), true); good.callee = carrier.success; good.operands = {taken}; const auto goodValue = good.result;
+                write(localPlace(slot), goodValue, node); jump(done, &node); block_ = no;
+                AIRValueId errorValue = InvalidAIRId;
+                if (operation != "pop")
+                {
+                    SymbolId outOfBounds = InvalidSymbolId;
+                    for (const auto& [id, info] : typed_.enumVariants) if (info.type == carrier.error && names_.symbols[id].name == "OutOfBounds") outOfBounds = id;
+                    if (outOfBounds == InvalidSymbolId) { error(node, "Missing BoundsError.OutOfBounds."); return InvalidAIRId; }
+                    auto& bounds = instruction(AIROpcode::EnumConstruct, &node, carrier.error, true); bounds.callee = outOfBounds; errorValue = bounds.result;
+                }
+                auto& bad = instruction(AIROpcode::EnumConstruct, &node, type(node), true); bad.callee = carrier.failure;
+                if (errorValue != InvalidAIRId) bad.operands = {errorValue};
+                const auto badValue = bad.result; write(localPlace(slot), badValue, node); jump(done, &node); block_ = done;
+                return read(localPlace(slot), node, true);
             }
             AIRValueId expression(const Node& node)
             {
@@ -1091,7 +1238,8 @@ namespace aevix
                 if (typed_.collectionCalls.contains(&node))
                 {
                     const auto& operation = typed_.collectionCalls.at(&node);
-                    if (operation == "push" || operation == "reserve") return vectorGrowth(node, operation == "push");
+                    if (operation == "push" || operation == "reserve" || operation == "insert") return vectorGrowth(node, operation == "push", operation == "insert");
+                    if (operation == "pop" || operation == "clear" || operation == "truncate" || operation == "remove" || operation == "swap_remove") return vectorMutation(node, operation);
                     const auto argument = expression(*node.children[1]->children[0]);
                     auto& length = instruction(AIROpcode::VectorLength, &node, type(node), true); length.operation = operation; length.operands = {argument}; return length.result;
                 }
@@ -1119,6 +1267,52 @@ namespace aevix
                         : "dyn.view." + std::to_string(information.interfaceType) + "." + std::to_string(information.concreteType);
                     return loan.result;
                 }
+                if (node.kind == "CompilerTaskExpression")
+                {
+                    const auto* operation = taskOperation(node.value);
+                    std::vector<AIRValueId> arguments;
+                    for (std::size_t i = 0; operation && i < operation->operands; ++i)
+                    {
+                        const auto& argument = *node.children[3+i];
+                        arguments.push_back(typed_.types.get(type(argument)).kind == TypeKind::Reference
+                            ? argumentExpression(argument,type(argument)) : expression(argument));
+                    }
+                    auto& item = instruction(AIROpcode::TaskIntrinsic,&node,type(node),true);
+                    item.operation = node.value; item.taskElement = type(*node.children[1]); item.taskCallable = type(*node.children[2]);
+                    if (const auto invoke = typed_.taskInvokes.find(&node); invoke != typed_.taskInvokes.end()) item.taskInvoke = invoke->second;
+                    item.operands = std::move(arguments); return item.result;
+                }
+                if (node.kind == "CompilerSyncExpression")
+                {
+                    std::vector<AIRValueId> arguments;
+                    for (std::size_t i = 2; i < node.children.size(); ++i)
+                    {
+                        const auto& argument = *node.children[i];
+                        arguments.push_back(typed_.types.get(type(argument)).kind == TypeKind::Reference
+                            ? argumentExpression(argument, type(argument)) : expression(argument));
+                    }
+                    auto& item = instruction(AIROpcode::SyncIntrinsic, &node, type(node), true);
+                    item.operation = node.value; item.syncElement = type(*node.children[1]); item.operands = std::move(arguments); return item.result;
+                }
+                if (node.kind == "CompilerAtomicExpression")
+                {
+                    std::vector<AIRValueId> arguments;
+                    for (std::size_t i = 2; i < node.children.size(); ++i)
+                    {
+                        const auto& argument = *node.children[i];
+                        arguments.push_back(i == 2 && node.value != "into_inner" && typed_.types.get(type(argument)).kind == TypeKind::Reference
+                            ? argumentExpression(argument, type(argument)) : expression(argument));
+                    }
+                    auto& item = instruction(AIROpcode::AtomicIntrinsic, &node, type(node), true);
+                    item.operation = node.value; item.atomicElement = type(*node.children[1]); item.operands = std::move(arguments); return item.result;
+                }
+                if (node.kind == "CompilerSharedExpression")
+                {
+                    std::vector<AIRValueId> arguments;
+                    for (std::size_t i = 1; i < node.children.size(); ++i) arguments.push_back(expression(*node.children[i]));
+                    auto& item = instruction(AIROpcode::SharedIntrinsic, &node, type(node), true);
+                    item.operation = node.value; item.operands = std::move(arguments); return item.result;
+                }
                 if (typed_.boxIntrinsics.contains(&node))
                 {
                     const auto& input = *node.children[1];
@@ -1131,6 +1325,22 @@ namespace aevix
                         item.place = address; item.operation = "box.borrow"; return item.result;
                     }
                     const auto inputValue = expression(input);
+                    if (node.value == "into_inner")
+                    {
+                        const auto found = typed_.boxExtractions.find(&node);
+                        if (found == typed_.boxExtractions.end() || found->second.owner != type(input) || found->second.payload != type(node)
+                            || typed_.types.get(found->second.owner).kind != TypeKind::Box
+                            || typed_.types.get(found->second.owner).element != found->second.payload)
+                        { error(node, "Box extraction is missing exact validated owner/payload metadata."); return InvalidAIRId; }
+                        // 정상 소유권 이동을 마친 값만 전용 정리 지역에 저장하여 한 번에 소비한다.
+                        // Stage an already moved owner in dedicated cleanup storage and consume it exactly once.
+                        const auto owner = local(nullptr, found->second.owner, "$box.extract");
+                        write(localPlace(owner), inputValue, node);
+                        auto& extract = instruction(AIROpcode::BoxExtract, &node, type(node), true);
+                        extract.operation = "into_inner"; extract.place = localPlace(owner);
+                        extract.boxOwner = found->second.owner; extract.boxElement = found->second.payload;
+                        return extract.result;
+                    }
                     auto& item = instruction(AIROpcode::Unary, &node, type(node), true);
                     item.operands = {inputValue}; item.operation = "box." + node.value;
                     if (node.value == "into_dyn")
@@ -1150,7 +1360,43 @@ namespace aevix
                     return item.result;
                 }
                 if (const auto intrinsic = typed_.valueIntrinsics.find(&node); intrinsic != typed_.valueIntrinsics.end()) return valueIntrinsic(node, intrinsic->second);
+                if (node.kind == "CompilerMemoryExpression")
+                {
+                    // 인수는 소스 순서로 평가한 후 의미 역할에 따라 SSA 피연산자만 정렬한다.
+                    // Evaluate arguments in source order, then arrange only the SSA operands by semantic role.
+                    std::array<AIRValueId, 2> operands{InvalidAIRId, InvalidAIRId};
+                    for (std::size_t index = 1; index < node.children.size(); ++index)
+                    {
+                        const auto& argument = *node.children[index];
+                        const auto role = argument.value == "target" || argument.value == "left" ? 0u : 1u;
+                        operands[role] = expression(*argument.children[0]);
+                    }
+                    auto& operation = instruction(AIROpcode::MemoryIntrinsic, &node, type(node), true);
+                    operation.operation = node.value; operation.operands.assign(operands.begin(), operands.end());
+                    return operation.result;
+                }
                 if (node.kind == "CompilerSliceExpression") return sliceExpression(node);
+                if (node.kind == "CompilerRangeInspectExpression")
+                {
+                    const auto source = argumentExpression(*node.children[1],type(*node.children[1]));
+                    auto& inspect = instruction(AIROpcode::RangeInspect,&node,type(node),true);
+                    inspect.operation = node.value; inspect.operands = {source};
+                    return inspect.result;
+                }
+                if (node.kind == "CompilerCharScalarExpression")
+                {
+                    const auto source = expression(*node.children[1]);
+                    auto& scalar = instruction(AIROpcode::CharScalar,&node,type(node),true);
+                    scalar.operation = node.value; scalar.operands = {source};
+                    return scalar.result;
+                }
+                if (node.kind == "CompilerFloatBitsExpression")
+                {
+                    const auto source = expression(*node.children[1]);
+                    auto& conversion = instruction(AIROpcode::NumericConvert,&node,type(node),true);
+                    conversion.operation = node.value; conversion.operands = {source};
+                    return conversion.result;
+                }
                 if (node.kind == "CompilerNumericExpression") return numericExpression(node);
                 if (typed_.unitValues.contains(&node)) return constant(typed_.types.builtin("unit"), "zeroinitializer", &node);
                 if (const auto found = typed_.enumConstructors.find(&node); found != typed_.enumConstructors.end()) return enumConstructor(node, found->second);
@@ -1318,8 +1564,17 @@ namespace aevix
                 }
                 else if (node.kind == "Return")
                 {
-                    const auto value = node.children.empty() ? InvalidAIRId : expression(*node.children[0]);
+                    auto value = node.children.empty() ? InvalidAIRId : expression(*node.children[0]);
                     if (terminated()) return;
+                    if (const auto adaptation = typed_.returnConversions.find(&node); adaptation != typed_.returnConversions.end())
+                    {
+                        // 원래 bool을 한 번만 계산하고 0/1의 부호 없는 확장으로 반환 정수를 만든다.
+                        // Evaluate the original bool once and zero-extend its 0/1 encoding to the return integer.
+                        auto& conversion = instruction(AIROpcode::NumericConvert, &node, adaptation->second, true);
+                        conversion.operation = "return.bool_to_integer";
+                        conversion.operands = {value};
+                        value = conversion.result;
+                    }
                     auto& end = function_->blocks[block_].terminator;
                     end.kind = AIRTerminatorKind::Return;
                     end.value = value;
@@ -1552,7 +1807,7 @@ namespace aevix
                             const auto slot = local(binding.get(), type(*binding));
                             const auto& wanted = typed_.types.get(type(*binding));
                             AIRValueId value;
-                            if (wanted.kind == TypeKind::Reference)
+                            if (bound->second.borrowedBinding)
                             {
                                 auto& loan = instruction(wanted.isMutable ? AIROpcode::BorrowMut : AIROpcode::BorrowShared, binding.get(), type(*binding), true);
                                 loan.place = payload;
@@ -1610,6 +1865,7 @@ namespace aevix
             void lowerFunction(const Node& node)
             {
                 locals_.clear(); scopes_.clear(); loops_.clear();
+                closureReceiver_ = InvalidSymbolId; closureFields_.clear();
                 block_ = block("entry");
                 enter(&node);
                 if (const auto* parameters = child(node, "Parameters"))
@@ -1619,6 +1875,37 @@ namespace aevix
                         function_->locals[slot].isParameter = true;
                         function_->parameters.push_back(slot);
                     }
+                if (!function_->parameters.empty())
+                {
+                    const auto receiver = function_->parameters.front();
+                    const auto* environment = record(function_->locals[receiver].type);
+                    const auto* marker = environment && environment->source ? child(*environment->source, "CompilerClosure") : nullptr;
+                    const bool ownedInvocation = marker && marker->value == "FnOnce" && !environment->isEnum
+                        && node.value == "__invoke" && std::any_of(environment->source->children.begin(), environment->source->children.end(),
+                            [&](const auto& member) { return member.get() == &node; });
+                    if (ownedInvocation)
+                    {
+                        // 환경을 부분 이동하지 않고 먼저 전부 분해하여 각 캡처의 이동·정리를 독립적으로 추적한다.
+                        // Split the whole environment before the body, tracking every capture's moves and cleanup independently.
+                        closureReceiver_ = function_->locals[receiver].symbol;
+                        const auto mutableCapture = function_->locals[receiver].isMutable;
+                        std::vector<AIRLocalId> destinations;
+                        for (std::size_t field = 0; field < environment->fields.size(); ++field)
+                        {
+                            const auto slot = local(nullptr, environment->fieldTypes[field], "$capturelocal." + std::to_string(field));
+                            function_->locals[slot].isMutable = mutableCapture;
+                            destinations.push_back(slot);
+                            closureFields_[names_.symbols[environment->fields[field]].name] = slot;
+                        }
+                        // 인수와 캡처의 기존 역순 정리를 보존하며, AIR 지역 번호의 순서는 바꾸지 않는다.
+                        // Preserve reverse argument/capture cleanup without changing AIR local indices.
+                        auto& cleanup = function_->scopes[scopes_.back()].locals;
+                        const auto firstCapture = cleanup.size() - destinations.size();
+                        std::rotate(cleanup.begin() + 1, cleanup.begin() + firstCapture, cleanup.end());
+                        auto& consume = instruction(AIROpcode::ClosureConsume, &node, environment->type);
+                        consume.operation = "consume"; consume.place = localPlace(receiver); consume.closureLocals = std::move(destinations);
+                    }
+                }
                 if (const auto* numeric = child(node, "CompilerComplexMath"))
                 {
                     std::vector<AIRValueId> arguments;

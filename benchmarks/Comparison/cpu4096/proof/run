@@ -1,0 +1,522 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : run
+#
+# Description :
+#     증명 최적화의 검사 제거·CLI 지연·코드 크기·동일 입력 결과를 단계별로 대조한다.
+#     Compare proof guard removal, CLI latency, code size, and equal-input results in separate phases.
+#
+# ========================
+"""Local proof-pass experiment; CLI wall time is not isolated compiler CPU time."""
+
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import platform
+import re
+import statistics
+import subprocess
+import sys
+import time
+
+
+ROOT = Path(__file__).resolve().parents[4]
+HERE = Path(__file__).resolve().parent
+BASELINE_HASH = "14e539e98708b8a0b3b8985574a66794d44329bf5c1f63c7e4baba49eeb96e16"
+MASK_MODULUS = 100
+ELEMENTS = 16
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def relative(path):
+    path = Path(path).resolve()
+    return path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path)
+
+
+def write(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode("utf-8"))
+
+
+def save(path, value):
+    write(path, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+
+
+def affine_state(initial, count):
+    # 측정 루프와 달리 합성의 이진 거듭제곱으로 독립 기준값을 구한다.
+    # Use binary exponentiation of affine composition, independent of the measured loop.
+    multiplier, increment = 1, 0
+    step_multiplier, step_increment = 3, 1
+    while count:
+        if count & 1:
+            multiplier = step_multiplier * multiplier % MASK_MODULUS
+            increment = (step_multiplier * increment + step_increment) % MASK_MODULUS
+        step_increment = step_increment * (step_multiplier + 1) % MASK_MODULUS
+        step_multiplier = step_multiplier * step_multiplier % MASK_MODULUS
+        count >>= 1
+    return (multiplier * initial + increment) % MASK_MODULUS
+
+
+def expected(case, seed, rounds):
+    if case == "bounded_array":
+        count = rounds * ELEMENTS
+        return [3 * affine_state(seed % MASK_MODULUS, count - ELEMENTS + index) + 1
+                for index in range(ELEMENTS)]
+    if case == "unknown_index":
+        result = [11 + index * 2 for index in range(ELEMENTS)]
+        result[seed] = 3 * affine_state(result[seed] % MASK_MODULUS, rounds - 1) + 1
+        return result
+    count = int(case.split("_")[1])
+    modulus, multiplier = 2147483647, 48271
+    power = pow(multiplier, count, modulus)
+    increment = (power - 1) * pow(multiplier - 1, -1, modulus) % modulus
+    return [(power * (((index + seed) % 4096) % modulus + 1) + increment) % modulus
+            for index in range(4096)]
+
+
+def fixture(case, rounds, samples):
+    if case == "bounded_array":
+        body = f"""Array<u64, 16> kernel(u64 input) {{
+    mut u64 values[16] = [0u64; 16];
+    mut u64 value = input;
+    for (mut usize round = 0usize; round < {rounds}usize; round++) {{
+        for (mut usize index = 0usize; index < 16usize; index++) {{
+            u64 reduced = value % 100u64;
+            value = reduced * 3u64 + 1u64;
+            values[index] = value;
+        }}
+    }}
+    return values;
+}}
+"""
+        input_type = "u64"
+    else:
+        initial = ", ".join(str(11 + index * 2) + "u64" for index in range(ELEMENTS))
+        body = f"""Array<u64, 16> kernel(usize input) {{
+    mut u64 values[16] = [{initial}];
+    for (mut usize round = 0usize; round < {rounds}usize; round++) {{
+        u64 reduced = values[input] % 100u64;
+        values[input] = reduced * 3u64 + 1u64;
+    }}
+    return values;
+}}
+"""
+        input_type = "usize"
+    return f"""/*
+ * Proof comparison fixture: {case}; runtime input remains opaque before each interval.
+ * Output verification and all I/O are outside the measured kernel interval.
+ * @module proof_{case}
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import system;
+import time;
+
+{body}
+T success<T, E>(Result<T, E> input) {{
+    switch (move input) {{
+        case Result<T, E>.Ok {{ T output = value }}: return output; break;
+        default: Never.unreachable(); break;
+    }}
+}}
+
+i32 main() {{
+    for (mut usize iteration = 0usize; iteration < {samples + 1}usize; iteration++) {{
+        Optional<{input_type}> input = success(system.input<{input_type}>());
+        mut {input_type} seed = 0;
+        switch (input) {{
+            case Optional<{input_type}>.Some {{ {input_type} supplied = value }}: seed = supplied; break;
+            case Optional<{input_type}>.None: return 91; break;
+        }}
+        u64 started = success(time.monotonic_ns());
+        Array<u64, 16> values = kernel(seed);
+        u64 stopped = success(time.monotonic_ns());
+        if (stopped < started) return 92;
+        if (iteration > 0usize)
+            success(system.printf("SAMPLE {case} %u %u\\n", iteration - 1usize, stopped - started));
+        success(system.printf("VERIFY {case} %u ", iteration));
+        for (mut usize index = 0usize; index < 16usize; index++) {{
+            if (index != 0usize) success(system.print(","));
+            success(system.printf("%u", values[index]));
+        }}
+        success(system.println(""));
+    }}
+    success(system.flush());
+    return 0;
+}}
+"""
+
+
+def functions(text):
+    result = []
+    current = None
+    for line in text.splitlines():
+        match = re.match(r"^define.*?@([^ (]+)\(", line)
+        if match:
+            current = {"symbol": match[1], "lines": []}
+            result.append(current)
+        if current is not None:
+            current["lines"].append(line)
+        if line == "}":
+            current = None
+    return result
+
+
+def code_shape(text, kernel_symbol):
+    defined = functions(text)
+    if not defined:
+        raise ValueError("LLVM output contains no function definitions")
+    def count(lines):
+        source = "\n".join(lines)
+        return {"allocas": len(re.findall(r"\balloca\b", source)),
+                "overflow_intrinsics": len(re.findall(r"\bcall\b[^\n]*@llvm\.[su](?:add|sub|mul)\.with\.overflow", source)),
+                "unsigned_bounds_comparisons": len(re.findall(r"\bicmp uge i\d+", source)),
+                "trap_calls": len(re.findall(r"\bcall\b[^\n]*@llvm\.trap", source)),
+                "phi_instructions": len(re.findall(r"= phi\b", source)),
+                "vector_type_occurrences": len(re.findall(r"<\d+ x i\d+>", source))}
+    selected = [function for function in defined if function["symbol"] == kernel_symbol]
+    if len(selected) != 1:
+        raise ValueError("AIR-resolved kernel symbol is absent or ambiguous in LLVM")
+    return {"defined_functions": len(defined), "kernel_symbol": kernel_symbol,
+            "kernel": count(selected[0]["lines"]), "whole_module": count(text.splitlines())}
+
+
+def distribution(values):
+    return {"samples": values, "min": min(values), "median": statistics.median(values), "max": max(values)}
+
+
+def proof_stats(stderr, enabled):
+    found = []
+    for line in stderr.splitlines():
+        try:
+            value = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(value, dict) and "proof_opt" in value:
+            found.append(value["proof_opt"])
+    if len(found) != 1 or found[0].get("enabled") is not enabled:
+        raise ValueError("Missing or inconsistent --proof-opt-stats JSON")
+    required = ("analysis_nanoseconds", "arithmetic_checks_removed", "bounds_checks_removed")
+    if any(not isinstance(found[0].get(key), int) or found[0][key] < 0 for key in required):
+        raise ValueError("Proof statistics are missing nonnegative counters")
+    return found[0]
+
+
+def parse_samples(stdout, case, wanted, samples):
+    times, verified = [], []
+    for line in stdout.splitlines():
+        parts = line.split()
+        if parts[:2] == ["SAMPLE", case] and len(parts) == 4:
+            ordinal, elapsed = map(int, parts[2:])
+            if ordinal != len(times) or elapsed < 0:
+                raise ValueError("Invalid or reordered SAMPLE record")
+            times.append(elapsed)
+        elif parts[:2] == ["VERIFY", case] and len(parts) == 4:
+            if int(parts[2]) != len(verified):
+                raise ValueError("Invalid or reordered VERIFY record")
+            actual = [int(value) for value in parts[3].split(",")]
+            if actual != wanted:
+                raise ValueError("Kernel output differs from independent affine oracle")
+            verified.append(actual)
+        elif line.strip():
+            raise ValueError("Unexpected benchmark output: " + line[:160])
+    if len(times) != samples or len(verified) != samples + 1:
+        raise ValueError("Missing sample or warmup verification")
+    return times, len(verified) * len(wanted)
+
+
+def parse_lcg(stdout, case, wanted):
+    times, verified = [], None
+    weighted = sum((index + 1) * value for index, value in enumerate(wanted)) % 1000000007
+    for line in stdout.splitlines():
+        parts = line.split()
+        if parts[:3] == ["SAMPLE", case, "serial"] and len(parts) == 8:
+            ordinal, elapsed, total, actual_weight, workers = map(int, parts[3:])
+            if ordinal != len(times) or elapsed < 0 or workers != 1 or (total, actual_weight) != (sum(wanted), weighted):
+                raise ValueError("LCG sample differs from independent closed-form oracle")
+            times.append(elapsed)
+        elif parts[:3] == ["VERIFY", case, "serial"] and len(parts) == 4 and verified is None:
+            verified = [int(value) for value in parts[3].split(",")]
+        elif line.strip():
+            raise ValueError("Unexpected LCG output")
+    if len(times) != 5 or verified != wanted:
+        raise ValueError("LCG full output differs or samples are missing")
+    return times, len(wanted)
+
+
+def size_sections(text):
+    rows = []
+    for line in text.splitlines():
+        match = re.match(r"^\s*(\S+)\s+(\d+)\s+(\d+)\s*$", line)
+        if match:
+            rows.append({"name": match[1], "bytes": int(match[2]), "address": int(match[3])})
+    if not rows:
+        raise ValueError("llvm-size sysv output contains no section rows")
+    def named(prefixes, exact):
+        return sum(row["bytes"] for row in rows if row["name"] in exact or any(row["name"].startswith(prefix) for prefix in prefixes))
+    return {"sections": rows, "text_code_bytes": named((".text.",), (".text", "__text", "__textcoal_nt")),
+            "data_named_bytes": named((".data.",), (".data", "__data")),
+            "bss_named_bytes": named((".bss.",), (".bss", "__bss", "__common")),
+            "thread_bss_named_bytes": named((), ("__thread_bss", ".tbss")),
+            "policy": "Named code/data/bss sections, not segment page counts or process RSS; duplicate section names retained."}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--candidate", type=Path, required=True)
+    parser.add_argument("--baseline", type=Path, default=Path("build/bench-cpu4096/baseline-14e539e9/bin/aevixc"))
+    parser.add_argument("--clang", type=Path, default=Path("/opt/homebrew/opt/llvm/bin/clang"))
+    parser.add_argument("--llvm-size", type=Path)
+    parser.add_argument("--runtime", type=Path, help="Use one matching frozen runtime archive for all AOT variants")
+    parser.add_argument("--artifacts", type=Path, required=True, help="Fresh directory for preparation; existing preparation for --execute-only")
+    parser.add_argument("--compile-repeats", type=int, default=5)
+    parser.add_argument("--samples", type=int, default=5)
+    parser.add_argument("--kernel-rounds", type=int, default=32768)
+    parser.add_argument("--seed", type=int, default=3, help="Opaque input; 0..15 so the unknown-index control completes safely")
+    parser.add_argument("--include-lcg", action="store_true", help="Add existing LCG256/16384 serial fixtures at O2 with their fixed five samples")
+    phases = parser.add_mutually_exclusive_group()
+    phases.add_argument("--prepare-only", action="store_true")
+    phases.add_argument("--execute-only", action="store_true")
+    parser.add_argument("--timeout", type=int, default=120)
+    args = parser.parse_args()
+    if not 1 <= args.compile_repeats <= 20 or not 1 <= args.samples <= 20 or not 1 <= args.kernel_rounds <= 131072 or not 0 <= args.seed < ELEMENTS:
+        parser.error("Use 1..20 compile repeats/samples, 1..131072 kernel rounds, and seed 0..15")
+    for key in ("candidate", "baseline", "clang", "artifacts"):
+        setattr(args, key, (ROOT / getattr(args, key)).absolute())
+    size_tool = (ROOT / args.llvm_size).absolute() if args.llvm_size else args.clang.parent / "llvm-size"
+    runtime = (ROOT / args.runtime).absolute() if args.runtime else args.baseline.parent.parent / "lib/aevix/libaevix_runtime.a"
+    if sha(args.baseline) != BASELINE_HASH:
+        parser.error("Frozen baseline fingerprint differs from 14e539e9")
+    out = args.artifacts
+    prep_path = out / "preparation.json"
+    results_path = out / "results.json"
+    commands = []
+
+    def command(argv, label, stdout_path=None, stdin=None, timeout=None):
+        argv = [str(value) for value in argv]
+        stderr_path = out / "logs" / (label + ".stderr")
+        stdout_path = stdout_path or out / "logs" / (label + ".stdout")
+        stdout_path.parent.mkdir(parents=True, exist_ok=True)
+        stderr_path.parent.mkdir(parents=True, exist_ok=True)
+        with stdout_path.open("wb") as stream:
+            start = time.perf_counter_ns()
+            process = subprocess.run(argv, cwd=ROOT, input=stdin, stdout=stream, stderr=subprocess.PIPE,
+                                     timeout=timeout or args.timeout)
+            elapsed = time.perf_counter_ns() - start
+        stderr_path.write_bytes(process.stderr)
+        record = {"label": label, "argv": [value.replace(str(ROOT) + "/", "") for value in argv],
+                  "exit_code": process.returncode, "whole_cli_wall_ns": elapsed,
+                  "stdout": relative(stdout_path), "stderr": relative(stderr_path)}
+        commands.append(record)
+        save(out / "commands.json", commands)
+        if process.returncode:
+            raise RuntimeError(f"{label} failed ({process.returncode}); inspect {relative(stderr_path)}")
+        return stdout_path.read_text(encoding="utf-8"), process.stderr.decode("utf-8", errors="replace"), record
+
+    fingerprints = {"candidate": {"path": relative(args.candidate), "sha256": sha(args.candidate)},
+                    "baseline": {"path": relative(args.baseline), "sha256": sha(args.baseline)},
+                    "clang": {"path": relative(args.clang), "sha256": sha(args.clang)},
+                    "llvm_size": {"path": relative(size_tool), "sha256": sha(size_tool)},
+                    "runtime": {"path": relative(runtime), "sha256": sha(runtime)}}
+
+    def unchanged(stage):
+        for name, item in fingerprints.items():
+            if sha(ROOT / item["path"]) != item["sha256"]:
+                raise ValueError(f"{name} fingerprint changed during {stage}")
+
+    if args.execute_only:
+        prep = json.loads(prep_path.read_text(encoding="utf-8"))
+        if results_path.exists():
+            parser.error("Existing results will not be overwritten; use fresh artifacts")
+        if prep["fingerprints"] != fingerprints:
+            parser.error("Compiler/tool/runtime fingerprints changed after preparation")
+        if prep["runner_sha256"] != sha(Path(__file__)):
+            parser.error("Runner changed after preparation; prepare a fresh experiment")
+        if prep["parameters"] != {"compile_repeats": args.compile_repeats, "samples": args.samples,
+                                   "kernel_rounds": args.kernel_rounds, "seed": args.seed, "include_lcg": args.include_lcg}:
+            parser.error("Execution parameters differ from preparation")
+        commands.extend(json.loads((out / "commands.json").read_text(encoding="utf-8")))
+    else:
+        if out.exists() and any(out.iterdir()):
+            parser.error("Preparation requires a fresh empty artifact directory")
+        out.mkdir(parents=True, exist_ok=True)
+        versions = {}
+        for label, compiler in (("candidate", args.candidate), ("baseline", args.baseline)):
+            help_text, _, _ = command([compiler, "--help"], label + "-help")
+            if any(flag not in help_text for flag in ("--build", "--emit-llvm", "--emit-air", "--clang", "--runtime")):
+                raise ValueError("Actual compiler help does not advertise the required AOT/LLVM/runtime flags")
+            if label == "candidate" and any(flag not in help_text for flag in ("--proof-opt", "--no-proof-opt", "--proof-opt-stats")):
+                raise ValueError("Candidate help does not advertise the proof experiment flags")
+            versions[label] = command([compiler, "--version"], label + "-version")[0].strip()
+        versions["clang"] = command([args.clang, "--version"], "clang-version")[0].strip()
+        versions["llvm_size"] = command([size_tool, "--version"], "size-version")[0].strip()
+        fixtures = []
+        for case in ("bounded_array", "unknown_index"):
+            path = out / "fixtures" / (case + ".avx")
+            write(path, fixture(case, args.kernel_rounds, args.samples))
+            fixtures.append({"case": case, "source": relative(path), "source_sha256": sha(path),
+                             "levels": [0, 2], "samples": args.samples, "seed": args.seed,
+                             "stdin": (str(args.seed) + "\n") * (args.samples + 1),
+                             "expected": expected(case, args.seed, args.kernel_rounds)})
+        if args.include_lcg:
+            for case in ("lcg_256", "lcg_16384"):
+                path = HERE.parent / "aevix" / (case + "_serial.avx")
+                fixtures.append({"case": case, "source": relative(path), "source_sha256": sha(path),
+                                 "levels": [2], "samples": 5, "seed": args.seed,
+                                 "stdin": (str(args.seed) + "\n") * 6,
+                                 "expected": expected(case, args.seed, args.kernel_rounds)})
+        variants = [{"name": "baseline", "compiler": args.baseline, "flags": []},
+                    {"name": "candidate_off", "compiler": args.candidate, "flags": ["--no-proof-opt", "--proof-opt-stats"]},
+                    {"name": "candidate_on", "compiler": args.candidate, "flags": ["--proof-opt", "--proof-opt-stats"]}]
+        programs = []
+        for item in fixtures:
+            source = ROOT / item["source"]
+            kernel_symbols = {}
+            for label, compiler in (("candidate", args.candidate), ("baseline", args.baseline)):
+                air, _, _ = command([compiler, "--emit-air", source], item["case"] + "-" + label + "-air")
+                matches = re.findall(r"^function @(\d+) kernel ->", air, re.M)
+                if len(matches) != 1:
+                    raise ValueError("Cannot identify exactly one source kernel through checked AIR")
+                kernel_symbols[label] = "aevix.fn." + matches[0]
+            item["kernel_symbols"] = kernel_symbols
+            for level in item["levels"]:
+                emissions = {variant["name"]: [] for variant in variants}
+                # 반복마다 on/off 순서를 뒤집고 모든 변형에 같은 출력 경로 정책을 적용한다.
+                # Reverse on/off order each repeat and use the same output-file policy for all variants.
+                for repeat in range(args.compile_repeats):
+                    for variant in variants if repeat % 2 == 0 else reversed(variants):
+                        name = f"{item['case']}-O{level}-{variant['name']}"
+                        raw = out / "ir" / (name + f"-emit{repeat}.raw.ll")
+                        _, stderr, row = command([variant["compiler"], "--emit-llvm", f"-O{level}", *variant["flags"], source],
+                                                 name + f"-emit{repeat}", raw)
+                        emissions[variant["name"]].append({"whole_cli_wall_ns": row["whole_cli_wall_ns"],
+                            "raw_ir": relative(raw), "sha256": sha(raw),
+                            "proof_statistics": proof_stats(stderr, variant["name"] == "candidate_on") if variant["flags"] else None})
+                for variant in variants:
+                    name = f"{item['case']}-O{level}-{variant['name']}"
+                    emitted = emissions[variant["name"]]
+                    if len({row["sha256"] for row in emitted}) != 1:
+                        raise ValueError("Repeated LLVM emission changed bytes within one variant")
+                    raw = ROOT / emitted[0]["raw_ir"]
+                    optimized = out / "ir" / (name + ".optimized.ll")
+                    raw_text = raw.read_text(encoding="utf-8")
+                    kernel_symbol = kernel_symbols["baseline" if variant["name"] == "baseline" else "candidate"]
+                    triple = re.search(r'^target triple = "([^"]+)"', raw_text, re.M)
+                    clang_flags = ["-target", triple[1]] if triple else []
+                    command([args.clang, "-x", "ir", raw, *clang_flags, f"-O{level}", "-S", "-emit-llvm", "-o", optimized], name + "-optimize")
+                    executable = out / "bin" / name
+                    executable.parent.mkdir(parents=True, exist_ok=True)
+                    _, stderr, build = command([variant["compiler"], "--build", f"-O{level}", *variant["flags"],
+                                                "--clang", args.clang, "--runtime", runtime, "-o", executable, source], name + "-aot-build")
+                    size_text, _, _ = command([size_tool, "--format=sysv", executable], name + "-size")
+                    programs.append({"case": item["case"], "level": level, "variant": variant["name"],
+                        "source": item["source"], "source_sha256": item["source_sha256"],
+                        "raw_emissions": emitted,
+                        "raw_emit_whole_cli_wall_ns": distribution([row["whole_cli_wall_ns"] for row in emitted]),
+                        "pass_analysis_nanoseconds": distribution([row["proof_statistics"]["analysis_nanoseconds"] for row in emitted]) if variant["flags"] else None,
+                        "raw_shape": code_shape(raw_text, kernel_symbol),
+                        "optimized_ir": relative(optimized), "optimized_ir_sha256": sha(optimized),
+                        "raw_target_triple": triple[1] if triple else None,
+                        "optimized_shape": code_shape(optimized.read_text(encoding="utf-8"), kernel_symbol),
+                        "binary": relative(executable), "binary_sha256": sha(executable),
+                        "binary_file_bytes": executable.stat().st_size, "llvm_size": size_sections(size_text),
+                        "aot_build_whole_cli_wall_ns": build["whole_cli_wall_ns"],
+                        "aot_build_proof_statistics": proof_stats(stderr, variant["name"] == "candidate_on") if variant["flags"] else None,
+                        "samples": item["samples"], "stdin": item["stdin"], "expected": item["expected"]})
+        gates = []
+        for level in (0, 2):
+            for case in ("bounded_array", "unknown_index"):
+                group = {row["variant"]: row for row in programs if row["case"] == case and row["level"] == level}
+                off, on = group["candidate_off"], group["candidate_on"]
+                before, after = off["raw_shape"]["kernel"], on["raw_shape"]["kernel"]
+                if case == "bounded_array":
+                    passed = after["overflow_intrinsics"] < before["overflow_intrinsics"] and after["unsigned_bounds_comparisons"] < before["unsigned_bounds_comparisons"]
+                    passed = passed and all(row["proof_statistics"]["arithmetic_checks_removed"] > 0 and row["proof_statistics"]["bounds_checks_removed"] > 0 for row in on["raw_emissions"])
+                else:
+                    passed = before["unsigned_bounds_comparisons"] >= after["unsigned_bounds_comparisons"] >= 1
+                gates.append({"case": case, "level": level, "passed": passed,
+                              "control_kernel": before, "proof_kernel": after,
+                              "baseline_and_candidate_off_raw_equal": group["baseline"]["raw_emissions"][0]["sha256"] == off["raw_emissions"][0]["sha256"]})
+        unchanged("preparation")
+        prep = {"schema_version": 1, "created_by": "miruku_sora2026", "file_name": "preparation.json",
+            "description": "Proof experiment preparation; no workload execution in this phase.",
+            "runner": relative(Path(__file__)), "runner_sha256": sha(Path(__file__)), "fingerprints": fingerprints,
+            "versions": versions, "python": sys.version, "parameters": {"compile_repeats": args.compile_repeats, "samples": args.samples,
+                "kernel_rounds": args.kernel_rounds, "seed": args.seed, "include_lcg": args.include_lcg},
+            "fixtures": fixtures, "programs": programs, "proof_gates": gates,
+            "measurement_limits": ["Raw-emission wall time includes process creation, frontend, imported modules, analysis, and text output; it is not isolated compile CPU time.",
+                "analysis_nanoseconds is the pass's internal reported duration; disabled mode has no comparable pass work.",
+                "AOT build wall time also includes Clang optimization/code generation/linking.",
+                "Compiler wall observations can vary with OS caching, scheduling, and other activity; run both phases without concurrent build/test/fuzz jobs.",
+                "Code-section sizes and executable file bytes are not peak or resident process memory.",
+                "One process warmup and five samples do not control core placement, clock overhead, thermals, or background work.",
+                "A retained raw unknown-index guard may be hoisted or simplified later by LLVM; raw and optimized shapes are separate.",
+                "These observations establish neither universal speedups nor whole-language throughput rankings."]}
+        save(prep_path, prep)
+        if not all(row["passed"] for row in gates):
+            raise ValueError("A proof removal/retention gate failed; preparation preserved without runtime execution")
+    if args.prepare_only:
+        print(json.dumps({"prepared_programs": len(prep["programs"]), "workloads_executed": False, "preparation": relative(prep_path)}))
+        return
+    # 컴파일·오라클 생성·크기 검사는 모두 끝낸 뒤 계산 구간만 직렬 측정한다.
+    # Complete compilation, oracle generation, and size inspection before serialized kernel sampling.
+    if not all(row["passed"] for row in prep["proof_gates"]):
+        raise ValueError("Cannot execute preparation with failed proof gates")
+    for program in prep["programs"]:
+        if sha(ROOT / program["binary"]) != program["binary_sha256"] or sha(ROOT / program["source"]) != program["source_sha256"]:
+            raise ValueError("Prepared source or executable fingerprint changed")
+    jobs = []
+    ordered = []
+    groups = sorted({(row["case"], row["level"]) for row in prep["programs"]})
+    for index, (case, level) in enumerate(groups):
+        group = [row for row in prep["programs"] if (row["case"], row["level"]) == (case, level)]
+        ordered.extend(group if index % 2 == 0 else reversed(group))
+    for program in ordered:
+        if sha(ROOT / program["binary"]) != program["binary_sha256"]:
+            raise ValueError("Executable changed before its runtime observation")
+        name = f"{program['case']}-O{program['level']}-{program['variant']}"
+        stdout, _, row = command([ROOT / program["binary"]], name + "-runtime",
+                                  stdin=program["stdin"].encode("ascii"), timeout=min(args.timeout, 30))
+        if program["case"].startswith("lcg_"):
+            observations, checked = parse_lcg(stdout, program["case"], program["expected"])
+        else:
+            observations, checked = parse_samples(stdout, program["case"], program["expected"], program["samples"])
+        jobs.append({"case": program["case"], "level": program["level"], "variant": program["variant"],
+                     "binary": program["binary"], "binary_sha256": program["binary_sha256"],
+                     "samples_ns": observations, "min_ns": min(observations), "median_ns": statistics.median(observations),
+                     "max_ns": max(observations), "exact_values_compared": checked,
+                     "whole_process_wall_ns": row["whole_cli_wall_ns"], "stdout": row["stdout"], "stderr": row["stderr"],
+                     "stdout_sha256": sha(ROOT / row["stdout"]), "stderr_sha256": sha(ROOT / row["stderr"])})
+        complete = len(jobs) == len(ordered)
+        if complete:
+            unchanged("runtime sampling")
+        paired = []
+        for case, level in groups:
+            pair = {item["variant"]: item for item in jobs if (item["case"], item["level"]) == (case, level)}
+            if "candidate_off" in pair and "candidate_on" in pair:
+                control, treatment = pair["candidate_off"]["median_ns"], pair["candidate_on"]["median_ns"]
+                paired.append({"case": case, "level": level, "candidate_off_median_ns": control,
+                               "candidate_on_median_ns": treatment,
+                               "on_divided_by_off": treatment / control if control else None})
+        save(results_path, {"schema_version": 1, "created_by": "miruku_sora2026", "file_name": "results.json",
+            "description": "Local paired proof-pass observations with independent exact-output checks.",
+            "preparation": relative(prep_path), "preparation_sha256": sha(prep_path),
+            "host": platform.platform(), "architecture": platform.machine(), "jobs": jobs, "paired_observations": paired,
+            "completed": complete, "fingerprints_stable": complete, "limits": prep["measurement_limits"]})
+    print(json.dumps({"completed_jobs": len(jobs), "results": relative(results_path), "exact_outputs_passed": True}))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        print("proof experiment failed: " + str(error), file=sys.stderr)
+        raise SystemExit(1)

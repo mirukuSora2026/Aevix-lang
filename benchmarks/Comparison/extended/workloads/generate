@@ -1,0 +1,416 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : generate
+#
+# Description :
+#     동일 입력과 시계 경계를 쓰는 Aevix·C 확장 벤치마크와 독립 정수 정답을 생성한다.
+#     Generate matching Aevix/C workload fixtures and independent exact-integer oracles.
+#
+# ========================
+"""Generate eight bounded workloads; this tool never executes a measured program.
+
+The normal fixtures read two runtime seeds, initialize outside the clock, execute
+one kernel between two shared scalar-FFI clock calls, and validate outside it.
+Functional smokes are smaller, contain no clock calls, and verify every result.
+"""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[4]
+CASES = ("array_reduce", "slice_reduce", "matmul64", "box_batch",
+         "struct_direct", "interface_static", "interface_dyn", "generic_helpers")
+MODULUS = 1000000007
+
+
+def oracle(case, seed, size=4096, dimension=64, rounds=64):
+    """Python mathematical integers, independent of either emitted implementation."""
+    seed %= 97
+    values = [(index * 17 + seed * 13) % 251 for index in range(size)]
+    if case in ("array_reduce", "slice_reduce", "generic_helpers"):
+        result = [0] * 16
+        for index, value in enumerate(values):
+            result[index % 16] += (value * 3 + 1) * rounds
+        return result
+    if case == "matmul64":
+        left = [(index * 11 + seed * 13) % 17 for index in range(size)]
+        right = [(index * 7 + seed * 3) % 19 for index in range(size)]
+        return [sum(left[row * dimension + inner] * right[inner * dimension + column]
+                    for inner in range(dimension))
+                for row in range(dimension) for column in range(dimension)]
+    if case == "box_batch":
+        return [value * 3 + 1 for value in values]
+    return [(value * 3 + seed + 1) * rounds for value in values]
+
+
+def checksums(values):
+    return {"sum": sum(values), "weighted": sum((i + 1) * v for i, v in enumerate(values)) % MODULUS}
+
+
+MUST = '''T success<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+u64 read_seed() {
+    Optional<u64> input = success(system.input<u64>());
+    switch (input) {
+        case Optional<u64>.Some { u64 supplied = value }: return supplied % 97u64; break;
+        case Optional<u64>.None: Never.unreachable(); break;
+    }
+}
+'''
+
+
+def avx_kernel(case, size, dimension, rounds, out_size):
+    array = f"&Array<u64, {size}>"
+    target = f"&mut Array<u64, {out_size}> output"
+    if case in ("array_reduce", "slice_reduce", "generic_helpers"):
+        identity = ("T identity<T>(T value) { return value; }" if case == "generic_helpers"
+                    else "u64 identity(u64 value) { return value; }")
+        source = array
+        view = "    Slice<u64> input = Slice.from_array(values);\n" if case == "slice_reduce" else ""
+        parameter = "values" if case == "slice_reduce" else "input"
+        return identity + f'''
+u64 project(u64 value) {{ return value * 3u64 + 1u64; }}
+void kernel({source} {parameter}, {target}) {{
+{view}\
+    for (mut usize repeat = 0usize; repeat < {rounds}usize; repeat++) {{
+        for (mut usize index = 0usize; index < {size}usize; index++) {{
+            usize slot = index % 16usize;
+            output[slot] += project(identity(input[index]));
+        }}
+    }}
+    return;
+}}
+'''
+    if case == "matmul64":
+        return f'''void kernel({array} left, {array} right, {target}) {{
+    for (mut usize row = 0usize; row < {dimension}usize; row++) {{
+        for (mut usize column = 0usize; column < {dimension}usize; column++) {{
+            mut u64 total = 0u64;
+            for (mut usize inner = 0usize; inner < {dimension}usize; inner++) {{
+                total += left[row * {dimension}usize + inner] * right[inner * {dimension}usize + column];
+            }}
+            output[row * {dimension}usize + column] = total;
+        }}
+    }}
+    return;
+}}
+'''
+    if case == "box_batch":
+        return f'''void kernel({array} input, {target}) {{
+    for (mut usize index = 0usize; index < {size}usize; index++) {{
+        Box<u64> owner = success(Box.new(input[index]));
+        output[index] = *Box.as_ref(&owner) * 3u64 + 1u64;
+    }}
+    return;
+}}
+'''
+    declarations = '''interface Projector { public u64 apply(&Self self, u64 value); };
+struct Scale implements Projector {
+    public u64 gain;
+    public u64 apply(&Scale self, u64 value) { return value * 3u64 + self.gain; }
+};
+'''
+    if case == "interface_static":
+        declarations += "u64 invoke<T>(&T op, u64 value) where T implements Projector { return op.apply(value); }\n"
+        invocation = "invoke(&op, input[index])"
+    elif case == "interface_dyn":
+        declarations += "u64 invoke(&dyn Projector op, u64 value) { return op.apply(value); }\n"
+        invocation = "invoke(view, input[index])"
+    else:
+        invocation = "op.apply(input[index])"
+    view = "    &dyn Projector view = &op;\n" if case == "interface_dyn" else ""
+    return declarations + f'''void kernel({array} input, u64 gain, {target}) {{
+    Scale op = Scale {{ gain = gain }};
+{view}    for (mut usize repeat = 0usize; repeat < {rounds}usize; repeat++) {{
+        for (mut usize index = 0usize; index < {size}usize; index++) {{
+            output[index] += {invocation};
+        }}
+    }}
+    return;
+}}
+'''
+
+
+def aevix(case, seed, smoke=False):
+    size, dimension, rounds = (16, 4, 2) if smoke else (4096, 64, 64)
+    out_size = 16 if case in ("array_reduce", "slice_reduce", "generic_helpers") else size
+    imports = "import system;\n" + ("import memory { Box };\n" if case == "box_batch" else "")
+    clock = "" if smoke else 'extern "C" u64 aevixbench_clock_ns();\n'
+    body = f'''/*
+ * Generated {case}: exact unsigned arithmetic, runtime inputs, no fast math.
+ * Initialization, input parsing, validation and output are outside clock calls.
+ * @module {case}
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+{imports}{clock}{MUST}
+{avx_kernel(case, size, dimension, rounds, out_size)}
+i32 main() {{
+    u64 seeds[2] = [read_seed(), read_seed()];
+    mut u64 values[{size}] = [0u64; {size}];
+    mut u64 right[{size}] = [0u64; {size}];
+    mut u64 output[{out_size}] = [0u64; {out_size}];
+    for (mut usize iteration = 0usize; iteration < 2usize; iteration++) {{
+        u64 seed = seeds[iteration];
+        mut u64 initial = 0u64;
+        for (mut usize index = 0usize; index < {size}usize; index++) {{
+            values[index] = (initial * {11 if case == 'matmul64' else 17}u64 + seed * 13u64) % {17 if case == 'matmul64' else 251}u64;
+            right[index] = (initial * 7u64 + seed * 3u64) % 19u64;
+            initial++;
+        }}
+        for (mut usize index = 0usize; index < {out_size}usize; index++) output[index] = 0u64;
+'''
+    if case == "matmul64":
+        call = "kernel(&values, &right, &mut output);"
+    elif case in ("struct_direct", "interface_static", "interface_dyn"):
+        call = "kernel(&values, seed + 1u64, &mut output);"
+    else:
+        call = "kernel(&values, &mut output);"
+    body += ("        u64 started = aevixbench_clock_ns();\n" if not smoke else "")
+    body += f"        {call}\n"
+    body += ("        u64 stopped = aevixbench_clock_ns();\n        if (stopped < started) return 93;\n" if not smoke else "")
+    if smoke:
+        for iteration, supplied in enumerate((seed, seed + 1)):
+            expected = ", ".join(f"{v}u64" for v in oracle(case, supplied, size, dimension, rounds))
+            body += f'''        if (iteration == {iteration}usize) {{
+            u64 expected[{out_size}] = [{expected}];
+            for (mut usize index = 0usize; index < {out_size}usize; index++) if (output[index] != expected[index]) return 1;
+        }}
+'''
+        body += "    }\n    return 0;\n}\n"
+    else:
+        body += f'''        if (iteration == 1usize) {{
+            mut u64 sum = 0u64;
+            mut u64 weighted = 0u64;
+            mut u64 weight = 1u64;
+            for (mut usize index = 0usize; index < {out_size}usize; index++) {{
+                sum += output[index];
+                weighted = (weighted + weight * output[index]) % 1000000007u64;
+                weight++;
+            }}
+            success(system.printf("SAMPLE {case} serial 0 %u %u %u 1\\n", stopped - started, sum, weighted));
+        }}
+    }}
+    success(system.print("VERIFY {case} serial "));
+    for (mut usize index = 0usize; index < {out_size}usize; index++) {{
+        if (index != 0usize) success(system.print(","));
+        success(system.printf("%u", output[index]));
+    }}
+    success(system.println(""));
+    success(system.flush());
+    return 0;
+}}
+'''
+    return body
+
+
+def c_kernel(case, size, dimension, rounds):
+    if case in ("array_reduce", "slice_reduce", "generic_helpers"):
+        # A slice is explicitly a pointer-length pair; array reference has a fixed extent.
+        signature = "const uint64_t *values, uint64_t *output" if case == "slice_reduce" else "const uint64_t *input, uint64_t *output"
+        view = f"    Slice input={{values,{size}}};\n" if case == "slice_reduce" else ""
+        load = "input.data[index]" if case == "slice_reduce" else "input[index]"
+        return f'''typedef struct {{ const uint64_t *data; size_t length; }} Slice;
+static uint64_t identity(uint64_t value) {{ return value; }}
+static uint64_t project(uint64_t value) {{ return value * 3 + 1; }}
+static void kernel({signature}) {{
+{view}\
+    for (size_t repeat=0; repeat<{rounds}; ++repeat)
+        for (size_t index=0; index<{size}; ++index) output[index%16] += project(identity({load}));
+}}
+'''
+    if case == "matmul64":
+        return f'''static void kernel(const uint64_t *left, const uint64_t *right, uint64_t *output) {{
+    for (size_t row=0; row<{dimension}; ++row)
+        for (size_t column=0; column<{dimension}; ++column) {{
+            uint64_t total=0;
+            for (size_t inner=0; inner<{dimension}; ++inner)
+                total += left[row*{dimension}+inner] * right[inner*{dimension}+column];
+            output[row*{dimension}+column]=total;
+        }}
+}}
+'''
+    if case == "box_batch":
+        return f'''static void kernel(const uint64_t *input, uint64_t *output) {{
+    for (size_t index=0; index<{size}; ++index) {{
+        uint64_t *owner=malloc(sizeof(*owner));
+        if (!owner) abort();
+        *owner=input[index];
+        output[index]=*owner*3+1;
+        free(owner);
+    }}
+}}
+'''
+    method = '''typedef struct { uint64_t gain; } Scale;
+static uint64_t apply(const Scale *self, uint64_t value) { return value*3+self->gain; }
+'''
+    if case == "interface_dyn":
+        method += '''typedef struct { const Scale *self; uint64_t (*apply)(const Scale *, uint64_t); } Projector;
+static uint64_t invoke(Projector op, uint64_t value) { return op.apply(op.self,value); }
+'''
+        setup, call = "Projector view={&op,apply};", "invoke(view,input[index])"
+    elif case == "interface_static":
+        method += "static uint64_t invoke(const Scale *op, uint64_t value) { return apply(op,value); }\n"
+        setup, call = "", "invoke(&op,input[index])"
+    else:
+        setup, call = "", "apply(&op,input[index])"
+    return method + f'''static void kernel(const uint64_t *input, uint64_t gain, uint64_t *output) {{
+    Scale op={{gain}}; {setup}
+    for (size_t repeat=0; repeat<{rounds}; ++repeat)
+        for (size_t index=0; index<{size}; ++index) output[index] += {call};
+}}
+'''
+
+
+def c_source(case, seed, smoke=False):
+    size, dimension, rounds = (16, 4, 2) if smoke else (4096, 64, 64)
+    out_size = 16 if case in ("array_reduce", "slice_reduce", "generic_helpers") else size
+    banner = f'''// ========================
+//
+// Created By : miruku_sora2026
+//
+// File name : {case}{'_smoke' if smoke else ''}.c
+//
+// Description :
+//     Aevix와 동일한 정수 입력·커널·시계 경계를 사용하는 생성된 비교 프로그램.
+//     Generated C comparison with the same integer inputs, kernel, and clock boundaries.
+//
+// ========================
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+'''
+    if not smoke:
+        banner += '#include "shared_timer.h"\n'
+    body = banner + c_kernel(case, size, dimension, rounds) + f'''int main(void) {{
+    uint64_t seeds[2];
+    if (scanf("%" SCNu64 "%" SCNu64, &seeds[0], &seeds[1]) != 2) return 91;
+    uint64_t values[{size}]={{0}},right[{size}]={{0}},output[{out_size}]={{0}};
+    for (size_t iteration=0; iteration<2; ++iteration) {{
+        uint64_t seed=seeds[iteration]%97;
+        for (size_t index=0; index<{size}; ++index) {{
+            values[index]=(index*{11 if case == 'matmul64' else 17}+seed*13)%{17 if case == 'matmul64' else 251};
+            right[index]=(index*7+seed*3)%19;
+        }}
+        for (size_t index=0; index<{out_size}; ++index) output[index]=0;
+'''
+    if case == "matmul64":
+        call = "kernel(values,right,output);"
+    elif case in ("struct_direct", "interface_static", "interface_dyn"):
+        call = "kernel(values,seed+1,output);"
+    else:
+        call = "kernel(values,output);"
+    body += "        uint64_t started=aevixbench_clock_ns();\n" if not smoke else ""
+    body += f"        {call}\n"
+    body += "        uint64_t stopped=aevixbench_clock_ns();\n        if (stopped<started) return 93;\n" if not smoke else ""
+    if smoke:
+        for iteration, supplied in enumerate((seed, seed + 1)):
+            expected = ",".join(str(v) for v in oracle(case, supplied, size, dimension, rounds))
+            body += f"        if (iteration=={iteration}) {{ const uint64_t expected[{out_size}]={{{expected}}}; for(size_t index=0;index<{out_size};++index) if(output[index]!=expected[index]) return 1; }}\n"
+        body += "    }\n    return 0;\n}\n"
+    else:
+        body += f'''        if (iteration==1) {{
+            uint64_t sum=0,weighted=0;
+            for(size_t index=0; index<{out_size}; ++index) {{ sum+=output[index]; weighted=(weighted+(index+1)*output[index])%1000000007; }}
+            printf("SAMPLE {case} serial 0 %" PRIu64 " %" PRIu64 " %" PRIu64 " 1\\n",stopped-started,sum,weighted);
+        }}
+    }}
+    printf("VERIFY {case} serial ");
+    for(size_t index=0; index<{out_size}; ++index) printf("%s%" PRIu64,index?",":"",output[index]);
+    puts("");
+    if (fflush(stdout)!=0) return 94;
+    return 0;
+}}
+'''
+    return body
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parent)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--verify", action="store_true")
+    parser.add_argument("--self-test", action="store_true", help="Check independent oracle invariants without compilation or timing")
+    args = parser.parse_args()
+    if args.self_test:
+        assertions = 0
+        for seed in (0, 1, 96, 97, (1 << 64) - 2):
+            reduced = oracle("array_reduce", seed)
+            assert reduced == oracle("slice_reduce", seed) == oracle("generic_helpers", seed)
+            assert oracle("struct_direct", seed) == oracle("interface_static", seed) == oracle("interface_dyn", seed)
+            assertions += 2
+            for case in CASES:
+                values = oracle(case, seed)
+                assert all(0 <= v < 1 << 64 for v in values)
+                assert 0 <= checksums(values)["sum"] < 1 << 64
+                assert max((i + 1) * v for i, v in enumerate(values)) < 1 << 64
+                assertions += 3
+        # Hand-evaluated tiny dot product: [0,11,5,16] . [0,9,18,8].
+        assert oracle("matmul64", 0, 16, 4, 2)[0] == 317
+        assert min(oracle("matmul64", 0)) > 0
+        assert oracle("array_reduce", 0, 16, 4, 2)[0] == 2
+        assert oracle("box_batch", 0, 16, 4, 2)[15] == 13
+        print(json.dumps({"self_test": "passed", "assertions": assertions + 4, "external_processes": 0}))
+        return
+    if not 0 <= args.seed < (1 << 64) - 1:
+        parser.error("seed must be u64 and leave room for smoke seed+1")
+    output = args.output_dir.resolve()
+    def path_name(path):
+        try: return str(path.relative_to(ROOT))
+        except ValueError: return str(path)
+    artifacts, programs, smokes = {}, [], []
+    for case in CASES:
+        avx, c = output / f"{case}.avx", output / f"{case}.c"
+        artifacts[avx], artifacts[c] = aevix(case, args.seed), c_source(case, args.seed)
+        expected = oracle(case, args.seed)
+        programs.append({"case": case, "mode": "serial", "aevix_source": path_name(avx),
+                         "c_source": path_name(c), "seed": args.seed,
+                         "stdin": f"{args.seed}\n{args.seed}\n", "warmups": 1, "samples": 1,
+                         "expected": expected, "checksums": checksums(expected),
+                         "clock_symbol": "aevixbench_clock_ns", "workers": 1,
+                         "output_elements": len(expected), "aevix_sha256": hashlib.sha256(artifacts[avx].encode()).hexdigest(),
+                         "c_sha256": hashlib.sha256(artifacts[c].encode()).hexdigest()})
+        for language, extension, function in (("Aevix", "avx", aevix), ("C", "c", c_source)):
+            source = output / "smoke" / f"{case}.{extension}"
+            artifacts[source] = function(case, args.seed, True)
+            smokes.append({"case": case, "language": language, "source": path_name(source),
+                           "stdin": f"{args.seed}\n{args.seed + 1}\n", "expected_exit": 0,
+                           "clock_calls": 0, "elements": 16, "rounds": 2})
+    manifest = {"schema_version": 1, "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "programs": programs, "functional_smokes": smokes,
+                "protocol": "SAMPLE <case> serial 0 <elapsed_ns> <sum> <weighted> 1; VERIFY <case> serial <fullCSV>",
+                "capabilities": {"actual_execution_cases": list(CASES),
+                    "simd": "Supported compiler feature, not measured by these scalar integer cases; automatic vectorization is allowed and must be audited in final code.",
+                    "matmul_layout": "64x64 flattened row-major ordinary integer triple loop; no transposition or BLAS.",
+                    "allocation": "Ordinary Box.new/drop versus ordinary malloc/free. No optimization barriers; final allocation elision must be reported separately from allocator throughput.",
+                    "dispatch": "Concrete, generic-bound static and borrowed dyn interface variants. Optimizers may devirtualize; final indirect calls must be audited rather than presumed.",
+                    "generic": "array_reduce and generic_helpers have identical arithmetic; only identity helper is non-generic versus generic. C has no generic language mechanism and uses the same specialized helper.",
+                    "slice_adapter": "The borrowed Slice/pointer-length view is created inside the kernel in both languages. A live Aevix loan cannot cross an ownership-opaque FFI clock call. This small view construction is included in the Slice case.",
+                    "thread_pool": "Not implemented as a reusable persistent pool; no pool timing case.",
+                    "jit_tiering": "Current ORC eager optimized execution; no actual hotness-driven tier/recompilation benchmark.",
+                    "timing_scope": "Kernel call only, initialization and full exact-result output outside two scalar FFI clock calls; no startup/JIT-compile timing claim."}}
+    artifacts[output / "generated.json"] = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    for path, content in artifacts.items():
+        raw = content.encode("utf-8")
+        if args.verify:
+            if not path.is_file() or path.read_bytes() != raw:
+                parser.exit(1, f"Generated bytes differ: {path}\n")
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(raw)
+    print(json.dumps({"mode": "verify" if args.verify else "write", "programs": len(programs),
+                      "smokes": len(smokes), "manifest": path_name(output / "generated.json")}))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,3842 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "integer_contract_audit.json",
+  "description": {
+    "en": "Exact Integer catalog call spelling, concrete providers, alternate behavior and error-carrier differences at one pinned compiler snapshot; not a complete CPU implementation claim.",
+    "ko": "\uace0\uc815\ud55c \ucef4\ud30c\uc77c\ub7ec \uc2a4\ub0c5\uc0f7\uc5d0\uc11c Integer \uce74\ud0c8\ub85c\uadf8 \ud638\ucd9c \ud45c\uae30, \uc2e4\uc81c \uc81c\uacf5\uc790, \ub300\uccb4 \ub3d9\uc791\uacfc \uc624\ub958 \uc804\ub2ec \ud0c0\uc785 \ucc28\uc774\ub97c \uad6c\ubd84\ud55c\ub2e4. CPU \uc804\uccb4 \uad6c\ud604 \uc644\ub8cc\ub97c \ub73b\ud558\uc9c0 \uc54a\ub294\ub2e4."
+  },
+  "status": "read_only_snapshot_audit_not_new_implementation",
+  "compiler_sha256": "6a3a75286411030c75ef334bc919221879e7a91f3bd9ba15e35588e513386b75",
+  "catalog_inventory_sha256": "675ff635a4057ac62c7ca5c0a26ffee20b43db050578816f2d040d798e14e05d",
+  "catalog_rows": 136,
+  "distinct_catalog_names": 130,
+  "direct_namespace": {
+    "accepted_catalog_rows": 6,
+    "rejected_catalog_rows": 130,
+    "accepted_distinct_names": 4,
+    "validation": "Every catalog row was independently compile-checked with basic valid primitive argument types. No audit fixture was executed. Source review distinguishes canonical bindings from related functions and parser name hints; later changes require re-audit."
+  },
+  "classification": {
+    "alternate_namespace_same_behavior": 6,
+    "alternate_operation_error_or_signature_differs": 11,
+    "direct_catalog_namespace": 6,
+    "no_concrete_provider": 109,
+    "related_foundation_not_catalog_contract": 4
+  },
+  "alternate_validation": {
+    "mode": "check_only_never_executed",
+    "accepted": true,
+    "typed_checks": 305,
+    "breakdown": {
+      "math_integer_overloads": 108,
+      "type_directed_integer_parse": 12,
+      "integer_conversion_source_destination_pairs": 144,
+      "explicit_width_integer_byte_codecs": 36,
+      "float_conversion_range_alias_and_language_iteration_checks": 5
+    },
+    "boundary": "Representative operation signatures across supported primitive widths are type checked; this is not a new exhaustive arithmetic/runtime proof."
+  },
+  "sources": [
+    {
+      "path": "src/Frontend/Sema/GenericResolver.cpp",
+      "role": "Actual conversion, parse and Range result/inspection rewrites with builtin identity checks"
+    },
+    {
+      "path": "src/Frontend/Sema/TypeChecker.cpp",
+      "role": "Concrete numeric/Range operation typing and language iteration"
+    },
+    {
+      "path": "src/Frontend/Sema/NameResolver.cpp",
+      "role": "Type-operand hints are not callable provider declarations"
+    },
+    {
+      "path": "src/Frontend/Sema/CoreErrorTypes.cpp",
+      "role": "Current IntegerError.OutOfRange and RangeError.InvalidStep/CountOverflow carriers"
+    },
+    {
+      "path": "library/Math/math.avx",
+      "role": "Explicit primitive integer overloads and IntegerMathError"
+    },
+    {
+      "path": "library/Core/bytes.avx",
+      "role": "Explicit-width endian Slice codecs returning ByteError"
+    },
+    {
+      "path": "runtime/Text/ParseRuntime.cpp",
+      "role": "Strict type-directed decimal integer parse foundation"
+    }
+  ],
+  "records": [
+    {
+      "id": "catalog:0091b952edf330cf946d",
+      "name": "Float.convert",
+      "signature": "Float.convert<F>(value)",
+      "returns": "Explicit conversion to a floating type; finite rounding is permitted.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        },
+        {
+          "page": "htmls/data_type/Integer/Unsigned_Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        }
+      ],
+      "canonical_call": {
+        "expression": "Float.convert<f64>(7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Float.convert"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:5253d9204cc9e683957e",
+      "name": "Float.convert_exact",
+      "signature": "Float.convert_exact<F>(value)",
+      "returns": "Returns FloatError.NonExact when the mathematical value cannot be represented exactly.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        },
+        {
+          "page": "htmls/data_type/Integer/Unsigned_Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        }
+      ],
+      "canonical_call": {
+        "expression": "Float.convert_exact<f64>(7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Float.convert_exact"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:629eb6af354e1c891fbb",
+      "name": "Float.to_integer_exact",
+      "signature": "Float.to_integer_exact<D>(value)",
+      "returns": "Requires a finite, integral input inside the destination range.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        },
+        {
+          "page": "htmls/data_type/Integer/Unsigned_Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        }
+      ],
+      "canonical_call": {
+        "expression": "Float.to_integer_exact<i32>(7.0f64)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Float.to_integer_exact"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:c1ba2920ee8e2902f8e2",
+      "name": "Integer.abs_diff",
+      "signature": "Integer.abs_diff(T a, T b)",
+      "returns": "U",
+      "contract": "Exact nonnegative difference; matching signed or unsigned inputs.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-abs_diff",
+          "section": "Function-Reference",
+          "line": 449
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.abs_diff(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.abs_diff",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.abs_diff remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:85fc70f6980075513172",
+      "name": "Integer.add_carry",
+      "signature": "Integer.add_carry(U a, U b, bool carry)",
+      "returns": "(U word, bool carry)",
+      "contract": "Exact a+b+carry; low word and outgoing carry.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-add_carry",
+          "section": "Function-Reference",
+          "line": 1724
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.add_carry(7u32, 3u32, false)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:a4d23d6fa91e2f1c7da4",
+      "name": "Integer.align_down",
+      "signature": "Integer.align_down(U x, U alignment)",
+      "returns": "Result<U, IntegerError>",
+      "contract": "Rounds downward; InvalidAlignment unless alignment is a positive power of two.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-align_down",
+          "section": "Function-Reference",
+          "line": 1623
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.align_down(7u32, 4u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:440fef8451b8a39d587a",
+      "name": "Integer.align_up",
+      "signature": "Integer.align_up(U x, U alignment)",
+      "returns": "Result<U, IntegerError>",
+      "contract": "Positive power-of-two alignment required; InvalidAlignment or Overflow.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-align_up",
+          "section": "Function-Reference",
+          "line": 1616
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.align_up(7u32, 4u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:ad150be34db35c9aa2d6",
+      "name": "Integer.bit_length",
+      "signature": "Integer.bit_length(T x)",
+      "returns": "u32",
+      "contract": "Bits needed for mathematical magnitude, excluding sign; zero returns zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-bit_length",
+          "section": "Function-Reference",
+          "line": 1094
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.bit_length(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.bit_length",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.bit_length remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:bab8f537fb02b3c83872",
+      "name": "Integer.bit_width",
+      "signature": "Integer.bit_width(T)",
+      "returns": "u32",
+      "contract": "Fixed representation width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-bit_width",
+          "section": "Function-Reference",
+          "line": 335
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.bit_width(i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:62d8f0469333ff49cbee",
+      "name": "Integer.bitcast",
+      "signature": "Integer.bitcast(D, T x)",
+      "returns": "D",
+      "contract": "Same-width integer reinterpretation; mismatched widths are rejected.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-bitcast",
+          "section": "Function-Reference",
+          "line": 595
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.bitcast(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:99b57123dcae62d513f1",
+      "name": "Integer.bitcast",
+      "signature": "Integer.bitcast(T, x)",
+      "returns": "Same-width signed/unsigned reinterpretation; preserves bits, not necessarily value.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "",
+          "section": "Type-Conversion",
+          "line": 170
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.bitcast(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:6730e003bc96412988b7",
+      "name": "Integer.byte_width",
+      "signature": "Integer.byte_width(T)",
+      "returns": "u32",
+      "contract": "Representation bytes, excluding alignment and surrounding padding.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-byte_width",
+          "section": "Function-Reference",
+          "line": 342
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.byte_width(i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:e957bea03f959e770b33",
+      "name": "Integer.checked_abs",
+      "signature": "Integer.checked_abs(S x)",
+      "returns": "Result<S, IntegerError>",
+      "contract": "Signed only; MIN magnitude cannot fit S.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_abs",
+          "section": "Function-Reference",
+          "line": 685
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_abs(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.checked_abs"
+      },
+      "difference": "Matching primitive overloads return math.IntegerMathError (Overflow or InvalidBounds), not the compiler IntegerError. There is no implicit Result error-carrier coercion.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_abs",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_abs remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:0e0e4c582b703ca4ca79",
+      "name": "Integer.checked_add",
+      "signature": "Integer.checked_add(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Overflow if the mathematical sum does not fit T.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_add",
+          "section": "Function-Reference",
+          "line": 643
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_add(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_add",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_add remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:aea3e70073c562dfce43",
+      "name": "Integer.checked_div",
+      "signature": "Integer.checked_div(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Rounds toward zero; DivisionByZero or signed MIN/-1 Overflow.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_div",
+          "section": "Function-Reference",
+          "line": 664
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_div(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_div",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_div remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:8c9aa92d849512ee3775",
+      "name": "Integer.checked_mul",
+      "signature": "Integer.checked_mul(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Overflow if the mathematical product does not fit T.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_mul",
+          "section": "Function-Reference",
+          "line": 657
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_mul(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_mul",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_mul remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:a6b555560c86b802b89c",
+      "name": "Integer.checked_neg",
+      "signature": "Integer.checked_neg(S x)",
+      "returns": "Result<S, IntegerError>",
+      "contract": "Signed only; MIN negation returns Overflow.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_neg",
+          "section": "Function-Reference",
+          "line": 678
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_neg(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_neg",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_neg remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:c73c275624ab10030284",
+      "name": "Integer.checked_pow",
+      "signature": "Integer.checked_pow(T base, u32 exponent)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Overflow if the exact power cannot fit; zero exponent, including 0^0, returns one.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_pow",
+          "section": "Function-Reference",
+          "line": 692
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_pow(7i32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.checked_pow"
+      },
+      "difference": "Matching primitive overloads return math.IntegerMathError (Overflow or InvalidBounds), not the compiler IntegerError. There is no implicit Result error-carrier coercion.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_pow",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_pow remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:de1ab4d08407f6de35b4",
+      "name": "Integer.checked_rem",
+      "signature": "Integer.checked_rem(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Truncated remainder; DivisionByZero. Signed MIN%-1 is proposed to return zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_rem",
+          "section": "Function-Reference",
+          "line": 671
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_rem(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_rem",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_rem remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:92b0d9133da1932607bf",
+      "name": "Integer.checked_sub",
+      "signature": "Integer.checked_sub(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Overflow if the mathematical difference does not fit T.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-checked_sub",
+          "section": "Function-Reference",
+          "line": 650
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.checked_sub(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_operation_error_carrier_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.checked_sub",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.checked_sub remains unsupported. Returns Result<T, integer.IntegerArithmeticError> with exact Overflow/DivisionByZero, not compiler IntegerError."
+      }
+    },
+    {
+      "id": "catalog:eeb3960e0a7da325505e",
+      "name": "Integer.clamp",
+      "signature": "Integer.clamp(T x, T lower, T upper)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Inclusive bounds; InvalidBounds when lower exceeds upper.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-clamp",
+          "section": "Function-Reference",
+          "line": 521
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.clamp(7i32, 0i32, 9i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.clamp"
+      },
+      "difference": "Matching primitive overloads return math.IntegerMathError (Overflow or InvalidBounds), not the compiler IntegerError. There is no implicit Result error-carrier coercion."
+    },
+    {
+      "id": "catalog:1fda35a0d55c8c5efb8a",
+      "name": "Integer.clear_bit",
+      "signature": "Integer.clear_bit(T x, u32 index)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Clears the bit; invalid index is InvalidBitRange.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-clear_bit",
+          "section": "Function-Reference",
+          "line": 1258
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.clear_bit(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:811ce10333a3279fc5fd",
+      "name": "Integer.compare",
+      "signature": "Integer.compare(T a, T b)",
+      "returns": "Ordering",
+      "contract": "Numeric comparison of matching types.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-compare",
+          "section": "Function-Reference",
+          "line": 486
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.compare(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:2c6622a0e5faa910d664",
+      "name": "Integer.compare_value",
+      "signature": "Integer.compare_value(A a, B b)",
+      "returns": "Ordering",
+      "contract": "Exact comparison across integer widths and signedness.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-compare_value",
+          "section": "Function-Reference",
+          "line": 493
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.compare_value(7i32, 3u64)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:257e7f090b6115e24653",
+      "name": "Integer.compress_bits",
+      "signature": "Integer.compress_bits(T x, U mask)",
+      "returns": "U",
+      "contract": "Packs mask-selected bits into low positions in increasing source-bit order.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-compress_bits",
+          "section": "Function-Reference",
+          "line": 1295
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.compress_bits(7i32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:bfb657badf0f0748d39d",
+      "name": "Integer.convert",
+      "signature": "Integer.convert<D>(T x)",
+      "returns": "Result<D, IntegerError>",
+      "contract": "Preserves the value; OutOfRange when it cannot fit D.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-convert",
+          "section": "Function-Reference",
+          "line": 558
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.convert<i64>(7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Integer.convert"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:7f4115a1b9dafb03a4d1",
+      "name": "Integer.convert",
+      "signature": "Integer.convert<D>(value)",
+      "returns": "Checked integer-to-integer conversion, including signed and unsigned 128-bit destinations.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        },
+        {
+          "page": "htmls/data_type/Integer/Unsigned_Integer_128.html",
+          "anchor": "",
+          "section": "Conversions",
+          "line": 36
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.convert<i64>(7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Integer.convert"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:c2f9c821c597873001d3",
+      "name": "Integer.convert",
+      "signature": "Integer.convert<T>(x)",
+      "returns": "Checked integer conversion; returns Result<T, IntegerError> and rejects an unrepresentable value.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "",
+          "section": "Type-Conversion",
+          "line": 142
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.convert<i64>(7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Integer.convert"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:8b389f549e5087c8f202",
+      "name": "Integer.count_ones",
+      "signature": "Integer.count_ones(T x)",
+      "returns": "u32",
+      "contract": "Number of set bits.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-count_ones",
+          "section": "Function-Reference",
+          "line": 1052
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.count_ones(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.count_ones",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.count_ones remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:031135ee9110a7ddc865",
+      "name": "Integer.count_zeros",
+      "signature": "Integer.count_zeros(T x)",
+      "returns": "u32",
+      "contract": "Width minus count_ones.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-count_zeros",
+          "section": "Function-Reference",
+          "line": 1059
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.count_zeros(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.count_zeros",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.count_zeros remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:d53d59d5b572f127ac65",
+      "name": "Integer.digit_count",
+      "signature": "Integer.digit_count(T x, u32 radix= 10)",
+      "returns": "Result<u32, IntegerError>",
+      "contract": "Magnitude digits only; excludes sign/prefix/padding. Zero has one digit; invalid radix rejected.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-digit_count",
+          "section": "Function-Reference",
+          "line": 1474
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.digit_count(7i32, 10u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:a7e97e110fddf69a1214",
+      "name": "Integer.div_ceil",
+      "signature": "Integer.div_ceil(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Quotient rounds toward positive infinity; no overflowing add-before-divide shortcut.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_ceil",
+          "section": "Function-Reference",
+          "line": 966
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_ceil(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:ecf76b898909831c26fd",
+      "name": "Integer.div_euclid",
+      "signature": "Integer.div_euclid(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Quotient paired with 0 <= remainder < mathematical abs(b).",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_euclid",
+          "section": "Function-Reference",
+          "line": 974
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_euclid(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:c0f810c8277e12f5a54e",
+      "name": "Integer.div_exact",
+      "signature": "Integer.div_exact(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "NotDivisible for a nonzero remainder; divisor and overflow checks remain.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_exact",
+          "section": "Function-Reference",
+          "line": 981
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_exact(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:1af2581dd7d3fb934a0e",
+      "name": "Integer.div_floor",
+      "signature": "Integer.div_floor(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Quotient rounds toward negative infinity.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_floor",
+          "section": "Function-Reference",
+          "line": 959
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_floor(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:44ec6133771f5ee5a645",
+      "name": "Integer.div_rem_euclid",
+      "signature": "Integer.div_rem_euclid(T a, T b)",
+      "returns": "Result<(T, T), IntegerError>",
+      "contract": "Euclidean quotient, then nonnegative remainder.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_rem_euclid",
+          "section": "Function-Reference",
+          "line": 1016
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_rem_euclid(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:2fec0fa8762f834ec4d3",
+      "name": "Integer.div_rem_floor",
+      "signature": "Integer.div_rem_floor(T a, T b)",
+      "returns": "Result<(T, T), IntegerError>",
+      "contract": "Floor quotient, then matching remainder.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_rem_floor",
+          "section": "Function-Reference",
+          "line": 1009
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_rem_floor(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:370abf5a73425b575d8c",
+      "name": "Integer.div_rem_trunc",
+      "signature": "Integer.div_rem_trunc(T a, T b)",
+      "returns": "Result<(T, T), IntegerError>",
+      "contract": "Truncated quotient, then matching remainder.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_rem_trunc",
+          "section": "Function-Reference",
+          "line": 1002
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_rem_trunc(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:a73c39573b23e6188509",
+      "name": "Integer.div_trunc",
+      "signature": "Integer.div_trunc(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Explicit checked_div name; quotient rounds toward zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_trunc",
+          "section": "Function-Reference",
+          "line": 945
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_trunc(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:6ced5d584959fd92db08",
+      "name": "Integer.div_wide",
+      "signature": "Integer.div_wide(U low, U high, U divisor)",
+      "returns": "Result<(U quotient, U remainder), IntegerError>",
+      "contract": "Divides high*2^width+low; DivisionByZero or Overflow if the quotient cannot fit one word.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-div_wide",
+          "section": "Function-Reference",
+          "line": 1745
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.div_wide(7u32, 0u32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:62fb76822d7a52bf1922",
+      "name": "Integer.expand_bits",
+      "signature": "Integer.expand_bits(U bits, U mask)",
+      "returns": "T",
+      "contract": "Deposits low input bits at mask-selected positions; unused high input bits are deliberately ignored.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-expand_bits",
+          "section": "Function-Reference",
+          "line": 1302
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.expand_bits(7u32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:27b86a30abbf03f64c52",
+      "name": "Integer.extract_bits",
+      "signature": "Integer.extract_bits(T x, u32 offset, u32 count)",
+      "returns": "Result<U, IntegerError>",
+      "contract": "Unsigned field packed into low bits; invalid bounds are InvalidBitRange.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-extract_bits",
+          "section": "Function-Reference",
+          "line": 1272
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.extract_bits(7i32, 0u32, 2u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:83ec4ed65ae5a07235f6",
+      "name": "Integer.fits",
+      "signature": "Integer.fits(D, T x)",
+      "returns": "bool",
+      "contract": "Tests destination numeric representability.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-fits",
+          "section": "Function-Reference",
+          "line": 574
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.fits(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:c79b470c22ae58ca717b",
+      "name": "Integer.floor_power_of_two",
+      "signature": "Integer.floor_power_of_two(T x)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Greatest power <= x; zero maps to zero. Negative input is DomainError.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-floor_power_of_two",
+          "section": "Function-Reference",
+          "line": 1585
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.floor_power_of_two(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:2f69b182d58c630fdfde",
+      "name": "Integer.format",
+      "signature": "Integer.format(T x, FormatOptions options= default)",
+      "returns": "Result<string, IntegerError>",
+      "contract": "Allocating output; InvalidRadix or OutOfMemory. Default is signed-value decimal.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-format",
+          "section": "Function-Reference",
+          "line": 1457
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.format(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:a6f36cca7ba6a2068244",
+      "name": "Integer.format_into",
+      "signature": "Integer.format_into(T x, MutSlice<byte> buffer, FormatOptions options= default)",
+      "returns": "Result<usize, IntegerError>",
+      "contract": "Allocation-free; validates options/capacity before writing, returns byte count; BufferTooSmall on insufficient space.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-format_into",
+          "section": "Function-Reference",
+          "line": 1464
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.format_into(7i32, Slice.from_array_mut(&mut raw))",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:3c66ddd5b59b98d07c02",
+      "name": "Integer.from_be_bytes",
+      "signature": "Integer.from_be_bytes(T, Array<byte, N> bytes)",
+      "returns": "T",
+      "contract": "Big-endian decoding; incorrect fixed length is a type error.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-from_be_bytes",
+          "section": "Function-Reference",
+          "line": 1363
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.from_be_bytes(i32, raw)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "related_foundation_not_catalog_contract",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.read_* / bytes.write_*"
+      },
+      "difference": "Existing fallible Slice codecs provide endian byte processing. They do not provide the infallible fixed Array<byte,N> by-value input/output contract, static-length proof or the canonical Integer method."
+    },
+    {
+      "id": "catalog:d5b26d535feb02879d6c",
+      "name": "Integer.from_le_bytes",
+      "signature": "Integer.from_le_bytes(T, Array<byte, N> bytes)",
+      "returns": "T",
+      "contract": "Little-endian decoding; incorrect fixed length is a type error.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-from_le_bytes",
+          "section": "Function-Reference",
+          "line": 1356
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.from_le_bytes(i32, raw)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "related_foundation_not_catalog_contract",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.read_* / bytes.write_*"
+      },
+      "difference": "Existing fallible Slice codecs provide endian byte processing. They do not provide the infallible fixed Array<byte,N> by-value input/output contract, static-length proof or the canonical Integer method."
+    },
+    {
+      "id": "catalog:d003de751b5894552cbf",
+      "name": "Integer.gcd",
+      "signature": "Integer.gcd(T a, T b)",
+      "returns": "U",
+      "contract": "Exact nonnegative greatest common divisor of magnitudes; gcd(0,0) is zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-gcd",
+          "section": "Function-Reference",
+          "line": 1660
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.gcd(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_namespace_same_behavior",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.gcd"
+      },
+      "difference": "Explicitly import math; matching primitive integer overloads provide this behavior, while the canonical Integer spelling is absent."
+    },
+    {
+      "id": "catalog:7d57e1db9aaccbf2dd1d",
+      "name": "Integer.highest_one_bit",
+      "signature": "Integer.highest_one_bit(T x)",
+      "returns": "U",
+      "contract": "Unsigned mask containing the highest set bit of the source representation; zero returns zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-highest_one_bit",
+          "section": "Function-Reference",
+          "line": 1115
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.highest_one_bit(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.highest_one_bit",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.highest_one_bit remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:1f79ebd1adb34037d925",
+      "name": "Integer.ilog",
+      "signature": "Integer.ilog(T x, T base)",
+      "returns": "Result<u32, IntegerError>",
+      "contract": "Floor logarithm; requires x > 0 and base >= 2.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-ilog",
+          "section": "Function-Reference",
+          "line": 1519
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.ilog(7i32, 2i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:9aefa2c4d353de61344f",
+      "name": "Integer.ilog10",
+      "signature": "Integer.ilog10(T x)",
+      "returns": "Result<u32, IntegerError>",
+      "contract": "Floor base-ten logarithm; zero or negative input is DomainError.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-ilog10",
+          "section": "Function-Reference",
+          "line": 1533
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.ilog10(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:d37cc903bf969646f9db",
+      "name": "Integer.ilog2",
+      "signature": "Integer.ilog2(T x)",
+      "returns": "Result<u32, IntegerError>",
+      "contract": "Floor base-two logarithm; zero or negative input is DomainError.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-ilog2",
+          "section": "Function-Reference",
+          "line": 1526
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.ilog2(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:8ba4ed5fbd492e615b4b",
+      "name": "Integer.insert_bits",
+      "signature": "Integer.insert_bits(T x, U field, u32 offset, u32 count)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Replaces the field; invalid bounds or field bits above count are rejected.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-insert_bits",
+          "section": "Function-Reference",
+          "line": 1279
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.insert_bits(7i32, 3u32, 0u32, 2u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:3ba7316b22fb6cb3548f",
+      "name": "Integer.is_even",
+      "signature": "Integer.is_even(T x)",
+      "returns": "bool",
+      "contract": "True for even integers, including negative values.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_even",
+          "section": "Function-Reference",
+          "line": 421
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_even(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.is_even",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.is_even remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:ccbef7972921bff38331",
+      "name": "Integer.is_multiple_of",
+      "signature": "Integer.is_multiple_of(T x, T multiple)",
+      "returns": "bool",
+      "contract": "Exact divisibility; proposed zero convention: only zero is a multiple of zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_multiple_of",
+          "section": "Function-Reference",
+          "line": 1592
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_multiple_of(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.is_multiple_of",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.is_multiple_of remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:6718068e9a306bc45e7f",
+      "name": "Integer.is_negative",
+      "signature": "Integer.is_negative(T x)",
+      "returns": "bool",
+      "contract": "True for negative values; always false for unsigned input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_negative",
+          "section": "Function-Reference",
+          "line": 414
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_negative(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.is_negative",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.is_negative remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:37fbee10af9085089b0b",
+      "name": "Integer.is_odd",
+      "signature": "Integer.is_odd(T x)",
+      "returns": "bool",
+      "contract": "True for odd integers, including negative values.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_odd",
+          "section": "Function-Reference",
+          "line": 428
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_odd(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.is_odd",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.is_odd remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:7ac3f40d08b7602c430f",
+      "name": "Integer.is_positive",
+      "signature": "Integer.is_positive(T x)",
+      "returns": "bool",
+      "contract": "True when x is greater than zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_positive",
+          "section": "Function-Reference",
+          "line": 407
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_positive(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.is_positive",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.is_positive remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:19ff4b3d7d1a5e3fc47f",
+      "name": "Integer.is_power_of_two",
+      "signature": "Integer.is_power_of_two(T x)",
+      "returns": "bool",
+      "contract": "Positive power of two; zero and negatives return false.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_power_of_two",
+          "section": "Function-Reference",
+          "line": 1569
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_power_of_two(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.is_power_of_two",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.is_power_of_two remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:8880b0740283946ba11f",
+      "name": "Integer.is_signed",
+      "signature": "Integer.is_signed(T)",
+      "returns": "bool",
+      "contract": "True for signed types.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_signed",
+          "section": "Function-Reference",
+          "line": 349
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_signed(i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:01253b43f6039fe85967",
+      "name": "Integer.is_zero",
+      "signature": "Integer.is_zero(T x)",
+      "returns": "bool",
+      "contract": "True exactly for zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-is_zero",
+          "section": "Function-Reference",
+          "line": 400
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.is_zero(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.is_zero",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.is_zero remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:c10de1aca9c6ad692b00",
+      "name": "Integer.isqrt",
+      "signature": "Integer.isqrt(T x)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Floor square root; DomainError for negative signed input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-isqrt",
+          "section": "Function-Reference",
+          "line": 1512
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.isqrt(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:6ed7c26f58f64f5bb7b2",
+      "name": "Integer.lcm",
+      "signature": "Integer.lcm(T a, T b)",
+      "returns": "Result<U, IntegerError>",
+      "contract": "Nonnegative least common multiple; zero if either input is zero; Overflow if the result cannot fit U.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-lcm",
+          "section": "Function-Reference",
+          "line": 1667
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.lcm(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.lcm"
+      },
+      "difference": "Matching primitive overloads return math.IntegerMathError (Overflow or InvalidBounds), not the compiler IntegerError. There is no implicit Result error-carrier coercion."
+    },
+    {
+      "id": "catalog:580984733a462f50edf7",
+      "name": "Integer.leading_ones",
+      "signature": "Integer.leading_ones(T x)",
+      "returns": "u32",
+      "contract": "Consecutive leading ones; an all-ones pattern returns the full width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-leading_ones",
+          "section": "Function-Reference",
+          "line": 1073
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.leading_ones(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.leading_ones",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.leading_ones remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:2e7ab2c9eb406f510cf0",
+      "name": "Integer.leading_zeros",
+      "signature": "Integer.leading_zeros(T x)",
+      "returns": "u32",
+      "contract": "Consecutive leading zeros; zero returns the full width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-leading_zeros",
+          "section": "Function-Reference",
+          "line": 1066
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.leading_zeros(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.leading_zeros",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.leading_zeros remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:1a73a4567ec2842da3a6",
+      "name": "Integer.logical_shift_right",
+      "signature": "Integer.logical_shift_right(T x, u32 count)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Count checked; inserts zeros for both signed and unsigned patterns.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-logical_shift_right",
+          "section": "Function-Reference",
+          "line": 1179
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.logical_shift_right(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:a36a9b4aff8271a6ee68",
+      "name": "Integer.low_mask",
+      "signature": "Integer.low_mask(T, u32 count)",
+      "returns": "Result<U, IntegerError>",
+      "contract": "Low count bits set; zero produces zero, full width produces all ones; oversized count rejected.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-low_mask",
+          "section": "Function-Reference",
+          "line": 1286
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.low_mask(i32, 2u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:837703d9945c007d7f0a",
+      "name": "Integer.lowest_one_bit",
+      "signature": "Integer.lowest_one_bit(T x)",
+      "returns": "U",
+      "contract": "Unsigned mask containing the lowest set bit of the source representation; zero returns zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-lowest_one_bit",
+          "section": "Function-Reference",
+          "line": 1124
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.lowest_one_bit(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.lowest_one_bit",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.lowest_one_bit remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:201419afce56fb451cbb",
+      "name": "Integer.max",
+      "signature": "Integer.max(T a, T b)",
+      "returns": "T",
+      "contract": "Larger numeric value.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-max",
+          "section": "Function-Reference",
+          "line": 507
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.max(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_namespace_same_behavior",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.max"
+      },
+      "difference": "Explicitly import math; matching primitive integer overloads provide this behavior, while the canonical Integer spelling is absent."
+    },
+    {
+      "id": "catalog:ac5d071c7eec4e2c2221",
+      "name": "Integer.max_value",
+      "signature": "Integer.max_value(T)",
+      "returns": "T",
+      "contract": "Maximum representable value.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-max_value",
+          "section": "Function-Reference",
+          "line": 328
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.max_value(i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_named_constants_signature_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.MAX_I8 through integer.MAX_USIZE",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "The 12 explicit per-type constants provide exact representation limits; type-operand min_value(T)/max_value(T) calls remain unsupported."
+      }
+    },
+    {
+      "id": "catalog:395e82bba69f86f17571",
+      "name": "Integer.midpoint",
+      "signature": "Integer.midpoint(T a, T b)",
+      "returns": "T",
+      "contract": "Exact mathematical average rounded toward zero, without intermediate overflow.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-midpoint",
+          "section": "Function-Reference",
+          "line": 514
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.midpoint(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_namespace_same_behavior",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.midpoint"
+      },
+      "difference": "Explicitly import math; matching primitive integer overloads provide this behavior, while the canonical Integer spelling is absent."
+    },
+    {
+      "id": "catalog:05b49b7c48c886369906",
+      "name": "Integer.min",
+      "signature": "Integer.min(T a, T b)",
+      "returns": "T",
+      "contract": "Smaller numeric value.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-min",
+          "section": "Function-Reference",
+          "line": 500
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.min(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_namespace_same_behavior",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.min"
+      },
+      "difference": "Explicitly import math; matching primitive integer overloads provide this behavior, while the canonical Integer spelling is absent."
+    },
+    {
+      "id": "catalog:4bf251d6000d8de17a3d",
+      "name": "Integer.min_value",
+      "signature": "Integer.min_value(T)",
+      "returns": "T",
+      "contract": "Minimum representable value.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-min_value",
+          "section": "Function-Reference",
+          "line": 321
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.min_value(i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_named_constants_signature_differs",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.MIN_I8 through integer.MIN_USIZE",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "The 12 explicit per-type constants provide exact representation limits; type-operand min_value(T)/max_value(T) calls remain unsupported."
+      }
+    },
+    {
+      "id": "catalog:cb21f8967e261f89cdcf",
+      "name": "Integer.mod_inverse",
+      "signature": "Integer.mod_inverse(T x, U modulus)",
+      "returns": "Result<U, IntegerError>",
+      "contract": "Requires modulus >= 2 and coprime inputs; InvalidModulus or NoInverse. Result is below modulus.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-mod_inverse",
+          "section": "Function-Reference",
+          "line": 1685
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.mod_inverse(7i32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:864bf76cb8620336eb1e",
+      "name": "Integer.mul_wide",
+      "signature": "Integer.mul_wide(U a, U b)",
+      "returns": "(U low, U high)",
+      "contract": "Exact double-width product, low word first.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-mul_wide",
+          "section": "Function-Reference",
+          "line": 1738
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.mul_wide(7u32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:551208d6f0ae977c537f",
+      "name": "Integer.next_multiple_of",
+      "signature": "Integer.next_multiple_of(T x, T multiple)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Least multiple >= x; requires a positive multiple; invalid input or oversized result returns error.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-next_multiple_of",
+          "section": "Function-Reference",
+          "line": 1599
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.next_multiple_of(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:b2947f855a4450ca74f2",
+      "name": "Integer.next_power_of_two",
+      "signature": "Integer.next_power_of_two(T x)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Least power >= x; zero maps to one. Negative input is DomainError; oversized result is Overflow.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-next_power_of_two",
+          "section": "Function-Reference",
+          "line": 1576
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.next_power_of_two(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:1c1f237cc44a871e85e7",
+      "name": "Integer.one",
+      "signature": "Integer.one(T)",
+      "returns": "T",
+      "contract": "Typed one.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-one",
+          "section": "Function-Reference",
+          "line": 363
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.one(i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:e3b811887fce94fe1a72",
+      "name": "Integer.overflowing_abs",
+      "signature": "Integer.overflowing_abs(S x)",
+      "returns": "(S, bool)",
+      "contract": "Signed only; MIN produces MIN and true.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-overflowing_abs",
+          "section": "Function-Reference",
+          "line": 899
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.overflowing_abs(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.overflowing_abs",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.overflowing_abs remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:36cb3b3c8fe88e65c02e",
+      "name": "Integer.overflowing_add",
+      "signature": "Integer.overflowing_add(T a, T b)",
+      "returns": "(T, bool)",
+      "contract": "Wrapped sum; true if the exact result does not fit.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-overflowing_add",
+          "section": "Function-Reference",
+          "line": 871
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.overflowing_add(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.overflowing_add",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.overflowing_add remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:28293400576486e09442",
+      "name": "Integer.overflowing_mul",
+      "signature": "Integer.overflowing_mul(T a, T b)",
+      "returns": "(T, bool)",
+      "contract": "Wrapped product; true if the exact result does not fit.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-overflowing_mul",
+          "section": "Function-Reference",
+          "line": 885
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.overflowing_mul(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.overflowing_mul",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.overflowing_mul remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:7e0ab3ac22323b74521f",
+      "name": "Integer.overflowing_neg",
+      "signature": "Integer.overflowing_neg(S x)",
+      "returns": "(S, bool)",
+      "contract": "Signed only; MIN produces MIN and true.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-overflowing_neg",
+          "section": "Function-Reference",
+          "line": 892
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.overflowing_neg(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.overflowing_neg",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.overflowing_neg remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:1998f616eacf505a19b5",
+      "name": "Integer.overflowing_pow",
+      "signature": "Integer.overflowing_pow(T base, u32 exponent)",
+      "returns": "(T, bool)",
+      "contract": "Wrapped power; true if the exact result does not fit; zero exponent returns (one, false).",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-overflowing_pow",
+          "section": "Function-Reference",
+          "line": 906
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.overflowing_pow(7i32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.overflowing_pow",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.overflowing_pow remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:7e157468964736574167",
+      "name": "Integer.overflowing_sub",
+      "signature": "Integer.overflowing_sub(T a, T b)",
+      "returns": "(T, bool)",
+      "contract": "Wrapped difference; true if the exact result does not fit.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-overflowing_sub",
+          "section": "Function-Reference",
+          "line": 878
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.overflowing_sub(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.overflowing_sub",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.overflowing_sub remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:2bed3391a3690df9cfee",
+      "name": "Integer.parse",
+      "signature": "Integer.parse(T, string_view text)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Strict whole-input decimal. No whitespace, prefixes, or separators; optional plus, minus only for signed T.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-parse",
+          "section": "Function-Reference",
+          "line": 1430
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.parse(i32, \"7\")",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "T.parse"
+      },
+      "difference": "Type-directed i8..i128/isize/u8..u128/usize.parse(string_view) performs strict whole decimal parsing, but returns ParseError instead of IntegerError and uses no type operand argument."
+    },
+    {
+      "id": "catalog:8e558c875d0b3091c449",
+      "name": "Integer.parse_prefix",
+      "signature": "Integer.parse_prefix(T, string_view text)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Proposed 0b/0o/0x detection after a permitted sign; otherwise decimal, with no legacy leading-zero octal.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-parse_prefix",
+          "section": "Function-Reference",
+          "line": 1448
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.parse_prefix(i32, \"7\")",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:3e374601b7b50d24dff3",
+      "name": "Integer.parse_radix",
+      "signature": "Integer.parse_radix(T, string_view text, u32 radix)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Radix 2-36 and ASCII case-insensitive digits; invalid radix/digit, empty input, or range violation returns an error.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-parse_radix",
+          "section": "Function-Reference",
+          "line": 1439
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.parse_radix(i32, \"7\", 10u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:9aa2702cc17677ca8c91",
+      "name": "Integer.pow_mod",
+      "signature": "Integer.pow_mod(T base, u64 exponent, U modulus)",
+      "returns": "Result<U, IntegerError>",
+      "contract": "Canonical nonnegative residue; zero modulus is InvalidModulus, modulus one returns zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-pow_mod",
+          "section": "Function-Reference",
+          "line": 1676
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.pow_mod(7i32, 3u64, 5u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:e178b0a465944e0e585c",
+      "name": "Integer.previous_multiple_of",
+      "signature": "Integer.previous_multiple_of(T x, T multiple)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Greatest multiple <= x; positive multiple required; may overflow below signed MIN.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-previous_multiple_of",
+          "section": "Function-Reference",
+          "line": 1608
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.previous_multiple_of(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:9bed0fd5c7227b588237",
+      "name": "Integer.read_be",
+      "signature": "Integer.read_be(T, Slice<byte> bytes, usize offset= 0)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Same bounds contract, big-endian decoding.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-read_be",
+          "section": "Function-Reference",
+          "line": 1377
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.read_be(i32, Slice.from_array(&raw), 0usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.read_i32_be (and explicit signed/unsigned widths 16..128; 8-bit operation has no endian suffix)"
+      },
+      "difference": "Explicitly imported per-width Slice<byte>/MutSlice<byte> APIs have an explicit offset, ByteError.OutOfBounds payloads and, for writers, buffer/offset/value argument order. Native-sized integer convenience wrappers are absent. These are not canonical IntegerError signatures."
+    },
+    {
+      "id": "catalog:7a203b83cb506f930ab5",
+      "name": "Integer.read_le",
+      "signature": "Integer.read_le(T, Slice<byte> bytes, usize offset= 0)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Requires N bytes at offset; InvalidOffset or BufferTooSmall otherwise.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-read_le",
+          "section": "Function-Reference",
+          "line": 1370
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.read_le(i32, Slice.from_array(&raw), 0usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.read_i32_le (and explicit signed/unsigned widths 16..128; 8-bit operation has no endian suffix)"
+      },
+      "difference": "Explicitly imported per-width Slice<byte>/MutSlice<byte> APIs have an explicit offset, ByteError.OutOfBounds payloads and, for writers, buffer/offset/value argument order. Native-sized integer convenience wrappers are absent. These are not canonical IntegerError signatures."
+    },
+    {
+      "id": "catalog:6449187bde25db570b80",
+      "name": "Integer.rem_euclid",
+      "signature": "Integer.rem_euclid(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Nonnegative remainder, even with negative a or b.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-rem_euclid",
+          "section": "Function-Reference",
+          "line": 995
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.rem_euclid(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:9705e6bb685dc1900cad",
+      "name": "Integer.rem_floor",
+      "signature": "Integer.rem_floor(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Remainder paired with floor division; nonzero remainder follows the divisor sign.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-rem_floor",
+          "section": "Function-Reference",
+          "line": 988
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.rem_floor(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:4ec705431f66e55f4040",
+      "name": "Integer.rem_trunc",
+      "signature": "Integer.rem_trunc(T a, T b)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Explicit checked_rem name; nonzero remainder follows the dividend sign.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-rem_trunc",
+          "section": "Function-Reference",
+          "line": 952
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.rem_trunc(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:5f99117ed5db0db820e6",
+      "name": "Integer.reverse_bits",
+      "signature": "Integer.reverse_bits(T x)",
+      "returns": "T",
+      "contract": "Reverses every bit across the source width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-reverse_bits",
+          "section": "Function-Reference",
+          "line": 1101
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.reverse_bits(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.reverse_bits",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.reverse_bits remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:8255e897972007f85021",
+      "name": "Integer.rotate_left",
+      "signature": "Integer.rotate_left(T x, u32 count)",
+      "returns": "T",
+      "contract": "Preserves every bit; count reduced modulo the width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-rotate_left",
+          "section": "Function-Reference",
+          "line": 1200
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.rotate_left(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.rotate_left",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.rotate_left remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:95f54c683d84c93c6462",
+      "name": "Integer.rotate_right",
+      "signature": "Integer.rotate_right(T x, u32 count)",
+      "returns": "T",
+      "contract": "Preserves every bit; count reduced modulo the width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-rotate_right",
+          "section": "Function-Reference",
+          "line": 1207
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.rotate_right(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.rotate_right",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.rotate_right remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:fb976acebf9d9be20be5",
+      "name": "Integer.saturating_abs",
+      "signature": "Integer.saturating_abs(S x)",
+      "returns": "S",
+      "contract": "Signed only; taking the magnitude of MIN returns MAX.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-saturating_abs",
+          "section": "Function-Reference",
+          "line": 827
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_abs(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.saturating_abs",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.saturating_abs remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:e3665eeb5de8a8e36046",
+      "name": "Integer.saturating_add",
+      "signature": "Integer.saturating_add(T a, T b)",
+      "returns": "T",
+      "contract": "Clamps the exact sum to the representable range.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-saturating_add",
+          "section": "Function-Reference",
+          "line": 799
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_add(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.saturating_add",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.saturating_add remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:e07b55ad02c715abbf5e",
+      "name": "Integer.saturating_convert",
+      "signature": "Integer.saturating_convert(D, T x)",
+      "returns": "D",
+      "contract": "Clamps to the destination range.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-saturating_convert",
+          "section": "Function-Reference",
+          "line": 581
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_convert(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:f67d5c241a6fc97cba0f",
+      "name": "Integer.saturating_convert",
+      "signature": "Integer.saturating_convert(T, x)",
+      "returns": "Clamps an integer to the destination range.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "",
+          "section": "Type-Conversion",
+          "line": 158
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_convert(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:ed3073f2206f1cb70269",
+      "name": "Integer.saturating_mul",
+      "signature": "Integer.saturating_mul(T a, T b)",
+      "returns": "T",
+      "contract": "Clamps the exact product to the representable range.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-saturating_mul",
+          "section": "Function-Reference",
+          "line": 813
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_mul(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.saturating_mul",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.saturating_mul remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:5ea42dfcb94579a8181f",
+      "name": "Integer.saturating_neg",
+      "signature": "Integer.saturating_neg(S x)",
+      "returns": "S",
+      "contract": "Signed only; negating MIN returns MAX.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-saturating_neg",
+          "section": "Function-Reference",
+          "line": 820
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_neg(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.saturating_neg",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.saturating_neg remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:43b5b117b69d5e4fcfb9",
+      "name": "Integer.saturating_pow",
+      "signature": "Integer.saturating_pow(T base, u32 exponent)",
+      "returns": "T",
+      "contract": "Clamps the exact power to the representable range; zero exponent returns one.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-saturating_pow",
+          "section": "Function-Reference",
+          "line": 834
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_pow(7i32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.saturating_pow",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.saturating_pow remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:c01926ccff94e3de606f",
+      "name": "Integer.saturating_sub",
+      "signature": "Integer.saturating_sub(T a, T b)",
+      "returns": "T",
+      "contract": "Clamps the exact difference to the representable range.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-saturating_sub",
+          "section": "Function-Reference",
+          "line": 806
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.saturating_sub(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.saturating_sub",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.saturating_sub remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:8811e3ec63b68ab6b010",
+      "name": "Integer.set_bit",
+      "signature": "Integer.set_bit(T x, u32 index)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Sets the bit; invalid index is InvalidBitRange.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-set_bit",
+          "section": "Function-Reference",
+          "line": 1251
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.set_bit(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:4313f5a558b89245bdda",
+      "name": "Integer.shift_left",
+      "signature": "Integer.shift_left(T x, u32 count)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "InvalidShiftCount for an out-of-range count; otherwise discards high bits and inserts zeros.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-shift_left",
+          "section": "Function-Reference",
+          "line": 1163
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.shift_left(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:c8b945fe8070a52fcb39",
+      "name": "Integer.shift_left_exact",
+      "signature": "Integer.shift_left_exact(T x, u32 count)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Count checked; LossOfInformation unless shifting back recovers x.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-shift_left_exact",
+          "section": "Function-Reference",
+          "line": 1186
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.shift_left_exact(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:01ea1028f4184ab5d6ea",
+      "name": "Integer.shift_right",
+      "signature": "Integer.shift_right(T x, u32 count)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Count checked; signed inputs extend the sign, unsigned inputs insert zeros.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-shift_right",
+          "section": "Function-Reference",
+          "line": 1172
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.shift_right(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:396a6b5082489800c741",
+      "name": "Integer.shift_right_exact",
+      "signature": "Integer.shift_right_exact(T x, u32 count)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Count checked; LossOfInformation if nonzero low bits would be discarded.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-shift_right_exact",
+          "section": "Function-Reference",
+          "line": 1193
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.shift_right_exact(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:7b8723a06a357d93dc18",
+      "name": "Integer.signum",
+      "signature": "Integer.signum(T x)",
+      "returns": "T",
+      "contract": "Signed: -1, 0, or 1. Unsigned: 0 or 1.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-signum",
+          "section": "Function-Reference",
+          "line": 435
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.signum(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_namespace_same_behavior",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.signum"
+      },
+      "difference": "Explicitly import math; matching primitive integer overloads provide this behavior, while the canonical Integer spelling is absent."
+    },
+    {
+      "id": "catalog:3f107162665760bba320",
+      "name": "Integer.sub_borrow",
+      "signature": "Integer.sub_borrow(U a, U b, bool borrow)",
+      "returns": "(U word, bool borrow)",
+      "contract": "Exact a-b-borrow; modular low word and outgoing borrow.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-sub_borrow",
+          "section": "Function-Reference",
+          "line": 1731
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.sub_borrow(7u32, 3u32, false)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:9be14064d27da5c65c1f",
+      "name": "Integer.swap_bytes",
+      "signature": "Integer.swap_bytes(T x)",
+      "returns": "T",
+      "contract": "Reverses byte order, preserving bit order within each byte.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-swap_bytes",
+          "section": "Function-Reference",
+          "line": 1108
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.swap_bytes(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.swap_bytes",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.swap_bytes remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:db31d64ecbf333746b26",
+      "name": "Integer.test_bit",
+      "signature": "Integer.test_bit(T x, u32 index)",
+      "returns": "Result<bool, IntegerError>",
+      "contract": "Returns the bit; index >= width is InvalidBitRange.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-test_bit",
+          "section": "Function-Reference",
+          "line": 1244
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.test_bit(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:6a50ab6dfad6c706e05e",
+      "name": "Integer.to_be_bytes",
+      "signature": "Integer.to_be_bytes(T x)",
+      "returns": "Array<byte, N>",
+      "contract": "Fixed big-endian representation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-to_be_bytes",
+          "section": "Function-Reference",
+          "line": 1349
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.to_be_bytes(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "related_foundation_not_catalog_contract",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.read_* / bytes.write_*"
+      },
+      "difference": "Existing fallible Slice codecs provide endian byte processing. They do not provide the infallible fixed Array<byte,N> by-value input/output contract, static-length proof or the canonical Integer method."
+    },
+    {
+      "id": "catalog:440f66c4367e34db5752",
+      "name": "Integer.to_float",
+      "signature": "Integer.to_float(F, T x)",
+      "returns": "Result<F, IntegerError>",
+      "contract": "Proposed nearest-even rounding; rejects finite-output overflow with OutOfRange.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-to_float",
+          "section": "Function-Reference",
+          "line": 609
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.to_float(f64, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Float.convert"
+      },
+      "difference": "Destination is an explicit type argument to Float.convert[_exact]<F>; the checked conversion returns FloatError rather than IntegerError."
+    },
+    {
+      "id": "catalog:1c1fe54f90064ad3a0fd",
+      "name": "Integer.to_float_exact",
+      "signature": "Integer.to_float_exact(F, T x)",
+      "returns": "Result<F, IntegerError>",
+      "contract": "Requires finite exact representability; otherwise NonExact or OutOfRange.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-to_float_exact",
+          "section": "Function-Reference",
+          "line": 602
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.to_float_exact(f64, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Float.convert_exact"
+      },
+      "difference": "Destination is an explicit type argument to Float.convert[_exact]<F>; the checked conversion returns FloatError rather than IntegerError."
+    },
+    {
+      "id": "catalog:ad931b7ce0c519ad518e",
+      "name": "Integer.to_le_bytes",
+      "signature": "Integer.to_le_bytes(T x)",
+      "returns": "Array<byte, N>",
+      "contract": "Fixed little-endian representation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-to_le_bytes",
+          "section": "Function-Reference",
+          "line": 1342
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.to_le_bytes(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "related_foundation_not_catalog_contract",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.read_* / bytes.write_*"
+      },
+      "difference": "Existing fallible Slice codecs provide endian byte processing. They do not provide the infallible fixed Array<byte,N> by-value input/output contract, static-length proof or the canonical Integer method."
+    },
+    {
+      "id": "catalog:71a38b7ca65acb88fdc8",
+      "name": "Integer.toggle_bit",
+      "signature": "Integer.toggle_bit(T x, u32 index)",
+      "returns": "Result<T, IntegerError>",
+      "contract": "Flips the bit; invalid index is InvalidBitRange.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-toggle_bit",
+          "section": "Function-Reference",
+          "line": 1265
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.toggle_bit(7i32, 1u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:2cb8e3d6264a19ea8fc1",
+      "name": "Integer.trailing_ones",
+      "signature": "Integer.trailing_ones(T x)",
+      "returns": "u32",
+      "contract": "Consecutive trailing ones; an all-ones pattern returns the full width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-trailing_ones",
+          "section": "Function-Reference",
+          "line": 1087
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.trailing_ones(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.trailing_ones",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.trailing_ones remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:1bc9019739792719ddb5",
+      "name": "Integer.trailing_zeros",
+      "signature": "Integer.trailing_zeros(T x)",
+      "returns": "u32",
+      "contract": "Consecutive trailing zeros; zero returns the full width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-trailing_zeros",
+          "section": "Function-Reference",
+          "line": 1080
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.trailing_zeros(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.trailing_zeros",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.trailing_zeros remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:6430ff979bb3a27391a9",
+      "name": "Integer.unsigned_abs",
+      "signature": "Integer.unsigned_abs(S x)",
+      "returns": "U",
+      "contract": "Exact magnitude including S.MIN; signed input only.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-unsigned_abs",
+          "section": "Function-Reference",
+          "line": 442
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.unsigned_abs(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_namespace_same_behavior",
+      "provider": {
+        "source": "library/Math/math.avx",
+        "symbol": "math.unsigned_abs"
+      },
+      "difference": "Explicitly import math; matching primitive integer overloads provide this behavior, while the canonical Integer spelling is absent.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.unsigned_abs",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.unsigned_abs remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:514b88d4a68e97b7c484",
+      "name": "Integer.widen",
+      "signature": "Integer.widen(D, T x)",
+      "returns": "D",
+      "contract": "Allowed only if every T value fits D; invalid type combinations are compile-time errors.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-widen",
+          "section": "Function-Reference",
+          "line": 565
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.widen(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:4535b1cd742b5209e100",
+      "name": "Integer.widen",
+      "signature": "Integer.widen(T, x)",
+      "returns": "Returns T when every source value fits the destination; otherwise the type combination is rejected.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "",
+          "section": "Type-Conversion",
+          "line": 150
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.widen(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:62b0658080bd271bc2c1",
+      "name": "Integer.wrapping_abs",
+      "signature": "Integer.wrapping_abs(S x)",
+      "returns": "S",
+      "contract": "Signed only; MIN remains MIN.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-wrapping_abs",
+          "section": "Function-Reference",
+          "line": 756
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_abs(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.wrapping_abs",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.wrapping_abs remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:4a9383122f74c735edb7",
+      "name": "Integer.wrapping_add",
+      "signature": "Integer.wrapping_add(T a, T b)",
+      "returns": "T",
+      "contract": "Sum modulo 2^width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-wrapping_add",
+          "section": "Function-Reference",
+          "line": 728
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_add(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.wrapping_add",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.wrapping_add remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:2b36efe31ce434e1183f",
+      "name": "Integer.wrapping_convert",
+      "signature": "Integer.wrapping_convert(D, T x)",
+      "returns": "D",
+      "contract": "Reduces modulo the destination width, then interprets the resulting bits.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-wrapping_convert",
+          "section": "Function-Reference",
+          "line": 588
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_convert(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:6921326eca7bbd4a21ce",
+      "name": "Integer.wrapping_convert",
+      "signature": "Integer.wrapping_convert(T, x)",
+      "returns": "Produces the destination-width modular representation; may change the value.",
+      "contract": "",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "",
+          "section": "Type-Conversion",
+          "line": 164
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_convert(u32, 7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    },
+    {
+      "id": "catalog:9b378a3f87c9c310f5cc",
+      "name": "Integer.wrapping_mul",
+      "signature": "Integer.wrapping_mul(T a, T b)",
+      "returns": "T",
+      "contract": "Product modulo 2^width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-wrapping_mul",
+          "section": "Function-Reference",
+          "line": 742
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_mul(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.wrapping_mul",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.wrapping_mul remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:c731659cdac6b56219f3",
+      "name": "Integer.wrapping_neg",
+      "signature": "Integer.wrapping_neg(T x)",
+      "returns": "T",
+      "contract": "Modular negation for signed or unsigned input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-wrapping_neg",
+          "section": "Function-Reference",
+          "line": 749
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_neg(7i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.wrapping_neg",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.wrapping_neg remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:8c9ff547d2261de61bcd",
+      "name": "Integer.wrapping_pow",
+      "signature": "Integer.wrapping_pow(T base, u32 exponent)",
+      "returns": "T",
+      "contract": "Power modulo 2^width; zero exponent returns one.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-wrapping_pow",
+          "section": "Function-Reference",
+          "line": 763
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_pow(7i32, 3u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.wrapping_pow",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.wrapping_pow remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:a4b63e1643298856d59a",
+      "name": "Integer.wrapping_sub",
+      "signature": "Integer.wrapping_sub(T a, T b)",
+      "returns": "T",
+      "contract": "Difference modulo 2^width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-wrapping_sub",
+          "section": "Function-Reference",
+          "line": 735
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.wrapping_sub(7i32, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract.",
+      "current_source_alternative": {
+        "status": "alternate_namespace_same_behavior",
+        "source": "library/Math/integer.avx",
+        "symbol": "integer.wrapping_sub",
+        "type_coverage": "All 12 fixed/native primitive integer types, except the signed-only neg/abs family and unsigned_abs, which have six signed input overloads.",
+        "proof": "docs/Language/Library/integer_source_checkpoint.json",
+        "canonical_call_unchanged": true,
+        "difference": "Explicit import integer is required; canonical Integer.wrapping_sub remains unsupported. Equivalent operation under an explicitly imported source-module name; the catalog call spelling is not implemented."
+      }
+    },
+    {
+      "id": "catalog:54e319901594b7f771bf",
+      "name": "Integer.write_be",
+      "signature": "Integer.write_be(T x, MutSlice<byte> buffer, usize offset= 0)",
+      "returns": "Result<usize, IntegerError>",
+      "contract": "Same capacity contract, big-endian encoding.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-write_be",
+          "section": "Function-Reference",
+          "line": 1393
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.write_be(7i32, Slice.from_array_mut(&mut raw), 0usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.write_i32_be (and explicit signed/unsigned widths 16..128; 8-bit operation has no endian suffix)"
+      },
+      "difference": "Explicitly imported per-width Slice<byte>/MutSlice<byte> APIs have an explicit offset, ByteError.OutOfBounds payloads and, for writers, buffer/offset/value argument order. Native-sized integer convenience wrappers are absent. These are not canonical IntegerError signatures."
+    },
+    {
+      "id": "catalog:b852d970858f96190a88",
+      "name": "Integer.write_le",
+      "signature": "Integer.write_le(T x, MutSlice<byte> buffer, usize offset= 0)",
+      "returns": "Result<usize, IntegerError>",
+      "contract": "Prechecks full capacity; failure leaves the buffer unchanged. Success writes and returns N bytes.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-write_le",
+          "section": "Function-Reference",
+          "line": 1384
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.write_le(7i32, Slice.from_array_mut(&mut raw), 0usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_operation_error_or_signature_differs",
+      "provider": {
+        "source": "library/Core/bytes.avx",
+        "symbol": "bytes.write_i32_le (and explicit signed/unsigned widths 16..128; 8-bit operation has no endian suffix)"
+      },
+      "difference": "Explicitly imported per-width Slice<byte>/MutSlice<byte> APIs have an explicit offset, ByteError.OutOfBounds payloads and, for writers, buffer/offset/value argument order. Native-sized integer convenience wrappers are absent. These are not canonical IntegerError signatures."
+    },
+    {
+      "id": "catalog:6fd74402b9926e1e3b73",
+      "name": "Integer.zero",
+      "signature": "Integer.zero(T)",
+      "returns": "T",
+      "contract": "Typed zero.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Integer/Integer.html",
+          "anchor": "Integer-zero",
+          "section": "Function-Reference",
+          "line": 356
+        }
+      ],
+      "canonical_call": {
+        "expression": "Integer.zero(i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete callable provider was found. Arithmetic/comparison/bitwise language operators, typed literals and type-operand name hints are not the catalog function contract."
+    }
+  ],
+  "catalog_boundary": {
+    "duplicate_extra_rows": 6,
+    "float_conversion_rows_placed_in_integer_family": 3,
+    "actual_integer_namespace_accepted_rows": 3,
+    "actual_integer_namespace_accepted_names": [
+      "Integer.convert"
+    ],
+    "warning": "136 rows are not 136 distinct APIs: repeated summary signatures and three Float conversion rows are included."
+  },
+  "actual_error_contract": {
+    "IntegerError": [
+      "OutOfRange"
+    ],
+    "IntegerMathError": [
+      "Overflow",
+      "InvalidBounds"
+    ],
+    "warning": "Catalog Overflow/DivisionByZero/InvalidRadix/InvalidBitRange/etc. are not variants of the current compiler IntegerError."
+  },
+  "next_bounded_batch": {
+    "module": "integer (explicit import; canonical Integer namespace extension remains separate work)",
+    "feasibility": "A source struct named Integer is rejected as a prelude-name redeclaration; source-only helpers must use a different explicit namespace while compiler production is frozen.",
+    "proposed_groups": [
+      "Primitive representation constants, predicates, compare and same-width bit scans with concrete signed/unsigned overloads.",
+      "Checked add/sub/mul/div/rem/neg/abs with full prechecks before ordinary safe operators; signed MIN/-1 and unsigned magnitude boundaries covered.",
+      "Wrapping and saturating operations only after a defined same-width unsigned-bit reconstruction implementation; never rely on overflowing ordinary arithmetic.",
+      "Explicit error adapter for existing T.parse and per-width bytes codecs, preserving exact distinct carrier/domain causes."
+    ],
+    "prerequisites": [
+      "Choose a source error carrier covering real domain/overflow/radix/bit/buffer failures; the existing compiler IntegerError only has OutOfRange.",
+      "Canonical type-operand APIs and namespace extensions cannot be silently provided by a lowercase source module.",
+      "All 128-bit signed MIN paths must avoid negating MIN and overflow in checks."
+    ],
+    "tests": [
+      "Exhaustive i8/u8 inputs and pairs for checked/wrapping/saturating/bit operations; independent golden reference.",
+      "Boundary and randomized oracle cases for all larger widths including i128/u128 and native-sized aliases.",
+      "Check/AOT/JIT O0/O2, precise error payloads and no hidden allocation."
+    ]
+  },
+  "historical_provenance": {
+    "compiler_sha256": "6a3a75286411030c75ef334bc919221879e7a91f3bd9ba15e35588e513386b75",
+    "catalog_inventory_sha256": "675ff635a4057ac62c7ca5c0a26ffee20b43db050578816f2d040d798e14e05d",
+    "preserved_fields": [
+      "direct_namespace",
+      "classification",
+      "alternate_validation",
+      "sources",
+      "provider/status/canonical_call in each record",
+      "actual_error_contract",
+      "next_bounded_batch"
+    ],
+    "boundary": "These existing fields describe the original 6a3a check-only audit. Newly appended current_source_* fields describe the separately executed explicit-import source batch."
+  },
+  "current_canonical_recheck": {
+    "compiler_sha256": "9a69330b8c08f7a78f015a17f15fb70fef5d2a59e504437c32b1e930b6b9adfe",
+    "mode": "check_only_never_executed",
+    "catalog_rows": 136,
+    "accepted_catalog_rows": 6,
+    "changed_results": 0,
+    "conclusion": "Canonical call acceptance remains 6/136 including 3 Float rows and 3 Integer.convert summary rows; no source facade was added."
+  },
+  "current_source_batch": {
+    "source": "library/Math/integer.avx",
+    "source_sha256": "ca400688822448fad17028556be0c3be517f3a9445ee8a90eba2c0e38dae9e88",
+    "checkpoint": "docs/Language/Library/integer_source_checkpoint.json",
+    "schema": "docs/Language/Library/integer_source_schema.json",
+    "top_level_overloads": 528,
+    "distinct_function_names": 48,
+    "constants": 24,
+    "error_methods": 2,
+    "catalog_rows_with_new_alternatives": 50,
+    "alternative_classification": {
+      "alternate_namespace_same_behavior": 40,
+      "alternate_operation_error_carrier_differs": 8,
+      "alternate_named_constants_signature_differs": 2
+    },
+    "error_carrier": "integer.IntegerArithmeticError implements Copy, Error: Overflow and DivisionByZero; distinct from compiler IntegerError.OutOfRange and math.IntegerMathError",
+    "boundary": "Source-only alternative spellings are tracked independently. No historical compiler check or canonical Integer namespace result was reclassified as a successful source execution."
+  },
+  "current_next_candidates": {
+    "status": "not implemented by this batch",
+    "groups": [
+      "Exact division rounding/euclidean/floor quotient-remainder families.",
+      "Checked shifts, bit fields, masks, compress/expand, alignment and wide-word arithmetic.",
+      "Radix parsing/formatting and conversion extensions with exact distinct error domains.",
+      "Integer canonical facade only after sealed lazy-provider loading and error-carrier adaptation proof."
+    ],
+    "plan": "docs/Language/Library/integer_facade_plan.json"
+  }
+}

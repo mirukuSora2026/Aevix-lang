@@ -1,0 +1,124 @@
+import optional;
+import result;
+
+Optional<i32> present(i32 item) { return Optional.some(item); }
+Optional<i32> absent() { return Optional.none(); }
+Result<i32, i32> success(i32 item) { return Result.ok(item); }
+Result<i32, i32> failure(i32 problem) { return Result.err(problem); }
+i32 unoptional(Optional<i32> input) { return optional.unwrap_or(input, -1000); }
+i32 unresult(Result<i32, i32> input) { return result.unwrap_or(input, -1000); }
+i32 error_value(Result<i32, i32> input) { return unoptional(result.err_optional(input)); }
+Optional<i32> read_borrow(Optional<&i32> input) { &i32 item = input?; return Optional.some(*item); }
+Optional<unit> write_borrow(Optional<&mut i32> input) { &mut i32 item = input?; *item = 9; return Optional.some(Unit.value()); }
+Result<unit, &mut i32> write_result(Result<&mut i32, &mut i32> input) { &mut i32 item = input?; *item = 10; return Result.ok(Unit.value()); }
+
+i32 main() {
+
+    if (optional.unwrap_or(present(7), 9) != 7 || optional.unwrap_or(absent(), 9) != 9) return 1;
+    if (optional.unwrap_or_else(present(7), []() -> i32 { return 40; }) != 7 || optional.unwrap_or_else(absent(), []() -> i32 { return 40; }) != 40) return 2;
+    if (unresult(optional.ok_or(present(7), 8)) != 7 || error_value(optional.ok_or(absent(), 8)) != 8) return 3;
+    if (unresult(optional.ok_or_else<i32, i32>(present(7), []() -> i32 { return 40; })) != 7 ||
+        error_value(optional.ok_or_else<i32, i32>(absent(), []() -> i32 { return 40; })) != 40) return 4;
+    if (unoptional(optional.map<i32, i32>(present(7), [](i32 item) -> i32 { return item + 10; })) != 17 ||
+        unoptional(optional.map<i32, i32>(absent(), [](i32 item) -> i32 { return item + 10; })) != -1000) return 5;
+    Optional<i32> owned = present(7);
+    if (unoptional(optional.map_ref<i32, i32>(&owned, [](&i32 item) -> i32 { return *item + 10; })) != 17 || !Optional.is_some(&owned)) return 6;
+    if (optional.map_or(present(7), 9, [](i32 item) -> i32 { return item + 10; }) != 17 || optional.map_or(absent(), 9, [](i32 item) -> i32 { return item + 10; }) != 9) return 7;
+    if (optional.map_or_else<i32, i32>(present(7), []() -> i32 { return 40; }, [](i32 item) -> i32 { return item + 10; }) != 17 ||
+        optional.map_or_else<i32, i32>(absent(), []() -> i32 { return 40; }, [](i32 item) -> i32 { return item + 10; }) != 40) return 8;
+    if (unoptional(optional.and(present(7), present(8))) != 8 || unoptional(optional.and(absent(), present(8))) != -1000) return 9;
+    if (unoptional(optional.and_then<i32, i32>(present(7), [](i32 item) -> Optional<i32> { return Optional.some(item + 1); })) != 8 ||
+        unoptional(optional.and_then<i32, i32>(absent(), [](i32 item) -> Optional<i32> { return Optional.some(item + 1); })) != -1000) return 10;
+    if (unoptional(optional.or(present(7), present(8))) != 7 || unoptional(optional.or(absent(), present(8))) != 8) return 11;
+    if (unoptional(optional.or_else(present(7), []() -> Optional<i32> { return Optional.some(41); })) != 7 || unoptional(optional.or_else(absent(), []() -> Optional<i32> { return Optional.some(41); })) != 41) return 12;
+    if (unoptional(optional.xor(present(7), absent())) != 7 || unoptional(optional.xor(absent(), present(8))) != 8 ||
+        unoptional(optional.xor(present(7), present(8))) != -1000 || unoptional(optional.xor(absent(), absent())) != -1000) return 13;
+    if (unoptional(optional.filter(present(7), [](&i32 item) -> bool { return *item > 0; })) != 7 || unoptional(optional.filter(present(-1), [](&i32 item) -> bool { return *item > 0; })) != -1000 ||
+        unoptional(optional.filter(absent(), [](&i32 item) -> bool { return *item > 0; })) != -1000) return 14;
+    if (unoptional(optional.inspect(present(7), [](&i32 item) -> unit { return Unit.value(); })) != 7 || unoptional(optional.inspect(absent(), [](&i32 item) -> unit { return Unit.value(); })) != -1000) return 15;
+    Optional<i32> none = absent();
+    if (!optional.is_some_and(&owned, [](&i32 item) -> bool { return *item > 0; }) || optional.is_some_and(&none, [](&i32 item) -> bool { return *item > 0; }) ||
+        !optional.is_none_or(&owned, [](&i32 item) -> bool { return *item > 0; }) || !optional.is_none_or(&none, [](&i32 item) -> bool { return *item > 0; })) return 16;
+    Optional<Optional<i32>> nested_some = Optional.some(present(7));
+    Optional<Optional<i32>> nested_none = Optional.some(absent());
+    Optional<Optional<i32>> outer_none = Optional.none();
+    if (unoptional(optional.flatten(nested_some)) != 7 || unoptional(optional.flatten(nested_none)) != -1000 ||
+        unoptional(optional.flatten(outer_none)) != -1000) return 17;
+    Optional<Result<i32, i32>> transposed_ok = Optional.some(success(7));
+    Optional<Result<i32, i32>> transposed_err = Optional.some(failure(8));
+    Optional<Result<i32, i32>> transposed_none = Optional.none();
+    Result<Optional<i32>, i32> first_transpose = optional.transpose(transposed_ok);
+    Result<Optional<i32>, i32> second_transpose = optional.transpose(transposed_err);
+    Result<Optional<i32>, i32> third_transpose = optional.transpose(transposed_none);
+    if (!Result.is_ok(&first_transpose) || !Result.is_err(&second_transpose) || !Result.is_ok(&third_transpose)) return 18;
+    Optional<Tuple<i32, i32>> zipped = optional.zip(present(7), present(8));
+    Optional<Tuple<i32, i32>> unzipped = optional.zip(absent(), present(8));
+    if (!Optional.is_some(&zipped) || !Optional.is_none(&unzipped) || unoptional(optional.copy(&owned)) != 7) return 19;
+    Optional<&i32> borrowed = optional.as_ref(&owned);
+    if (unoptional(read_borrow(borrowed)) != 7) return 20;
+
+    if (result.unwrap_or(success(7), 9) != 7 || result.unwrap_or(failure(8), 9) != 9) return 22;
+    if (result.unwrap_or_else(success(7), [](i32 item) -> i32 { return item + 10; }) != 7 || result.unwrap_or_else(failure(8), [](i32 item) -> i32 { return item + 10; }) != 18) return 23;
+    if (unresult(result.map<i32, i32, i32>(success(7), [](i32 item) -> i32 { return item + 10; })) != 17 ||
+        error_value(result.map<i32, i32, i32>(failure(8), [](i32 item) -> i32 { return item + 10; })) != 8) return 24;
+    if (unresult(result.map_err<i32, i32, i32>(success(7), [](i32 item) -> i32 { return item + 10; })) != 7 ||
+        error_value(result.map_err<i32, i32, i32>(failure(8), [](i32 item) -> i32 { return item + 10; })) != 18) return 25;
+    if (unresult(result.map_both<i32, i32, i32, i32>(success(7), [](i32 item) -> i32 { return item + 10; }, [](i32 item) -> i32 { return item + 10; })) != 17 ||
+        error_value(result.map_both<i32, i32, i32, i32>(failure(8), [](i32 item) -> i32 { return item + 10; }, [](i32 item) -> i32 { return item + 10; })) != 18) return 26;
+    Result<i32, i32> borrow_ok = success(7);
+    Result<i32, i32> borrow_error = failure(8);
+    Result<i32, &i32> mapped_ref_ok = result.map_ref<i32, i32, i32>(&borrow_ok, [](&i32 item) -> i32 { return *item + 10; });
+    Result<i32, &i32> mapped_ref_error = result.map_ref<i32, i32, i32>(&borrow_error, [](&i32 item) -> i32 { return *item + 10; });
+    if (!Result.is_ok(&mapped_ref_ok) || !Result.is_err(&mapped_ref_error)) return 27;
+    if (unresult(result.and(success(7), success(8))) != 8 || error_value(result.and(failure(7), failure(8))) != 7) return 28;
+    if (unresult(result.and_then<i32, i32, i32>(success(7), [](i32 item) -> Result<i32, i32> { return Result.ok(item + 2); })) != 9 ||
+        error_value(result.and_then<i32, i32, i32>(failure(8), [](i32 item) -> Result<i32, i32> { return Result.ok(item + 2); })) != 8) return 29;
+    if (unresult(result.or(success(7), success(8))) != 7 || unresult(result.or(failure(7), success(8))) != 8) return 30;
+    if (unresult(result.or_else<i32, i32, i32>(success(7), [](i32 problem) -> Result<i32, i32> { return Result.ok(problem + 3); })) != 7 ||
+        unresult(result.or_else<i32, i32, i32>(failure(8), [](i32 problem) -> Result<i32, i32> { return Result.ok(problem + 3); })) != 11) return 31;
+    if (unresult(result.inspect(success(7), [](&i32 item) -> unit { return Unit.value(); })) != 7 || error_value(result.inspect(failure(8), [](&i32 item) -> unit { return Unit.value(); })) != 8 ||
+        unresult(result.inspect_err(success(7), [](&i32 item) -> unit { return Unit.value(); })) != 7 || error_value(result.inspect_err(failure(8), [](&i32 item) -> unit { return Unit.value(); })) != 8) return 32;
+    if (result.map_or(success(7), 9, [](i32 item) -> i32 { return item + 10; }) != 17 || result.map_or(failure(8), 9, [](i32 item) -> i32 { return item + 10; }) != 9) return 33;
+    if (result.map_or_else<i32, i32, i32>(success(7), [](i32 item) -> i32 { return item + 10; }, [](i32 item) -> i32 { return item + 10; }) != 17 ||
+        result.map_or_else<i32, i32, i32>(failure(8), [](i32 item) -> i32 { return item + 10; }, [](i32 item) -> i32 { return item + 10; }) != 18) return 34;
+    if (!result.is_ok_and(&borrow_ok, [](&i32 item) -> bool { return *item > 0; }) || result.is_ok_and(&borrow_error, [](&i32 item) -> bool { return *item > 0; }) ||
+        result.is_err_and(&borrow_ok, [](&i32 item) -> bool { return *item > 0; }) || !result.is_err_and(&borrow_error, [](&i32 item) -> bool { return *item > 0; })) return 35;
+    if (unoptional(result.ok_optional(success(7))) != 7 || unoptional(result.ok_optional(failure(8))) != -1000 ||
+        unoptional(result.err_optional(success(7))) != -1000 || unoptional(result.err_optional(failure(8))) != 8) return 36;
+    Result<Result<i32, i32>, i32> nested_ok = Result.ok(success(7));
+    Result<Result<i32, i32>, i32> nested_error = Result.ok(failure(8));
+    Result<Result<i32, i32>, i32> outer_error = Result.err(9);
+    if (unresult(result.flatten(nested_ok)) != 7 || error_value(result.flatten(nested_error)) != 8 ||
+        error_value(result.flatten(outer_error)) != 9) return 37;
+    Result<Optional<i32>, i32> transpose_some = Result.ok(present(7));
+    Result<Optional<i32>, i32> transpose_none = Result.ok(absent());
+    Result<Optional<i32>, i32> transpose_error = Result.err(8);
+    Optional<Result<i32, i32>> mapped_some = result.transpose(transpose_some);
+    Optional<Result<i32, i32>> mapped_none = result.transpose(transpose_none);
+    Optional<Result<i32, i32>> mapped_error = result.transpose(transpose_error);
+    if (!Optional.is_some(&mapped_some) || !Optional.is_none(&mapped_none) || !Optional.is_some(&mapped_error)) return 38;
+    Result<Tuple<i32, i32>, i32> pair = result.zip(success(7), success(8));
+    Result<Tuple<i32, i32>, i32> failed_pair = result.zip(failure(7), failure(8));
+    if (!Result.is_ok(&pair) || !Result.is_err(&failed_pair) || unresult(result.copy(&borrow_ok)) != 7 ||
+        error_value(result.copy(&borrow_error)) != 8) return 39;
+    Result<&i32, &i32> ok_view = result.as_ref(&borrow_ok);
+    Result<&i32, &i32> error_view = result.as_ref(&borrow_error);
+    Optional<&i32> some_ok = result.get_ok(&borrow_ok);
+    Optional<&i32> none_ok = result.get_ok(&borrow_error);
+    Optional<&i32> none_err = result.get_err(&borrow_ok);
+    Optional<&i32> some_err = result.get_err(&borrow_error);
+    if (!Result.is_ok(&ok_view) || !Result.is_err(&error_view) || !Optional.is_some(&some_ok) ||
+        !Optional.is_none(&none_ok) || !Optional.is_none(&none_err) || !Optional.is_some(&some_err)) return 40;
+    mut Optional<i32> writable = present(7);
+    { Optional<&mut i32> view = optional.as_mut(&mut writable); write_borrow(view); }
+    if (unoptional(writable) != 9) return 41;
+    mut Optional<i32> writable_none = absent();
+    { Optional<&mut i32> view = optional.as_mut(&mut writable_none); if (!Optional.is_none(&view)) return 42; }
+    mut Result<i32, i32> writable_ok = success(7);
+    { Result<&mut i32, &mut i32> view = result.as_mut(&mut writable_ok); write_result(view); }
+    if (unresult(writable_ok) != 10) return 43;
+    mut Result<i32, i32> writable_error = failure(7);
+    { Result<&mut i32, &mut i32> view = result.as_mut(&mut writable_error); Optional<&mut i32> error = result.err_optional(view); write_borrow(error); }
+    if (error_value(writable_error) != 9) return 44;
+    return 0;
+}

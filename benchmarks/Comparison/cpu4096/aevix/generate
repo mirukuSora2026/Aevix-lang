@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : generate
+#
+# Description :
+#     공통 정확 정수 명세에서 Aevix CPU 벤치마크와 작은 비측정 검증 프로그램을 생성한다.
+#     Generate Aevix CPU benchmarks and a small untimed functional program from the shared exact-integer spec.
+#
+# ========================
+from pathlib import Path
+import argparse,hashlib,json,math
+
+parser=argparse.ArgumentParser(description='Generate the exact cpu4096 Aevix source fixtures without executing workloads.')
+parser.add_argument('--spec',type=Path,default=Path(__file__).resolve().parent.parent/'spec.json')
+parser.add_argument('--output-dir',type=Path,default=Path(__file__).resolve().parent)
+parser.add_argument('--functional-output',type=Path)
+parser.add_argument('--verify',action='store_true')
+args=parser.parse_args()
+spec=json.loads(args.spec.read_bytes().decode('utf-8'))
+assert spec['elements']==4096 and spec['measurement']['warmups']==1 and spec['measurement']['samples']==5
+assert spec['modes']==['serial','parallel_fresh']
+assert [(k,v['kernel'],v.get('rounds'))for k,v in spec['cases'].items()]==[('lcg_1','lcg',1),('lcg_256','lcg',256),('lcg_16384','lcg',16384),('prime_search','next_prime',None)]
+
+def kernel(case,name='kernel'):
+    entry=spec['cases'][case]
+    if entry['kernel']=='lcg':
+        return f'''void {name}(&mut u64 item) {{
+    mut u64 x = *item % 2147483647u64 + 1u64;
+    for (mut usize round = 0usize; round < {entry['rounds']}usize; round++) {{
+        x = (x * 48271u64 + 1u64) % 2147483647u64;
+    }}
+    *item = x;
+    return;
+}}
+'''
+    return f'''void {name}(&mut u64 item) {{
+    mut u64 candidate = 1000000001u64 + (*item % 4096u64) * 1024u64;
+    while (true) {{
+        mut bool prime = true;
+        mut u64 divisor = 3u64;
+        while (divisor * divisor <= candidate) {{
+            if (candidate % divisor == 0u64) {{
+                prime = false;
+                break;
+            }}
+            divisor += 2u64;
+        }}
+        if (prime) {{
+            *item = candidate;
+            return;
+        }}
+        candidate += 2u64;
+    }}
+}}
+'''
+
+must='''T success<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+'''
+outputs={}
+for case in spec['cases']:
+    for mode in spec['modes']:
+        name=case+'_'+mode
+        imports='import system;\nimport time;\n'+('import parallel;\n'if mode=='parallel_fresh'else'')
+        work='''parallel.for_each(Slice.from_array_mut(&mut values), kernel);'''if mode=='parallel_fresh'else'''for (mut usize index = 0usize; index < 4096usize; index++) {
+            kernel(&mut values[index]);
+        }'''
+        workers='parallel.worker_count()'if mode=='parallel_fresh'else'1usize'
+        source=f'''/*
+ * Exact cpu4096 case {case}, mode {mode}; all arithmetic and storage use u64.
+ * Read six u64 seed tokens: one before the warmup and each of five samples.
+ * Seed parsing, input initialization, checksums, and output are outside timers.
+ * Supply six zero seeds for the shared values[index] = index comparison.
+ * @module {name}
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+{imports}
+{must}
+{kernel(case)}
+i32 main() {{
+    mut u64 values[4096] = [0u64; 4096];
+    for (mut usize iteration = 0usize; iteration < 6usize; iteration++) {{
+        Optional<u64> input = success(system.input<u64>());
+        mut u64 seed = 0u64;
+        switch (input) {{
+            case Optional<u64>.Some {{ u64 supplied = value }}: seed = supplied % 4096u64; break;
+            case Optional<u64>.None: return 91; break;
+        }}
+        mut u64 initial = 0u64;
+        for (mut usize index = 0usize; index < 4096usize; index++) {{
+            values[index] = (initial + seed) % 4096u64;
+            initial++;
+        }}
+        usize workers = {workers};
+        if (workers < 1usize || workers > 32usize) return 92;
+        u64 started = success(time.monotonic_ns());
+        {work}
+        u64 stopped = success(time.monotonic_ns());
+        if (stopped < started) return 93;
+        u64 elapsed = stopped - started;
+        if (iteration > 0usize) {{
+            mut u64 sum = 0u64;
+            mut u64 weighted = 0u64;
+            mut u64 weight = 1u64;
+            for (mut usize index = 0usize; index < 4096usize; index++) {{
+                sum += values[index];
+                weighted = (weighted + weight * values[index]) % 1000000007u64;
+                weight++;
+            }}
+            success(system.printf("SAMPLE {case} {mode} %u %u %u %u %u\\n", iteration - 1usize, elapsed, sum, weighted, workers));
+        }}
+    }}
+    success(system.print("VERIFY {case} {mode} "));
+    for (mut usize index = 0usize; index < 4096usize; index++) {{
+        if (index != 0usize) success(system.print(","));
+        success(system.printf("%u", values[index]));
+    }}
+    success(system.println(""));
+    success(system.flush());
+    return 0;
+}}
+'''
+        outputs[args.output_dir/(name+'.avx')]=source.encode('utf-8')
+if args.functional_output:
+    selected=[0,1,4094,4095]
+    def expected(case,value):
+        entry=spec['cases'][case]
+        if entry['kernel']=='lcg':
+            x=value%2147483647+1
+            for _ in range(entry['rounds']):x=(x*48271+1)%2147483647
+            return x
+        candidate=1000000001+(value%4096)*1024
+        while True:
+            if all(candidate%d for d in range(3,math.isqrt(candidate)+1,2)):return candidate
+            candidate+=2
+    body=['''/* Untimed four-input functional smoke; this is not a cpu4096 measurement.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import parallel;
+''']
+    body +=[kernel(case,'work_'+case)for case in spec['cases']]
+    body.append('i32 main() {')
+    for case in spec['cases']:
+        values=', '.join(str(v)+'u64'for v in selected);want=', '.join(str(expected(case,v))+'u64'for v in selected)
+        for mode in spec['modes']:
+            body.append('{ mut u64 values[4] = ['+values+']; u64 expected[4] = ['+want+'];')
+            body.append('parallel.for_each(Slice.from_array_mut(&mut values), work_'+case+');'if mode=='parallel_fresh'else'for (mut usize index=0usize;index<4usize;index++) work_'+case+'(&mut values[index]);')
+            body.append('for (mut usize index=0usize;index<4usize;index++) if (values[index]!=expected[index]) return 1; }')
+    body.append('return 0; }')
+    outputs[args.functional_output]=('\n'.join(body)+'\n').encode('utf-8')
+for path,data in outputs.items():
+    if args.verify:
+        if not path.is_file()or path.read_bytes()!=data:parser.exit(1,'Generated bytes differ: '+str(path)+'\n')
+    else:
+        path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
+print(json.dumps({'mode':'verify'if args.verify else'write','benchmark_programs':8,'functional_program':bool(args.functional_output),'spec_sha256':hashlib.sha256(args.spec.read_bytes()).hexdigest()}))

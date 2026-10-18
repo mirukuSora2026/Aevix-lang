@@ -1,0 +1,121 @@
+import math;
+
+i8 signed_byte(i32 value) {
+    Result<i8, IntegerError> converted = Integer.convert<i8>(value);
+    switch (converted) { case Result<i8, IntegerError>.Ok { i8 output = value }: return output; break; default: Never.unreachable(); break; }
+}
+u8 unsigned_byte(i32 value) {
+    Result<u8, IntegerError> converted = Integer.convert<u8>(value);
+    switch (converted) { case Result<u8, IntegerError>.Ok { u8 output = value }: return output; break; default: Never.unreachable(); break; }
+}
+i128 signed_wide(i8 value) {
+    Result<i128, IntegerError> converted = Integer.convert<i128>(value);
+    switch (converted) { case Result<i128, IntegerError>.Ok { i128 output = value }: return output; break; default: Never.unreachable(); break; }
+}
+u128 unsigned_wide(u8 value) {
+    Result<u128, IntegerError> converted = Integer.convert<u128>(value);
+    switch (converted) { case Result<u128, IntegerError>.Ok { u128 output = value }: return output; break; default: Never.unreachable(); break; }
+}
+i32 reference_gcd(mut i32 left, mut i32 right) {
+    while (right != 0) { i32 rest = left % right; left = right; right = rest; }
+    return left;
+}
+bool matches_lcm(Result<u8, math.IntegerMathError> actual, i32 exact) {
+    switch (actual) {
+        case Result<u8, math.IntegerMathError>.Ok { u8 value = value }: return exact <= 255 && value == unsigned_byte(exact); break;
+        case Result<u8, math.IntegerMathError>.Err { math.IntegerMathError error = error }:
+            switch (error) { case math.IntegerMathError.Overflow: return exact > 255; break; default: return false; break; }
+            break;
+    }
+}
+i32 signed_pairs() {
+    mut i32 left = -128;
+    while (left <= 127) {
+        i8 a = signed_byte(left);
+        i32 magnitude_a = left < 0 ? -left : left;
+        mut i32 right = -128;
+        while (right <= 127) {
+            i8 b = signed_byte(right);
+            i32 magnitude_b = right < 0 ? -right : right;
+            if (math.midpoint(a, b) != signed_byte((left + right) / 2)) return 1;
+            if (math.min(a, b) != (left < right ? a : b) || math.max(a, b) != (left > right ? a : b)) return 2;
+            i32 divisor = reference_gcd(magnitude_a, magnitude_b);
+            if (math.gcd(a, b) != unsigned_byte(divisor)) return 3;
+            i32 multiple = magnitude_a == 0 || magnitude_b == 0 ? 0 : magnitude_a / divisor * magnitude_b;
+            if (!matches_lcm(math.lcm(a, b), multiple)) return 4;
+            right++;
+        }
+        left++;
+    }
+    return 0;
+}
+i32 unsigned_pairs() {
+    mut i32 left = 0;
+    while (left <= 255) {
+        u8 a = unsigned_byte(left);
+        mut i32 right = 0;
+        while (right <= 255) {
+            u8 b = unsigned_byte(right);
+            if (math.midpoint(a, b) != unsigned_byte((left + right) / 2)) return 5;
+            if (math.min(a, b) != (left < right ? a : b) || math.max(a, b) != (left > right ? a : b)) return 6;
+            i32 divisor = reference_gcd(left, right);
+            if (math.gcd(a, b) != unsigned_byte(divisor)) return 7;
+            i32 multiple = left == 0 || right == 0 ? 0 : left / divisor * right;
+            if (!matches_lcm(math.lcm(a, b), multiple)) return 8;
+            right++;
+        }
+        left++;
+    }
+    return 0;
+}
+i32 powers() {
+    mut i32 base = -128;
+    while (base <= 127) {
+        i8 scalar = signed_byte(base);
+        i128 multiplier = signed_wide(scalar);
+        mut i128 exact = 1i128;
+        mut u32 exponent = 0u32;
+        while (exponent < 16u32) {
+            Result<i8, math.IntegerMathError> actual = math.checked_pow(scalar, exponent);
+            switch (actual) {
+                case Result<i8, math.IntegerMathError>.Ok { i8 result = value }:
+                    if (exact < -128i128 || exact > 127i128 || signed_wide(result) != exact) return 9;
+                    break;
+                case Result<i8, math.IntegerMathError>.Err { math.IntegerMathError cause = error }:
+                    if (exact >= -128i128 && exact <= 127i128) return 10;
+                    switch (cause) { case math.IntegerMathError.Overflow: break; default: return 11; break; }
+                    break;
+            }
+            exact *= multiplier;
+            exponent++;
+        }
+        base++;
+    }
+    base = 0;
+    while (base <= 255) {
+        u8 scalar = unsigned_byte(base);
+        u128 multiplier = unsigned_wide(scalar);
+        mut u128 exact = 1u128;
+        mut u32 exponent = 0u32;
+        while (exponent < 16u32) {
+            Result<u8, math.IntegerMathError> actual = math.checked_pow(scalar, exponent);
+            switch (actual) {
+                case Result<u8, math.IntegerMathError>.Ok { u8 result = value }:
+                    if (exact > 255u128 || unsigned_wide(result) != exact) return 12;
+                    break;
+                case Result<u8, math.IntegerMathError>.Err { math.IntegerMathError cause = error }:
+                    if (exact <= 255u128) return 13;
+                    switch (cause) { case math.IntegerMathError.Overflow: break; default: return 14; break; }
+                    break;
+            }
+            exact *= multiplier;
+            exponent++;
+        }
+        base++;
+    }
+    return 0;
+}
+i32 main() {
+    i32 first = signed_pairs(); if (first != 0) return first;
+    i32 second = unsigned_pairs(); return second != 0 ? second : powers();
+}

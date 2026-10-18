@@ -1,0 +1,165 @@
+import quantized;
+import shape;
+
+T take<T>(Result<T, quantized.QuantizationError> outcome) {
+    switch (move outcome) {
+        case Result<T, quantized.QuantizationError>.Ok { T value = value }: return value; break;
+        default: Never.unreachable(); break;
+    }
+}
+Vector<T> take_vector<T>(Result<Vector<T>, CollectionError> outcome) {
+    switch (move outcome) {
+        case Result<Vector<T>, CollectionError>.Ok { Vector<T> value = value }: return value; break;
+        default: Never.unreachable(); break;
+    }
+}
+i32 affine() {
+    quantized.Affine<i8> scheme = take(quantized.Affine<i8>.new(1.0, 0i8));
+    if (scheme.scale() != 1.0 || scheme.zero_point() != 0i8) return 1;
+    if (take(scheme.quantize_checked(2.5, quantized.RoundingMode.TiesEven)) != 2i8 || take(scheme.quantize_checked(-2.5, quantized.RoundingMode.TiesEven)) != -2i8) return 2;
+    if (take(scheme.quantize_checked(2.5, quantized.RoundingMode.TiesAway)) != 3i8 || take(scheme.quantize_checked(-2.5, quantized.RoundingMode.TiesAway)) != -3i8) return 3;
+    if (take(scheme.quantize_checked(-2.9, quantized.RoundingMode.TowardZero)) != -2i8 || take(scheme.quantize_checked(-2.1, quantized.RoundingMode.Floor)) != -3i8) return 4;
+    if (take(scheme.quantize_checked(2.1, quantized.RoundingMode.Ceil)) != 3i8) return 5;
+    if (take(scheme.quantize_saturating(10000.0, quantized.RoundingMode.TiesEven)) != 127i8 || take(scheme.quantize_saturating(-10000.0, quantized.RoundingMode.Floor)) != -128i8) return 6;
+    Result<i8, quantized.QuantizationError> outside = scheme.quantize_checked(127.5, quantized.RoundingMode.TiesEven);
+    if (Result.is_ok(&outside)) return 7;
+    if (scheme.dequantize(-128i8) != -128.0) return 8;
+    quantized.Affine<i8> changed = take(scheme.with_scale(2.0));
+    quantized.Affine<i8> offset = take(changed.with_zero_point(1i8));
+    if (take(offset.quantize_checked(1.0, quantized.RoundingMode.TiesEven)) != 1i8 || offset.dequantize(3i8) != 4.0) return 9;
+    quantized.Affine<u8, f32> unsigned = take(quantized.Affine<u8, f32>.new(0.5f32, 128u8));
+    if (take(unsigned.quantize_checked(-64.0f32, quantized.RoundingMode.TiesEven)) != 0u8 || take(unsigned.quantize_checked(63.5f32, quantized.RoundingMode.TiesEven)) != 255u8) return 10;
+    if (unsigned.dequantize(0u8) != -64.0f32 || unsigned.dequantize(255u8) != 63.5f32) return 11;
+    Result<quantized.Affine<i8>, quantized.QuantizationError> negative = quantized.Affine<i8>.new(-1.0, 0i8);
+    Result<quantized.Affine<i8>, quantized.QuantizationError> zero_scale = quantized.Affine<i8>.new(0.0, 0i8);
+    Result<quantized.Affine<i16>, quantized.QuantizationError> wide = quantized.Affine<i16>.new(1.0, 0i16);
+    if (Result.is_ok(&negative) || Result.is_ok(&zero_scale) || Result.is_ok(&wide)) return 12;
+    f64 zero = 0.0;
+    f64 infinity = 1.0 / zero;
+    f64 nan = zero / zero;
+    Result<quantized.Affine<i8>, quantized.QuantizationError> infinite_scale = quantized.Affine<i8>.new(infinity, 0i8);
+    Result<quantized.Affine<i8>, quantized.QuantizationError> nan_scale = quantized.Affine<i8>.new(nan, 0i8);
+    Result<i8, quantized.QuantizationError> nan_input = scheme.quantize_saturating(nan, quantized.RoundingMode.TiesEven);
+    Result<i8, quantized.QuantizationError> infinite_input = scheme.quantize_saturating(infinity, quantized.RoundingMode.TiesEven);
+    if (Result.is_ok(&infinite_scale) || Result.is_ok(&nan_scale) || Result.is_ok(&nan_input) || Result.is_ok(&infinite_input)) return 13;
+    quantized.Affine<i8> tiny = take(quantized.Affine<i8>.new(1.0e-300, 0i8));
+    if (take(tiny.quantize_saturating(1.0e20, quantized.RoundingMode.TiesEven)) != 127i8) return 14;
+    quantized.Affine<i8, bf16> brain = take(quantized.Affine<i8, bf16>.new(1.0bf16, -128i8));
+    if (take(brain.quantize_checked(255.0bf16, quantized.RoundingMode.TiesEven)) != 127i8 || brain.dequantize(127i8) != 255.0bf16) return 15;
+    quantized.Affine<u8, f16> half = take(quantized.Affine<u8, f16>.new(0.5f16, 128u8));
+    if (take(half.quantize_checked(63.5f16, quantized.RoundingMode.TiesEven)) != 255u8 || half.dequantize(255u8) != 63.5f16) return 16;
+    Tuple<i8, i8> signed_range = scheme.code_range();
+    Tuple<u8, u8> unsigned_range = unsigned.code_range();
+    if (*Tuple.get<0>(&signed_range) != -128i8 || *Tuple.get<1>(&signed_range) != 127i8 || *Tuple.get<0>(&unsigned_range) != 0u8 || *Tuple.get<1>(&unsigned_range) != 255u8) return 17;
+    if (take(unsigned.checked_dequantize(255u8)) != 63.5f32 || take(unsigned.min_real()) != -64.0f32 || take(unsigned.max_real()) != 63.5f32) return 18;
+    quantized.Affine<i8> overflowing = take(quantized.Affine<i8>.new(1.0e308, 0i8));
+    Result<f64, quantized.QuantizationError> overflow_min = overflowing.min_real();
+    Result<f64, quantized.QuantizationError> overflow_max = overflowing.max_real();
+    Result<f64, quantized.QuantizationError> overflow_decode = overflowing.checked_dequantize(2i8);
+    if (Result.is_ok(&overflow_min) || Result.is_ok(&overflow_max) || Result.is_ok(&overflow_decode)) return 19;
+    return 0;
+}
+i32 channels() {
+    shape.Shape2<2, 3> dimensions = shape.Shape2<2, 3>.new();
+    Result<Vector<f64>, CollectionError> initial_scales = [1.0, 2.0, 0.5];
+    Result<Vector<i8>, CollectionError> initial_zeros = [0i8, 1i8, -2i8];
+    Vector<f64> scales = take_vector(initial_scales);
+    Vector<i8> zeros = take_vector(initial_zeros);
+    Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>> created = quantized.PerAxis<i8>.new(1, scales, zeros, &dimensions);
+    switch (move created) {
+        case Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>>.Ok { quantized.PerAxis<i8> scheme = value }:
+            if (scheme.axis() != 1 || Slice.len(scheme.scales()) != 3 || scheme.scales()[1] != 2.0 || scheme.zero_points()[2] != -2i8) return 20;
+            quantized.Affine<i8> channel = take(scheme.channel_scheme(1));
+            if (take(channel.quantize_checked(1.0, quantized.RoundingMode.TiesEven)) != 1i8) return 21;
+            Result<quantized.Affine<i8>, quantized.QuantizationError> invalid = scheme.channel_scheme(3);
+            if (Result.is_ok(&invalid)) return 22;
+            if (scheme.channel_count() != 3) return 36;
+            Result<unit, quantized.QuantizationError> compatible = scheme.validate_shape(&dimensions);
+            if (Result.is_err(&compatible)) return 37;
+            shape.Shape2<9, 2> wrong_length = shape.Shape2<9, 2>.new();
+            Result<unit, quantized.QuantizationError> incompatible = scheme.validate_shape(&wrong_length);
+            if (Result.is_ok(&incompatible)) return 38;
+            shape.Shape1<3> wrong_axis = shape.Shape1<3>.new();
+            Result<unit, quantized.QuantizationError> missing_axis = scheme.validate_shape(&wrong_axis);
+            if (Result.is_ok(&missing_axis)) return 39;
+            Result<quantized.PerAxis<i8>, CollectionError> copy = scheme.clone();
+            switch (move copy) {
+                case Result<quantized.PerAxis<i8>, CollectionError>.Ok { quantized.PerAxis<i8> independent = value }:
+                    if (independent.axis() != 1 || independent.channel_count() != 3 || independent.scales()[1] != 2.0 || independent.zero_points()[2] != -2i8) return 40;
+                    break;
+                default: return 41; break;
+            }
+            if (scheme.scales()[0] != 1.0) return 42;
+            break;
+        default: return 23; break;
+    }
+    Result<Vector<f64>, CollectionError> invalid_scales = [1.0, -2.0, 0.5];
+    Result<Vector<i8>, CollectionError> invalid_zeros = [0i8, 1i8, -2i8];
+    Vector<f64> bad_scales = take_vector(invalid_scales);
+    Vector<i8> bad_zeros = take_vector(invalid_zeros);
+    Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>> rejected = quantized.PerAxis<i8>.new(1, bad_scales, bad_zeros, &dimensions);
+    switch (move rejected) {
+        case Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>>.Ok: return 24; break;
+        case Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>>.Err { quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>> cause = error }:
+            switch (move cause) {
+                case quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>.Failed { quantized.QuantizationError problem = error, Tuple<Vector<f64>, Vector<i8>> original = input }:
+                    if (Vector.len(Tuple.get<0>(&original)) != 3 || Vector.len(Tuple.get<1>(&original)) != 3) return 25;
+                    switch (problem) { case quantized.QuantizationError.InvalidScale: break; default: return 26; break; }
+                    break;
+            }
+            break;
+    }
+    return 0;
+}
+bool recovered_metadata(
+    Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>> outcome,
+    usize expected_scales, usize expected_zeros, bool invalid_axis) {
+    switch (move outcome) {
+        case Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>>.Ok: return false; break;
+        case Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>>.Err { quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>> cause = error }:
+            switch (move cause) {
+                case quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>.Failed { quantized.QuantizationError problem = error, Tuple<Vector<f64>, Vector<i8>> original = input }:
+                    if (Vector.len(Tuple.get<0>(&original)) != expected_scales || Vector.len(Tuple.get<1>(&original)) != expected_zeros) return false;
+                    if (expected_scales != 0 && (*Tuple.get<0>(&original))[0] != 1.0) return false;
+                    if (expected_zeros != 0 && (*Tuple.get<1>(&original))[0] != -2i8) return false;
+                    switch (problem) {
+                        case quantized.QuantizationError.InvalidAxis { usize axis = axis }: return invalid_axis && axis == 2; break;
+                        case quantized.QuantizationError.MetadataMismatch: return !invalid_axis; break;
+                        default: return false; break;
+                    }
+                    break;
+            }
+            break;
+    }
+}
+i32 channel_failures() {
+    shape.Shape2<2, 3> dimensions = shape.Shape2<2, 3>.new();
+    Result<Vector<f64>, CollectionError> first_scales = [1.0, 2.0, 3.0];
+    Result<Vector<i8>, CollectionError> first_zeros = [-2i8, 1i8, 2i8];
+    if (!recovered_metadata(quantized.PerAxis<i8>.new(2, take_vector(first_scales), take_vector(first_zeros), &dimensions), 3, 3, true)) return 30;
+    Result<Vector<f64>, CollectionError> short_scales = [1.0, 2.0];
+    Result<Vector<i8>, CollectionError> full_zeros = [-2i8, 1i8, 2i8];
+    if (!recovered_metadata(quantized.PerAxis<i8>.new(1, take_vector(short_scales), take_vector(full_zeros), &dimensions), 2, 3, false)) return 31;
+    Result<Vector<f64>, CollectionError> full_scales = [1.0, 2.0, 3.0];
+    Result<Vector<i8>, CollectionError> short_zeros = [-2i8, 1i8];
+    if (!recovered_metadata(quantized.PerAxis<i8>.new(1, take_vector(full_scales), take_vector(short_zeros), &dimensions), 3, 2, false)) return 32;
+    shape.Shape1<0> empty_shape = shape.Shape1<0>.new();
+    Result<Vector<f64>, CollectionError> empty_scales = [];
+    Result<Vector<i8>, CollectionError> empty_zeros = [];
+    Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>> empty = quantized.PerAxis<i8>.new(0, take_vector(empty_scales), take_vector(empty_zeros), &empty_shape);
+    switch (move empty) {
+        case Result<quantized.PerAxis<i8>, quantized.QuantizationInputError<Tuple<Vector<f64>, Vector<i8>>>>.Ok { quantized.PerAxis<i8> scheme = value }:
+            if (scheme.axis() != 0 || Slice.len(scheme.scales()) != 0 || Slice.len(scheme.zero_points()) != 0) return 33;
+            Result<quantized.Affine<i8>, quantized.QuantizationError> missing = scheme.channel_scheme(0);
+            if (Result.is_ok(&missing)) return 34;
+            break;
+        default: return 35; break;
+    }
+    return 0;
+}
+i32 main() {
+    i32 first = affine();
+    if (first != 0) return first;
+    i32 second = channels();
+    return second != 0 ? second : channel_failures();
+}

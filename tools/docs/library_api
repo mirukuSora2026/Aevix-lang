@@ -1,0 +1,1019 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : library_api
+#
+# Description :
+#     CPU 문서 목록과 공개 소스 API를 분리하고 수명 주기 주석의 누락을 검사한다.
+#     Separate the CPU design catalog from public source APIs and check lifecycle coverage.
+#
+# ========================
+
+"""Inventory documentation contracts; annotate source without claiming execution support."""
+
+import argparse
+from collections import Counter
+import hashlib
+import html
+from html.parser import HTMLParser
+import json
+from pathlib import Path
+import posixpath
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[2]
+TAGS = ("since", "deprecated_at", "removed_at")
+VERSION = re.compile(r"\d+\.\d+(?:\.\d+)?(?:-[A-Za-z0-9.-]+)?\Z")
+CALL = re.compile(r"\b([A-Za-z_]\w*(?:<[^()]*?>)?\.[A-Za-z_]\w*)\s*(?:<[^()]*?>)?\s*\(")
+TOKEN = re.compile(r"[A-Za-z_]\w*|\d+(?:\.\d+)?|[^\s]", re.UNICODE)
+COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
+GPU_ONLY_NAMES = {
+    "Tensor.zeros_async", "Tensor.copy_async", "Tensor.submit", "Tensor.submit_into",
+    "Tensor.compile", "Tensor.supports", "Tensor.upload_async", "Tensor.download_async",
+    "Tensor.submit_after", "Tensor.validate_submission", "Tensor.device_id",
+    "Tensor.storage_support", "Tensor.operation_support", "Tensor.capabilities",
+    "Tensor.transfer_plan", "Quantized.supports",
+}
+EXTRA_CATALOGS = {
+    "htmls/roadmap/System_IO_0_3.html": "System",
+    "htmls/releases/Parallel_0_2.html": "Parallel",
+}
+GENERATED_PROVIDERS = (
+    "src/Frontend/Modules/ModuleLoader.cpp", "src/Frontend/Sema/CoreErrorTypes.cpp",
+    "include/aevix/Frontend/Modules/AtomicModuleSource.hpp",
+    "include/aevix/Frontend/Modules/SyncModuleSource.hpp",
+    "include/aevix/Frontend/Modules/TaskModuleSource.hpp",
+)
+CPP_RAW = re.compile(r'R"(?P<delimiter>[A-Za-z0-9_]*)\((?P<body>.*?)\)(?P=delimiter)"', re.S)
+CPP_QUOTED = re.compile(r'"(?:\\.|[^"\\])*"', re.S)
+SIMD_PROVIDER = "src/Frontend/Sema/TypeChecker.cpp"
+SIMD_BEGIN = "// AEVIX_API_LIFECYCLE_BEGIN:simd"
+SIMD_END = "// AEVIX_API_LIFECYCLE_END:simd"
+ARRAY_BEGIN = "// AEVIX_API_LIFECYCLE_BEGIN:array"
+ARRAY_END = "// AEVIX_API_LIFECYCLE_END:array"
+RANGE_PROVIDER = "include/aevix/Native/RangeOperation.hpp"
+
+
+def compact(value):
+    return " ".join(value.split())
+
+
+def digest(value):
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def relative(path, root):
+    return path.resolve().relative_to(root.resolve()).as_posix()
+
+
+class Tables(HTMLParser):
+    """Collect function rows only; never infer APIs from code examples or navigation."""
+
+    def __init__(self, source):
+        super().__init__(convert_charrefs=True)
+        self.rows = []
+        self.section = ""
+        self.row = None
+        self.cell = None
+        self.feed(source)
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if tag == "section":
+            self.section = attributes.get("id", "")
+        if tag == "tr":
+            self.row = {"anchor": attributes.get("id", ""), "section": self.section,
+                        "line": self.getpos()[0], "cells": []}
+        elif self.row is not None and tag in ("td", "th"):
+            self.cell = []
+
+    def handle_data(self, value):
+        if self.cell is not None:
+            self.cell.append(value)
+
+    def handle_endtag(self, tag):
+        if tag in ("td", "th") and self.cell is not None:
+            self.row["cells"].append(compact("".join(self.cell)))
+            self.cell = None
+        elif tag == "tr" and self.row is not None:
+            self.rows.append(self.row)
+            self.row = None
+
+
+def catalog(root):
+    entries, excluded = {}, []
+    pages = sorted((root / "htmls/data_type").rglob("*.html"))
+    pages += [root / name for name in EXTRA_CATALOGS if (root / name).exists()]
+    for path in pages:
+        family = EXTRA_CATALOGS.get(relative(path, root), path.parent.name)
+        for row in Tables(path.read_text(encoding="utf-8")).rows:
+            if not row["cells"]:
+                continue
+            signature = row["cells"][0]
+            calls = sorted(set(CALL.findall(signature)))
+            for written_name in calls:
+                name = re.sub(r"<[^>]*>", "", written_name)
+                occurrence = {"page": relative(path, root), "anchor": row["anchor"],
+                              "section": row["section"], "line": row["line"]}
+                reason = ""
+                if family == "Pending":
+                    reason = "GPU completion, visibility, and transfer are deferred."
+                elif name in GPU_ONLY_NAMES or "Pending<" in " ".join(row["cells"]):
+                    reason = "Device queue, asynchronous transfer, or device compilation is deferred."
+                record = {"name": name, "signature": signature,
+                          "returns": row["cells"][1] if len(row["cells"]) > 1 else "",
+                          "contract": " | ".join(row["cells"][2:]),
+                          "family": family, "occurrences": [occurrence]}
+                if reason:
+                    record["reason"] = reason
+                    excluded.append(record)
+                    continue
+                # 같은 API의 문서 복사본은 합치되 서로 다른 서명은 그대로 남긴다.
+                # Merge copied rows while retaining distinct written signatures.
+                key = name + "\n" + signature + "\n" + record["returns"]
+                if key in entries:
+                    entries[key]["occurrences"].append(occurrence)
+                else:
+                    record["id"] = "catalog:" + digest(key)[:20]
+                    record["implementation"] = "design_contract_unmapped"
+                    entries[key] = record
+    return sorted(entries.values(), key=lambda item: (item["name"], item["signature"])), excluded
+
+
+def source_regions(source):
+    """Identify real comments/literals so documentation edits never touch string contents."""
+    cursor = 0
+    while cursor < len(source):
+        start = cursor
+        kind = "literal"
+        if source.startswith("//", cursor):
+            kind = "comment"
+            cursor = source.find("\n", cursor)
+            if cursor < 0:
+                cursor = len(source)
+        elif source.startswith("/*", cursor):
+            kind = "comment"
+            end = source.find("*/", cursor + 2)
+            if end < 0:
+                raise ValueError("Unterminated source documentation comment")
+            cursor = end + 2
+        elif source[cursor] in ('"', "'"):
+            quote = source[cursor]
+            cursor += 1
+            while cursor < len(source):
+                if source[cursor] == "\\":
+                    cursor += 2
+                elif source[cursor] == quote:
+                    cursor += 1
+                    break
+                else:
+                    cursor += 1
+        elif source[cursor] == "r" and (raw := re.match(r'r(#+)?"', source[cursor:])):
+            terminal = '"' + (raw.group(1) or "")
+            end = source.find(terminal, cursor + len(raw.group()))
+            if end < 0:
+                raise ValueError("Unterminated raw source literal")
+            cursor = end + len(terminal)
+        else:
+            cursor += 1
+            continue
+        yield start, min(cursor, len(source)), kind
+
+
+def masked_source(source):
+    """Preserve offsets while hiding comments and quoted/raw literals from the scanner."""
+    result = list(source)
+    for start, end, _ in source_regions(source):
+        for index in range(start, end):
+            if result[index] != "\n":
+                result[index] = " "
+    return "".join(result)
+
+
+KOREAN = re.compile(r"[\u3131-\u318e\uac00-\ud7a3]")
+
+
+def english_comments(source, label):
+    """Remove redundant Korean prose only when the block already has English prose."""
+    changes = []
+    regions = list(source_regions(source))
+    for region_index, (start, end, kind) in enumerate(regions):
+        if kind != "comment" or not KOREAN.search(source[start:end]):
+            continue
+        text = source[start:end]
+        lines = text.splitlines()
+        if any(KOREAN.search(line) and re.search(r"@[A-Za-z_]", line) for line in lines):
+            raise ValueError(label + ":" + str(source.count("\n", 0, start) + 1)
+                             + " has Korean metadata prose; add a meaningful English translation without dropping tags")
+        english = [line for line in lines if not KOREAN.search(line)
+                   and re.search(r"[A-Za-z]{3}", line)
+                   and not re.match(r"\s*(?:/\*|//|\*)?\s*@", line)]
+        if not english and text.startswith("//"):
+            for adjacent in (region_index - 1, region_index + 1):
+                if not 0 <= adjacent < len(regions): continue
+                other_start, other_end, other_kind = regions[adjacent]
+                gap = source[min(end, other_end):max(start, other_start)]
+                other = source[other_start:other_end]
+                if (other_kind == "comment" and other.startswith("//") and not gap.strip()
+                        and gap.count("\n") <= 1 and not KOREAN.search(other)
+                        and re.search(r"[A-Za-z]{3}", other) and not re.match(r"//\s*@", other)):
+                    english = [other]
+        if not english:
+            line = source.count("\n", 0, start) + 1
+            raise ValueError(label + ":" + str(line) + " has Korean-only or mixed-line documentation; add a meaningful English translation before applying")
+        kept = []
+        for line in lines:
+            if not KOREAN.search(line):
+                kept.append(line)
+            else:
+                if "/*" in line: kept.append(line[:line.index("/*")] + "/*")
+                if "*/" in line: kept.append(" */")
+        changes.append((start, end, "\n".join(kept)))
+    for start, end, replacement in reversed(changes):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
+def assert_english_documentation(root):
+    candidates = [(relative(path, root), path.read_text(encoding="utf-8"))
+                  for path in sorted((root / "library").rglob("*.avx"))]
+    for provider in GENERATED_PROVIDERS:
+        path = root / provider
+        if path.exists():
+            candidates.extend((provider + " (" + item["module"] + ")", item["body"])
+                              for item in virtual_literals(path.read_text(encoding="utf-8"), provider))
+    for label, source in candidates:
+        for start, end, kind in source_regions(source):
+            if kind == "comment" and KOREAN.search(source[start:end]):
+                raise ValueError(label + ":" + str(source.count("\n", 0, start) + 1) + " has non-English documentation")
+
+
+class SourceComment:
+    def __init__(self, source, start, end):
+        self.source, self.begin, self.finish = source, start, end
+
+    def group(self): return self.source[self.begin:self.finish]
+    def start(self): return self.begin
+    def end(self): return self.finish
+
+
+def source_comments(source):
+    return [SourceComment(source, start, end) for start, end, kind in source_regions(source) if kind == "comment"]
+
+
+def attached_comment(source, offset, comments=None):
+    matches = [match for match in (comments if comments is not None else source_comments(source)) if match.end() <= offset]
+    if not matches:
+        return None
+    match = matches[-1]
+    if (match.group().startswith("/*") and not source[match.end():offset].strip()
+            and not re.search(r"(?m)^\s*\*?\s*@module\b", match.group())):
+        return match
+    return None
+
+
+def lifecycle(comment):
+    values = {}
+    if comment:
+        for tag in TAGS:
+            found = re.findall(r"(?m)^\s*\*?\s*@" + tag + r"\s+(\S+)", comment)
+            if len(found) > 1:
+                raise ValueError("Duplicate @" + tag + " tag")
+            if found:
+                values[tag] = found[0]
+    return values
+
+
+def validate_lifecycle(values, label):
+    for tag in TAGS:
+        if tag not in values:
+            raise ValueError(label + " is missing @" + tag)
+        if not VERSION.fullmatch(values[tag]) and not (tag != "since" and values[tag] == "none"):
+            raise ValueError(label + " has invalid @" + tag + " value: " + values[tag])
+    def order(value):
+        core, separator, suffix = value.partition("-")
+        components = tuple(int(part) for part in core.split("."))
+        core_order = components + (0,) * (3 - len(components))
+        prerelease = tuple((0, int(part)) if part.isdigit() else (1, part) for part in suffix.split(".")) if separator else ()
+        return core_order, 0 if separator else 1, prerelease
+    for tag in ("deprecated_at", "removed_at"):
+        if values[tag] != "none" and order(values[tag]) < order(values["since"]):
+            raise ValueError(label + " has @" + tag + " earlier than @since")
+    if values["deprecated_at"] != "none" and values["removed_at"] != "none" and order(values["removed_at"]) < order(values["deprecated_at"]):
+        raise ValueError(label + " removes an API before its deprecation")
+
+
+def declarations(source, module):
+    """A declaration scanner, not a type checker; skip executable bodies entirely."""
+    masked = masked_source(source)
+    tokens = list(TOKEN.finditer(masked))
+    comments = source_comments(source)
+    output = []
+
+    def value_initializer_before_call(words):
+        depth = 0
+        for word in words:
+            if word == "(": return False
+            if word == "<": depth += 1
+            elif word == ">": depth -= 1
+            elif word == "=" and depth == 0: return True
+        return False
+
+    def scan(begin, end, owners=(), context="module", visible=True):
+        cursor = begin
+        while cursor < end:
+            while cursor < end and tokens[cursor].group() in (";", "}"):
+                cursor += 1
+            if cursor >= end:
+                return
+            start = cursor
+            nesting = []
+            while cursor < end:
+                token = tokens[cursor].group()
+                if token in ("(", "["):
+                    nesting.append(token)
+                elif token in (")", "]") and nesting:
+                    nesting.pop()
+                if not nesting and token in (";", "{"):
+                    break
+                cursor += 1
+            if cursor >= end:
+                return
+            header = tokens[start:cursor]
+            words = [token.group() for token in header]
+            delimiter = tokens[cursor].group()
+            body_start, body_end = cursor + 1, cursor + 1
+            if delimiter == "{":
+                depth = 1
+                body_end = cursor + 1
+                while body_end < end and depth:
+                    if tokens[body_end].group() == "{": depth += 1
+                    if tokens[body_end].group() == "}": depth -= 1
+                    body_end += 1
+                if depth:
+                    raise ValueError(module + " has unmatched source braces")
+            cursor = body_end if delimiter == "{" else cursor + 1
+            if not words or words[0] == "import" or (words[:2] == ["public", "import"]):
+                continue
+            is_public = visible and "private" not in words and ("public" in words or context == "interface")
+            kind, name = "", ""
+            category = next((word for word in words if word in ("struct", "enum", "interface", "type")), None)
+            if category and category in words[:4]:
+                index = words.index(category) + 1
+                if index < len(words): name = words[index]
+                kind = "alias" if category == "type" else category
+            elif "(" in words and not value_initializer_before_call(words):
+                index = words.index("(") - 1
+                if index >= 0 and words[index] == ">":
+                    depth = 1; index -= 1
+                    while index >= 0 and depth:
+                        if words[index] == ">": depth += 1
+                        if words[index] == "<": depth -= 1
+                        index -= 1
+                if index >= 0: name = words[index]
+                kind = "method" if owners else "function"
+            elif context == "enum":
+                name = next((word for word in words if re.fullmatch(r"[A-Za-z_]\w*", word) and word not in ("public", "private")), "")
+                kind = "variant"
+                is_public = visible and "private" not in words
+            else:
+                prefix = words[:words.index("=")] if "=" in words else words
+                depth = 0
+                candidates = []
+                for word in prefix:
+                    if word in ("[", "<"): depth += 1
+                    elif word in ("]", ">"): depth -= 1
+                    elif depth == 0 and re.fullmatch(r"[A-Za-z_]\w*", word): candidates.append(word)
+                if candidates: name = candidates[-1]
+                kind = "field" if owners else "value"
+            if name and is_public:
+                offset = header[0].start()
+                comment = attached_comment(source, offset, comments)
+                signature = compact(masked[offset:tokens[body_start - 1].start()])
+                qualified = ".".join((module,) + owners + (name,))
+                output.append({"id": "source:" + digest(qualified + "\n" + kind + "\n" + signature)[:20],
+                               "name": qualified, "short_name": name, "kind": kind,
+                               "signature": signature, "line": source.count("\n", 0, offset) + 1,
+                               "offset": offset, "lifecycle": lifecycle(comment.group() if comment else "")})
+            if delimiter == "{" and kind in ("struct", "enum", "interface", "variant"):
+                scan(body_start, body_end - 1, owners + (name,), kind, is_public)
+    scan(0, len(tokens))
+    return output
+
+
+def virtual_literals(source, provider):
+    """Locate explicit injected source payloads without parsing or rewriting arbitrary C++."""
+    result = []
+    raw_spans = []
+    for match in CPP_RAW.finditer(source):
+        body = match.group("body")
+        module = ("$core" if provider.endswith("CoreErrorTypes.cpp") and "public enum Optional" in body
+                  else "task" if provider.endswith("TaskModuleSource.hpp") and re.search(r"\bpublic\s+struct\s+CancellationSource\b", body)
+                  else "sync" if provider.endswith("SyncModuleSource.hpp") and re.search(r"\bpublic\s+struct\s+Mutex\s*<", body)
+                  else "atomic" if provider.endswith("AtomicModuleSource.hpp") and "public struct Atomic<T>" in body
+                  else "memory" if "public struct Box<T>" in body
+                  else "system" if "public enum LogLevel" in body
+                  else "simd" if "public struct Simd" in body
+                  else "parallel" if "public void for_each" in body else None)
+        raw_spans.append((match.start(), match.end()))
+        if module:
+            result.append({"module": module, "body": body, "start": match.start(), "end": match.end(),
+                           "body_start": match.start("body"), "raw": True})
+    for match in CPP_QUOTED.finditer(source):
+        if any(start <= match.start() < end for start, end in raw_spans):
+            continue
+        literal = match.group()
+        if "public struct Simd" not in literal and "public void for_each" not in literal:
+            continue
+        body = json.loads(literal)
+        module = "simd" if "public struct Simd" in body else "parallel"
+        result.append({"module": module, "body": body, "start": match.start(), "end": match.end(),
+                       "body_start": match.start(), "raw": False})
+    modules = [item["module"] for item in result]
+    if len(modules) != len(set(modules)):
+        raise ValueError("Ambiguous compiler-generated payloads in " + provider)
+    return sorted(result, key=lambda item: item["start"])
+
+
+def generated_sources(root):
+    result = []
+    for provider in GENERATED_PROVIDERS:
+        path = root / provider
+        if not path.exists():
+            continue
+        source = path.read_text(encoding="utf-8")
+        for literal in virtual_literals(source, provider):
+            module, body = literal["module"], literal["body"]
+            module_tags = {}
+            for match in source_comments(body):
+                if re.search(r"(?m)^\s*\*?\s*@module\s+" + re.escape(module) + r"\s*$", match.group()):
+                    module_tags = lifecycle(match.group()); break
+            items = [{"id": "module:" + module, "name": module, "short_name": module,
+                      "kind": "module", "signature": "module " + module, "line": 1,
+                      "offset": 0, "lifecycle": module_tags}] + declarations(body, module)
+            for item in items:
+                item["source"] = provider
+                item["virtual_module"] = module
+                item["virtual_source"] = "<aevix-" + ("core" if module == "$core" else module) + ">"
+                item["source_line"] = source.count("\n", 0, literal["body_start"]) + (item["line"] if literal["raw"] else 1)
+                item["implementation"] = "compiler_generated_declaration_not_ordinary_body"
+                if item["kind"] in ("function", "method"):
+                    item["provider_declaration"] = item.pop("signature")
+                    item["signature_role"] = "compiler_binding_placeholder_not_call_contract"
+                    item["call_contract_status"] = "validated_by_compiler_not_inferred_from_placeholder"
+            result.extend(items)
+    return result
+
+
+def simd_operations(source):
+    """Extract the checker's explicit accepted operation names, not diagnostic strings."""
+    match = re.search(r"std::optional<TypeId>\s+simdIntrinsic\s*\(", source)
+    if not match:
+        return []
+    begin = source.index("{", match.end())
+    masked = masked_source(source)
+    def close_brace(start):
+        depth = 1
+        for cursor in range(start + 1, len(masked)):
+            if masked[cursor] == "{": depth += 1
+            if masked[cursor] == "}": depth -= 1
+            if not depth: return cursor
+        raise ValueError("Unmatched SIMD checker braces")
+    end = close_brace(begin)
+    mask_branch = re.search(r"if\s*\(\s*maskNamespace\s*\)\s*\{", source[begin:end])
+    if not mask_branch:
+        raise ValueError("SIMD namespace dispatch changed; review lifecycle extraction")
+    mask_begin = begin + mask_branch.end() - 1
+    mask_end = close_brace(mask_begin)
+    select = re.compile(r'\bmethod\s*(?:==|!=)\s*"([A-Za-z_]\w*)"')
+    result = []
+    for owner, region in (("SimdMask", source[mask_begin:mask_end]),
+                          ("Simd", source[begin:mask_begin] + source[mask_end + 1:end])):
+        for method in sorted(set(select.findall(region))):
+            name = "simd." + owner + "." + method
+            result.append({"id": "intrinsic:" + name, "name": name, "short_name": method,
+                           "kind": "intrinsic", "signature": "intrinsic " + name})
+    return result
+
+
+def array_operations(source):
+    """Record the actual borrowed-array copy overload, not the older fill catalog."""
+    match = re.search(r"std::optional<TypeId>\s+valueIntrinsic\s*\(", source)
+    if not match:
+        return []
+    masked = masked_source(source)
+    begin = source.index("{", match.end())
+    depth = 1
+    end = begin
+    for cursor in range(begin + 1, len(masked)):
+        if masked[cursor] == "{": depth += 1
+        if masked[cursor] == "}": depth -= 1
+        if not depth:
+            end = cursor
+            break
+    if end == begin:
+        raise ValueError("Unmatched array checker braces")
+    region = source[begin:end]
+    branch = re.search(r'if\s*\(\s*owner\.value\s*==\s*"Array"\s*\)\s*\{', region)
+    if not branch:
+        return []
+    start = begin + branch.end() - 1
+    depth = 1
+    finish = start
+    for cursor in range(start + 1, end):
+        if masked[cursor] == "{": depth += 1
+        if masked[cursor] == "}": depth -= 1
+        if not depth:
+            finish = cursor
+            break
+    body = source[start:finish]
+    if not re.search(r'\bmethod\s*!=\s*"from_copy"', body) or '"array.copy"' not in body:
+        raise ValueError("Array namespace dispatch changed; review lifecycle extraction")
+    return [{"id": "intrinsic:Array.from_copy", "name": "Array.from_copy",
+             "short_name": "from_copy", "kind": "intrinsic",
+             "signature": "Array.from_copy(&Array<T, N> values) -> Array<T, N> where T implements Copy",
+             "virtual_module": "$core", "virtual_source": "<checker-bound-array-operation>",
+             "availability_note": "Borrow a fixed-size array and copy its Copy elements into a new inline array. Arrays remain move-only; explicit type arguments and the older fill-constructor catalog form are not supplied by this overload."}]
+
+
+def float_bits_operations(source):
+    """Record checked float bit operations independently from numeric conversion."""
+    branch = re.search(r'if\s*\(\s*node\.kind\s*==\s*"CompilerFloatBitsExpression"\s*\)\s*\{', source)
+    if not branch:
+        return []
+    masked = masked_source(source)
+    start = branch.end() - 1
+    depth = 1
+    end = start
+    for cursor in range(start + 1, len(masked)):
+        if masked[cursor] == "{": depth += 1
+        if masked[cursor] == "}": depth -= 1
+        if not depth:
+            end = cursor
+            break
+    if end == start:
+        raise ValueError("Unmatched floating bit checker braces")
+    body = source[start:end]
+    if any('"' + operation + '"' not in body for operation in ("Float.to_bits", "Float.from_bits")):
+        raise ValueError("Floating bit dispatch changed; review lifecycle extraction")
+    result = []
+    for method, signature in (
+        ("to_bits", "Float.to_bits(F value) -> U"),
+        ("from_bits", "Float.from_bits<T>(U bits) -> T"),
+    ):
+        name = "Float." + method
+        result.append({"id": "intrinsic:" + name, "name": name, "short_name": method,
+                       "kind": "intrinsic", "signature": signature, "virtual_module": "$core",
+                       "virtual_source": "<checker-bound-float-bits-operation>",
+                       "availability_note": "Exact, nonallocating bit reinterpretation: f16/bf16 pair with u16, f32 with u32, f64 with u64. from_bits requires an explicit float type; signed or pointer-sized integers are not counterparts. Numeric conversion and native-endian serialization are separate."})
+    return result
+
+
+def byte_scalar_operations(source):
+    """Keep the released byte/u8 bridge distinct from numeric conversions."""
+    branch = re.search(r'if\s*\(\s*owner\.value\s*==\s*"Byte"\s*\)\s*\{', source)
+    if not branch:
+        return []
+    masked = masked_source(source)
+    start, depth, end = branch.end() - 1, 1, 0
+    for cursor in range(start + 1, len(masked)):
+        if masked[cursor] == "{": depth += 1
+        if masked[cursor] == "}": depth -= 1
+        if not depth:
+            end = cursor
+            break
+    body = source[start:end] if end else ""
+    if any('"' + method + '"' not in body for method in ("from_u8", "to_u8")):
+        raise ValueError("Byte scalar dispatch changed; review lifecycle extraction")
+    result = []
+    for method, signature in (
+        ("from_u8", "Byte.from_u8(u8 value) -> byte"),
+        ("to_u8", "Byte.to_u8(byte value) -> u8"),
+    ):
+        name = "Byte." + method
+        result.append({"id": "intrinsic:" + name, "name": name, "short_name": method,
+                       "kind": "intrinsic", "signature": signature, "virtual_module": "$core",
+                       "virtual_source": "<checker-bound-byte-scalar-operation>",
+                       "availability_note": "Exact, nonallocating eight-bit representation bridge. byte and u8 remain distinct source types; no generic integer conversion or endian interpretation is implied."})
+    return result
+
+
+def char_scalar_operations(source):
+    """Record scalar construction only when its closed checked dispatch exists."""
+    branch = re.search(r'if\s*\(\s*node\.kind\s*==\s*"CompilerCharScalarExpression"\s*\)\s*\{', source)
+    if not branch:
+        return []
+    masked = masked_source(source)
+    start, depth, end = branch.end() - 1, 1, 0
+    for cursor in range(start + 1, len(masked)):
+        if masked[cursor] == "{": depth += 1
+        if masked[cursor] == "}": depth -= 1
+        if not depth:
+            end = cursor
+            break
+    if not end:
+        raise ValueError("Unmatched Char scalar checker braces")
+    body = source[start:end]
+    if any('"' + name + '"' not in body for name in ("Char.from_u32", "Char.to_u32")):
+        raise ValueError("Char scalar dispatch changed; review lifecycle extraction")
+    result = []
+    for method, signature in (
+        ("from_u32", "Char.from_u32(u32 value) -> Result<char, CharError>"),
+        ("to_u32", "Char.to_u32(char value) -> u32"),
+    ):
+        name = "Char." + method
+        result.append({"id": "intrinsic:" + name, "name": name, "short_name": method,
+                       "kind": "intrinsic", "signature": signature, "virtual_module": "$core",
+                       "virtual_source": "<checker-bound-char-scalar-operation>",
+                       "availability_note": "Pure, nonallocating scalar conversion. from_u32 accepts only Unicode scalar values, excluding surrogates and values above U+10FFFF; InvalidScalar retains the original u32. Unassigned characters and noncharacters remain valid scalars. No UTF decoding or Unicode property lookup is performed."})
+    return result
+
+
+def range_inspect_operations(source, root):
+    """Use the closed range descriptor as the names, and the checked dispatch as provider."""
+    if not re.search(r'if\s*\(\s*node\.kind\s*==\s*"CompilerRangeInspectExpression"\s*\)', source):
+        return []
+    descriptor = root / RANGE_PROVIDER
+    if not descriptor.exists():
+        raise ValueError("Missing closed Range inspection descriptor")
+    entries = re.findall(r'RangeInspectOperation\{\s*"(Range\.[A-Za-z_]\w*)"\s*,\s*(Element|Magnitude|Boolean|Empty)\s*,\s*\d+\s*\}', descriptor.read_text(encoding="utf-8"))
+    if not entries or len(entries) != len({name for name, _ in entries}):
+        raise ValueError("Ambiguous or empty Range inspection descriptor")
+    result = []
+    for name, kind in entries:
+        output = "T" if kind == "Element" else "U" if kind == "Magnitude" else "bool"
+        result.append({"id": "intrinsic:" + name, "name": name,
+                       "short_name": name.split(".")[1], "kind": "intrinsic",
+                       "signature": name + "(&Range<T> range) -> " + output,
+                       "virtual_module": "$core", "virtual_source": "<checker-bound-range-inspection>",
+                       "descriptor_source": RANGE_PROVIDER,
+                       "availability_note": "Pure descriptor inspection for integer ranges. T is the element type; U is its unsigned fixed-width counterpart, or usize for isize/usize. step aliases step_magnitude. Inspection preserves the original bounds and performs no allocation or count arithmetic."})
+    return result
+
+
+def implicit_sources(root):
+    path = root / SIMD_PROVIDER
+    if not path.exists(): return []
+    source = path.read_text(encoding="utf-8")
+    docs = {}
+    for match in COMMENT.finditer(source):
+        name = re.search(r"(?m)^\s*\*?\s*@api\s+(\S+)", match.group())
+        if name:
+            docs[name.group(1)] = (lifecycle(match.group()), source.count("\n", 0, match.start()) + 1)
+    simd = simd_operations(source)
+    for item in simd:
+        item.update({"virtual_module": "simd", "virtual_source": "<checker-bound-simd-operation>",
+                     "availability_note": "The implemented scalar/lane profile is narrower than the complete SIMD design catalog."})
+    result = simd + array_operations(source) + float_bits_operations(source) + byte_scalar_operations(source) + char_scalar_operations(source) + range_inspect_operations(source, root)
+    for item in result:
+        provider = ("simdIntrinsic" if item["name"].startswith("simd.") else
+                    "CompilerFloatBitsExpression" if item["name"].startswith("Float.") else
+                    "CompilerCharScalarExpression" if item["name"].startswith("Char.") else
+                    "CompilerRangeInspectExpression" if item["name"].startswith("Range.") else "valueIntrinsic")
+        values, line = docs.get(item["name"], ({}, source.count("\n", 0, source.index(provider)) + 1))
+        item.update({"source": SIMD_PROVIDER, "source_line": line, "line": line, "offset": 0,
+                     "lifecycle": values,
+                     "implementation": "checker_bound_intrinsic_with_profile_restrictions"})
+    return result
+
+
+def annotate_implicit(source, since, known):
+    docs = {}
+    for match in COMMENT.finditer(source):
+        name = re.search(r"(?m)^\s*\*?\s*@api\s+(\S+)", match.group())
+        if name: docs[name.group(1)] = lifecycle(match.group())
+    groups = ((simd_operations(source), SIMD_BEGIN, SIMD_END, "simdIntrinsic",
+               "프로필 제한이 있는 공개 SIMD 내장 연산.",
+               "Public SIMD intrinsic subject to the implemented element/lane profile."),
+              (array_operations(source), ARRAY_BEGIN, ARRAY_END, "valueIntrinsic",
+               "고정 배열을 읽기 대여하여 Copy 원소를 새 인라인 배열에 복사한다.",
+               "Borrow a fixed-size array and copy its Copy elements into a new inline array; arrays remain move-only."))
+    for items, marker_begin, marker_end, function, korean, english in groups:
+        if not items: continue
+        blocks = [marker_begin]
+        for item in items:
+            values = docs.get(item["name"], {}).copy()
+            values.setdefault("since", known.get(item["id"], since))
+            values.setdefault("deprecated_at", "none")
+            values.setdefault("removed_at", "none")
+            validate_lifecycle(values, item["name"])
+            blocks.append("/*\n * " + korean + "\n * " + english + "\n * @api " + item["name"] + "\n"
+                          + "".join(" * @" + tag + " " + values[tag] + "\n" for tag in TAGS) + " */")
+        blocks.append(marker_end)
+        generated = "\n".join(blocks)
+        if marker_begin in source:
+            start = source.index(marker_begin)
+            end = source.index(marker_end, start) + len(marker_end)
+            indentation = source[source.rfind("\n", 0, start) + 1:start]
+        else:
+            match = re.search(r"(?m)^(\s*)std::optional<TypeId>\s+" + function + r"\s*\(", source)
+            if not match: raise ValueError("Missing " + function + " implementation insertion point")
+            indentation = match.group(1).split("\n")[-1]
+            start = end = match.end(1)
+            generated += "\n" + indentation
+        replacement = generated.replace("\n", "\n" + indentation)
+        # 마지막 삽입 줄의 들여쓰기를 중복하지 않는다.
+        # Do not duplicate indentation on the final inserted line.
+        if start == end: replacement = replacement[:-len(indentation)] if indentation else replacement
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
+def sources(root):
+    result = []
+    for path in sorted((root / "library").rglob("*.avx")):
+        source = path.read_text(encoding="utf-8")
+        module = ".".join(path.relative_to(root / "library").with_suffix("").parts[1:]) or path.stem
+        module_tags = {}
+        for match in source_comments(source):
+            if re.search(r"(?m)^\s*\*?\s*@module\s+" + re.escape(module) + r"\s*$", match.group()):
+                module_tags = lifecycle(match.group())
+                break
+        items = [{"id": "module:" + module, "name": module, "short_name": module,
+                  "kind": "module", "signature": "module " + module, "line": 1,
+                  "offset": 0, "lifecycle": module_tags}] + declarations(source, module)
+        for item in items:
+            item["source"] = relative(path, root)
+            item["implementation"] = "source_present_not_execution_proof"
+        result.extend(items)
+    result.extend(generated_sources(root))
+    result.extend(implicit_sources(root))
+    ids = [item["id"] for item in result]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Duplicate public source API identities; check duplicate modules or signatures")
+    return result
+
+
+def annotate(source, module, since, known_versions=None):
+    if not VERSION.fullmatch(since):
+        raise ValueError("--since must be an API version, such as 0.3")
+    changes = []
+    module_block = None
+    comments = source_comments(source)
+    for match in comments:
+        if re.search(r"(?m)^\s*\*?\s*@module\s+" + re.escape(module) + r"\s*$", match.group()):
+            module_block = match
+            break
+    known_versions = known_versions or {}
+    targets = [(module, 0, module_block, "module:" + module)]
+    for item in declarations(source, module):
+        targets.append((item["name"], item["offset"], attached_comment(source, item["offset"], comments), item["id"]))
+    for name, offset, comment, api_id in targets:
+        old = comment.group() if comment else ""
+        values = lifecycle(old)
+        values.setdefault("since", known_versions.get(api_id, since))
+        values.setdefault("deprecated_at", "none")
+        values.setdefault("removed_at", "none")
+        validate_lifecycle(values, name)
+        if re.search(r"(?m)^\s*\*?\s*@deprecated(?:\s|$)", old) and values["deprecated_at"] == "none":
+            raise ValueError(name + " is marked deprecated; supply its actual @deprecated_at version")
+        if comment:
+            # 내용, @version, @parameter, @return은 그대로 둔다.
+            # Preserve prose, @version, @parameter, and @return exactly.
+            indentation = source[source.rfind("\n", 0, comment.start()) + 1:comment.start()]
+            if indentation.strip(): indentation = ""
+            lines = old[:-2].rstrip().splitlines()
+            lines = [line[len(indentation):] if index and indentation and line.startswith(indentation) else line
+                     for index, line in enumerate(lines)]
+            lines = [line for line in lines if not re.match(r"\s*\*?\s*@(since|deprecated_at|removed_at)\b", line)]
+            if len(lines) == 1 and lines[0].endswith("/*"):
+                lines = ["/*"]
+            block = "\n".join(lines).rstrip() + "\n"
+        else:
+            block = "/*\n"
+            if name == module:
+                block += " * Lifecycle of the " + module + " public module.\n * @module " + module + "\n"
+            else:
+                block += " * Version history for the " + name + " public API.\n"
+        for tag in TAGS:
+            block += " * @" + tag + " " + values[tag] + "\n"
+        block += " */"
+        if comment:
+            changes.append((comment.start(), comment.end(), block.replace("\n", "\n" + indentation)))
+        else:
+            indentation = source[source.rfind("\n", 0, offset) + 1:offset]
+            if indentation.strip(): indentation = ""
+            block = block.replace("\n", "\n" + indentation)
+            changes.append((offset, offset, block + "\n" + indentation))
+    for start, end, replacement in sorted(changes, reverse=True):
+        source = source[:start] + replacement + source[end:]
+    return source
+
+
+def inventory(root):
+    designed, excluded = catalog(root)
+    public = sources(root)
+    manifest_path = root / "tests/v03_library_manifest.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {"functions": []}
+    equivalents = {}
+    fixtures = {}
+    for entry in manifest["functions"]:
+        fixtures[entry["api"]] = entry["fixture"]
+        if entry.get("catalog_equivalent"):
+            equivalents.setdefault(entry["catalog_equivalent"], []).append(entry["api"])
+    public_names = {item["name"] for item in public}
+    for item in public:
+        item.pop("offset", None)
+        if item["name"] in fixtures:
+            item["fixture"] = fixtures[item["name"]]
+            item["implementation"] = "source_with_manifest_fixture_not_current_run_proof"
+    for entry in designed:
+        matches = [name for name in equivalents.get(entry["name"], []) if name in public_names]
+        if matches:
+            entry["source_equivalents"] = matches
+            entry["implementation"] = "source_equivalent_distinct_calling_form"
+    families = Counter(entry["family"] for entry in designed)
+    return {"schema_version": 1, "created_by": "miruku_sora2026", "file_name": "api_inventory.json",
+            "description": {"ko": "CPU 설계 표와 실제 공개 소스를 분리한 목록. 실행 검증은 별도이다.",
+                            "en": "CPU design table rows and actual public source declarations, kept separate from execution evidence."},
+            "scope": {"catalog_roots": ["htmls/data_type", *EXTRA_CATALOGS], "source_root": "library",
+                      "ko_duplicates": "excluded", "GPU": "deferred",
+                      "builtin_support": "Compiler/runtime providers are listed separately; matching a name is not implementation proof.",
+                      "extraction": "Callable names in first cells of API tables; prose examples and operators are not counted as functions."},
+            "counts": {"cpu_families": len(families), "cpu_signature_rows": len(designed),
+                       "cpu_callable_names": len({entry["name"] for entry in designed}),
+                       "cpu_row_occurrences": sum(len(entry["occurrences"]) for entry in designed),
+                       "excluded_gpu_rows": len(excluded), "public_source_declarations": len(public),
+                       "source_kinds": dict(sorted(Counter(item["kind"] for item in public).items())),
+                       "family_signature_rows": dict(sorted(families.items()))},
+            "compiler_providers": [{"source": path, "role": role} for path, role in [
+                ("src/Frontend/Sema/CoreErrorTypes.cpp", "Compiler-owned error carriers and ParseError"),
+                ("include/aevix/Frontend/Modules/AtomicModuleSource.hpp", "Explicit CPU atomic declarations and ordering/result carriers"),
+                ("include/aevix/Frontend/Modules/SyncModuleSource.hpp", "CPU lock/guard declaration provider when available; native foundation alone is not source support"),
+                ("src/Frontend/Sema/GenericResolver.cpp", "Specialization and explicit compiler expression binding"),
+                ("src/Frontend/Sema/TypeChecker.cpp", "Builtin scalar/collection operations and validated typed bindings"),
+                ("src/IR/Lowering/ASTLowering.cpp", "Lowering of typed operations; not proof of every catalog signature"),
+                ("runtime/System/SystemRuntime.cpp", "Native system input/output boundary")] if (root / path).exists()],
+            "catalog": designed, "excluded_gpu": excluded, "source": public}
+
+
+def render_checkpoint(checkpoint):
+    if not checkpoint:
+        return ""
+    escape = html.escape
+    count = checkpoint["ctest"]
+    identity = checkpoint["binary"]["sha256"]
+    declarations = checkpoint["source_snapshot"]["public_declarations"]
+    elapsed = count.get("elapsed_seconds")
+    timing = " in <code>" + str(float(elapsed)) + "</code> seconds" if elapsed is not None else ""
+    resumed = ""
+    if count.get("execution") == "interrupted_then_resumed_on_identical_snapshot":
+        resumed = ("<p>The initial invocation completed <code>" + str(int(count["initial_completed"])) +
+                   "</code> passing tests before interruption. Resume completed the remaining <code>" +
+                   str(int(count["resumed_completed"])) +
+                   "</code> on the unchanged binary and source snapshot. "
+                   "Separate immutable logs preserve both segments; no combined wall time is claimed.</p>")
+    return ("<section id=\"Verified-Checkpoint\"><h2>Verified development checkpoint</h2>"
+            "<p>Recorded snapshot: <code>" + escape(checkpoint["checkpoint_id"]) + "</code>. "
+            "Local CTest passed <code>" + str(int(count["passed"])) + "/" +
+            str(int(count["total"])) + "</code>" + timing +
+            " on macOS ARM64. The recorded inventory contains <code>" +
+            str(int(declarations)) + "</code> public declarations with current lifecycle metadata.</p>"
+            + resumed +
+            "<p>Compiler binary SHA256: <code>" + escape(identity) + "</code>.</p>"
+            "<p>This result belongs only to the recorded binary and inventory snapshot. "
+            "Selected gates retain the scope recorded in the checkpoint metadata; "
+            "later source declarations and compiler changes are unverified by it. "
+            "Passing the existing tests does not complete the CPU library catalog or verify every target.</p>"
+            "</section>\n")
+
+
+def render(data, prefix="../..", checkpoint=None):
+    escape = html.escape
+    rows = []
+    for item in data["source"]:
+        values = item["lifecycle"]
+        name = "<code>" + escape(item["name"]) + "</code>"
+        placeholder = item.get("signature_role") == "compiler_binding_placeholder_not_call_contract" or (
+            item.get("implementation") == "compiler_generated_declaration_not_ordinary_body"
+            and item.get("kind") in ("function", "method"))
+        if placeholder:
+            name += '<p><strong>Compiler binding declaration.</strong> The typed call contract is checked by the compiler; its provider placeholder is not a usable call signature.</p>'
+        elif item.get("kind") in ("function", "method", "intrinsic") and item.get("signature"):
+            name = "<details><summary>" + name + "</summary><code>" + escape(item["signature"]) + "</code></details>"
+        cells = (item["kind"], values.get("since", "missing"),
+                 values.get("deprecated_at", "missing"), values.get("removed_at", "missing"))
+        rows.append("<tr><td>" + name + "</td>" + "".join("<td><code>" + escape(value) + "</code></td>" for value in cells) + "</tr>")
+    base = escape(prefix.rstrip("/"), quote=True)
+    return ('''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Source API lifecycle — Aevix Docs</title>
+<link rel="stylesheet" href="''' + base + '''/css/root.css?v=7">
+<link rel="icon" type="image/png" href="''' + base + '''/images/aevix-favicon.png">
+<script src="''' + base + '''/js/docs.js?v=5" defer></script></head>
+<body><a class="skip-link" href="#main-content">Skip to content</a>
+<header class="site-header"><div class="header"><a class="brand" href="''' + base + '''/index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">Documentation</span></a><nav class="header-nav" aria-label="API references"><a href="''' + base + '''/data_type/index.html">Type catalog</a><a href="''' + base + '''/grammar/scope_and_comments/Documentation_Comments.html#Lifecycle">Lifecycle rules</a></nav><span class="draft-badge">SOURCE INVENTORY</span></div></header>
+<main id="main-content" class="page-shell"><header class="doc-intro"><div><p class="eyebrow">GENERATED SOURCE METADATA</p><h1>Source API lifecycle</h1><p class="doc-subtitle">Introduction, deprecation, and removal history for public source declarations.</p></div></header><article class="content">
+<p>Generated from public Aevix source declarations. Presence is not execution evidence. A value of <code>none</code> means no deprecation or removal version is scheduled; it does not promise permanent compatibility. <code>@version</code> remains documentation version metadata.</p>
+<p>Compiler-injected standard-library declarations are included with their virtual module names. Their placeholder bodies and signatures describe compiler binding surfaces rather than ordinary Aevix implementations. Callable rows marked Compiler binding declaration deliberately omit those placeholder signatures: a provider declaration such as void new is not the typed return contract. The raw declaration is retained only as provider_declaration in metadata. This table does not claim complete CPU catalog support.</p>
+<p>Current scoped support includes exact floating representation, explicit-endian byte codecs and bit helpers, bounded overlap copying, shared Ordering, Range inspection and owned Task/TaskScope execution. The <a href="''' + base + '''/roadmap/Library_Foundation.html#Owned-Task">library foundations</a> explain their ownership, execution and version limits. Declaration presence alone does not extend those limits.</p>
+''' + render_checkpoint(checkpoint) + '''<div class="table-scroll" role="region" aria-label="Public API lifecycle"><table><thead><tr><th scope="col">API</th><th scope="col">Kind</th><th scope="col">Since</th><th scope="col">Deprecated at</th><th scope="col">Removed at</th></tr></thead><tbody>''' + "\n".join(rows) + '</tbody></table></div></article></main></body></html>\n')
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=ROOT)
+    sub = parser.add_subparsers(dest="command", required=True)
+    build = sub.add_parser("inventory")
+    build.add_argument("--output", type=Path, default=Path("docs/Language/Library/api_inventory.json"))
+    apply = sub.add_parser("apply")
+    apply.add_argument("--since", required=True)
+    apply.add_argument("--source", type=Path, action="append")
+    apply.add_argument("--compiler-generated", action="store_true", help="Also update known injected Aevix payloads in compiler providers")
+    check = sub.add_parser("check")
+    check.add_argument("--inventory", type=Path, default=Path("docs/Language/Library/api_inventory.json"))
+    render_command = sub.add_parser("render")
+    render_command.add_argument("--inventory", type=Path, default=Path("docs/Language/Library/api_inventory.json"))
+    render_command.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args(argv)
+    root = args.root.resolve()
+    def resolve(path): return path if path.is_absolute() else root / path
+    if args.command == "apply":
+        policy_path = root / "docs/Language/Library/lifecycle_policy.json"
+        known = json.loads(policy_path.read_text(encoding="utf-8")).get("known_since", {}) if policy_path.exists() else {}
+        paths = [resolve(path) for path in args.source] if args.source else sorted((root / "library").rglob("*.avx"))
+        changed = 0
+        for path in paths:
+            if not path.resolve().is_relative_to(root / "library") or path.suffix != ".avx":
+                raise ValueError("Lifecycle updates are restricted to library/*.avx sources")
+            module = ".".join(path.relative_to(root / "library").with_suffix("").parts[1:]) or path.stem
+            old = path.read_text(encoding="utf-8")
+            english = english_comments(old, relative(path, root))
+            new = annotate(english, module, args.since, known)
+            if TOKEN.findall(masked_source(old)) != TOKEN.findall(masked_source(new)):
+                raise ValueError("Refusing a lifecycle update that changes executable source tokens: " + relative(path, root))
+            if new != old:
+                path.write_text(new, encoding="utf-8")
+                changed += 1
+        if args.compiler_generated:
+            for provider in GENERATED_PROVIDERS:
+                path = root / provider
+                if not path.exists(): continue
+                old = path.read_text(encoding="utf-8")
+                new = old
+                for literal in reversed(virtual_literals(old, provider)):
+                    english = english_comments(literal["body"], provider + " (" + literal["module"] + ")")
+                    body = annotate(english, literal["module"], args.since, known)
+                    if TOKEN.findall(masked_source(body)) != TOKEN.findall(masked_source(literal["body"])):
+                        raise ValueError("Refusing a generated payload update that changes executable Aevix tokens")
+                    # 문서 변경만 raw string 안에 보존하며 C++ 코드를 추가하지 않는다.
+                    # Keep documentation inside a raw string without adding C++ behavior.
+                    if ')AEVIXDOC"' in body:
+                        raise ValueError("Generated documentation collides with its raw-string delimiter")
+                    replacement = 'R"AEVIXDOC(' + body + ')AEVIXDOC"'
+                    new = new[:literal["start"]] + replacement + new[literal["end"]:]
+                if new != old:
+                    path.write_text(new, encoding="utf-8")
+                    changed += 1
+            checker = root / SIMD_PROVIDER
+            if checker.exists():
+                old = checker.read_text(encoding="utf-8")
+                new = annotate_implicit(old, args.since, known)
+                if TOKEN.findall(masked_source(old)) != TOKEN.findall(masked_source(new)):
+                    raise ValueError("Refusing a SIMD lifecycle update that changes executable C++ tokens")
+                if new != old:
+                    checker.write_text(new, encoding="utf-8")
+                    changed += 1
+        print(str(changed) + " source files updated; existing @version and lifecycle dates preserved.")
+    elif args.command == "inventory":
+        data = inventory(root)
+        path = resolve(args.output); path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(data["counts"], ensure_ascii=False))
+    elif args.command == "check":
+        assert_english_documentation(root)
+        recorded = json.loads(resolve(args.inventory).read_text(encoding="utf-8"))
+        fresh = inventory(root)
+        old = {entry["id"]: entry for entry in recorded["source"]}
+        new = {entry["id"]: entry for entry in fresh["source"]}
+        if old.keys() != new.keys():
+            raise ValueError("Public API inventory mismatch: missing=" + repr(sorted(new.keys() - old.keys())) + "; stale=" + repr(sorted(old.keys() - new.keys())))
+        for key, entry in new.items():
+            validate_lifecycle(entry["lifecycle"], entry["name"])
+            if old[key]["lifecycle"] != entry["lifecycle"]:
+                raise ValueError("Stale lifecycle metadata: " + entry["name"])
+        old_catalog = {entry["id"] for entry in recorded["catalog"]}
+        new_catalog = {entry["id"] for entry in fresh["catalog"]}
+        if old_catalog != new_catalog:
+            raise ValueError("Catalog signatures changed; regenerate the API inventory")
+        print(str(len(new)) + " public source declarations have complete, current lifecycle metadata.")
+    else:
+        data = json.loads(resolve(args.inventory).read_text(encoding="utf-8"))
+        checkpoint_path = root / "docs/Language/Library/verified_checkpoint.json"
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8")) if checkpoint_path.exists() else None
+        path = resolve(args.output); path.parent.mkdir(parents=True, exist_ok=True)
+        prefix = posixpath.relpath((root / "htmls").as_posix(), path.parent.as_posix())
+        path.write_text(render(data, prefix, checkpoint), encoding="utf-8")
+        print("Rendered public source API lifecycle table.")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (ValueError, OSError) as error:
+        print("library_api: " + str(error), file=sys.stderr)
+        sys.exit(1)

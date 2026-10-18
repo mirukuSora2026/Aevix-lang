@@ -131,3 +131,71 @@ run_closure(bad_contract 1 "moved|move|consume" --check "${TEST_DIR}/bad_contrac
 file(WRITE "${TEST_DIR}/parallel_capture.avx" "import parallel; i32 main() { mut i32 values[2] = [0; 2]; i32 offset = 2; rsn callback = [offset](&mut i32 item) -> void { *item += offset; return; }; parallel.for_each(Slice.from_array_mut(&mut values), callback); return 0; }\n")
 run_closure(parallel_capture 1 "worker|function" --check "${TEST_DIR}/parallel_capture.avx")
 message(STATUS "Closures, callable contracts, and lifetime checks passed")
+
+# 배열 캡처의 읽기는 반복 가능하지만 소유 배열의 소비는 호출 소유권을 이동한다.
+# Reading an array capture is repeatable; consuming the owner requires invocation ownership.
+file(WRITE "${TEST_DIR}/consume_array_twice.avx" [=[
+i32 take_array(Array<i32, 2> input) { return input[0]; }
+i32 main() {
+    i32 data[2] = [7, 9];
+    rsn once = [data]() -> i32 { return take_array(data); };
+    i32 first = once();
+    return once() == first ? 0 : 1;
+}
+]=])
+run_closure(consuming_array_rejected 1 "move|moved|FnOnce|consum|owning" --check "${TEST_DIR}/consume_array_twice.avx")
+
+# 소비한 환경의 수정은 한 번의 호출과 정확히 한 번의 정리를 유지한다.
+# Mutation of a consumed environment preserves one invocation and exactly one cleanup.
+file(WRITE "${TEST_DIR}/owned_mutation.avx" [=[
+struct Owned implements Drop {
+    public i32 value;
+    public &mut i32 drops;
+    public void set(&mut Self self, i32 input) { self.value = input; return; }
+    public void drop(&mut Self self) { *self.drops += 1; return; }
+};
+i32 main() {
+    mut i32 invoked_drops = 0;
+    mut i32 abandoned_drops = 0;
+    Owned item = Owned { value = 1, drops = &mut invoked_drops };
+    rsn callback = [item]() -> i32 { item.set(42); return item.value; };
+    if (callback() != 42 || invoked_drops != 1) return 1;
+    {
+        Owned abandoned = Owned { value = 7, drops = &mut abandoned_drops };
+        rsn unused = [abandoned]() -> i32 { abandoned.set(99); return abandoned.value; };
+    }
+    return invoked_drops == 1 && abandoned_drops == 1 ? 0 : 2;
+}
+]=])
+run_closure(owned_mutation_check 0 "" --check "${TEST_DIR}/owned_mutation.avx")
+run_closure(owned_mutation_run 0 "" --run "${TEST_DIR}/owned_mutation.avx")
+run_closure(owned_mutation_optimized 0 "" --run -O2 "${TEST_DIR}/owned_mutation.avx")
+if(version MATCHES "ORC JIT enabled")
+    run_closure(owned_mutation_jit 0 "" --jit "${TEST_DIR}/owned_mutation.avx")
+    run_closure(owned_mutation_jit_optimized 0 "" --jit -O2 "${TEST_DIR}/owned_mutation.avx")
+endif()
+file(WRITE "${TEST_DIR}/immutable_owned_argument.avx" [=[
+struct Owned { public i32 value; public void set(&mut Self self,i32 input) { self.value = input; return; } };
+i32 consume(Owned item) { item.set(42); return item.value; }
+i32 main() { Owned item = Owned { value = 1 }; return consume(item); }
+]=])
+run_closure(immutable_owned_argument 1 "overload|mutab|borrow|match" --check "${TEST_DIR}/immutable_owned_argument.avx")
+file(WRITE "${TEST_DIR}/shared_owned_capture_write.avx" [=[
+struct Owned { public i32 value; public void set(&mut Self self,i32 input) { self.value = input; return; } };
+i32 main() {
+    Owned item = Owned { value = 1 };
+    mut rsn callback = [&item]() -> i32 { item.set(42); return item.value; };
+    return callback();
+}
+]=])
+run_closure(shared_owned_capture_write 1 "overload|mutab|borrow|match" --check "${TEST_DIR}/shared_owned_capture_write.avx")
+file(WRITE "${TEST_DIR}/owned_mutation_twice.avx" [=[
+struct Owned { public i32 value; public void set(&mut Self self,i32 input) { self.value = input; return; } };
+i32 main() {
+    Owned item = Owned { value = 1 };
+    rsn callback = [item]() -> i32 { item.set(42); return item.value; };
+    i32 first = callback();
+    return callback() == first ? 0 : 1;
+}
+]=])
+run_closure(owned_mutation_twice 1 "move|moved|unavailable|ownership|consum" --check "${TEST_DIR}/owned_mutation_twice.avx")

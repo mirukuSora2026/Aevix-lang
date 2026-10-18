@@ -1,0 +1,118 @@
+import text;
+
+bool parts_equal(&Vector<string_view> values, Slice<string_view> expected) {
+    if (Vector.len(values) != Slice.len(expected)) return false;
+    mut usize index = 0;
+    while (index < Slice.len(expected)) {
+        if (!string.equals(values[index], expected[index])) return false;
+        index++;
+    }
+    return true;
+}
+Result<Vector<string_view>, TextError> temporary_delimiter(string_view input) {
+    string delimiter = string.from_view("::")?;
+    return text.split(input, string.view(&delimiter));
+}
+Result<bool, TextError> optional_equals(Result<Optional<string_view>, TextError> input, string_view expected) {
+    Optional<string_view> option = input?;
+    switch (move option) { case Optional<string_view>.Some { string_view found = value }: return Result.ok(string.equals(found, expected)); break; case Optional<string_view>.None: return Result.ok(false); break; }
+}
+Result<i32, TextError> exercise() {
+    if (!(optional_equals(text.strip_prefix("한abc", "한"), "abc")?)) return Result.ok(1);
+    if (!(optional_equals(text.strip_suffix("abc😀", "😀"), "abc")?)) return Result.ok(2);
+    if (!(optional_equals(text.strip_prefix("", ""), "")?)) return Result.ok(3);
+    if (!(optional_equals(text.strip_suffix("a", ""), "a")?)) return Result.ok(4);
+    Optional<string_view> missing_prefix = text.strip_prefix("abc", "abcd")?;
+    Optional<string_view> missing_suffix = text.strip_suffix("abc", "d")?;
+    if (!Optional.is_none(&missing_prefix) || !Optional.is_none(&missing_suffix)) return Result.ok(5);
+    Optional<Tuple<string_view, string_view>> tail = text.rsplit_once("left::mid::한", "::")?;
+    switch (move tail) {
+        case Optional<Tuple<string_view, string_view>>.Some { Tuple<string_view, string_view> pair = value }:
+            if (!string.equals(*Tuple.get<0>(&pair), "left::mid") || !string.equals(*Tuple.get<1>(&pair), "한")) return Result.ok(6);
+            break;
+        case Optional<Tuple<string_view, string_view>>.None: return Result.ok(7); break;
+    }
+    Optional<Tuple<string_view, string_view>> empty_delimiter = text.rsplit_once("한", "")?;
+    switch (move empty_delimiter) {
+        case Optional<Tuple<string_view, string_view>>.Some { Tuple<string_view, string_view> pair = value }:
+            if (!string.equals(*Tuple.get<0>(&pair), "한") || !string.equals(*Tuple.get<1>(&pair), "")) return Result.ok(8);
+            break;
+        case Optional<Tuple<string_view, string_view>>.None: return Result.ok(9); break;
+    }
+    Optional<Tuple<string_view, string_view>> no_tail = text.rsplit_once("a", "z")?;
+    if (!Optional.is_none(&no_tail)) return Result.ok(10);
+    {
+        string_view expected[5] = ["", "a", "", "b", ""];
+        Vector<string_view> values = text.split("||a||||b||", "||")?;
+        if (!parts_equal(&values, Slice.from_array(&expected))) return Result.ok(11);
+    }
+    {
+        string_view expected[3] = ["", "a", "||b||"];
+        Vector<string_view> values = text.split("||a||||b||", "||", max_parts = 3)?;
+        if (!parts_equal(&values, Slice.from_array(&expected))) return Result.ok(12);
+    }
+    {
+        string_view expected[1] = ["a,b,c"];
+        Vector<string_view> values = text.split("a,b,c", ",", 1)?;
+        if (!parts_equal(&values, Slice.from_array(&expected))) return Result.ok(13);
+        Vector<string_view> zero = text.split("a,b,c", ",", 0)?;
+        if (Vector.len(&zero) != 0) return Result.ok(14);
+    }
+    {
+        string_view expected[1] = [""];
+        Vector<string_view> empty = text.split("", "::")?;
+        if (!parts_equal(&empty, Slice.from_array(&expected))) return Result.ok(15);
+    }
+    {
+        string_view expected[6] = ["", "한", "😀", "e", "́", ""];
+        Vector<string_view> scalars = text.split("한😀é", "")?;
+        if (!parts_equal(&scalars, Slice.from_array(&expected))) return Result.ok(16);
+    }
+    {
+        string_view expected[2] = ["", "한😀"];
+        Vector<string_view> scalars = text.split("한😀", "", 2)?;
+        if (!parts_equal(&scalars, Slice.from_array(&expected))) return Result.ok(17);
+        Vector<string_view> empty = text.split("", "")?;
+        string_view empty_expected[2] = ["", ""];
+        if (!parts_equal(&empty, Slice.from_array(&empty_expected))) return Result.ok(18);
+    }
+    {
+        string_view expected[3] = ["a", "한", "😀"];
+        Vector<string_view> values = text.split("a한한한😀", "한")?;
+        string_view split_expected[4] = ["a", "", "", "😀"];
+        if (!parts_equal(&values, Slice.from_array(&split_expected))) return Result.ok(19);
+        Vector<string_view> words = text.split_ascii_whitespace(" \t\n a\r\u{b}한\u{c}😀  ")?;
+        if (!parts_equal(&words, Slice.from_array(&expected))) return Result.ok(20);
+        Vector<string_view> no_words = text.split_ascii_whitespace(" \t\r\n\u{b}\u{c}")?;
+        if (Vector.len(&no_words) != 0) return Result.ok(21);
+        Vector<string_view> nbsp = text.split_ascii_whitespace("a b c")?;
+        string_view nbsp_expected[2] = ["a b", "c"];
+        if (!parts_equal(&nbsp, Slice.from_array(&nbsp_expected))) return Result.ok(22);
+    }
+    {
+        Vector<string_view> values = text.lines("a\r\n\n한\nlast\r")?;
+        string_view expected[4] = ["a", "", "한", "last\r"];
+        if (!parts_equal(&values, Slice.from_array(&expected))) return Result.ok(23);
+        Vector<string_view> inclusive = text.lines("a\r\n\n한\nlast\r", keep_endings = true)?;
+        string_view inclusive_expected[4] = ["a\r\n", "\n", "한\n", "last\r"];
+        if (!parts_equal(&inclusive, Slice.from_array(&inclusive_expected))) return Result.ok(24);
+        Vector<string_view> empty = text.lines("")?;
+        Vector<string_view> newline = text.lines("\n")?;
+        Vector<string_view> trailing = text.lines("a\n\n")?;
+        string_view newline_expected[1] = [""];
+        string_view trailing_expected[2] = ["a", ""];
+        if (Vector.len(&empty) != 0 || !parts_equal(&newline, Slice.from_array(&newline_expected)) || !parts_equal(&trailing, Slice.from_array(&trailing_expected))) return Result.ok(25);
+    }
+    {
+        Vector<string_view> values = temporary_delimiter("one::한::three")?;
+        string_view expected[3] = ["one", "한", "three"];
+        if (!parts_equal(&values, Slice.from_array(&expected))) return Result.ok(26);
+    }
+    if (text.compare("", "") != 0 || text.compare("a", "ab") != -1 || text.compare("ab", "a") != 1) return Result.ok(27);
+    if (text.compare("A", "a") != -1 || text.compare("한", "한") != 0 || text.compare("é", "É") != 1) return Result.ok(28);
+    return Result.ok(0);
+}
+i32 main() {
+    Result<i32, TextError> outcome = exercise();
+    switch (move outcome) { case Result<i32, TextError>.Ok { i32 code = value }: return code; break; case Result<i32, TextError>.Err: return 99; break; }
+}

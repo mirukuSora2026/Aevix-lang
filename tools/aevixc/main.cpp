@@ -21,6 +21,7 @@
 #include "aevix/Frontend/Sema/CoreErrorTypes.hpp"
 #include "aevix/Frontend/Sema/ForeignValidator.hpp"
 #include "aevix/Frontend/Ownership/BorrowChecker.hpp"
+#include "aevix/Frontend/Ownership/ThreadSafetyAnalysis.hpp"
 #include "aevix/IR/Lowering/ASTLowering.hpp"
 #include "aevix/Backend/LLVM/LLVMCodeGen.hpp"
 #include "aevix/Backend/AOT/AOTCompiler.hpp"
@@ -59,7 +60,7 @@
 #define AEVIX_RUNTIME_FILENAME "libaevix_runtime.a"
 #endif
 #ifndef AEVIX_VERSION
-#define AEVIX_VERSION "0.1.0-dev"
+#define AEVIX_VERSION "0.3.0"
 #endif
 
 namespace
@@ -86,6 +87,9 @@ namespace
                << "  -o FILE                Build output (default: a.out, a.exe on Windows)\n"
                << "  -c                     Build an object file\n"
                << "  -O0 | -O1 | -O2 | -O3  LLVM optimization level\n"
+               << "  --proof-opt            Enable experimental proven integer/fixed-array check elimination\n"
+               << "  --no-proof-opt         Keep all original emitter safety checks (default)\n"
+               << "  --proof-opt-stats      Print proof analysis and removed-check counters as stderr JSON\n"
                << "  --target TRIPLE        Apple ARM64, Linux ARM64/x86-64, Windows x86-64 target\n"
                << "  --clang FILE           LLVM clang executable\n"
                << "  --source-root DIR      Defaults to nearest src/ ancestor, then entry directory\n"
@@ -335,6 +339,9 @@ int compilerMain(int argc, char** argv)
     bool backendOptions = false;
     bool stdinSource = false;
     bool clangSpecified = false;
+    bool proofEnabled = false;
+    bool proofStats = false;
+    bool proofOptions = false;
     aevix::AOTOptions backend;
     aevix::JITOptions jit;
     backend.clang = AEVIX_DEFAULT_CLANG;
@@ -363,6 +370,10 @@ int compilerMain(int argc, char** argv)
         else if (argument == "--jit") mode = Mode::JIT;
         else if (argument == "--check-deps") mode = Mode::Dependencies;
         else if (argument == "--stdin") stdinSource = true;
+        else if (argument == "--proof-opt" || argument == "--no-proof-opt")
+        { proofEnabled = argument == "--proof-opt"; proofOptions = true; backendOptions = true; }
+        else if (argument == "--proof-opt-stats")
+        { proofStats = true; proofOptions = true; backendOptions = true; }
         else if (argument == "-c") { backend.objectOnly = true; backendOptions = true; }
         else if (argument.size() == 3 && argument.starts_with("-O") && argument[2] >= '0' && argument[2] <= '3')
         {
@@ -414,6 +425,7 @@ int compilerMain(int argc, char** argv)
     if (moduleOptions && syntax) return invalidUsage();
     if (stdinSource && syntax) return invalidUsage();
     if (backendOptions && (syntax || mode == Mode::Check || mode == Mode::AIR)) return invalidUsage();
+    if (proofOptions && mode == Mode::Dependencies) return invalidUsage();
     if (backend.objectOnly && mode != Mode::Build && mode != Mode::Dependencies) return invalidUsage();
     if (!output.empty() && mode != Mode::Build) return invalidUsage();
     if (!backend.linkInputs.empty() && mode != Mode::Build && mode != Mode::Run && mode != Mode::Starter) return invalidUsage();
@@ -472,6 +484,8 @@ int compilerMain(int argc, char** argv)
             ownership = aevix::BorrowChecker(diagnostics).check(*air, names, types).succeeded;
         if (diagnostics.empty() && air && ownership)
             ownership = aevix::verifyAIR(*air, types.types, diagnostics);
+        if (diagnostics.empty() && air && ownership)
+            ownership = aevix::validateTaskWorkers(*air, types, diagnostics);
         printDiagnostics(sources, diagnostics);
         if (!diagnostics.empty() || !names.succeeded || !types.succeeded || !flow || !air || !ownership) return 1;
         if (mode == Mode::Check)
@@ -483,7 +497,22 @@ int compilerMain(int argc, char** argv)
             return 0;
         }
         if (mode == Mode::AIR) { std::cout << aevix::dumpAIR(*air, types.types); return 0; }
-        auto llvm = aevix::emitLLVM(*air, types, names, diagnostics, backend.targetTriple);
+        aevix::ProofOptimizationStatistics proofStatistics;
+        auto llvm = aevix::emitLLVM(*air, types, names, diagnostics, backend.targetTriple,
+            {proofEnabled, proofStats ? &proofStatistics : nullptr});
+        if (llvm && proofStats)
+            std::cerr << "{\"proof_opt\":{\"enabled\":" << (proofEnabled ? "true" : "false")
+                << ",\"functions\":" << proofStatistics.functions
+                << ",\"skipped_functions\":" << proofStatistics.skipped
+                << ",\"budget_fallbacks\":" << proofStatistics.budgetFallbacks
+                << ",\"arithmetic_considered\":" << proofStatistics.arithmeticConsidered
+                << ",\"arithmetic_proven\":" << proofStatistics.arithmeticProven
+                << ",\"arithmetic_checks_removed\":" << proofStatistics.arithmeticChecksRemoved
+                << ",\"fixed_indices_considered\":" << proofStatistics.fixedIndicesConsidered
+                << ",\"fixed_indices_proven\":" << proofStatistics.fixedIndicesProven
+                << ",\"bounds_checks_removed\":" << proofStatistics.boundsChecksRemoved
+                << ",\"cfg_iterations\":" << proofStatistics.cfgIterations
+                << ",\"analysis_nanoseconds\":" << proofStatistics.analysisNanoseconds << "}}\n";
         printDiagnostics(sources, diagnostics);
         if (!llvm || !diagnostics.empty()) return 1;
         if (mode == Mode::LLVM) { std::cout << *llvm; return 0; }
@@ -523,7 +552,18 @@ int compilerMain(int argc, char** argv)
         else backend.output = output.empty() ? (backend.objectOnly ? (windowsTarget ? "a.obj" : "a.o") : (windowsTarget ? "a.exe" : "a.out")) : output;
         bool needsRuntime = false;
         needsRuntime = llvm->find("@aevix_integer128_") != std::string::npos
-            || llvm->find("@aevix_complex_") != std::string::npos;
+            || llvm->find("@aevix_complex_") != std::string::npos
+            || llvm->find("@aevix_parse_scalar") != std::string::npos
+            || llvm->find("@aevix_system_") != std::string::npos
+            || llvm->find("@aevix_os_") != std::string::npos
+            || llvm->find("@aevix_shared_") != std::string::npos
+            || llvm->find("@aevix_weak_") != std::string::npos
+            || llvm->find("@aevix_atomic_") != std::string::npos
+            || llvm->find("@aevix_mutex_") != std::string::npos
+            || llvm->find("@aevix_rwlock_") != std::string::npos
+            || llvm->find("@aevix_task_") != std::string::npos
+            || llvm->find("@aevix_scoped_task_") != std::string::npos
+            || llvm->find("@aevix_cancel_") != std::string::npos;
         for (const auto& global : air->globals) needsRuntime = needsRuntime || global.isPersist;
         for (const auto& function : air->functions)
         {

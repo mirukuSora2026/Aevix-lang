@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "task_source_intrinsic_plan.json",
+  "description": {
+    "ko": "Task·Scope·취소 소유자의 닫힌 소스 바인딩과 스코프에 뿌리를 둔 대여·실행 효과 검사 계획. 구현 완료를 뜻하지 않는다.",
+    "en": "Concrete plan for sealed source Task/Scope/cancellation bindings, scope-rooted loans, and execution-effect validation; not an implementation claim."
+  },
+  "status": "owned worker compiler integration implemented; full borrowed-scope and catalog contracts remain planned",
+  "scope": {
+    "approved_target": "Full approved CPU Task/library scope remains the target. Owned-static work is an implementation milestone, not a permanent scope reduction.",
+    "deferred": "GPU remains deferred. Async/await and suspension APIs are selected for0.4. Local executors, hierarchy and detach remain unimplemented synchronous0.3 obligations; they have not been silently removed from the approved CPU scope.",
+    "grammar": "Use existing imports, type-first declarations, explicit lambda captures, implements/where, Result/Optional, explicit return and statement semicolons. No new language grammar is required for the first source slice.",
+    "version_decision": "User confirmed2026-10-18: async/suspension moves to0.4; remaining CPU libraries remain0.3."
+  },
+  "sealed_types": [
+    {
+      "type": "Task<T>",
+      "kind": "TypeKind::Task",
+      "storage": "private u64 scoped observation token",
+      "copy": false,
+      "drop": "Nonblocking native scoped discard; Scope retains work. Empty consumed token is a compiler-managed state.",
+      "provenance": "Separate scope-membership loan, callable-capture origins, and actual result T origins. Recursively inspect T; the handle is a resource capability even when T is scalar.",
+      "thread_policy": "Initially non-Send/non-Sync; enable only after scoped capability transfer is independently specified."
+    },
+    {
+      "type": "TaskScope",
+      "kind": "TypeKind::TaskScope",
+      "storage": "private u64 native Scope token",
+      "copy": false,
+      "drop": "Blocking structured close/drain; normal Drop cannot silently ignore failed reaping.",
+      "provenance": "Own a logical ScopeRoot containing admitted child obligations independently of Task observation handles. A movable Scope owner carries its root identity.",
+      "thread_policy": "Initially non-Send/non-Sync. Full concurrent borrowed registration needs stable compiler-owned scope views and internal-work versus external-handle loan roles."
+    },
+    {
+      "type": "CancellationSource",
+      "kind": "TypeKind::CancellationSource",
+      "storage": "private native request-authority token",
+      "copy": false,
+      "drop": "Role-specific native source release",
+      "provenance": "Owns independent notification state; retains no user capture, Task Control, Scope borrow or JIT callback.",
+      "thread_policy": "Can satisfy sealed Send/Sync only through the audited native atomic/registry contract, never through an ordinary user assertion."
+    },
+    {
+      "type": "CancellationToken",
+      "kind": "TypeKind::CancellationToken",
+      "storage": "private native readonly observer token",
+      "copy": false,
+      "drop": "Role-specific native token release",
+      "provenance": "Independent state owner with no TaskContext pointer or task/scope/user-payload loan.",
+      "thread_policy": "Same audited sealed rule as CancellationSource; cloning cannot grant request authority."
+    }
+  ],
+  "module_and_identity": [
+    "Use a trusted task module provider with Loader-only CompilerTask/CompilerTaskScope/CompilerCancellationSource/CompilerCancellationToken markers. Source cannot spell these AST markers, construct private state, cast tokens, clone owners implicitly, or supply aevix_ extern symbols.",
+    "Resolve every intrinsic through the full callee declaration identity and trusted module provenance. Standard-type specialization must require the original top-level Struct/Enum and exact generic arity, excluding same-named variants and materialized specializations.",
+    "A real native-thread-per-task Executor descriptor may expose this supported backend explicitly; do not invent worker pools, quotas, priorities, affinity or worker-count promises. Source Executor/ScopeOptions constructor names require a concrete provider before catalog APIs using them are claimed.",
+    "First callable profile is a concrete zero-argument FnOnce producing T. A function with arguments can be explicitly captured in the existing lambda syntax; no implicit capture is introduced."
+  ],
+  "intrinsic_pipeline": {
+    "descriptor": "New TaskOperationInfo records exact receiver role, consuming/shared/exclusive access, operand roles, Result/Optional/error shape, native ABI, task payload T, callable C, and semantic effect kind. Avoid unvalidated operation-name strings scattered across passes.",
+    "ast": "CompilerTaskExpression carries concrete result type, T, optional concrete callable C, and original arguments. Generic inference returns the authoritative result type and validates FnOnce<Tuple<>,T> after specialization.",
+    "type_checker": "Construct sealed TypeKinds before checking signatures. Validate import identity, storable result layout, explicit owner/guard borrows, thread-transfer/effect constraints, Scope membership, and exact error-carrier ownership.",
+    "air": "Add TaskIntrinsic with exact type/callable/effect metadata. Verifier independently checks capability kind, matching T, FnOnce target, operand ownership, native operation, return/error carrier fields, and non-forgeable place/dynamic-call shape.",
+    "llvm": "Use compiler-only invoke/captureDrop/resultDrop thunks and existing gated native prepare/commit. No source pointer or context address is returned. Preserve per-value initialization flags across every success/failure path.",
+    "jit": "Retain the compilation resource tracker/code/vtables through all admitted worker invokes and capture/result Drop callbacks. Native metadata-only tails can outlive language completion, but global runtime teardown waits them. Do not call the permanent global admission-closing drain after each reusable JIT invocation; use lexical Scope drain while code is live and global drain only for runtime shutdown."
+  },
+  "first_source_operations": [
+    {
+      "operation": "Task.open_scope",
+      "native": "aevix_task_scope_open",
+      "effect": "Create empty ScopeRoot; do not claim executor behavior beyond the real native-thread backend."
+    },
+    {
+      "operation": "Task.spawn_owned / Task.spawn",
+      "native": "aevix_task_scope_prepare then aevix_scoped_task_commit",
+      "effect": "Register child in ScopeRoot before scheduling, validate callable effects, transfer captures once; begin with owned/static-safe captures."
+    },
+    {
+      "operation": "Task.join",
+      "native": "aevix_scoped_task_join",
+      "effect": "Consume observation after terminal take. On native reap failure, snapshot platform metadata and transfer the failed observation back to the already owning Scope only after native discard succeeds; ScopeRoot keeps outstanding capture loans. A failed/not-ready discard must retain the Task owner in an error carrier or safely terminate, never return a plain TaskError while losing observation ownership."
+    },
+    {
+      "operation": "Task.try_take",
+      "native": "aevix_scoped_task_try_take",
+      "effect": "Exclusive handle borrow: NotReady -> Ok(None), terminal success -> Ok(Some(T)) and clear handle, terminal cancellation/failure -> error and clear handle. Other failures preserve handle for retry."
+    },
+    {
+      "operation": "Task.discard_result and Task Drop",
+      "native": "aevix_scoped_task_discard",
+      "effect": "Consume observation only, retain all child capture/result obligations in ScopeRoot. NotReady cannot be silently treated as disposal; it is unreachable under valid source ownership or must preserve the owner."
+    },
+    {
+      "operation": "Task.status / wait_timeout / request_cancel",
+      "native": "snapshot / wait_timeout / request_cancel",
+      "effect": "Observation/request does not release capture loans, consume result, imply completion, cancel on timeout or grant access to T."
+    },
+    {
+      "operation": "Task.close_scope and Scope Drop",
+      "native": "aevix_task_scope_close / cleanup",
+      "effect": "Stop admission, drain every child, drop unclaimed results, invalidate native observations, then release ScopeRoot obligations. Explicit close rejects live external Task handles/derived borrows."
+    },
+    {
+      "operation": "CancellationSource/Token new, clone, token, request, requested",
+      "native": "aevix_cancel_* plus core/scoped task token derivation",
+      "effect": "Explicit fallible owned state operations. Result errors preserve input owners; readonly tokens cannot gain Source request authority."
+    }
+  ],
+  "scope_root_model": {
+    "identity": "Use a logical ScopeRootId carried with Scope values, not a user-visible native token or a raw source address. Keep hidden admitted-child storage distinct from ordinary struct fields and payload referents.",
+    "child_record": "ChildRoot records ScopeRootId, unique compile-time child identity where statically known, capture-use loans, result-contained origins, native-cleanup obligation, and observation state. Dynamic call/loop multiplicity merges conservatively without discarding any live obligation.",
+    "registration": "Spawn through &TaskScope is a sealed interior registration effect. Append capture/result provenance to the actual ScopeRoot through the resolved scope borrow before commit. Only compiler-authorized registration may mutate this hidden state through a shared scope borrow.",
+    "after_discard": "Removing the Task local or dropping/ignoring Result<Task<T>,E> does not remove registered child loans. ScopeRoot remains a liveness root until safe child completion/drain. This is required even when T contains no references.",
+    "summaries": "Extend interprocedural summaries with append-to-scope effects keyed by full parameter/content/projection paths. Preserve them through helpers returning void, closures, aggregates, branching, loops and recursion. Keep target storage and retained parent lifetimes separate, following the current ReferenceParameterPath/field-capability model.",
+    "moving_scope": "Scope moves transfer root identity and obligations. Validate every destination/return lifetime against captured referents. Scope cannot escape a borrowed local merely because its public storage is a scalar token.",
+    "completion_precision": "A safe first borrowed implementation may conservatively retain admitted loans until Scope close and document that restriction. Full precise semantics should release a child capture-use loan after proven terminal join while retaining any independently returned T references; never infer completion from request/timeout/handle discard.",
+    "close": "Close is the special terminal drain of internal Scope obligations; allow it to resolve those obligations while rejecting outstanding external Scope/Task-handle/result borrows. Do not globally waive ordinary borrow checks.",
+    "close_failure": "An explicit ScopeError variant can own the closed TaskScope for retry; that error must retain ScopeRoot provenance. Dropping such an error still drains or safely terminates on irrecoverable reap failure. No error branch may return while freeing live captured storage.",
+    "spawn_failure": "Native prepare failure leaves the local callable untouched. Source by-value spawn may deliberately destroy unstarted captures according to the existing SpawnError contract; it must not claim to return original captures unless an InputError<F>-style API actually does so. Conservative provenance retention on unknown success/failure is safe but must not be presented as precise loan release.",
+    "region_exit": "Check every referent storage-region exit, including scalar locals without Drop, before clearing state. An outer Scope retaining a helper-local capture must make the helper return invalid even when no Task value escapes.",
+    "asynchronous_stores": "Forward worker invoke stores and indirectStores to actual caller owners as possible old-union-new contents. Work may not have run or may be cancelled before invoke, and references written into external containers remain after Scope drain.",
+    "loop_multiplicity": "A single abstract spawn site may represent several concurrent children. Taking one Task must never discharge all same-site obligations; retain merged capture loans until proven full drain in the first implementation.",
+    "root_generations": "Repeated scope creation at one static call site can produce multiple simultaneously live runtime roots. Track an exact-owner identity until re-entry, then conservative One/Many generations or reject escaping borrowed instances; closing one Many instance cannot discharge all roots.",
+    "must_drain_summaries": "Consuming helpers require a must-drain summary true across every returning path, separate from may-append effects. A Scope move or close call alone is not proof of drain. Preserve the root through Result.Err -> ScopeError.Retry.scope; dropping the complete carrier drains either variant, while early success release needs actual edge refinement.",
+    "backend_proof": "When scoped workers are enabled, public emitLLVM must recompute ownership/ScopeRoot checks or consume a proof bound to the exact AIR revision. Existing owned-only ThreadSafety admission plus structural AIR validation must not become a scoped lifetime bypass."
+  },
+  "borrowed_scope_full_target": [
+    "Permit &T captures only when T is Sync and the actual referent survives the registered child; permit &mut T only when T is Send and the unique loan is rooted in Scope.",
+    "Keep shared/exclusive capture permissions after observation discard. A second child or caller access cannot overlap a retained exclusive loan merely because the original Task handle was dropped.",
+    "Returned T references need the callable result summary. Reject references to worker-local or consumed capture-owned storage; preserve valid references to longer-lived borrowed storage through join.",
+    "Nested helper paths and mutable captured containers need exact per-field target/storage provenance. Unknown nested-reference effects must be rejected until sound summaries exist, never accepted by flattening all paths to a guessed owner.",
+    "For concurrent registration captures of &TaskScope, use a compiler-owned stable scope-view representation; copying the sealed native scope capability does not copy ownership or expose raw state. Distinguish internal child-work loans from external handle loans, because close is allowed to wait internal work but cannot invalidate external source references.",
+    "Do not let ordinary SourceScope by-value lowering zero/move physical storage that a running worker still dereferences. Either keep stable opaque scope views or defer physical consumption until drain; prove this explicitly before enabling Scope references on workers.",
+    "Self-close from a worker remains rejected before any sibling wait. Nested scopes created inside workers are independent and may drain their own children safely.",
+    "Scope-root effects must survive generic specialization, indirect calls with verified contracts, loops and error propagation. Native global drain is never a replacement for lexical caller-lifetime proof."
+  ],
+  "transfer_traits": {
+    "policy": "Compiler-sealed structural Send/Sync derivation. User implements Send/Sync cannot bypass validation, and no unsafe assertion syntax is invented.",
+    "rules": [
+      {
+        "type": "CPU primitives, unit, owned SIMD values",
+        "Send": "yes for supported storable values",
+        "Sync": "yes for immutable shared access; mutable aliases still forbidden"
+      },
+      {
+        "type": "Array/Vector/Tuple/ordinary owning struct",
+        "Send": "all contained owners are Send and all relevant Drop effects are worker-safe",
+        "Sync": "all shared-accessible contents are Sync; ordinary mutable access still needs an exclusive borrow"
+      },
+      {
+        "type": "string",
+        "Send": "owned bytes transfer safely with audited allocator/Drop",
+        "Sync": "shared readonly operations only"
+      },
+      {
+        "type": "&T / Slice<T>",
+        "Send": "T:Sync plus a valid registered/static loan",
+        "Sync": "T:Sync and valid shared loan"
+      },
+      {
+        "type": "&mut T / MutSlice<T>",
+        "Send": "T:Send plus an exclusive registered/static loan",
+        "Sync": "only if the existing exclusive-reference access model proves shared read behavior; never duplicate mutation capability"
+      },
+      {
+        "type": "Box<T>",
+        "Send": "T:Send and verified payload Drop",
+        "Sync": "T:Sync; dyn additionally needs a checked interface/vtable transfer contract"
+      },
+      {
+        "type": "Shared<T> / Weak<T>",
+        "Send": "T:Send+Sync with audited atomic counts/Drop",
+        "Sync": "T:Send+Sync; remain conservatively disabled until the sealed trait pass is integrated"
+      },
+      {
+        "type": "Mutex<T>",
+        "Send": "T:Send",
+        "Sync": "T:Send, because shared access to T is available only through a guard"
+      },
+      {
+        "type": "RwLock<T>",
+        "Send": "T:Send",
+        "Sync": "T:Send+Sync because multiple readers may expose &T"
+      },
+      {
+        "type": "Atomic<T>",
+        "Send": "supported closed CPU scalar only",
+        "Sync": "supported closed CPU scalar only"
+      },
+      {
+        "type": "MutexGuard/RwLockReadGuard/RwLockWriteGuard and mapped guards",
+        "Send": "no in the current conservative profile",
+        "Sync": "no in the current conservative profile; recursion must find guards hidden inside owners/closures"
+      },
+      {
+        "type": "CancellationSource/CancellationToken",
+        "Send": "audited native owned notification state",
+        "Sync": "audited synchronized request/readonly operations; no implied work completion"
+      },
+      {
+        "type": "FFI/native SDK resources",
+        "Send": "only a checked compiler-owned resource contract, including Drop/thread affinity/retained buffers",
+        "Sync": "only exact audited operations; a private integer handle alone proves neither trait"
+      }
+    ],
+    "first_slice_restrictions": "Initially accept owned/static-safe captures/results with no user Drop, unknown dynamic target, unsynchronized global effect or unregistered borrowed view. This is a staging restriction; full borrowed scopes, verified custom Drop and broader native resources remain required work."
+  },
+  "worker_effect_check": {
+    "summary": "Build fixed-point per-function/closure/Drop summaries: globals read/written/borrowed with exact paths, trusted synchronized resource effects, FFI/unknown dynamic calls, retained loans, captured data transfer and executable-code dependencies.",
+    "global_rules": [
+      "Zero captures do not imply safety: reject direct/transitive access to ordinary mutable global/persist storage from worker code.",
+      "Allow immutable compile-time values and truly Sync shared global data only when lifetime/initialization is valid.",
+      "Atomic and lock operations are approved only by closed operation identity, not names. Their hidden interior mutations do not authorize raw field access.",
+      "Known-safe code may call other known-safe functions; mutually recursive summaries must reach a conservative fixed point before admission."
+    ],
+    "call_rules": [
+      "Check every reachable source call, including destructors executed for moved captures, worker temporaries, early returns and unused result cleanup.",
+      "Unknown FFI and unknown dynamic function pointers are rejected in safe work. Trusted native SDK operations require a specific audited typed-buffer/resource/thread contract; do not infer safety from a symbol name.",
+      "Dynamic interface targets require a checked effect/Send/Sync contract across all reachable implementations; reject open or unproven targets in the first slice.",
+      "A user Copy/Send annotation does not excuse a Drop method that mutates an unsynchronized global. Captured-value and result transfer includes cleanup permissions.",
+      "Normal Result.Err is an application value, not unwind or automatic lock poison. Fatal native/process errors do not become a fabricated TaskError."
+    ]
+  },
+  "lowering_and_failure_protocol": [
+    "Evaluate scope/work arguments in existing source order. Native prepare allocates/admits/starts a gated worker before source capture relocation; failure cannot run or drop uninitialized captures.",
+    "After successful prepare, relocate the concrete closure into its exact aligned capture slot and clear the original owner once. Valid commit is allocation-free/infallible; any impossible protocol error must not free live captures and continue.",
+    "Compiler invoke thunk consumes FnOnce C exactly once, calls the actual source call target, stores T exactly once, and returns native Completed. Capture-drop handles only cancelled-before-invoke work; invoked closure cleanup belongs to the thunk/source call on every normal path.",
+    "T=Result<U,E> remains an ordinary T: joining yields Result<Result<U,E>,TaskError>. A running closure returning a cancellation/application Err is not implicitly flattened into lifecycle Cancelled.",
+    "Result-drop thunk invokes T cleanup exactly once if unclaimed. Capture/result thunks and their JIT code must remain valid through Scope drain.",
+    "Terminal source result take clears only the observation token. Native try_take NotReady and validation/reap failure retain it. Source Task.join may return a plain lifecycle error after a failed take only when scoped discard has successfully transferred observation ownership; failed discard retains the Task owner or stops safely. Scope capture obligations remain live throughout.",
+    "Explicit close failure keeps the closed Scope owner in an error carrier for retry. Implicit Scope Drop cannot return an error; it must safely drain or terminate with a diagnostic, never release captured loans while work remains.",
+    "Cancel observers are independent native state owners. Task/Scope cleanup can free all user payloads while a notification token remains; global runtime shutdown must not wait for token-only owners."
+  ],
+  "required_gates": {
+    "positive": [
+      "Import-only availability, explicit FnOnce capture move, scalar/string/vector/SIMD/128-bit result transfer, nested application Result preservation.",
+      "Scope open/spawn/join/close, nonblocking discard of running work followed by Scope drain, early return with RAII cleanup, multiple children and nested worker-created scopes.",
+      "Clone/query/request cancellation owners, token valid after Task/Scope cleanup, terminal try_take and running NotReady, timeout preserving work, cancellation request losing to normal success.",
+      "Verified synchronized global access through Atomic/Mutex/RwLock once transfer/effect traits land; no hidden Task or guard copies.",
+      "Borrowed shared/exclusive captures rooted in Scope after handle discard; helper/generic/loop registration; precise long-lived return references and mutable reference-container writes."
+    ],
+    "negative": [
+      "Forged public state fields/native extern prefix, Source-token authority escalation, implicit Task/Scope/token copy, mismatched T or FnOnce signature.",
+      "Drop/discard then mutate an exclusively captured referent, borrowed referent ending before Scope close, Scope/error owner escaping a captured local, or second child claiming an overlapping exclusive loan.",
+      "Handle/result/view outliving Scope; closing/moving Scope with live external Task handles; closing from the same worker before sibling wait.",
+      "Guard nested in Box/Vector/Tuple/closure/result crossing a thread, readonly projections used to recover mutation, thread-affine native resource transfer without contract.",
+      "Zero-capture worker/helper/Drop that reads or writes an ordinary mutable global; unknown FFI/dynamic callback; false user implements Send assertions.",
+      "References returned into consumed capture-owned data or worker locals, including through helpers and nested aggregate fields.",
+      "JIT resource removal before capture/result Drop; source error branch dropping the last Scope obligation after native reaping failure."
+    ],
+    "execution": "Check/AOT O0+O2/JIT O0+O2 with meaningful owned-resource Drop counters and deterministic blocking/cancellation gates. Native runtime tests stay separate from source proof. Include Linux ARM/x86 and Windows execution only when actually run, with static cross-link reported separately."
+  },
+  "stage_order": [
+    "Freeze the current native Task/Scope/cancellation APIs after registered native gates.",
+    "Implement sealed source types, exact operation descriptor, finite CPU executor profile and worker-effect/recursive transfer proof. Do not expose callable spawn until source bodies, captures, result cleanup and reachable helpers are verified.",
+    "Enable owned/static-safe FnOnce spawn, joins, observations, Scope drain and cancellation owners only behind that proof. No-capture closures must pass the same global/FFI/Drop checks.",
+    "Integrate ScopeRoot append/retain/drain effects through existing per-field/interprocedural provenance machinery; enable full borrowed captures only after positive and escape gates pass.",
+    "Add verified dynamic interface/custom Drop/native-resource transfer, stable concurrent scope views and precise per-child completion release.",
+    "Implement remaining catalog families (groups/combinators/hierarchy/executor policies) with real semantics; await/local execution/detach remain separately gated. Full approved CPU target is preserved."
+  ],
+  "error_carriers": {
+    "existing_source_type": "error.TaskError currently covers SpawnFailed(os_code), Cancelled, TimedOut, AlreadyJoined, ScopeClosed, AllocationFailure and Unsupported. It does not yet represent every native lifecycle/protocol status.",
+    "required_reconciliation": "Before binding, add exact source lifecycle variants or dedicated task-module SpawnError/ScopeError/CancellationError providers for size/refcount overflow, WouldDeadlock, native reap failure with platform error domain/code, and consumed state. Do not mislabel these as cancellation or fabricate success.",
+    "scope_retry": "ScopeError.Retry owns the still-closed TaskScope and its retained ScopeRoot provenance after a recoverable native reap failure. This carrier is move-only; its Drop must drain or safely terminate. The original non-owning conceptual ScopeError rows are not a fixed ABI.",
+    "native_metadata": "Snapshot aevix_task_last_error/error_domain immediately after a failing native operation, before fallback discard, cleanup, any allocation or another runtime call overwrites thread-local metadata.",
+    "fallible_cancellation": "Publish Result<CancellationToken,CancellationError> for token derivation/clone and Result<CancellationSource,CancellationError> for source creation/clone in the development contract; explicitly reconcile catalog nonfallible token/clone rows before claiming equivalence."
+  },
+  "source_signature_profile": {
+    "status": "Proposed concrete source signatures; new provider declarations must pass normal language checking before these APIs are reported available.",
+    "executor": "Use a real closed NativeThread Executor descriptor and a concrete default-only ScopeOptions value. Preserve canonical Task.open_scope(&Executor executor, ScopeOptions options); do not silently ignore unsupported options or invent a pool. Its creation API remains to be implemented with the provider.",
+    "declarations": [
+      "public Result<TaskScope, SpawnError> open_scope(&Executor executor, ScopeOptions options);",
+      "public Result<Task<T>, SpawnError> spawn_owned<T, F>(&TaskScope scope, F work) where F implements FnOnce<Tuple<>, T>;",
+      "public Result<Task<T>, SpawnError> spawn<T, F>(&TaskScope scope, F work) where F implements FnOnce<Tuple<>, T>;",
+      "public Result<T, TaskError> join<T>(Task<T> task);",
+      "public Result<Optional<T>, TaskError> try_take<T>(&mut Task<T> task);",
+      "public TaskStatus status<T>(&Task<T> task);",
+      "public Result<WaitStatus, TaskError> wait_timeout<T>(&Task<T> task, Duration timeout);",
+      "public Result<unit, TaskError> discard_result<T>(Task<T> task);",
+      "public Result<CancelRequest, TaskError> request_cancel<T>(&Task<T> task);",
+      "public Result<ScopeReport, ScopeError> close_scope(TaskScope scope);",
+      "public Result<CancellationSource, CancellationError> cancel_source();",
+      "public Result<CancellationToken, CancellationError> cancel_token(&CancellationSource source);",
+      "public Result<CancellationToken, CancellationError> cancel_clone(&CancellationToken token);",
+      "public Result<CancelRequest, CancellationError> cancel_request(&CancellationSource source);",
+      "public bool cancel_requested(&CancellationToken token);",
+      "public Result<unit, Cancelled> check_cancel(&CancellationToken token);"
+    ],
+    "namespace": "Declarations are conceptual members of trusted Task namespace/type provider as catalogued, not plain task-module free functions claimed to be canonical methods. Existing canonical generic return inference rules must infer T from F output while validating the complete closure contract.",
+    "nonfallible_queries": "Source status/cancel_requested accept live sealed borrowed owners, so InvalidToken is an internal invariant breach rather than an application fallback value; never turn corruption into false/not-requested.",
+    "duration": "Existing time.Duration owns a private u64 nanoseconds field and exposes as_nanos; pass that unsigned count directly to the native u64 timeout. Future alternate-unit/deadline conversions must check overflow, never wrap negative values or silently saturate."
+  },
+  "current_owned_profile": {
+    "source_operations": 10,
+    "gates": "Task Generic, ownership, execution, system IO, full112-process fault injection, JIT68checks and AIR182checks passed. The complete116-target run had115passes and one resources-fixture spelling error; the corrected resources gate passed separately25positive modes and7negatives. A fresh coherent run including the subsequent FnOnce and float-bits changes is still pending.",
+    "captures_and_results": "Owned only, no contained borrow, sealed compiler-derived Send and transitive worker-safe cleanup/calls.",
+    "scope_lifetime": "Task observation retains Scope provenance even for scalar results and through helpers/carriers/Box/Tuple/Vector.",
+    "system_calls": "Closed print/println/printf/log/flush/input use audited native call locks, no retained buffers, and thread-local errors. Concurrent output/token input and owned nested text Result pass all execution modes.",
+    "global_storage": "Task/Scope owner storage, including nested forms, is rejected globally and in persist until drain-before-teardown and idempotent cleanup are proved.",
+    "os_calls": "Audited time monotonic_ns/unix_time_ns/sleep_ns and File open/read/write/seek/flush/close/size/set_len/cleanup are admitted. time.sleep blocks its native worker and supplies no async or cancellation wake. Environment/process/path/fs and arbitrary foreign calls remain denied on workers."
+  },
+  "latest_owned_checkpoint": {
+    "id": "2026-10-18-f46a65b2",
+    "compiler_sha256": "f46a65b285de877890db475919d5b1820099f16369c35a42d4de41b28172b91c",
+    "ctest": "120/120 passed in376.54seconds onmacOSARM64",
+    "source_task_operations": 10,
+    "borrowed_workers": "Rejected; the root model above is planned and has not been implemented.",
+    "next_batch": "is_finished, wait, cancel_and_join, check_cancel and executor are being implemented after this checkpoint; not validated by it."
+  }
+}

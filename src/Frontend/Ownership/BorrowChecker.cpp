@@ -11,6 +11,8 @@
 // ========================
 
 #include "aevix/Frontend/Ownership/BorrowChecker.hpp"
+#include "aevix/Native/SyncOperation.hpp"
+#include "aevix/Native/TaskOperation.hpp"
 
 #include <algorithm>
 #include <deque>
@@ -26,15 +28,20 @@ namespace aevix
     namespace
     {
         using IdSet = std::set<std::size_t>;
+        using ProvenanceFields = std::map<ReferencePath, IdSet>;
+        constexpr std::size_t maximumProvenanceEntries = 4096;
+        constexpr std::size_t maximumProvenanceDepth = 64;
 
-        enum class OriginKind { Local, Global, Parameter, ParameterElements, VariadicStorage };
+        enum class OriginKind { Local, Global, Parameter, ParameterContents, ParameterElements, VariadicStorage };
         struct Target final
         {
             OriginKind kind = OriginKind::Local;
             std::size_t id = InvalidAIRId;
             // 필드 번호는 서로 구별하지만 실행 중 인덱스는 보수적으로 겹친다고 본다.
             // Field indices are distinct, while runtime indices conservatively overlap.
-            std::vector<std::pair<AIRProjectionKind, std::size_t>> projections;
+            ReferencePath projections;
+            ReferencePath storageProjection{};
+            bool opaqueStorage = false;
             auto operator<=>(const Target&) const = default;
         };
         struct Loan final
@@ -44,6 +51,7 @@ namespace aevix
             IdSet parents;
             bool sliceStorage = false;
             bool sliceContents = false;
+            bool separateParents = false;
             bool operator==(const Loan&) const = default;
         };
         struct State final
@@ -53,6 +61,11 @@ namespace aevix
             std::vector<unsigned char> live;
             std::vector<IdSet> locals;
             std::vector<IdSet> values;
+            std::vector<IdSet> parameterContents;
+            std::vector<ProvenanceFields> localFields;
+            std::vector<ProvenanceFields> valueFields;
+            std::vector<ProvenanceFields> parameterFields;
+            std::map<ReferenceParameterPath, IdSet> indirectStores;
             std::map<std::size_t, Loan> loans;
             std::set<std::tuple<AIRLocalId, SymbolId, std::size_t>> extractedFields;
             IdSet initializedPersist;
@@ -74,6 +87,47 @@ namespace aevix
             target.insert(source.begin(), source.end());
         }
 
+        void mergeFields(ProvenanceFields& target, const ProvenanceFields& source)
+        { for (const auto& [path, values] : source) unite(target[path], values); }
+
+        IdSet flatten(const ProvenanceFields& fields)
+        { IdSet result; for (const auto& [path, values] : fields) { (void)path; unite(result, values); } return result; }
+
+        ProvenanceFields fieldFallback(const ProvenanceFields& fields, const IdSet& values)
+        { return fields.empty() && !values.empty() ? ProvenanceFields{{{}, values}} : fields; }
+
+        bool sameProjection(const ReferenceProjection& left, const ReferenceProjection& right)
+        {
+            return left.kind == right.kind && (left.kind == AIRProjectionKind::Index || left.field == right.field)
+                && (left.kind != AIRProjectionKind::EnumField || left.variant == InvalidSymbolId
+                    || right.variant == InvalidSymbolId || left.variant == right.variant);
+        }
+
+        ProvenanceFields selectFields(const ProvenanceFields& fields, const ReferencePath& selected)
+        {
+            ProvenanceFields result;
+            for (const auto& [path, values] : fields)
+            {
+                bool matches = true;
+                for (std::size_t i = 0; i < std::min(path.size(), selected.size()); ++i)
+                    if (!sameProjection(path[i], selected[i])) { matches = false; break; }
+                if (!matches) continue;
+                ReferencePath remainder;
+                if (path.size() > selected.size()) remainder.assign(path.begin() + selected.size(), path.end());
+                unite(result[remainder], values);
+            }
+            return result;
+        }
+
+        ReferencePath projectionPath(const std::vector<AIRProjection>& projections)
+        {
+            ReferencePath result;
+            for (const auto& projection : projections)
+                if (projection.kind != AIRProjectionKind::Dereference)
+                    result.push_back({projection.kind, projection.field, projection.variant});
+            return result;
+        }
+
         State merge(State result, const State& other)
         {
             for (std::size_t i = 0; i < result.live.size(); ++i)
@@ -83,12 +137,19 @@ namespace aevix
             }
             for (std::size_t i = 0; i < result.values.size(); ++i)
                 unite(result.values[i], other.values[i]);
+            for (std::size_t i = 0; i < result.parameterContents.size(); ++i)
+                unite(result.parameterContents[i], other.parameterContents[i]);
+            for (std::size_t i = 0; i < result.localFields.size(); ++i) mergeFields(result.localFields[i], other.localFields[i]);
+            for (std::size_t i = 0; i < result.valueFields.size(); ++i) mergeFields(result.valueFields[i], other.valueFields[i]);
+            for (std::size_t i = 0; i < result.parameterFields.size(); ++i) mergeFields(result.parameterFields[i], other.parameterFields[i]);
+            for (const auto& [path, values] : other.indirectStores) unite(result.indirectStores[path], values);
             for (const auto& [id, loan] : other.loans)
             {
                 auto& merged = result.loans[id];
                 merged.exclusive = merged.exclusive || loan.exclusive;
                 merged.sliceStorage = merged.sliceStorage || loan.sliceStorage;
                 merged.sliceContents = merged.sliceContents || loan.sliceContents;
+                merged.separateParents = merged.separateParents || loan.separateParents;
                 unite(merged.targets, loan.targets);
                 unite(merged.parents, loan.parents);
             }
@@ -102,11 +163,24 @@ namespace aevix
         bool overlaps(const Target& left, const Target& right)
         {
             if (left.kind != right.kind || left.id != right.id) return false;
-            const auto count = std::min(left.projections.size(), right.projections.size());
+            const auto sourceCount = std::min(left.projections.size(), right.projections.size());
+            const bool sourcePrefix = std::equal(left.projections.begin(), left.projections.begin() + sourceCount, right.projections.begin());
+            if (sourcePrefix && left.projections.size() != right.projections.size())
+            {
+                const auto& longer = left.projections.size() > right.projections.size() ? left.projections : right.projections;
+                // 참조를 따라간 다음 할당의 원천은 참조를 보관한 원래 저장소와 별개다.
+                // A referent reached across a reference boundary is distinct from the storage holding that reference.
+                if (longer[sourceCount].kind == AIRProjectionKind::Dereference) return false;
+            }
+            auto leftPath = left.projections, rightPath = right.projections;
+            leftPath.insert(leftPath.end(), left.storageProjection.begin(), left.storageProjection.end());
+            rightPath.insert(rightPath.end(), right.storageProjection.begin(), right.storageProjection.end());
+            const auto count = std::min(leftPath.size(), rightPath.size());
             for (std::size_t i = 0; i < count; ++i)
             {
-                const auto [lk, li] = left.projections[i];
-                const auto [rk, ri] = right.projections[i];
+                const auto [lk, li, lv] = leftPath[i];
+                const auto [rk, ri, rv] = rightPath[i];
+                if (lk == AIRProjectionKind::EnumField && rk == lk && lv != InvalidSymbolId && rv != InvalidSymbolId && lv != rv) return false;
                 if ((lk == AIRProjectionKind::Field || lk == AIRProjectionKind::EnumField)
                     && lk == rk && li != ri)
                     return false;
@@ -157,14 +231,32 @@ namespace aevix
                             return instruction.opcode == AIROpcode::Drop
                                 && instruction.operation == "ownership.cleanup";
                         });
-                for (const auto& function : module_.functions) summaries_[function.symbol] = {};
+                for (const auto& function : module_.functions)
+                {
+                    auto& summary = summaries_[function.symbol];
+                    // 빈 효과에서 시작해야 반드시 비우는 함수의 내용 출처가 되살아나지 않는다.
+                    // Start at the least effect so a definite clearing function cannot retain stale contents.
+                    for (std::size_t p = 0; p < function.parameters.size(); ++p)
+                        if (mutableContentsParameter(function, p)) summary.stores[p] = {};
+                }
                 for (const auto& function : module_.functions) for (const auto& block : function.blocks) for (const auto& instruction : block.instructions)
                     if (instruction.opcode == AIROpcode::Call && instruction.operation.starts_with("dyn.call.")) summaries_[instruction.callee] = {};
+                // 정리를 먼저 명시해 소멸자의 대여와 호출 효과도 일반 제어 흐름과 함께 검사한다.
+                // Materialize cleanup first so destructor loans and call effects participate in normal flow analysis.
+                std::size_t plannedDrops = 0;
+                for (auto& function : module_.functions)
+                {
+                    prepare(function);
+                    const auto flow = analyze(function, false);
+                    if (analysisLimit_) return {};
+                    plannedDrops += planDrops(function, flow);
+                }
                 collectGlobalEffects();
+                validatePersistDrops();
                 // 반환 원천 요약은 호출 그래프의 순환과 무관하게 유한 집합의 고정점으로 구한다.
                 // Compute returned-origin summaries as a finite-set fixed point, including recursion.
                 bool changed = true;
-                while (changed)
+                while (changed && !analysisLimit_)
                 {
                     changed = false;
                     for (const auto& function : module_.functions) for (const auto& block : function.blocks) for (const auto& instruction : block.instructions)
@@ -173,9 +265,7 @@ namespace aevix
                             auto& summary = summaries_[instruction.callee]; const auto previous = summary;
                             for (const auto target : instruction.dynamicTargets)
                             {
-                                unite(summary.parameters, summaries_[target].parameters);
-                                unite(summary.elementParameters, summaries_[target].elementParameters);
-                                unite(summary.globals, summaries_[target].globals);
+                                mergeSummary(summary, summaries_[target]);
                             }
                             changed = changed || summary != previous;
                         }
@@ -183,30 +273,27 @@ namespace aevix
                     {
                         prepare(function);
                         const auto flow = analyze(function, false);
+                        if (analysisLimit_) return {};
                         auto& summary = summaries_[function.symbol];
                         const auto prior = summary;
-                        unite(summary.parameters, flow.summary.parameters);
-                        unite(summary.elementParameters, flow.summary.elementParameters);
-                        unite(summary.globals, flow.summary.globals);
-                        summary.global = summary.global || flow.summary.global;
+                        mergeSummary(summary, flow.summary);
+                        std::size_t entries = summary.fields.size() + summary.fieldCapabilities.size() + summary.indirectStores.size()
+                            + summary.parameterPaths.size() + summary.contentPaths.size();
+                        for (const auto& [parameter, fields] : summary.storeFields) { (void)parameter; entries += fields.size(); }
+                        if (entries > maximumProvenanceEntries) { provenanceLimit(); return {}; }
                         changed = changed || summary != prior;
                     }
                 }
-                std::vector<FunctionFlow> flows;
                 for (auto& function : module_.functions)
                 {
                     prepare(function);
-                    flows.push_back(analyze(function, true));
+                    analyze(function, true);
+                    if (analysisLimit_) return {};
                 }
                 OwnershipResult result;
                 result.returns = summaries_;
                 result.succeeded = diagnostics_.size() == before;
-                if (result.succeeded)
-                    for (std::size_t i = 0; i < module_.functions.size(); ++i)
-                    {
-                        prepare(module_.functions[i]);
-                        result.plannedDrops += planDrops(module_.functions[i], flows[i]);
-                    }
+                if (result.succeeded) result.plannedDrops = plannedDrops;
                 return result;
             }
 
@@ -223,6 +310,7 @@ namespace aevix
             std::unordered_map<SymbolId, std::map<SymbolId, bool>> initializerEffects_;
             std::unordered_map<SymbolId, bool> unknownEffects_;
             std::unordered_map<SymbolId, bool> unknownInitializerEffects_;
+            mutable std::unordered_map<TypeId, IdSet> dropTargets_;
             std::map<std::tuple<SourceId, std::size_t, std::string>, bool> emitted_;
             std::vector<std::vector<IdSet>> liveAfter_;
             std::vector<std::vector<IdSet>> localLiveAfter_;
@@ -230,6 +318,50 @@ namespace aevix
             std::vector<std::vector<std::size_t>> sliceContentLoanIds_;
             std::size_t parameterLoanBase_ = 0;
             bool reporting_ = false;
+            std::map<Target, std::size_t> symbolicLoans_;
+            std::size_t nextSymbolicLoan_ = 0;
+            std::map<std::pair<AIRValueId, ReferencePath>, std::size_t> returnedLoanIds_;
+            const AIRFunction* currentFunction_ = nullptr;
+            bool analysisLimit_ = false;
+
+            static void mergeOrigins(ReferenceOrigins& target, const ReferenceOrigins& source)
+            {
+                unite(target.parameters, source.parameters);
+                unite(target.contentParameters, source.contentParameters);
+                unite(target.elementParameters, source.elementParameters);
+                unite(target.parameterPaths, source.parameterPaths);
+                unite(target.contentPaths, source.contentPaths);
+                unite(target.globals, source.globals);
+                target.global = target.global || source.global;
+            }
+
+            static void mergeSummary(ReferenceReturnSummary& target, const ReferenceReturnSummary& source)
+            {
+                mergeOrigins(target, source);
+                for (const auto& [parameter, origins] : source.stores) mergeOrigins(target.stores[parameter], origins);
+                for (const auto& [path, origins] : source.fields) mergeOrigins(target.fields[path], origins);
+                for (const auto& [parameter, fields] : source.storeFields)
+                    for (const auto& [path, origins] : fields) mergeOrigins(target.storeFields[parameter][path], origins);
+                for (const auto& [path, capability] : source.fieldCapabilities)
+                {
+                    mergeOrigins(target.fieldCapabilities[path].parents, capability.parents);
+                    target.fieldCapabilities[path].exclusive = target.fieldCapabilities[path].exclusive || capability.exclusive;
+                }
+                for (const auto& [path, origins] : source.indirectStores) mergeOrigins(target.indirectStores[path], origins);
+                mergeOrigins(target.retainedParents, source.retainedParents);
+                target.derivedCapability = target.derivedCapability || source.derivedCapability;
+                target.targetExclusive = target.targetExclusive || source.targetExclusive;
+            }
+
+            bool mutableContentsParameter(const AIRFunction& function, std::size_t parameter) const
+            {
+                if (parameter >= function.parameters.size()) return false;
+                const auto local = function.parameters[parameter];
+                if (local >= function.locals.size()) return false;
+                const auto& type = types_.types.get(function.locals[local].type);
+                return (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice)
+                    && type.isMutable && containsReference(type.element);
+            }
 
             void collectGlobalEffects()
             {
@@ -251,14 +383,26 @@ namespace aevix
                                 {
                                     const bool write = instruction.opcode == AIROpcode::Write
                                         || instruction.opcode == AIROpcode::Move
-                                        || instruction.opcode == AIROpcode::BorrowMut;
+                                        || instruction.opcode == AIROpcode::BorrowMut || instruction.opcode == AIROpcode::VectorTake
+                                        || instruction.opcode == AIROpcode::VectorTruncate || instruction.opcode == AIROpcode::VectorInsert;
                                     auto& effect = effects[instruction.place.global];
                                     effect = effect || write;
                                 }
-                                if (instruction.opcode == AIROpcode::Call)
+                                if (instruction.opcode == AIROpcode::Call || instruction.opcode == AIROpcode::Drop || instruction.opcode == AIROpcode::VectorTruncate)
                                 {
-                                    auto targets = instruction.dynamicTargets;
-                                    if (targets.empty() && !instruction.operation.starts_with("dyn.call.")) targets.push_back(instruction.callee);
+                                    std::vector<SymbolId> targets;
+                                    if (instruction.opcode == AIROpcode::Drop || instruction.opcode == AIROpcode::VectorTruncate)
+                                    {
+                                        const auto cleanupType = instruction.opcode == AIROpcode::VectorTruncate
+                                            ? types_.types.get(instruction.place.type).element : instruction.place.type;
+                                        const auto& cleanup = dropTargets(cleanupType);
+                                        targets.assign(cleanup.begin(), cleanup.end());
+                                    }
+                                    else
+                                    {
+                                        targets = instruction.dynamicTargets;
+                                        if (targets.empty() && !instruction.operation.starts_with("dyn.call.")) targets.push_back(instruction.callee);
+                                    }
                                     for (const auto target : targets)
                                     {
                                         unknown = unknown || !summaries_.contains(target) || unknownEffects_[target];
@@ -266,7 +410,7 @@ namespace aevix
                                         { auto& effect = effects[global]; effect = effect || write; }
                                         unite(ensures, persistEnsures_[target]);
                                     }
-                                    if (instruction.operation.starts_with("dyn.call."))
+                                    if (instruction.opcode == AIROpcode::Call && instruction.operation.starts_with("dyn.call."))
                                     {
                                         auto& combined = globalEffects_[instruction.callee];
                                         for (const auto target : targets)
@@ -324,7 +468,10 @@ namespace aevix
             bool copy(TypeId id, std::unordered_set<TypeId>& visiting) const
             {
                 const auto& type = types_.types.get(id);
-                if (type.kind == TypeKind::String || type.kind == TypeKind::Array || type.kind == TypeKind::Vector || type.kind == TypeKind::Box
+                if (types_.dropMethods.contains(id)) return false;
+                if (syncOwner(type.kind) || syncGuard(type.kind) || taskOwner(type.kind)) return false;
+                if (type.kind == TypeKind::String || type.kind == TypeKind::Array || type.kind == TypeKind::Vector || type.kind == TypeKind::Box || type.kind == TypeKind::Shared || type.kind == TypeKind::Weak || type.kind == TypeKind::Atomic
+                    || type.kind == TypeKind::CancellationSource || type.kind == TypeKind::CancellationToken
                     || type.kind == TypeKind::Tuple || type.kind == TypeKind::Void || type.kind == TypeKind::Error) return false;
                 if (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice) return !type.isMutable;
                 if (type.kind != TypeKind::Nominal) return true;
@@ -361,12 +508,99 @@ namespace aevix
                     && kind != TypeKind::Error && kind != TypeKind::Never;
             }
 
+            const IdSet& dropTargets(TypeId id) const
+            {
+                if (const auto found = dropTargets_.find(id); found != dropTargets_.end()) return found->second;
+                IdSet targets;
+                std::unordered_set<TypeId> visited;
+                auto visit = [&](auto&& self, TypeId current) -> void
+                {
+                    if (!visited.insert(current).second) return;
+                    const auto& type = types_.types.get(current);
+                    if (const auto method = types_.dropMethods.find(current); method != types_.dropMethods.end()) targets.insert(method->second);
+                    if (type.kind == TypeKind::Vector || (type.kind == TypeKind::Array && type.extent != 0)) self(self, type.element);
+                    else if (type.kind == TypeKind::Tuple)
+                        for (const auto field : type.parameters) self(self, field);
+                    else if (type.kind == TypeKind::Shared || syncOwner(type.kind)) self(self, type.element);
+                    else if (type.kind == TypeKind::Box)
+                    {
+                        if (types_.types.get(type.element).kind != TypeKind::Dynamic) self(self, type.element);
+                        else
+                        {
+                            // 동적 소유자의 실제 구현 후보도 소멸 효과와 대여 유지에 포함한다.
+                            // Include concrete dynamic-owner candidates in destructor effects and retained loans.
+                            for (const auto& [node, view] : types_.boxDynViews)
+                            { (void)node; if (view.interfaceType == type.element) self(self, view.concreteType); }
+                            for (const auto& [node, view] : types_.dynViews)
+                            { (void)node; if (view.interfaceType == type.element) self(self, view.concreteType); }
+                        }
+                    }
+                    if (const auto record = records_.find(current); record != records_.end())
+                    {
+                        for (const auto field : record->second->fieldTypes) self(self, field);
+                        for (const auto& variant : record->second->variants)
+                            for (const auto field : variant.fieldTypes) self(self, field);
+                    }
+                };
+                visit(visit, id);
+                return dropTargets_.emplace(id, std::move(targets)).first->second;
+            }
+
+            void validatePersistDrops()
+            {
+                reporting_ = true;
+                for (const auto& storage : module_.globals)
+                {
+                    if (!storage.isPersist) continue;
+                    for (const auto method : dropTargets(storage.type))
+                    {
+                        bool touchesPersist = !persistEnsures_[method].empty();
+                        for (const auto& [global, write] : globalEffects_[method])
+                        {
+                            (void)write;
+                            for (const auto& candidate : module_.globals)
+                                if (candidate.symbol == global && candidate.isPersist) touchesPersist = true;
+                        }
+                        // 외부 정리가 다른 persist를 건드리지 않는다는 증명은 향후 제한된 FFI 계약이 제공해야 한다.
+                        // A future bounded FFI contract must prove external cleanup cannot touch other persist storage.
+                        if (touchesPersist || unknownEffects_[method])
+                            error(storage.source ? storage.source->range : SourceRange{},
+                                "A persist destructor cannot access persist storage or call functions with unknown cleanup effects.");
+                    }
+                }
+                reporting_ = false;
+            }
+
+            bool nativeCleanup(TypeId id, bool retainedOnly, std::unordered_set<TypeId>& visited) const
+            {
+                if (!visited.insert(id).second) return false;
+                const auto& type = types_.types.get(id);
+                if (syncGuard(type.kind) || type.kind == TypeKind::Task) return true;
+                if ((syncOwner(type.kind) || type.kind == TypeKind::CancellationSource || type.kind == TypeKind::CancellationToken
+                    || type.kind == TypeKind::TaskScope) && !retainedOnly) return true;
+                if ((syncOwner(type.kind) || type.kind == TypeKind::Shared || type.kind == TypeKind::Box
+                    || type.kind == TypeKind::Vector || type.kind == TypeKind::Array) && nativeCleanup(type.element, retainedOnly, visited)) return true;
+                if (type.kind == TypeKind::Tuple)
+                    for (const auto field : type.parameters) if (nativeCleanup(field, retainedOnly, visited)) return true;
+                if (const auto record = records_.find(id); record != records_.end())
+                {
+                    for (const auto field : record->second->fieldTypes) if (nativeCleanup(field, retainedOnly, visited)) return true;
+                    for (const auto& variant : record->second->variants)
+                        for (const auto field : variant.fieldTypes) if (nativeCleanup(field, retainedOnly, visited)) return true;
+                }
+                return false;
+            }
+            bool nativeCleanup(TypeId id, bool retainedOnly = false) const
+            { std::unordered_set<TypeId> visited; return nativeCleanup(id, retainedOnly, visited); }
             bool containsReference(TypeId id, std::unordered_set<TypeId>& visiting) const
             {
                 const auto& type = types_.types.get(id);
-                if (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice || type.kind == TypeKind::StringView) return true;
+                // 관측 핸들의 실제 저장소가 정수여도 자식이 속한 스코프의 수명을 대여한다.
+                // Even an integer-backed observation handle borrows its child's owning scope lifetime.
+                if (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice || type.kind == TypeKind::StringView || type.kind == TypeKind::Dynamic || syncGuard(type.kind)
+                    || type.kind == TypeKind::Task) return true;
                 if (!visiting.insert(id).second) return false;
-                bool answer = (type.kind == TypeKind::Array || type.kind == TypeKind::Vector || type.kind == TypeKind::Box) && containsReference(type.element, visiting);
+                bool answer = (type.kind == TypeKind::Array || type.kind == TypeKind::Vector || type.kind == TypeKind::Box || type.kind == TypeKind::Shared || type.kind == TypeKind::Weak || syncOwner(type.kind)) && containsReference(type.element, visiting);
                 if (type.kind == TypeKind::Tuple) for (const auto field : type.parameters) answer = answer || containsReference(field, visiting);
                 if (type.kind == TypeKind::Box && types_.types.get(type.element).kind == TypeKind::Dynamic) answer = true;
                 if (const auto found = records_.find(id); found != records_.end())
@@ -387,8 +621,30 @@ namespace aevix
                 return containsReference(id, visiting);
             }
 
+            bool containsMutableReference(TypeId id, std::unordered_set<TypeId>& visited) const
+            {
+                if (!visited.insert(id).second) return false;
+                const auto& type = types_.types.get(id);
+                if (syncGuard(type.kind)) return true;
+                if (type.kind == TypeKind::Reference || type.kind == TypeKind::Slice)
+                    return type.isMutable || containsMutableReference(type.element, visited);
+                if ((type.kind == TypeKind::Array || type.kind == TypeKind::Vector || type.kind == TypeKind::Box || type.kind == TypeKind::Shared || type.kind == TypeKind::Weak || syncOwner(type.kind))
+                    && containsMutableReference(type.element, visited)) return true;
+                if (type.kind == TypeKind::Box && types_.types.get(type.element).kind == TypeKind::Dynamic) return true;
+                if (type.kind == TypeKind::Tuple)
+                    for (const auto field : type.parameters) if (containsMutableReference(field, visited)) return true;
+                if (const auto record = records_.find(id); record != records_.end())
+                {
+                    for (const auto field : record->second->fieldTypes) if (containsMutableReference(field, visited)) return true;
+                    for (const auto& variant : record->second->variants)
+                        for (const auto field : variant.fieldTypes) if (containsMutableReference(field, visited)) return true;
+                }
+                return false;
+            }
+
             void prepare(const AIRFunction& function)
             {
+                currentFunction_ = &function;
                 loanIds_.assign(function.blocks.size(), {});
                 std::size_t next = 0;
                 for (std::size_t b = 0; b < function.blocks.size(); ++b)
@@ -404,6 +660,7 @@ namespace aevix
                         if (function.blocks[block].instructions[index].opcode == AIROpcode::SliceConstruct) sliceContentLoanIds_[block][index] = next++;
                 }
                 parameterLoanBase_ = next;
+                symbolicLoans_.clear(); returnedLoanIds_.clear(); nextSymbolicLoan_ = next + function.parameters.size() * 2;
                 // SSA 임시값의 뒤쪽 사용을 구하여 호출용 임시 대여가 블록 끝까지 남지 않게 한다.
                 // Compute SSA value liveness so call-only temporary loans do not last to block end.
                 std::vector<IdSet> incoming(function.blocks.size()), outgoing(function.blocks.size());
@@ -453,6 +710,8 @@ namespace aevix
                 std::vector<IdSet> localIn(function.blocks.size()), localOut(function.blocks.size());
                 auto localTransfer = [&](const AIRInstruction& instruction, IdSet& live)
                 {
+                    if (instruction.opcode == AIROpcode::ClosureConsume)
+                        for (const auto destination : instruction.closureLocals) live.erase(destination);
                     if (instruction.opcode == AIROpcode::ScopeEnd && instruction.scope < function.scopes.size())
                         for (const auto local : function.scopes[instruction.scope].locals) live.erase(local);
                     const auto local = instruction.place.local;
@@ -502,12 +761,268 @@ namespace aevix
                 }
             }
 
-            State initial(const AIRFunction& function) const
+            TypeId pathType(TypeId type, const ReferencePath& path) const
+            {
+                for (const auto& projection : path)
+                {
+                    const auto& current = types_.types.get(type);
+                    if (projection.kind == AIRProjectionKind::Dereference)
+                    {
+                        const bool ownedPayload = projection.field == 1 && (current.kind == TypeKind::Box || current.kind == TypeKind::Shared || current.kind == TypeKind::Weak);
+                        if (current.kind != TypeKind::Reference && !ownedPayload && !syncGuard(current.kind)) return InvalidTypeId;
+                        type = current.element;
+                    }
+                    else if (projection.kind == AIRProjectionKind::Index)
+                    {
+                        if (current.kind != TypeKind::Array && current.kind != TypeKind::Vector && current.kind != TypeKind::Slice) return InvalidTypeId;
+                        type = current.element;
+                    }
+                    else if (current.kind == TypeKind::Tuple && projection.kind == AIRProjectionKind::Field)
+                    { if (projection.field >= current.parameters.size()) return InvalidTypeId; type = current.parameters[projection.field]; }
+                    else
+                    {
+                        const auto record = records_.find(type);
+                        if (record == records_.end()) return InvalidTypeId;
+                        if (projection.kind == AIRProjectionKind::EnumField)
+                        {
+                            const auto variant = std::find_if(record->second->variants.begin(), record->second->variants.end(),
+                                [&](const EnumVariantInfo& value) { return value.variant == projection.variant; });
+                            if (variant == record->second->variants.end() || projection.field >= variant->fieldTypes.size()) return InvalidTypeId;
+                            type = variant->fieldTypes[projection.field];
+                        }
+                        else
+                        { if (projection.field >= record->second->fieldTypes.size()) return InvalidTypeId; type = record->second->fieldTypes[projection.field]; }
+                    }
+                }
+                return type;
+            }
+
+            std::map<ReferencePath, bool> referenceLeaves(TypeId id) const
+            {
+                std::map<ReferencePath, bool> result;
+                std::unordered_set<TypeId> visited;
+                const auto collect = [&](const auto& self, TypeId type, ReferencePath path) -> void
+                {
+                    if (!containsReference(type)) return;
+                    const auto& current = types_.types.get(type);
+                    // 봉인된 핸들의 비공개 정수 필드 대신 논리적인 공유 Scope 대여를 요약한다.
+                    // Summarize the sealed handle's logical shared Scope loan, not its private integer field.
+                    if (current.kind == TypeKind::Task) { result[path] = false; return; }
+                    if (current.kind == TypeKind::Reference || syncGuard(current.kind) || syncOwner(current.kind))
+                    { result[path] = current.kind != TypeKind::Reference || current.isMutable; return; }
+                    if (!visited.insert(type).second) { result[path] = true; return; }
+                    if (current.kind == TypeKind::Box || current.kind == TypeKind::Shared || current.kind == TypeKind::Weak)
+                    { path.push_back({AIRProjectionKind::Dereference, 1}); self(self, current.element, std::move(path)); }
+                    else if (current.kind == TypeKind::Array || current.kind == TypeKind::Vector)
+                    { path.push_back({AIRProjectionKind::Index}); self(self, current.element, std::move(path)); }
+                    else if (current.kind == TypeKind::Tuple)
+                        for (std::size_t i = 0; i < current.parameters.size(); ++i)
+                        { auto nested = path; nested.push_back({AIRProjectionKind::Field, i}); self(self, current.parameters[i], std::move(nested)); }
+                    else if (const auto record = records_.find(type); record != records_.end())
+                    {
+                        for (std::size_t i = 0; i < record->second->fieldTypes.size(); ++i)
+                        { auto nested = path; nested.push_back({AIRProjectionKind::Field, i}); self(self, record->second->fieldTypes[i], std::move(nested)); }
+                        for (const auto& variant : record->second->variants)
+                            for (std::size_t i = 0; i < variant.fieldTypes.size(); ++i)
+                            { auto nested = path; nested.push_back({AIRProjectionKind::EnumField, i, variant.variant}); self(self, variant.fieldTypes[i], std::move(nested)); }
+                    }
+                    else result[path] = true;
+                    visited.erase(type);
+                };
+                collect(collect, id, {}); return result;
+            }
+
+            void provenanceLimit()
+            {
+                if (analysisLimit_) return;
+                analysisLimit_ = true;
+                const bool reporting = reporting_; reporting_ = true;
+                error(currentFunction_ && currentFunction_->source ? currentFunction_->source->range : SourceRange{},
+                    "Reference provenance analysis exceeds its supported capacity (4096 entries or depth 64).");
+                reporting_ = reporting;
+            }
+
+            ProvenanceFields normalizeFields(TypeId root, const ProvenanceFields& fields)
+            {
+                ProvenanceFields result;
+                for (const auto& [path, values] : fields)
+                {
+                    ReferencePath canonical; TypeId type = root;
+                    std::unordered_set<TypeId> visited; visited.insert(type);
+                    for (const auto& projection : path)
+                    {
+                        const auto kind = types_.types.get(type).kind;
+                        if (kind == TypeKind::Reference || kind == TypeKind::Slice || kind == TypeKind::StringView || syncGuard(kind)) break;
+                        const auto next = pathType(type, {projection});
+                        if (next == InvalidTypeId) break;
+                        canonical.push_back(projection); type = next;
+                        // 재귀 소유 타입 아래의 경로는 모든 후손을 포함하는 접두어로 넓힌다.
+                        // Widen paths below a repeated owned type to a prefix covering every descendant.
+                        if (!visited.insert(type).second) break;
+                    }
+                    if (canonical.size() > maximumProvenanceDepth) { provenanceLimit(); return {}; }
+                    bool covered = false;
+                    for (auto& [existing, retained] : result)
+                        if (existing.size() <= canonical.size() && std::equal(existing.begin(), existing.end(), canonical.begin()))
+                        { unite(retained, values); covered = true; break; }
+                    if (covered) continue;
+                    auto retained = values;
+                    std::erase_if(result, [&](const auto& entry) {
+                        if (canonical.size() <= entry.first.size() && std::equal(canonical.begin(), canonical.end(), entry.first.begin()))
+                        { unite(retained, entry.second); return true; }
+                        return false;
+                    });
+                    result[canonical] = std::move(retained);
+                    if (result.size() > maximumProvenanceEntries) { provenanceLimit(); return {}; }
+                }
+                return result;
+            }
+
+            std::size_t symbolicLoan(State& state, Target target, bool exclusive)
+            {
+                if (target.projections.size() + target.storageProjection.size() > maximumProvenanceDepth
+                    || (symbolicLoans_.size() >= maximumProvenanceEntries && !symbolicLoans_.contains(target)))
+                { provenanceLimit(); return InvalidAIRId; }
+                const auto [found, inserted] = symbolicLoans_.try_emplace(target, nextSymbolicLoan_);
+                if (inserted) ++nextSymbolicLoan_;
+                auto& loan = state.loans[found->second]; loan.exclusive = loan.exclusive || exclusive; loan.targets.insert(std::move(target));
+                return found->second;
+            }
+
+            ProvenanceFields valueFields(const State& state, AIRValueId value) const
+            {
+                return value < state.valueFields.size() ? fieldFallback(state.valueFields[value], this->value(state, value)) : ProvenanceFields{};
+            }
+
+            bool symbolicReferenceTarget(const AIRFunction& function, const Target& target) const
+            {
+                if (target.kind == OriginKind::ParameterContents) return true;
+                if (target.kind != OriginKind::Parameter || target.id >= function.parameters.size()) return false;
+                const auto kind = types_.types.get(function.locals[function.parameters[target.id]].type).kind;
+                return kind != TypeKind::Reference && kind != TypeKind::Slice;
+            }
+
+            void appendStoragePath(const AIRFunction& function, Target& target, const ReferencePath& path)
+            {
+                auto& destination = target.opaqueStorage || symbolicReferenceTarget(function, target) ? target.storageProjection : target.projections;
+                if (destination.size() + path.size() > maximumProvenanceDepth) { provenanceLimit(); return; }
+                destination.insert(destination.end(), path.begin(), path.end());
+            }
+
+            ReferenceParameterPath indirectPath(const AIRFunction& function, const Target& target) const
+            {
+                ReferenceParameterPath result{target.id, target.projections, target.storageProjection, target.kind == OriginKind::ParameterContents, target.opaqueStorage};
+                if (target.id < function.parameters.size())
+                {
+                    const auto& parameter = types_.types.get(function.locals[function.parameters[target.id]].type);
+                    const auto root = parameter.kind == TypeKind::Reference ? parameter.element : function.locals[function.parameters[target.id]].type;
+                    if (result.storageProjection.empty() && syncGuard(types_.types.get(root).kind) && target.projections.size() == 1
+                        && target.projections[0].kind == AIRProjectionKind::Field && target.projections[0].field == 1)
+                    { result.path.clear(); result.storageProjection = target.projections; }
+                }
+                return result;
+            }
+
+            ProvenanceFields targetFields(const AIRFunction& function, const Target& target, TypeId type, State& state)
+            {
+                if (target.kind == OriginKind::Local && target.id < state.locals.size())
+                    return selectFields(fieldFallback(state.localFields[target.id], state.locals[target.id]), target.projections);
+                bool valueReference = false;
+                if (target.kind == OriginKind::Parameter && target.id < function.parameters.size())
+                {
+                    const auto& parameter = types_.types.get(function.locals[function.parameters[target.id]].type);
+                    valueReference = parameter.kind != TypeKind::Reference && parameter.kind != TypeKind::Slice;
+                    if (!valueReference) return selectFields(fieldFallback(state.parameterFields[target.id], state.parameterContents[target.id]), target.projections);
+                }
+                ProvenanceFields result;
+                if (target.kind == OriginKind::ParameterContents || valueReference)
+                {
+                    if (target.opaqueStorage)
+                    {
+                        auto origin = target; origin.opaqueStorage = false;
+                        if (!origin.storageProjection.empty())
+                        {
+                            origin.projections.push_back({AIRProjectionKind::Dereference});
+                            origin.projections.insert(origin.projections.end(), origin.storageProjection.begin(), origin.storageProjection.end());
+                            origin.storageProjection.clear();
+                        }
+                        result[{}].insert(symbolicLoan(state, std::move(origin), true)); return result;
+                    }
+                    // 보관한 참조를 따라 읽은 내용은 그 참조 자체의 저장소 대여와 다르다.
+                    // Contents read through a stored reference are distinct from the reference's own storage loan.
+                    for (const auto& [path, exclusive] : referenceLeaves(type))
+                    {
+                        auto origin = target;
+                        const auto forwarded = indirectPath(function, target);
+                        if (!forwarded.storageProjection.empty()) origin.projections = forwarded.path;
+                        origin.projections.push_back({AIRProjectionKind::Dereference});
+                        auto storage = forwarded.storageProjection;
+                        if (target.id < function.parameters.size())
+                        {
+                            const auto& parameter = types_.types.get(function.locals[function.parameters[target.id]].type);
+                            const auto root = parameter.kind == TypeKind::Reference ? parameter.element : function.locals[function.parameters[target.id]].type;
+                            if (syncGuard(types_.types.get(pathType(root, forwarded.path)).kind) && !storage.empty()
+                                && storage.front() == ReferenceProjection{AIRProjectionKind::Field, 1}) storage.erase(storage.begin());
+                        }
+                        origin.projections.insert(origin.projections.end(), storage.begin(), storage.end());
+                        origin.projections.insert(origin.projections.end(), path.begin(), path.end());
+                        origin.storageProjection.clear();
+                        if (origin.projections.size() > maximumProvenanceDepth)
+                        { provenanceLimit(); continue; }
+                        result[path].insert(symbolicLoan(state, std::move(origin), exclusive));
+                    }
+                    if (const auto changed = state.indirectStores.find(indirectPath(function, target)); changed != state.indirectStores.end())
+                        unite(result[{}], changed->second);
+                }
+                return result;
+            }
+
+            ProvenanceFields readFields(const AIRFunction& function, const AIRPlace& location, State& state)
+            {
+                if (!containsReference(location.type)) return {};
+                ProvenanceFields result;
+                if (location.pointer == InvalidAIRId && location.local < state.locals.size())
+                    result = selectFields(fieldFallback(state.localFields[location.local], state.locals[location.local]), projectionPath(location.projections));
+                else
+                {
+                    const auto view = place(function, location, state);
+                    for (const auto& target : view.targets)
+                        mergeFields(result, targetFields(function, target, location.type, state));
+                    if (result.empty() && location.pointer != InvalidAIRId)
+                        for (const auto& target : view.targets)
+                            if (target.kind == OriginKind::ParameterElements || target.kind == OriginKind::VariadicStorage)
+                                unite(result[{}], value(state, location.pointer));
+                }
+                TypeId base = InvalidTypeId;
+                if (location.local < function.locals.size()) base = function.locals[location.local].type;
+                else if (location.pointer < function.valueTypes.size())
+                {
+                    const auto& pointer = types_.types.get(function.valueTypes[location.pointer]);
+                    base = pointer.kind == TypeKind::Reference ? pointer.element : function.valueTypes[location.pointer];
+                }
+                if (!location.projections.empty() && location.projections.front().kind == AIRProjectionKind::Index
+                    && types_.types.get(base).kind == TypeKind::Slice)
+                {
+                    // 원소 안의 외부 참조와 pack 자체의 저장소 출처를 상세 필드에서도 분리한다.
+                    // Separate external element references from pack storage in detailed fields as well as flat origins.
+                    IdSet contents;
+                    for (const auto id : flatten(result))
+                        if (const auto loan = state.loans.find(id); loan != state.loans.end() && loan->second.sliceContents) contents.insert(id);
+                    if (!contents.empty()) return {{{}, std::move(contents)}};
+                }
+                return result;
+            }
+
+            State initial(const AIRFunction& function)
             {
                 State state;
                 state.live.resize(function.locals.size());
                 state.locals.resize(function.locals.size());
                 state.values.resize(function.valueTypes.size());
+                state.parameterContents.resize(function.parameters.size());
+                state.localFields.resize(function.locals.size());
+                state.valueFields.resize(function.valueTypes.size());
+                state.parameterFields.resize(function.parameters.size());
                 for (std::size_t p = 0; p < function.parameters.size(); ++p)
                 {
                     const auto local = function.parameters[p];
@@ -520,13 +1035,44 @@ namespace aevix
                         const auto* source = function.locals[local].source;
                         const bool variadic = source && source->kind == "VariadicParameter";
                         const auto storageOrigin = variadic ? OriginKind::VariadicStorage : OriginKind::Parameter;
-                        state.loans[loan] = {type.isMutable, {{storageOrigin, p, {}}}, {}, type.kind == TypeKind::Slice, false};
+                        std::unordered_set<TypeId> visited;
+                        const bool destructorMutates = (!dropTargets(function.locals[local].type).empty() || nativeCleanup(function.locals[local].type, true))
+                            && containsMutableReference(function.locals[local].type, visited);
+                        state.loans[loan] = {type.isMutable || destructorMutates, {{storageOrigin, p, {}}}, {}, type.kind == TypeKind::Slice, false};
                         state.locals[local].insert(loan);
                         if (type.kind == TypeKind::Slice && containsReference(type.element))
                         {
                             const auto contents = parameterLoanBase_ + function.parameters.size() + p;
                             state.loans[contents] = {false, {{OriginKind::ParameterElements, p, {}}}, {}, false, true};
                             state.locals[local].insert(contents);
+                            state.parameterContents[p].insert(contents);
+                        }
+                        else if (type.kind == TypeKind::Reference && containsReference(type.element))
+                        {
+                            const auto contents = parameterLoanBase_ + function.parameters.size() + p;
+                            std::unordered_set<TypeId> innerVisited;
+                            state.loans[contents] = {containsMutableReference(type.element, innerVisited),
+                                {{OriginKind::ParameterContents, p, {}}}, {}, false, false};
+                            state.parameterContents[p].insert(contents);
+                        }
+                        if (type.kind != TypeKind::Reference && type.kind != TypeKind::Slice)
+                        {
+                            state.locals[local].clear(); state.loans.erase(loan);
+                            for (const auto& [path, exclusive] : referenceLeaves(function.locals[local].type))
+                            {
+                                const auto id = symbolicLoan(state, {OriginKind::Parameter, p, path}, exclusive || destructorMutates);
+                                state.localFields[local][path].insert(id); state.locals[local].insert(id);
+                            }
+                        }
+                        else if (type.kind == TypeKind::Reference && containsReference(type.element))
+                        {
+                            const auto old = parameterLoanBase_ + function.parameters.size() + p;
+                            state.parameterContents[p].clear(); state.loans.erase(old);
+                            for (const auto& [path, exclusive] : referenceLeaves(type.element))
+                            {
+                                const auto id = symbolicLoan(state, {OriginKind::ParameterContents, p, path}, exclusive);
+                                state.parameterFields[p][path].insert(id); state.parameterContents[p].insert(id);
+                            }
                         }
                     }
                 }
@@ -552,14 +1098,41 @@ namespace aevix
                 }
             }
 
-            PlaceView place(const AIRPlace& place, const State& state) const
+            void referenceClosure(const State& state, IdSet& retained) const
+            {
+                // 대여한 집합의 필드를 나중에 읽을 수 있으므로 그 집합 안의 참조도 유지한다.
+                // Retain references inside borrowed aggregates because their fields can be read later.
+                bool changed = true;
+                while (changed)
+                {
+                    const auto prior = retained.size();
+                    permissionClosure(state, retained);
+                    const auto snapshot = retained;
+                    for (const auto id : snapshot)
+                        if (const auto loan = state.loans.find(id); loan != state.loans.end())
+                            for (const auto& target : loan->second.targets)
+                            {
+                                if (target.kind == OriginKind::Local && target.id < state.locals.size()
+                                    && (state.live[target.id] & 1) != 0)
+                                    unite(retained, state.locals[target.id]);
+                                else if (target.kind == OriginKind::Parameter && target.id < state.parameterContents.size())
+                                    unite(retained, state.parameterContents[target.id]);
+                            }
+                    changed = retained.size() != prior;
+                }
+            }
+
+            PlaceView place(const AIRFunction& function, const AIRPlace& place, const State& state)
             {
                 PlaceView view;
                 if (place.pointer != InvalidAIRId)
                 {
                     view.permission = value(state, place.pointer);
+                    const bool slicePointer = place.pointer < function.valueTypes.size()
+                        && types_.types.get(function.valueTypes[place.pointer]).kind == TypeKind::Slice;
                     for (const auto id : view.permission)
-                        if (const auto found = state.loans.find(id); found != state.loans.end())
+                        if (const auto found = state.loans.find(id); found != state.loans.end()
+                            && !(slicePointer && found->second.sliceContents))
                             unite(view.targets, found->second.targets);
                     permissionClosure(state, view.permission);
                 }
@@ -567,19 +1140,45 @@ namespace aevix
                     view.targets.insert({OriginKind::Local, place.local, {}});
                 else if (place.global != InvalidSymbolId)
                     view.targets.insert({OriginKind::Global, place.global, {}});
+                TypeId base = InvalidTypeId;
+                if (place.local < function.locals.size()) base = function.locals[place.local].type;
+                else if (place.pointer < function.valueTypes.size())
+                {
+                    const auto& pointerType = types_.types.get(function.valueTypes[place.pointer]);
+                    base = pointerType.kind == TypeKind::Reference ? pointerType.element : function.valueTypes[place.pointer];
+                }
+                if (types_.types.get(base).kind == TypeKind::Slice && !place.projections.empty()
+                    && place.projections.front().kind == AIRProjectionKind::Index)
+                {
+                    // 인덱스는 지역 Slice 설명자가 아니라 그 설명자가 빌린 데이터에 접근한다.
+                    // Indexing addresses borrowed slice data rather than the local slice descriptor.
+                    IdSet storage;
+                    for (const auto& target : view.targets)
+                        if (target.kind == OriginKind::Local && target.id < state.locals.size()) unite(storage, state.locals[target.id]);
+                        else if (target.kind == OriginKind::Parameter && target.id < state.parameterContents.size())
+                        {
+                            const auto& parameterType = types_.types.get(function.locals[function.parameters[target.id]].type);
+                            if (parameterType.kind == TypeKind::Reference) unite(storage, state.parameterContents[target.id]);
+                            else if (place.pointer != InvalidAIRId) unite(storage, value(state, place.pointer));
+                        }
+                    std::set<Target> data;
+                    for (const auto id : storage)
+                        if (const auto loan = state.loans.find(id); loan != state.loans.end() && !loan->second.sliceContents)
+                        { unite(data, loan->second.targets); view.permission.insert(id); }
+                    if (!data.empty()) view.targets = std::move(data);
+                    permissionClosure(state, view.permission);
+                }
                 std::set<Target> projected;
                 for (auto target : view.targets)
                 {
-                    for (const auto& projection : place.projections)
-                        if (projection.kind != AIRProjectionKind::Dereference)
-                            target.projections.emplace_back(projection.kind, projection.field);
+                    appendStoragePath(function, target, projectionPath(place.projections));
                     projected.insert(std::move(target));
                 }
                 view.targets = std::move(projected);
                 return view;
             }
 
-            void access(const AIRInstruction& instruction, const State& state, bool exclusive,
+            void access(const AIRFunction& function, const AIRInstruction& instruction, const State& state, bool exclusive,
                         bool moving = false)
             {
                 // 이동한 뷰를 통한 원소 쓰기는 원래 바인딩의 재초기화가 아니다.
@@ -587,7 +1186,17 @@ namespace aevix
                 if (instruction.place.local < state.live.size() && state.live[instruction.place.local] != 1
                     && (instruction.opcode != AIROpcode::Write || !instruction.place.projections.empty()))
                     error(instruction.range, "Use of a moved or unavailable value.");
-                const auto view = place(instruction.place, state);
+                const auto view = place(function, instruction.place, state);
+                if (moving && instruction.place.pointer != InvalidAIRId)
+                    error(instruction.range, "Moving an owning value out of a borrowed place requires an ownership-preserving operation such as memory.replace.");
+                if (exclusive && instruction.place.pointer < function.valueTypes.size())
+                {
+                    const auto& pointer = types_.types.get(function.valueTypes[instruction.place.pointer]);
+                    // 이동도 저장소를 바꾸는 접근이므로 읽기 대여에서 소유권을 꺼낼 수 없다.
+                    // Moving changes storage ownership and therefore cannot extract through a shared loan.
+                    if ((pointer.kind == TypeKind::Reference || pointer.kind == TypeKind::Slice) && !pointer.isMutable)
+                        error(instruction.range, "Cannot modify, move, or exclusively borrow through a read-only reference.");
+                }
                 for (const auto& target : view.targets)
                 {
                     if (target.kind == OriginKind::Local && target.id < state.live.size()
@@ -610,33 +1219,9 @@ namespace aevix
                 }
             }
 
-            IdSet readProvenance(const AIRFunction& function, const AIRPlace& location, const State& state) const
+            IdSet readProvenance(const AIRFunction& function, const AIRPlace& location, State& state)
             {
-                if (!containsReference(location.type)) return {};
-                IdSet result;
-                TypeId base = InvalidTypeId;
-                if (location.pointer != InvalidAIRId)
-                {
-                    if (location.pointer < function.valueTypes.size()) base = types_.types.get(function.valueTypes[location.pointer]).element;
-                    const auto view = place(location, state);
-                    for (const auto& target : view.targets)
-                        if (target.kind == OriginKind::Local && target.id < state.locals.size()) unite(result, state.locals[target.id]);
-                        else if (target.kind == OriginKind::Parameter || target.kind == OriginKind::ParameterElements || target.kind == OriginKind::VariadicStorage)
-                            unite(result, value(state, location.pointer));
-                }
-                else if (location.local < state.locals.size())
-                { result = state.locals[location.local]; base = function.locals[location.local].type; }
-                if (!location.projections.empty() && location.projections.front().kind == AIRProjectionKind::Index
-                    && types_.types.get(base).kind == TypeKind::Slice)
-                {
-                    // 원소 안의 참조를 읽어도 호출 프레임의 pack 저장소를 대여하지 않는다.
-                    // Reading a reference stored in an element does not borrow the call-frame pack storage.
-                    IdSet contents;
-                    for (const auto loan : result)
-                        if (const auto found = state.loans.find(loan); found != state.loans.end() && found->second.sliceContents) contents.insert(loan);
-                    if (!contents.empty()) return contents;
-                }
-                return result;
+                return flatten(readFields(function, location, state));
             }
 
             bool ancestor(const AIRFunction& function, AIRScopeId outer, AIRScopeId inner) const
@@ -649,29 +1234,94 @@ namespace aevix
                 return false;
             }
 
-            void checkStorage(const AIRFunction& function, const AIRInstruction& instruction,
-                              const State& state, const IdSet& provenance)
+            bool mutableIndirectTarget(const AIRFunction& function, const Target& target) const
             {
-                const auto destination = place(instruction.place, state);
+                if ((target.kind != OriginKind::ParameterContents && target.kind != OriginKind::Parameter)
+                    || target.id >= function.parameters.size() || target.projections.size() > 64) return false;
+                const auto parameterType = function.locals[function.parameters[target.id]].type;
+                const auto& parameter = types_.types.get(parameterType);
+                const bool contents = target.kind == OriginKind::ParameterContents;
+                if (contents && parameter.kind != TypeKind::Reference) return false;
+                if (!contents && (parameter.kind == TypeKind::Reference || parameter.kind == TypeKind::Slice)) return false;
+                const auto& selected = types_.types.get(pathType(contents ? parameter.element : parameterType, target.projections));
+                if (syncGuard(selected.kind) && !target.storageProjection.empty()
+                    && target.storageProjection.front() == ReferenceProjection{AIRProjectionKind::Field, 1}) return true;
+                return selected.kind == TypeKind::Reference && selected.isMutable;
+            }
+
+            void checkTargets(const AIRFunction& function, const AIRInstruction& instruction, const State& state,
+                              const IdSet& provenance, const std::set<Target>& destinations, bool forwarded)
+            {
                 for (const auto loanId : provenance)
                 {
                     const auto loan = state.loans.find(loanId);
                     if (loan == state.loans.end()) continue;
                     for (const auto& origin : loan->second.targets)
-                    {
-                        for (const auto& target : destination.targets)
+                        for (const auto& target : destinations)
                         {
-                            if (target.kind != OriginKind::Local && origin.kind != OriginKind::Global)
+                            const bool symbolicInput = origin.kind == OriginKind::Parameter || origin.kind == OriginKind::ParameterContents
+                                || origin.kind == OriginKind::ParameterElements;
+                            const bool checkedForwarding = forwarded && symbolicInput && mutableIndirectTarget(function, target);
+                            const bool directParameter = target.kind == OriginKind::Parameter && target.id < function.parameters.size()
+                                && (types_.types.get(function.locals[function.parameters[target.id]].type).kind == TypeKind::Reference
+                                    || types_.types.get(function.locals[function.parameters[target.id]].type).kind == TypeKind::Slice);
+                            if (target.kind != OriginKind::Local && origin.kind != OriginKind::Global
+                                && !(directParameter && symbolicInput) && !checkedForwarding)
                                 error(instruction.range, "Cannot store a borrowed input or local reference in escaping storage.");
                             if (origin.kind == OriginKind::Local && origin.id < function.locals.size()
                                 && (target.kind != OriginKind::Local || target.id >= function.locals.size()
-                                    || !ancestor(function, function.locals[origin.id].scope,
-                                                 function.locals[target.id].scope)))
+                                    || !ancestor(function, function.locals[origin.id].scope, function.locals[target.id].scope)))
                                 error(instruction.range, "A reference cannot outlive the local value it borrows.");
                         }
-                    }
                 }
             }
+
+            void checkStorage(const AIRFunction& function, const AIRInstruction& instruction,
+                              const State& state, const IdSet& provenance)
+            { checkTargets(function, instruction, state, provenance, place(function, instruction.place, state).targets, false); }
+
+            void updateTargets(const AIRFunction& function, const AIRInstruction& operation, State& state,
+                               const std::set<Target>& targets, const IdSet& incoming,
+                               const ProvenanceFields& fields = {}, bool append = false)
+            {
+                checkTargets(function, operation, state, incoming, targets, true);
+                for (const auto& target : targets)
+                {
+                    IdSet* contents = nullptr; ProvenanceFields* carried = nullptr;
+                    if (target.kind == OriginKind::Local && target.id < state.locals.size())
+                    { contents = &state.locals[target.id]; carried = &state.localFields[target.id]; }
+                    else if (mutableIndirectTarget(function, target))
+                    {
+                        // 값으로 전달한 소유 능력도 원본 저장소에 수행한 변경을 호출자에게 전달한다.
+                        // Owned capabilities passed by value must forward mutations of their original storage too.
+                        unite(state.indirectStores[indirectPath(function, target)], incoming); continue;
+                    }
+                    else if (target.kind == OriginKind::Parameter && target.id < state.parameterContents.size()
+                        && !symbolicReferenceTarget(function, target))
+                    { contents = &state.parameterContents[target.id]; carried = &state.parameterFields[target.id]; }
+                    if (!contents) continue;
+                    if (target.projections.empty() && !append && !target.opaqueStorage)
+                    { *contents = incoming; *carried = fieldFallback(fields, incoming); }
+                    else
+                    {
+                        if (carried->empty() && !contents->empty()) (*carried)[{}] = *contents;
+                        for (const auto& [path, values] : fieldFallback(fields, incoming))
+                        {
+                            auto destination = target.projections;
+                            destination.insert(destination.end(), path.begin(), path.end());
+                            unite((*carried)[destination], values);
+                        }
+                        unite(*contents, incoming);
+                    }
+                    const auto storedType = target.kind == OriginKind::Local ? function.locals[target.id].type
+                        : types_.types.get(function.locals[function.parameters[target.id]].type).element;
+                    *carried = normalizeFields(storedType, *carried); *contents = flatten(*carried);
+                }
+            }
+
+            void updateStorage(const AIRFunction& function, const AIRInstruction& operation, State& state,
+                               const IdSet& incoming, const ProvenanceFields& fields = {}, bool append = false)
+            { updateTargets(function, operation, state, place(function, operation.place, state).targets, incoming, fields, append); }
 
             void endScope(const AIRFunction& function, AIRScopeId scope, State& state)
             {
@@ -680,23 +1330,36 @@ namespace aevix
                     if (local < state.live.size())
                     {
                         state.live[local] = 0;
-                        state.locals[local].clear();
+                        state.locals[local].clear(); state.localFields[local].clear();
                         std::erase_if(state.extractedFields, [&](const auto& field) { return std::get<0>(field) == local; });
                     }
             }
 
-            void prune(State& state, const IdSet& liveValues, const IdSet& liveLocals) const
+            void prune(const AIRFunction& function, State& state, const IdSet& liveValues, const IdSet& liveLocals) const
             {
                 IdSet retained;
+                for (const auto& contents : state.parameterContents) unite(retained, contents);
+                for (const auto& [path, contents] : state.indirectStores) { (void)path; unite(retained, contents); }
                 for (std::size_t i = 0; i < state.live.size(); ++i)
-                    if ((state.live[i] & 1) != 0 && liveLocals.contains(i)) unite(retained, state.locals[i]);
+                    if ((state.live[i] & 1) != 0)
+                    {
+                        if (liveLocals.contains(i)) unite(retained, state.locals[i]);
+                        if (i < function.locals.size() && (!dropTargets(function.locals[i].type).empty() || nativeCleanup(function.locals[i].type, true)))
+                        {
+                            auto cleanup = state.locals[i];
+                            referenceClosure(state, cleanup);
+                            unite(retained, cleanup);
+                        }
+                    }
                 for (const auto id : liveValues)
                     if (id < state.values.size()) unite(retained, state.values[id]);
-                permissionClosure(state, retained);
+                // 소멸자 소유자에 저장되기 전의 대여 임시값에서도 중첩 참조가 먼저 사라지면 안 된다.
+                // Nested references must survive borrowed temporaries before storage in a destructor owner as well.
+                referenceClosure(state, retained);
                 std::erase_if(state.loans, [&](const auto& item) { return !retained.contains(item.first); });
             }
 
-            void initializationEffects(const AIRInstruction& instruction, SymbolId storage, State& state)
+            void initializationEffects(const AIRFunction& function, const AIRInstruction& instruction, SymbolId storage, State& state)
             {
                 if (state.initializedPersist.contains(storage)) return;
                 if (unknownInitializerEffects_[storage] && !state.loans.empty())
@@ -705,14 +1368,187 @@ namespace aevix
                 {
                     auto effect = instruction;
                     effect.place = {}; effect.place.global = global;
-                    access(effect, state, write);
+                    access(function, effect, state, write);
                 }
             }
+
+            bool crossesCustomDrop(const AIRFunction& function, const AIRPlace& location) const
+            {
+                TypeId current = InvalidTypeId;
+                if (location.local < function.locals.size()) current = function.locals[location.local].type;
+                else if (location.pointer < function.valueTypes.size())
+                {
+                    const auto& pointer = types_.types.get(function.valueTypes[location.pointer]);
+                    current = pointer.kind == TypeKind::Reference || pointer.kind == TypeKind::Box ? pointer.element : InvalidTypeId;
+                }
+                else if (location.global != InvalidSymbolId)
+                    for (const auto& global : module_.globals) if (global.symbol == location.global) current = global.type;
+                for (const auto& projection : location.projections)
+                {
+                    if (types_.dropMethods.contains(current)) return true;
+                    current = projection.type;
+                }
+                return false;
+            }
+
+            void destructorEffects(const AIRFunction& function, const AIRInstruction& instruction, State& state)
+            {
+                const auto local = instruction.place.local;
+                if (local >= state.live.size() || (state.live[local] & 1) == 0) return;
+                const auto& methods = dropTargets(function.locals[local].type);
+                if (methods.empty() && !nativeCleanup(function.locals[local].type)) return;
+
+                // 소멸자는 자기 저장소와 보유한 참조를 사용할 수 있으므로 파생 대여도 충돌을 검사한다.
+                // A destructor can use its storage and retained references, including conflicts with derived loans.
+                const Target storage{OriginKind::Local, local, {}};
+                IdSet permission = state.locals[local];
+                referenceClosure(state, permission);
+                for (const auto& [id, loan] : state.loans)
+                {
+                    for (const auto& target : loan.targets)
+                        if (overlaps(storage, target))
+                            error(instruction.range, "Cannot destroy an owner while its storage is borrowed.");
+                    if (permission.contains(id)) continue;
+                    for (const auto own : permission)
+                        if (const auto held = state.loans.find(own); held != state.loans.end()
+                            && (held->second.exclusive || loan.exclusive))
+                            for (const auto& target : held->second.targets)
+                                for (const auto& borrowed : loan.targets)
+                                    if (overlaps(target, borrowed))
+                                        error(instruction.range, "A destructor cannot use a retained reference while a derived or conflicting loan is active.");
+                }
+                for (const auto method : methods)
+                {
+                    for (const auto storage : persistEnsures_[method]) initializationEffects(function, instruction, storage, state);
+                    if (unknownEffects_[method] && !state.loans.empty())
+                        error(instruction.range, "Cannot run a destructor with unknown external effects while loans are active.");
+                    for (const auto& [global, write] : globalEffects_[method])
+                    {
+                        auto effect = instruction;
+                        effect.place = {};
+                        effect.place.global = global;
+                        access(function, effect, state, write);
+                    }
+                }
+            }
+
+            void vectorCleanupEffects(const AIRFunction& function, const AIRInstruction& instruction, State& state)
+            {
+                const auto& methods = dropTargets(types_.types.get(instruction.place.type).element);
+                if (methods.empty()) return;
+                auto permission = readProvenance(function, instruction.place, state);
+                referenceClosure(state, permission);
+                for (const auto& [id, loan] : state.loans)
+                {
+                    if (permission.contains(id)) continue;
+                    for (const auto own : permission)
+                        if (const auto held = state.loans.find(own); held != state.loans.end()
+                            && (held->second.exclusive || loan.exclusive))
+                            for (const auto& target : held->second.targets)
+                                for (const auto& borrowed : loan.targets)
+                                    if (overlaps(target, borrowed))
+                                        error(instruction.range, "A destructor cannot use a retained reference while a derived or conflicting loan is active.");
+                }
+                for (const auto method : methods)
+                {
+                    for (const auto storage : persistEnsures_[method]) initializationEffects(function, instruction, storage, state);
+                    if (unknownEffects_[method] && !state.loans.empty())
+                        error(instruction.range, "Cannot run a destructor with unknown external effects while loans are active.");
+                    for (const auto& [global, write] : globalEffects_[method])
+                    {
+                        auto effect = instruction; effect.place = {}; effect.place.global = global;
+                        access(function, effect, state, write);
+                    }
+                }
+            }
+
+            ProvenanceFields sourceFields(const AIRFunction& function, const AIRInstruction& instruction, State& state,
+                                          std::size_t parameter, bool contents, const ReferencePath& path)
+            {
+                if (parameter >= instruction.operands.size()) return {};
+                const auto argument = instruction.operands[parameter];
+                if (argument >= function.valueTypes.size()) return {};
+                TypeId type = function.valueTypes[argument];
+                ProvenanceFields result = valueFields(state, argument);
+                if (contents)
+                {
+                    const auto& argumentType = types_.types.get(type);
+                    if (argumentType.kind != TypeKind::Reference) return {};
+                    AIRPlace location; location.pointer = argument; location.type = argumentType.element;
+                    result = readFields(function, location, state); type = argumentType.element;
+                }
+                for (const auto& projection : path)
+                {
+                    if (projection.kind == AIRProjectionKind::Dereference)
+                    {
+                        const auto& reference = types_.types.get(type);
+                        const bool ownedPayload = projection.field == 1 && (reference.kind == TypeKind::Box || reference.kind == TypeKind::Shared || reference.kind == TypeKind::Weak);
+                        if (ownedPayload)
+                        { result = selectFields(result, {projection}); type = reference.element; continue; }
+                        const bool guard = syncGuard(reference.kind);
+                        if (reference.kind != TypeKind::Reference && !guard)
+                        { error(instruction.range, "Cannot resolve reference provenance through this nested or erased value."); return {}; }
+                        ProvenanceFields loaded;
+                        const auto inputs = flatten(result);
+                        for (const auto id : inputs)
+                            if (const auto loan = state.loans.find(id); loan != state.loans.end())
+                            {
+                                const auto targets = loan->second.targets;
+                                for (auto target : targets)
+                                {
+                                    if (guard) appendStoragePath(function, target, {{AIRProjectionKind::Field, 1}});
+                                    mergeFields(loaded, targetFields(function, target, reference.element, state));
+                                }
+                            }
+                        result = std::move(loaded); type = reference.element;
+                    }
+                    else if (syncGuard(types_.types.get(type).kind) && projection.kind == AIRProjectionKind::Field && projection.field == 1)
+                        type = types_.types.get(type).element;
+                    else
+                    {
+                        result = selectFields(result, {projection}); type = pathType(type, {projection});
+                        if (type == InvalidTypeId)
+                        { error(instruction.range, "Cannot resolve reference provenance through this nested or erased projection."); return {}; }
+                    }
+                }
+                return result;
+            }
+
             void transfer(const AIRFunction& function, std::size_t block, std::size_t index, State& state)
             {
+                if (analysisLimit_) return;
                 const auto& instruction = function.blocks[block].instructions[index];
-                IdSet result;
-                if (instruction.opcode == AIROpcode::Read || instruction.opcode == AIROpcode::Move)
+                IdSet result; ProvenanceFields fields;
+                if (instruction.opcode == AIROpcode::BoxExtract)
+                {
+                    if (!validBoxExtractionShape(function, instruction, types_.types))
+                    { error(instruction.range, "Box extraction owner/result metadata is invalid."); return; }
+                    // 바깥 Box 저장소만 소비하고 T가 보유한 원래 외부 대여를 그대로 이동한다.
+                    // Consume only outer Box storage and transfer T's original external loans unchanged.
+                    access(function, instruction, state, true, true);
+                    fields = selectFields(readFields(function, instruction.place, state), {{AIRProjectionKind::Dereference, 1}});
+                    result = flatten(fields);
+                    const auto owner = instruction.place.local;
+                    if (owner < state.live.size())
+                    { state.live[owner] = 2; state.locals[owner].clear(); state.localFields[owner].clear(); }
+                }
+                else if (instruction.opcode == AIROpcode::ClosureConsume)
+                {
+                    // 전체 소유 환경만 소비한다. 캡처의 외부 대여 출처는 새 환경 지역의 대여로 바꾸지 않는다.
+                    // Consume only the complete owned environment, preserving each capture's external loan origins.
+                    access(function, instruction, state, true, true);
+                    const auto captured = readFields(function, instruction.place, state);
+                    const auto receiver = instruction.place.local;
+                    for (std::size_t field = 0; field < instruction.closureLocals.size(); ++field)
+                    {
+                        const auto destination = instruction.closureLocals[field];
+                        auto provenance = selectFields(captured, {{AIRProjectionKind::Field, field}});
+                        state.localFields[destination] = normalizeFields(function.locals[destination].type, provenance);
+                        state.locals[destination] = flatten(state.localFields[destination]); state.live[destination] = 1;
+                    }
+                    state.live[receiver] = 2; state.locals[receiver].clear(); state.localFields[receiver].clear();
+                }
+                else if (instruction.opcode == AIROpcode::Read || instruction.opcode == AIROpcode::Move)
                 {
                     const bool staticText = instruction.place.global != InvalidSymbolId
                         && std::any_of(module_.globals.begin(), module_.globals.end(), [&](const AIRGlobal& global) {
@@ -721,13 +1557,15 @@ namespace aevix
                     if (instruction.place.global != InvalidSymbolId && containsReference(instruction.type) && !staticText)
                         error(instruction.range, "Reading global reference-containing values requires initialization provenance analysis.");
                     const bool moved = instruction.opcode == AIROpcode::Move && !copy(instruction.type);
+                    if (moved && crossesCustomDrop(function, instruction.place))
+                        error(instruction.range, "Cannot move a non-Copy field out of a type implementing Drop.");
                     const bool extract = moved && instruction.operation == "enum.extract"
                         && instruction.place.pointer == InvalidAIRId
                         && instruction.place.local < function.locals.size()
                         && function.locals[instruction.place.local].name == "$enumselector"
                         && instruction.place.projections.size() == 1
                         && instruction.place.projections.front().kind == AIRProjectionKind::EnumField;
-                    access(instruction, state, moved, moved && !extract);
+                    access(function, instruction, state, moved, moved && !extract);
                     if (extract)
                     {
                         const auto& field = instruction.place.projections.front();
@@ -735,22 +1573,45 @@ namespace aevix
                         if (!state.extractedFields.insert(key).second)
                             error(instruction.range, "An enum payload field cannot be moved more than once.");
                     }
+                    fields = readFields(function, instruction.place, state);
                     result = readProvenance(function, instruction.place, state);
+                    if (extract)
+                    {
+                        const auto& extracted = instruction.place.projections.front();
+                        auto& remaining = state.localFields[instruction.place.local];
+                        // 실제 선택한 항목의 이동된 필드는 부모 enum의 정리 대여에 남지 않는다.
+                        // Moved fields of the selected variant no longer participate in the parent enum's cleanup loans.
+                        std::erase_if(remaining, [&](const auto& entry) {
+                            if (entry.first.empty() || entry.first.front().kind != AIRProjectionKind::EnumField) return false;
+                            return entry.first.front().variant != extracted.variant || entry.first.front().field == extracted.field;
+                        });
+                        state.locals[instruction.place.local] = flatten(remaining);
+                    }
                     if (moved && instruction.place.local < state.live.size()
                         && instruction.place.projections.empty() && instruction.place.pointer == InvalidAIRId)
                     {
                         state.live[instruction.place.local] = 2;
-                        state.locals[instruction.place.local].clear();
+                        state.locals[instruction.place.local].clear(); state.localFields[instruction.place.local].clear();
                     }
                 }
                 else if (instruction.opcode == AIROpcode::BorrowShared || instruction.opcode == AIROpcode::BorrowMut || instruction.opcode == AIROpcode::SliceConstruct)
                 {
                     const bool exclusive = instruction.opcode == AIROpcode::BorrowMut || (instruction.opcode == AIROpcode::SliceConstruct && types_.types.get(instruction.type).isMutable);
-                    access(instruction, state, exclusive);
-                    const auto target = place(instruction.place, state);
+                    access(function, instruction, state, exclusive);
+                    const auto target = place(function, instruction.place, state);
                     const auto id = loanIds_[block][index];
                     const bool slice = instruction.opcode == AIROpcode::SliceConstruct;
-                    state.loans[id] = {exclusive, target.targets, target.permission, slice, false};
+                    auto borrowedTargets = target.targets;
+                    if (instruction.operation == "box.borrow")
+                    {
+                        std::set<Target> opaque;
+                        for (auto owner : borrowedTargets)
+                        { if (owner.opaqueStorage) owner.storageProjection.clear(); owner.opaqueStorage = true; opaque.insert(std::move(owner)); }
+                        borrowedTargets = std::move(opaque);
+                    }
+                    state.loans[id] = {exclusive, std::move(borrowedTargets), target.permission, slice, false};
+                    state.loans[id].separateParents = std::any_of(target.targets.begin(), target.targets.end(),
+                        [](const Target& value) { return !value.storageProjection.empty(); });
                     result.insert(id);
                     if (slice && containsReference(types_.types.get(instruction.type).element))
                     {
@@ -763,44 +1624,152 @@ namespace aevix
                         state.loans[contentsId] = std::move(contents); result.insert(contentsId);
                     }
                 }
+                else if (instruction.opcode == AIROpcode::SyncIntrinsic)
+                {
+                    const auto* operation = syncOperation(instruction.operation);
+                    if (operation)
+                    {
+                        if (operation->result == SyncResult::Owner || operation->result == SyncResult::IntoInner || operation->result == SyncResult::Recovered)
+                            result = value(state, instruction.operands[0]);
+                        else if (operation->result == SyncResult::Acquire || operation->result == SyncResult::OptionalAcquire || operation->result == SyncResult::UniqueReference)
+                            result = value(state, instruction.operands[0]);
+                        else if (operation->result == SyncResult::Reference || operation->result == SyncResult::MutableReference)
+                        {
+                            AIRPlace borrowed; borrowed.pointer = instruction.operands[0];
+                            borrowed.type = types_.types.get(function.valueTypes[instruction.operands[0]]).element;
+                            const auto parent = value(state, instruction.operands[0]);
+                            const auto retained = readProvenance(function, borrowed, state);
+                            Loan loan; loan.exclusive = operation->result == SyncResult::MutableReference; loan.separateParents = true;
+                            loan.parents = parent; unite(loan.parents, retained);
+                            for (const auto id : retained)
+                                if (const auto source = state.loans.find(id); source != state.loans.end())
+                                    for (auto target : source->second.targets)
+                                    {
+                                        // 보호된 T의 저장소와 보호자 자체의 생존 대여를 구분한다.
+                                        // Distinguish protected T storage from the guard's own retained lifetime loan.
+                                        appendStoragePath(function, target, {{AIRProjectionKind::Field, 1}});
+                                        loan.targets.insert(std::move(target));
+                                    }
+                            const auto id = loanIds_[block][index]; state.loans[id] = std::move(loan); result.insert(id);
+                        }
+                    }
+                }
+                else if (instruction.opcode == AIROpcode::TaskIntrinsic)
+                {
+                    const auto* operation = taskOperation(instruction.operation);
+                    if (operation && operation->result == TaskResult::Spawn && !instruction.operands.empty())
+                    {
+                        // 소유 캡처 전용 프로필에서도 Task<T>는 T와 별개로 Scope의 대여를 보관한다.
+                        // In the owned-capture profile Task<T> retains a Scope loan independently of T.
+                        result = value(state, instruction.operands[0]);
+                    }
+                    // join/try_take의 소유 결과에는 관측 핸들 자체의 스코프 대여를 옮기지 않는다.
+                    // Owned join/try_take results do not inherit the observation handle's Scope loan.
+                    // 대여 캡처·결과를 허용하기 전에는 별도의 ChildRoot 효과와 반환 출처가 필요하다.
+                    // Borrowed captures/results require separate ChildRoot effects and result provenance first.
+                }
+                else if (instruction.opcode == AIROpcode::CancellationIntrinsic)
+                {
+                    // 취소 핸들은 독립적인 네이티브 상태를 소유하며 입력 설명자의 대여를 보관하지 않는다.
+                    // Cancellation owners retain independent native state, never the input descriptor's loan.
+                }
+                else if (instruction.opcode == AIROpcode::AtomicIntrinsic)
+                {
+                    if (instruction.operation == "get_mut") result = value(state, instruction.operands[0]);
+                }
+                else if (instruction.opcode == AIROpcode::SharedIntrinsic)
+                {
+                    const auto method = instruction.operation.substr(instruction.operation.find('.') + 1);
+                    if (method == "as_ref" || method == "get_mut")
+                    {
+                        const auto parents = value(state, instruction.operands[0]);
+                        Loan borrowed; borrowed.exclusive = method == "get_mut"; borrowed.parents = parents; borrowed.separateParents = true;
+                        for (const auto parent : parents)
+                            if (const auto source = state.loans.find(parent); source != state.loans.end())
+                                for (auto target : source->second.targets)
+                                { target.opaqueStorage = true; borrowed.targets.insert(std::move(target)); }
+                        const auto id = loanIds_[block][index]; state.loans[id] = std::move(borrowed); result = {id};
+                    }
+                    else if (method == "try_unwrap" || instruction.operation == "shared.new") result = value(state, instruction.operands[0]);
+                    else if (method == "clone" || method == "downgrade" || method == "upgrade")
+                    {
+                        AIRPlace source; source.pointer = instruction.operands[0];
+                        source.type = types_.types.get(function.valueTypes[instruction.operands[0]]).element;
+                        result = readProvenance(function, source, state);
+                    }
+                    else if (method == "clear")
+                    {
+                        auto effect = instruction; effect.place = {}; effect.place.pointer = instruction.operands[0];
+                        effect.place.type = types_.types.get(function.valueTypes[instruction.operands[0]]).element;
+                        access(function, effect, state, true); updateStorage(function, effect, state, {});
+                    }
+                }
+                else if (instruction.opcode == AIROpcode::MemoryIntrinsic)
+                {
+                    // 교체는 저장소를 비우지 않고 소유권과 내부 참조의 출처를 함께 옮긴다.
+                    // Replacement preserves initialization while transferring ownership and contained-reference provenance.
+                    auto left = instruction; left.place = {};
+                    left.place.pointer = instruction.operands[0];
+                    left.place.type = types_.types.get(function.valueTypes[instruction.operands[0]]).element;
+                    access(function, left, state, true);
+                    const auto oldLeft = readProvenance(function, left.place, state);
+                    if (instruction.operation == "replace")
+                    {
+                        result = oldLeft; fields = readFields(function, left.place, state);
+                        updateStorage(function, left, state, value(state, instruction.operands[1]), valueFields(state, instruction.operands[1]));
+                    }
+                    else
+                    {
+                        auto right = left; right.place.pointer = instruction.operands[1];
+                        access(function, right, state, true);
+                        const auto oldRight = readProvenance(function, right.place, state);
+                        const auto leftFields = readFields(function, left.place, state), rightFields = readFields(function, right.place, state);
+                        updateStorage(function, left, state, oldRight, rightFields); updateStorage(function, right, state, oldLeft, leftFields);
+                    }
+                }
                 else if (instruction.opcode == AIROpcode::Write)
                 {
-                    access(instruction, state, true);
+                    access(function, instruction, state, true);
                     if (owner(instruction.place.type)
                         && (!instruction.place.projections.empty() || instruction.place.pointer != InvalidAIRId))
                         error(instruction.range, "Replacing an owning projected or borrowed value requires partial cleanup support.");
                     if (!instruction.operands.empty()) result = value(state, instruction.operands.front());
-                    checkStorage(function, instruction, state, result);
-                    const auto target = place(instruction.place, state);
-                    for (const auto& item : target.targets)
-                        if (item.kind == OriginKind::Local && item.id < state.live.size())
+                    if (!instruction.operands.empty()) fields = valueFields(state, instruction.operands.front());
+                    updateStorage(function, instruction, state, result, fields);
+                    for (const auto& item : place(function, instruction.place, state).targets)
+                        if (item.kind == OriginKind::Local && item.id < state.live.size() && item.projections.empty())
                         {
-                            if (item.projections.empty())
-                            {
-                                state.live[item.id] = 1;
-                                state.locals[item.id] = result;
-                                std::erase_if(state.extractedFields, [&](const auto& field) { return std::get<0>(field) == item.id; });
-                            }
-                            else unite(state.locals[item.id], result);
+                            state.live[item.id] = 1;
+                            std::erase_if(state.extractedFields, [&](const auto& field) { return std::get<0>(field) == item.id; });
                         }
                 }
-                else if (instruction.opcode == AIROpcode::VectorAppend || instruction.opcode == AIROpcode::VectorReserve)
+                else if (instruction.opcode == AIROpcode::VectorTake)
                 {
-                    access(instruction, state, true);
+                    access(function, instruction, state, true);
+                    // 이동한 원소는 저장소 대여가 아니라 원소 안의 참조만 소유한다.
+                    // The extracted owner retains element references rather than a loan of vector storage.
+                    result = readProvenance(function, instruction.place, state);
+                }
+                else if (instruction.opcode == AIROpcode::VectorTruncate)
+                {
+                    access(function, instruction, state, true);
+                    vectorCleanupEffects(function, instruction, state);
+                    if (instruction.operation == "clear") updateStorage(function, instruction, state, {});
+                }
+                else if (instruction.opcode == AIROpcode::VectorAppend || instruction.opcode == AIROpcode::VectorReserve || instruction.opcode == AIROpcode::VectorInsert)
+                {
+                    access(function, instruction, state, true);
                     for (const auto operand : instruction.operands) unite(result, value(state, operand));
-                    checkStorage(function, instruction, state, result);
-                    const auto target = place(instruction.place, state);
-                    for (const auto& item : target.targets)
-                        if (item.kind == OriginKind::Local && item.id < state.locals.size()) unite(state.locals[item.id], result);
+                    updateStorage(function, instruction, state, result, {}, true);
                 }
                 else if (instruction.opcode == AIROpcode::EnsurePersist)
                 {
-                    initializationEffects(instruction, instruction.place.global, state);
+                    initializationEffects(function, instruction, instruction.place.global, state);
                     state.initializedPersist.insert(instruction.place.global);
                 }
                 else if (instruction.opcode == AIROpcode::Call)
                 {
-                    for (const auto storage : persistEnsures_[instruction.callee]) initializationEffects(instruction, storage, state);
+                    for (const auto storage : persistEnsures_[instruction.callee]) initializationEffects(function, instruction, storage, state);
                     if (unknownEffects_[instruction.callee] && !state.loans.empty())
                         error(instruction.range, "Cannot call a function with unknown external effects while loans are active.");
                     // 전역 접근의 호출 그래프 요약도 현재 대여와 비교하여 간접 충돌을 막는다.
@@ -810,63 +1779,205 @@ namespace aevix
                         auto effect = instruction;
                         effect.place = {};
                         effect.place.global = global;
-                        access(effect, state, write);
+                        access(function, effect, state, write);
                     }
                     const auto found = summaries_.find(instruction.callee);
                     if (found != summaries_.end())
                     {
-                        for (const auto parameter : found->second.parameters)
-                            if (parameter < instruction.operands.size())
-                                unite(result, value(state, instruction.operands[parameter]));
-                        for (const auto parameter : found->second.elementParameters)
-                            if (parameter < instruction.operands.size())
-                                for (const auto loan : value(state, instruction.operands[parameter]))
-                                    if (const auto source = state.loans.find(loan); source != state.loans.end() && source->second.sliceContents) result.insert(loan);
-                        if (!found->second.globals.empty())
+                        // 호출 전 내용을 한 번 읽어 반환값과 교환된 두 저장소에 같은 스냅샷을 사용한다.
+                        // Snapshot pre-call contents for both returned owners and exchanged destinations.
+                        std::vector<IdSet> contents(instruction.operands.size());
+                        for (std::size_t p = 0; p < instruction.operands.size(); ++p)
                         {
-                            const auto id = loanIds_[block][index];
-                            Loan loan;
-                            const auto& returnedType = types_.types.get(instruction.type);
-                            loan.exclusive = returnedType.kind != TypeKind::Reference || returnedType.isMutable;
-                            for (const auto global : found->second.globals)
-                                loan.targets.insert({OriginKind::Global, global, {}});
-                            state.loans[id] = std::move(loan);
-                            result.insert(id);
+                            const auto argument = instruction.operands[p];
+                            if (argument >= function.valueTypes.size()) continue;
+                            const auto& argumentType = types_.types.get(function.valueTypes[argument]);
+                            if (argumentType.kind == TypeKind::Reference)
+                            {
+                                AIRPlace location; location.pointer = argument; location.type = argumentType.element;
+                                contents[p] = readProvenance(function, location, state);
+                            }
+                            else if (argumentType.kind == TypeKind::Slice)
+                                for (const auto id : value(state, argument))
+                                    if (const auto loan = state.loans.find(id); loan != state.loans.end() && loan->second.sliceContents)
+                                        contents[p].insert(id);
                         }
+                        const auto expand = [&](const ReferenceOrigins& origins)
+                        {
+                            IdSet expanded;
+                            for (const auto p : origins.parameters)
+                                if (p < instruction.operands.size()) unite(expanded, value(state, instruction.operands[p]));
+                            const auto projected = [&](const IdSet& sources, const ReferencePath& path, bool opaque = false, const ReferencePath& physical = ReferencePath{})
+                            {
+                                if (path.empty() && physical.empty() && !opaque) return sources;
+                                IdSet values;
+                                for (const auto source : sources)
+                                    if (const auto held = state.loans.find(source); held != state.loans.end())
+                                    {
+                                        const auto targets = held->second.targets; const bool exclusive = held->second.exclusive;
+                                        for (auto target : targets)
+                                        {
+                                            if (opaque && target.opaqueStorage) target.storageProjection.clear();
+                                            else appendStoragePath(function, target, path);
+                                            target.opaqueStorage = target.opaqueStorage || opaque;
+                                            appendStoragePath(function, target, physical);
+                                            const auto id = symbolicLoan(state, std::move(target), exclusive);
+                                            unite(state.loans[id].parents, sources); state.loans[id].parents.erase(id); state.loans[id].separateParents = true;
+                                            values.insert(id);
+                                        }
+                                    }
+                                return values;
+                            };
+                            for (const auto& selected : origins.parameterPaths)
+                                if (selected.parameter < instruction.operands.size())
+                                {
+                                    const auto argument = instruction.operands[selected.parameter];
+                                    const auto& argumentType = types_.types.get(function.valueTypes[argument]);
+                                    if (argumentType.kind == TypeKind::Reference)
+                                    {
+                                        unite(expanded, projected(value(state, argument), selected.path, selected.opaqueStorage, selected.storageProjection));
+                                    }
+                                    else unite(expanded, projected(flatten(sourceFields(function, instruction, state, selected.parameter, false, selected.path)), {}, selected.opaqueStorage, selected.storageProjection));
+                                }
+                            for (const auto p : origins.contentParameters)
+                                if (p < contents.size()) unite(expanded, contents[p]);
+                            for (const auto& selected : origins.contentPaths)
+                                unite(expanded, projected(flatten(sourceFields(function, instruction, state, selected.parameter, true, selected.path)), {}, selected.opaqueStorage, selected.storageProjection));
+                            for (const auto p : origins.elementParameters)
+                                if (p < instruction.operands.size())
+                                    for (const auto id : value(state, instruction.operands[p]))
+                                        if (const auto source = state.loans.find(id); source != state.loans.end() && source->second.sliceContents)
+                                            expanded.insert(id);
+                            if (!origins.globals.empty())
+                            {
+                                const auto id = loanIds_[block][index];
+                                auto& loan = state.loans[id];
+                                const auto& returnedType = types_.types.get(instruction.type);
+                                loan.exclusive = returnedType.kind != TypeKind::Reference || returnedType.isMutable;
+                                for (const auto global : origins.globals) loan.targets.insert({OriginKind::Global, global, {}});
+                                expanded.insert(id);
+                            }
+                            return expanded;
+                        };
+                        const auto reconstruct = [&](IdSet sources, const ReferenceCapability& capability, const ReferencePath& path)
+                        {
+                            Loan returned; returned.exclusive = capability.exclusive; returned.separateParents = true;
+                            for (const auto source : sources)
+                                if (const auto loan = state.loans.find(source); loan != state.loans.end()) unite(returned.targets, loan->second.targets);
+                            returned.parents = sources; unite(returned.parents, expand(capability.parents));
+                            const auto key = std::make_pair(instruction.result, path);
+                            if (returnedLoanIds_.size() + symbolicLoans_.size() >= maximumProvenanceEntries && !returnedLoanIds_.contains(key))
+                            { provenanceLimit(); return IdSet{}; }
+                            const auto [entry, inserted] = returnedLoanIds_.try_emplace(key, nextSymbolicLoan_);
+                            if (inserted) ++nextSymbolicLoan_;
+                            returned.parents.erase(entry->second); state.loans[entry->second] = std::move(returned);
+                            return IdSet{entry->second};
+                        };
+                        result = expand(found->second);
+                        for (const auto& [path, origins] : found->second.fields)
+                        {
+                            auto sources = expand(origins);
+                            if (const auto capability = found->second.fieldCapabilities.find(path); capability != found->second.fieldCapabilities.end())
+                                sources = reconstruct(std::move(sources), capability->second, path);
+                            unite(fields[path], sources);
+                        }
+                        if (!fields.empty()) result = flatten(fields);
+                        else if (found->second.derivedCapability)
+                        {
+                            result = reconstruct(std::move(result), {found->second.retainedParents, found->second.targetExclusive}, {});
+                            fields = {{{}, result}};
+                        }
+                        struct StoreEffect { AIRInstruction operation; std::set<Target> targets; IdSet values; ProvenanceFields fields; bool append; };
+                        std::vector<StoreEffect> stores;
+                        for (const auto& [p, recorded] : found->second.stores)
+                            if (p < instruction.operands.size())
+                            {
+                                auto effect = instruction; effect.place = {}; effect.place.pointer = instruction.operands[p];
+                                const auto& argumentType = types_.types.get(function.valueTypes[instruction.operands[p]]);
+                                effect.place.type = argumentType.element;
+                                if (argumentType.kind == TypeKind::Slice) effect.place.projections.push_back({AIRProjectionKind::Index});
+                                const auto detailed = found->second.storeFields.find(p);
+                                if (detailed != found->second.storeFields.end())
+                                {
+                                    bool identity = !detailed->second.empty();
+                                    ProvenanceFields output;
+                                    for (const auto& [path, origins] : detailed->second)
+                                    {
+                                        const bool sameRoot = path.empty() && origins.contentParameters == IdSet{p} && origins.contentPaths.empty();
+                                        const bool sameField = origins.contentParameters.empty()
+                                            && origins.contentPaths == std::set<ReferenceParameterPath>{{p, path, {}, true, false}};
+                                        identity = identity && (sameRoot || sameField) && origins.parameters.empty() && origins.parameterPaths.empty()
+                                            && origins.elementParameters.empty() && origins.globals.empty() && !origins.global;
+                                        unite(output[path], expand(origins));
+                                    }
+                                    // 평평한 출처가 같아도 필드 사이의 참조 재배치는 실제 효과다.
+                                    // Reference redistribution between fields is an effect even when flat origins are unchanged.
+                                    if (!identity) stores.push_back({effect, place(function, effect.place, state).targets, flatten(output), std::move(output), false});
+                                }
+                                else
+                                    stores.push_back({effect, place(function, effect.place, state).targets, expand(recorded), {}, false});
+                            }
+                        for (const auto& [destination, origins] : found->second.indirectStores)
+                        {
+                            const auto references = flatten(sourceFields(function, instruction, state, destination.parameter, destination.fromContents, destination.path));
+                            std::set<Target> targets;
+                            for (const auto reference : references)
+                                if (const auto loan = state.loans.find(reference); loan != state.loans.end())
+                                    for (auto target : loan->second.targets)
+                                    {
+                                        appendStoragePath(function, target, destination.storageProjection);
+                                        targets.insert(std::move(target));
+                                    }
+                            stores.push_back({instruction, std::move(targets), expand(origins), {}, true});
+                        }
+                        for (const auto& effect : stores) updateTargets(function, effect.operation, state, effect.targets, effect.values, effect.fields, effect.append);
                     }
                     else if (!state.loans.empty() || containsReference(instruction.type))
                         error(instruction.range, "Cannot call a function without ownership effects while loans are active.");
 
                 }
-                else if (instruction.opcode == AIROpcode::Aggregate || instruction.opcode == AIROpcode::EnumConstruct
-                    || instruction.opcode == AIROpcode::Unary || instruction.opcode == AIROpcode::TextIntrinsic || instruction.opcode == AIROpcode::ArrayRepeat
-                    || instruction.opcode == AIROpcode::SliceSubview)
+                else if (instruction.opcode == AIROpcode::Aggregate || instruction.opcode == AIROpcode::EnumConstruct)
                 {
-                    // 길이 같은 스칼라 계산 결과에는 원본 뷰의 대여 수명이 포함되지 않는다.
-                    // Scalar computations such as lengths do not retain their source view lifetime.
+                    const auto kind = types_.types.get(instruction.type).kind;
+                    for (std::size_t i = 0; i < instruction.operands.size(); ++i)
+                    {
+                        const ReferenceProjection prefix{instruction.opcode == AIROpcode::EnumConstruct ? AIRProjectionKind::EnumField
+                            : kind == TypeKind::Array || kind == TypeKind::Vector ? AIRProjectionKind::Index : AIRProjectionKind::Field,
+                            kind == TypeKind::Array || kind == TypeKind::Vector ? 0 : i,
+                            instruction.opcode == AIROpcode::EnumConstruct ? instruction.callee : InvalidSymbolId};
+                        for (const auto& [path, values] : valueFields(state, instruction.operands[i]))
+                        { auto nested = path; nested.insert(nested.begin(), prefix); unite(fields[nested], values); }
+                    }
+                    result = flatten(fields);
+                }
+                else if (instruction.opcode == AIROpcode::Unary || instruction.opcode == AIROpcode::TextIntrinsic
+                    || instruction.opcode == AIROpcode::ArrayRepeat || instruction.opcode == AIROpcode::SliceSubview)
+                {
                     if ((instruction.opcode != AIROpcode::Unary && instruction.opcode != AIROpcode::TextIntrinsic) || containsReference(instruction.type))
                         for (const auto operand : instruction.operands) unite(result, value(state, operand));
                 }
                 else if (instruction.opcode == AIROpcode::ScopeEnd)
                     endScope(function, instruction.scope, state);
                 else if (instruction.opcode == AIROpcode::EnumTag)
-                    access(instruction, state, false);
+                    access(function, instruction, state, false);
                 else if (instruction.opcode == AIROpcode::Drop)
                 {
+                    destructorEffects(function, instruction, state);
                     if (instruction.place.local < state.live.size())
                     {
                         state.live[instruction.place.local] = 0;
-                        state.locals[instruction.place.local].clear();
+                        state.locals[instruction.place.local].clear(); state.localFields[instruction.place.local].clear();
                     }
                 }
-                if (instruction.result < state.values.size()) state.values[instruction.result] = std::move(result);
-                prune(state, liveAfter_[block][index], localLiveAfter_[block][index]);
+                if (instruction.result < state.values.size())
+                { state.valueFields[instruction.result] = normalizeFields(instruction.type, fieldFallback(fields, result)); state.values[instruction.result] = flatten(state.valueFields[instruction.result]); }
+                prune(function, state, liveAfter_[block][index], localLiveAfter_[block][index]);
             }
 
-            void returned(const AIRFunction& function, const AIRTerminator& terminator,
-                          const State& state, ReferenceReturnSummary& summary)
+            void summarizeOrigins(const AIRTerminator& terminator, const State& state,
+                                  const IdSet& values, ReferenceOrigins& summary)
             {
-                for (const auto id : value(state, terminator.value))
+                for (const auto id : values)
                 {
                     const auto loan = state.loans.find(id);
                     if (loan == state.loans.end()) continue;
@@ -878,8 +1989,12 @@ namespace aevix
                             error(terminator.range, "Cannot return a view or reference into variadic call-frame storage.");
                         else if (origin.kind == OriginKind::ParameterElements)
                             summary.elementParameters.insert(origin.id);
+                        else if (origin.kind == OriginKind::ParameterContents)
+                        { if (origin.projections.empty() && origin.storageProjection.empty() && !origin.opaqueStorage) summary.contentParameters.insert(origin.id);
+                          else summary.contentPaths.insert({origin.id, origin.projections, origin.storageProjection, true, origin.opaqueStorage}); }
                         else if (origin.kind == OriginKind::Parameter)
-                            summary.parameters.insert(origin.id);
+                        { if (origin.projections.empty() && origin.storageProjection.empty() && !origin.opaqueStorage) summary.parameters.insert(origin.id);
+                          else summary.parameterPaths.insert({origin.id, origin.projections, origin.storageProjection, true, origin.opaqueStorage}); }
                         else
                         {
                             summary.global = true;
@@ -887,7 +2002,49 @@ namespace aevix
                         }
                     }
                 }
-                (void)function;
+            }
+
+            void returned(const AIRFunction& function, const AIRTerminator& terminator,
+                          const State& state, ReferenceReturnSummary& summary)
+            {
+                const auto returnedValues = value(state, terminator.value);
+                summarizeOrigins(terminator, state, returnedValues, summary);
+                for (const auto& [path, values] : valueFields(state, terminator.value))
+                {
+                    summarizeOrigins(terminator, state, values, summary.fields[path]);
+                    for (const auto value : values)
+                        if (const auto loan = state.loans.find(value); loan != state.loans.end() && loan->second.separateParents)
+                        {
+                            auto parents = loan->second.parents; permissionClosure(state, parents);
+                            summarizeOrigins(terminator, state, parents, summary.fieldCapabilities[path].parents);
+                            summary.fieldCapabilities[path].exclusive = summary.fieldCapabilities[path].exclusive || loan->second.exclusive;
+                        }
+                }
+                for (const auto id : returnedValues)
+                    if (const auto loan = state.loans.find(id); loan != state.loans.end() && loan->second.separateParents)
+                    {
+                        auto retained = loan->second.parents; permissionClosure(state, retained);
+                        summarizeOrigins(terminator, state, retained, summary.retainedParents);
+                        summary.derivedCapability = true;
+                        summary.targetExclusive = summary.targetExclusive || loan->second.exclusive;
+                    }
+                for (std::size_t p = 0; p < function.parameters.size(); ++p)
+                    if (mutableContentsParameter(function, p))
+                    {
+                        auto contents = state.parameterContents[p]; permissionClosure(state, contents);
+                        summarizeOrigins(terminator, state, contents, summary.stores[p]);
+                        auto& fields = summary.storeFields[p];
+                        for (const auto& [path, values] : fieldFallback(state.parameterFields[p], state.parameterContents[p]))
+                        {
+                            auto held = values; permissionClosure(state, held);
+                            summarizeOrigins(terminator, state, held, fields[path]);
+                        }
+                    }
+                for (const auto& [path, values] : state.indirectStores)
+                {
+                    auto contents = values; permissionClosure(state, contents);
+                    summarizeOrigins(terminator, state, contents, summary.indirectStores[path]);
+                }
             }
 
             FunctionFlow analyze(const AIRFunction& function, bool report)
@@ -900,7 +2057,7 @@ namespace aevix
                 std::vector<bool> queued(function.blocks.size());
                 queued[0] = true;
                 reporting_ = false;
-                while (!pending.empty())
+                while (!pending.empty() && !analysisLimit_)
                 {
                     const auto block = pending.front(); pending.pop_front(); queued[block] = false;
                     auto state = *flow.incoming[block];

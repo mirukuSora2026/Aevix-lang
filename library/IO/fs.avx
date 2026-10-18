@@ -1,0 +1,351 @@
+public import error { Error, PathError, FileError, IoError };
+import path;
+import io;
+
+/*
+ * UTF-8 filesystem queries and non-recursive mutations. These functions do not
+ * expose native descriptors or promise lossless arbitrary native path encoding.
+ * @module fs
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+/* Keep path-validation failures distinct from native file-operation failures.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum FsError implements Copy, Error {
+    /*
+     * Version history for the fs.FsError.Path public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Path { /*
+ * Version history for the fs.FsError.Path.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public PathError error; };
+    /*
+     * Version history for the fs.FsError.File public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    File { /*
+ * Version history for the fs.FsError.File.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public FileError error; };
+
+    /*
+     * Version history for the fs.FsError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&FsError self) {
+        switch (*self) {
+            case FsError.Path { PathError problem = error }: return problem.code(); break;
+            case FsError.File { FileError problem = error }: return problem.code(); break;
+        }
+    }
+    /*
+     * Version history for the fs.FsError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&FsError self) {
+        switch (*self) {
+            case FsError.Path { PathError problem = error }: return problem.message(); break;
+            case FsError.File { FileError problem = error }: return problem.message(); break;
+        }
+    }
+};
+
+/* A point-in-time value; a later operation must still handle concurrent filesystem changes.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Metadata implements Copy {
+    /*
+     * Version history for the fs.Metadata.byte_length public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize byte_length;
+    /*
+     * Version history for the fs.Metadata.modified_nanoseconds public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public i64 modified_nanoseconds;
+    /*
+     * Version history for the fs.Metadata.kind public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public u32 kind;
+    /*
+     * Version history for the fs.Metadata.permissions public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public u32 permissions;
+
+    /*
+     * Version history for the fs.Metadata.is_file public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_file(&Metadata self) { return self.kind == 1; }
+    /*
+     * Version history for the fs.Metadata.is_dir public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_dir(&Metadata self) { return self.kind == 2; }
+    /*
+     * Version history for the fs.Metadata.is_symlink public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_symlink(&Metadata self) { return self.kind == 3; }
+    /*
+     * Version history for the fs.Metadata.is_other public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_other(&Metadata self) { return self.kind == 4; }
+};
+
+Result<unit, FsError> validate_input(string_view value) {
+    Result<unit, PathError> validation = path.validate(value);
+    switch (validation) {
+        case Result<unit, PathError>.Ok: break;
+        case Result<unit, PathError>.Err { PathError problem = error }:
+            return Result.err(FsError.Path { error = problem });
+            break;
+    }
+    if (string.is_empty(value)) return Result.err(FsError.Path { error = PathError.InvalidComponent });
+    return Result.ok(Unit.value());
+}
+FsError failure(i32 status, i32 native, i32 kind, bool writing) {
+    if (status == 2) return FsError.Path { error = PathError.InvalidComponent };
+    if (status == 3) return FsError.Path { error = PathError.InvalidEncoding };
+    if (status == 4) return FsError.Path { error = PathError.AllocationFailure };
+    if (status == 5) return FsError.Path { error = PathError.SizeOverflow };
+    if (status == 7) return FsError.File { error = FileError.Unsupported };
+    if (kind == 1) return FsError.File { error = FileError.NotFound { os_code = native } };
+    if (kind == 2) return FsError.File { error = FileError.AlreadyExists { os_code = native } };
+    if (kind == 3) return FsError.File { error = FileError.PermissionDenied { os_code = native } };
+    if (kind == 4) return FsError.File { error = FileError.Io { error = IoError.Interrupted } };
+    if (kind == 5) return FsError.File { error = FileError.Io { error = IoError.WouldBlock } };
+    if (writing) return FsError.File { error = FileError.Io { error = IoError.WriteFailed { os_code = native, progress = 0 } } };
+    return FsError.File { error = FileError.Io { error = IoError.ReadFailed { os_code = native, progress = 0 } } };
+}
+Result<Metadata, FsError> query(string_view value, u32 follow) {
+    validate_input(value)?;
+    Tuple<i32, Tuple<usize, i64, u32, u32>, i32, i32> outcome = __path_metadata(value, follow);
+    i32 status = *Tuple.get<0>(&outcome);
+    if (status != 0) return Result.err(failure(status, *Tuple.get<2>(&outcome), *Tuple.get<3>(&outcome), false));
+    &Tuple<usize, i64, u32, u32> payload = Tuple.get<1>(&outcome);
+    return Result.ok(Metadata {
+        byte_length = *Tuple.get<0>(payload),
+        modified_nanoseconds = *Tuple.get<1>(payload),
+        kind = *Tuple.get<2>(payload),
+        permissions = *Tuple.get<3>(payload)
+    });
+}
+
+/* Follow symlinks and return a metadata snapshot; all failures remain explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Metadata, FsError> metadata(string_view value) { return query(value, 1); }
+
+/* Inspect the directory entry itself so a dangling symlink can still be reported.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Metadata, FsError> symlink_metadata(string_view value) { return query(value, 0); }
+
+Result<bool, FsError> probe(string_view value, u32 requested, u32 follow) {
+    Result<Metadata, FsError> found = query(value, follow);
+    switch (found) {
+        case Result<Metadata, FsError>.Ok { Metadata info = value }:
+            return Result.ok(requested == 0 || info.kind == requested);
+            break;
+        case Result<Metadata, FsError>.Err { FsError problem = error }:
+            switch (problem) {
+                case FsError.File { FileError file_problem = error }:
+                    switch (file_problem) {
+                        case FileError.NotFound: return Result.ok(false); break;
+                        default: return Result.err(problem); break;
+                    }
+                    break;
+                case FsError.Path: return Result.err(problem); break;
+            }
+            break;
+    }
+}
+
+/* Only NotFound becomes false; permission, encoding, allocation and OS failures propagate.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, FsError> exists(string_view value) { return probe(value, 0, 1); }
+/*
+ * Version history for the fs.is_file public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, FsError> is_file(string_view value) { return probe(value, 1, 1); }
+/*
+ * Version history for the fs.is_dir public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, FsError> is_dir(string_view value) { return probe(value, 2, 1); }
+/*
+ * Version history for the fs.is_symlink public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, FsError> is_symlink(string_view value) { return probe(value, 3, 0); }
+
+/* Create exactly one directory. An existing entry is AlreadyExists, not success.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, FsError> create_dir(string_view value) {
+    validate_input(value)?;
+    Tuple<i32, usize, i32, i32> outcome = __path_mkdir(value);
+    if (*Tuple.get<0>(&outcome) != 0)
+        return Result.err(failure(*Tuple.get<0>(&outcome), *Tuple.get<2>(&outcome), *Tuple.get<3>(&outcome), true));
+    return Result.ok(Unit.value());
+}
+
+/* Remove a file, symlink, or empty directory. No recursive deletion or implicit retry occurs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, FsError> remove(string_view value) {
+    validate_input(value)?;
+    Tuple<i32, usize, i32, i32> outcome = __path_remove(value);
+    if (*Tuple.get<0>(&outcome) != 0)
+        return Result.err(failure(*Tuple.get<0>(&outcome), *Tuple.get<2>(&outcome), *Tuple.get<3>(&outcome), true));
+    return Result.ok(Unit.value());
+}
+
+Result<io.File, FsError> open_file(string_view value, u32 options) {
+    validate_input(value)?;
+    Result<io.File, FileError> outcome = io.File.open(value, options);
+    switch (move outcome) {
+        case Result<io.File, FileError>.Ok { io.File file = value }: return Result.ok(file); break;
+        case Result<io.File, FileError>.Err { FileError cause = error }:
+            return Result.err(FsError.File { error = cause });
+            break;
+    }
+}
+Result<T, FsError> io_result<T>(Result<T, IoError> outcome) {
+    switch (move outcome) {
+        case Result<T, IoError>.Ok { T item = value }: return Result.ok(item); break;
+        case Result<T, IoError>.Err { IoError cause = error }:
+            return Result.err(FsError.File { error = FileError.Io { error = cause } });
+            break;
+    }
+}
+
+/*
+ * Allocate a byte vector from a UTF-8 file path and check close after a successful read.
+ * A failed read drops the partial data. The limit may consume one over-limit probe byte.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, FsError> read_bytes(string_view value, usize max_bytes = 9223372036854775807usize) {
+    mut io.File file = open_file(value, 1)?;
+    Vector<byte> contents = io_result(file.read_to_end(max_bytes))?;
+    io_result(file.close())?;
+    return Result.ok(contents);
+}
+
+/*
+ * Read a file as validated UTF-8 without trimming whitespace or line endings.
+ * This convenience operation allocates and copies the byte buffer into the resulting string.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, FsError> read_text(string_view value, usize max_bytes = 9223372036854775807usize) {
+    mut io.File file = open_file(value, 1)?;
+    string contents = io_result(file.read_to_string(max_bytes))?;
+    io_result(file.close())?;
+    return Result.ok(contents);
+}
+
+/*
+ * Create or truncate a file, write every byte, and check close.
+ * Failure may leave a partially written file; this is not an atomic or durable replacement.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, FsError> write_bytes(string_view value, Slice<byte> contents) {
+    mut io.File file = open_file(value, 14)?;
+    io_result(file.write_all(contents))?;
+    return io_result(file.close());
+}
+
+/*
+ * Write the exact UTF-8 bytes, truncating an existing file; no newline is inserted.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, FsError> write_text(string_view value, string_view contents) {
+    return write_bytes(value, string.as_bytes(contents));
+}
+
+/*
+ * Append exact UTF-8 bytes, creating a missing file, then check close.
+ * Concurrent append ordering and crash durability follow the operating system contract.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, FsError> append_text(string_view value, string_view contents) {
+    mut io.File file = open_file(value, 22)?;
+    io_result(file.write_text(contents))?;
+    return io_result(file.close());
+}
+
+/* Compiler-only bindings: untrusted functions with these names receive no native privileges. */
+Tuple<i32, Tuple<usize, i64, u32, u32>, i32, i32> __path_metadata(string_view value, u32 follow) {}
+Tuple<i32, usize, i32, i32> __path_mkdir(string_view value) {}
+Tuple<i32, usize, i32, i32> __path_remove(string_view value) {}

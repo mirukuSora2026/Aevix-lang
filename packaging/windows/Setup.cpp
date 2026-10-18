@@ -29,7 +29,7 @@
 #include <vector>
 
 #ifndef AEVIX_SETUP_VERSION
-#define AEVIX_SETUP_VERSION L"0.2.0"
+#define AEVIX_SETUP_VERSION L"0.3.0"
 #endif
 
 namespace {

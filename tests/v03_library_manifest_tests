@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : v03_library_manifest_tests
+#
+# Description :
+#     공개 Aevix 소스 함수 명세와 실제 소스·호출 예제의 일치 여부를 검사한다.
+#     Check that the public Aevix source-function manifest matches sources and actual call fixtures.
+#
+# ========================
+
+import json
+from pathlib import Path
+import re
+import runpy
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+API = runpy.run_path(str(ROOT / "tools/docs/library_api"))
+
+def functions(source):
+    # 주석 속 public과 함수처럼 보이는 문자열을 실제 선언으로 세지 않는다.
+    # Do not count public prose or function-like literals as actual declarations.
+    for declaration in API["declarations"](source, "fixture"):
+        if declaration["kind"] == "function":
+            yield declaration["short_name"], declaration["signature"]
+
+
+def main():
+    root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
+    manifest = json.loads((root / "tests/v03_library_manifest.json").read_text())
+    actual = {}
+    for module in manifest["modules"]:
+        source = root / module["source"]
+        for name, signature in functions(source.read_text()):
+            actual[module["name"] + "." + name] = signature
+    recorded = {item["api"]: item for item in manifest["functions"]}
+    if len(recorded) != len(manifest["functions"]):
+        raise ValueError("Duplicate manifest API entries")
+    if set(actual) != set(recorded):
+        raise ValueError("API inventory mismatch: missing=" + str(sorted(set(actual) - set(recorded))) +
+                         ", stale=" + str(sorted(set(recorded) - set(actual))))
+    for api, signature in actual.items():
+        entry = recorded[api]
+        if signature != entry["signature"]:
+            raise ValueError("Stale signature: " + api)
+        fixture = (root / entry["fixture"]).read_text()
+        if not re.search(r"\b" + re.escape(api) + r"(?:\s*<[^;{}]*>)?\s*\(", fixture):
+            raise ValueError("Public function has no fixture call: " + api)
+        if entry["calling_form"] != "source_module_free_function":
+            raise ValueError("Source free function mislabelled as an intrinsic: " + api)
+    print(str(len(recorded)) + " public source functions inventoried with exact signatures and fixture calls.")
+
+
+if __name__ == "__main__":
+    main()

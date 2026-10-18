@@ -1,0 +1,110 @@
+import encoding;
+/* Byte-order, malformed-input offsets, BOM preservation, C terminators, and owned results. */
+T success<T>(Result<T, encoding.EncodingError> input) {
+    switch (move input) { case Result<T, encoding.EncodingError>.Ok { T found = value }: return found; break; default: Never.unreachable(); break; }
+}
+encoding.EncodingError failure<T>(Result<T, encoding.EncodingError> input) {
+    switch (move input) { case Result<T, encoding.EncodingError>.Err { encoding.EncodingError problem = error }: return problem; break; default: Never.unreachable(); break; }
+}
+bool truncated(Result<string, encoding.EncodingError> input, usize offset, usize width, usize remaining) {
+    encoding.EncodingError problem = failure(input);
+    if (!string.equals(problem.code(), "encoding.truncated_code_unit") || string.is_empty(problem.message())) return false;
+    switch (problem) {
+        case encoding.EncodingError.TruncatedCodeUnit { usize actual = offset, usize unit = unit_width, usize tail = remaining }: return actual == offset && unit == width && tail == remaining; break;
+        default: return false; break;
+    }
+}
+bool malformed16(Result<string, encoding.EncodingError> input, usize offset) {
+    encoding.EncodingError problem = failure(input);
+    if (!string.equals(problem.code(), "encoding.invalid_utf16")) return false;
+    switch (problem) { case encoding.EncodingError.InvalidUtf16 { usize actual = offset }: return actual == offset; break; default: return false; break; }
+}
+bool malformed32(Result<string, encoding.EncodingError> input, usize offset, u32 scalar) {
+    encoding.EncodingError problem = failure(input);
+    if (!string.equals(problem.code(), "encoding.invalid_scalar")) return false;
+    switch (problem) {
+        case encoding.EncodingError.InvalidScalar { usize actual = offset, u32 value = value }: return actual == offset && value == scalar; break;
+        default: return false; break;
+    }
+}
+usize bom_kind(encoding.Encoding input) {
+    switch (input) {
+        case encoding.Encoding.Utf8: return 8; break;
+        case encoding.Encoding.Utf16Le: return 16; break;
+        case encoding.Encoding.Utf16Be: return 17; break;
+        case encoding.Encoding.Utf32Le: return 32; break;
+        case encoding.Encoding.Utf32Be: return 33; break;
+    }
+}
+bool bom(Slice<byte> input, usize expected, usize width) {
+    Optional<Tuple<encoding.Encoding, usize>> found = encoding.detect_bom(input);
+    switch (move found) {
+        case Optional<Tuple<encoding.Encoding, usize>>.Some { Tuple<encoding.Encoding, usize> value = value }: return bom_kind(*Tuple.get<0>(&value)) == expected && *Tuple.get<1>(&value) == width; break;
+        case Optional<Tuple<encoding.Encoding, usize>>.None: return expected == 0 && width == 0; break;
+    }
+}
+i32 malformed_inputs() {
+    byte one[1] = [Byte.from_u8(65u8)];
+    byte two[2] = [Byte.from_u8(65u8), Byte.from_u8(0u8)];
+    byte three[3] = [Byte.from_u8(65u8), Byte.from_u8(0u8), Byte.from_u8(66u8)];
+    if (!truncated(encoding.decode_utf16_le(Slice.from_array(&one)), 0, 2, 1)) return 1;
+    if (!truncated(encoding.decode_utf16_be(Slice.from_array(&three)), 2, 2, 1)) return 2;
+    if (!truncated(encoding.decode_utf32_le(Slice.from_array(&one)), 0, 4, 1)) return 3;
+    if (!truncated(encoding.decode_utf32_be(Slice.from_array(&two)), 0, 4, 2)) return 4;
+    if (!truncated(encoding.decode_utf32_le(Slice.from_array(&three)), 0, 4, 3)) return 5;
+    byte tail[7] = [Byte.from_u8(65u8), Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(1u8), Byte.from_u8(2u8), Byte.from_u8(3u8)];
+    if (!truncated(encoding.decode_utf32_le(Slice.from_array(&tail)), 4, 4, 3)) return 6;
+    byte high[2] = [Byte.from_u8(0u8), Byte.from_u8(216u8)];
+    byte high_partial[3] = [Byte.from_u8(0u8), Byte.from_u8(216u8), Byte.from_u8(0u8)];
+    byte low[2] = [Byte.from_u8(220u8), Byte.from_u8(0u8)];
+    byte wrong_pair[4] = [Byte.from_u8(0u8), Byte.from_u8(216u8), Byte.from_u8(65u8), Byte.from_u8(0u8)];
+    if (!malformed16(encoding.decode_utf16_le(Slice.from_array(&high)), 0)) return 7;
+    if (!malformed16(encoding.decode_utf16_le(Slice.from_array(&high_partial)), 0)) return 8;
+    if (!malformed16(encoding.decode_utf16_be(Slice.from_array(&low)), 0)) return 9;
+    if (!malformed16(encoding.decode_utf16_le(Slice.from_array(&wrong_pair)), 2)) return 10;
+    byte surrogate[4] = [Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(216u8), Byte.from_u8(0u8)];
+    byte too_large[4] = [Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(17u8), Byte.from_u8(0u8)];
+    byte maximum[4] = [Byte.from_u8(255u8), Byte.from_u8(255u8), Byte.from_u8(255u8), Byte.from_u8(255u8)];
+    if (!malformed32(encoding.decode_utf32_be(Slice.from_array(&surrogate)), 0, 55296u32)) return 11;
+    if (!malformed32(encoding.decode_utf32_le(Slice.from_array(&too_large)), 0, 1114112u32)) return 12;
+    if (!malformed32(encoding.decode_utf32_le(Slice.from_array(&maximum)), 0, 4294967295u32)) return 13;
+    u32 invalid[2] = [65u32, 55296u32];
+    if (!malformed32(encoding.decode_utf32(Slice.from_array(&invalid)), 1, 55296u32)) return 14;
+    return 0;
+}
+i32 marks_and_terminators() {
+    byte empty[0] = [];
+    byte partial[1] = [Byte.from_u8(255u8)];
+    byte utf8[3] = [Byte.from_u8(239u8), Byte.from_u8(187u8), Byte.from_u8(191u8)];
+    byte utf16le[2] = [Byte.from_u8(255u8), Byte.from_u8(254u8)];
+    byte utf16be[2] = [Byte.from_u8(254u8), Byte.from_u8(255u8)];
+    byte utf32le[4] = [Byte.from_u8(255u8), Byte.from_u8(254u8), Byte.from_u8(0u8), Byte.from_u8(0u8)];
+    byte utf32be[4] = [Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(254u8), Byte.from_u8(255u8)];
+    if (!bom(Slice.from_array(&empty), 0, 0) || !bom(Slice.from_array(&partial), 0, 0)) return 1;
+    if (!bom(Slice.from_array(&utf8), 8, 3) || !bom(Slice.from_array(&utf16le), 16, 2) || !bom(Slice.from_array(&utf16be), 17, 2)) return 2;
+    if (!bom(Slice.from_array(&utf32le), 32, 4) || !bom(Slice.from_array(&utf32be), 33, 4)) return 3;
+    string mark16 = success(encoding.decode_utf16_le(Slice.from_array(&utf16le)));
+    string mark32 = success(encoding.decode_utf32_be(Slice.from_array(&utf32be)));
+    if (!string.equals(string.view(&mark16), "\u{feff}") || !string.equals(string.view(&mark32), "\u{feff}")) return 4;
+    Vector<byte> c_empty = success(encoding.to_c_utf8(""));
+    Vector<byte> c_text = success(encoding.to_c_utf8("A\u{1f600}"));
+    if (Vector.len(&c_empty) != 1 || Byte.to_u8(c_empty[0]) != 0u8 || Vector.len(&c_text) != 6 || Byte.to_u8(c_text[5]) != 0u8 || Byte.to_u8(c_text[0]) != 65u8) return 5;
+    encoding.EncodingError nul = failure(encoding.to_c_utf8("\u{e9}\u{0}x"));
+    if (!string.equals(nul.code(), "encoding.interior_nul") || string.is_empty(nul.message())) return 6;
+    switch (nul) { case encoding.EncodingError.InteriorNul { usize offset = offset }: if (offset != 2) return 7; break; default: return 8; break; }
+    u32 empty_units[0] = [];
+    string empty_text = success(encoding.decode_utf32(Slice.from_array(&empty_units)));
+    if (!string.is_empty(string.view(&empty_text))) return 9;
+    byte ascii[4] = [Byte.from_u8(0u8), Byte.from_u8(65u8), Byte.from_u8(10u8), Byte.from_u8(127u8)];
+    string ascii_text = success(encoding.decode_ascii(Slice.from_array(&ascii)));
+    if (!string.equals(string.view(&ascii_text), "\u{0}A\n\u{7f}")) return 10;
+    string_view ascii_view = string.view(&ascii_text);
+    Vector<byte> ascii_copy = success(encoding.encode_ascii(ascii_view));
+    if (Vector.len(&ascii_copy) != 4 || Byte.to_u8(ascii_copy[0]) != 0u8 || Byte.to_u8(ascii_copy[3]) != 127u8) return 11;
+    return 0;
+}
+i32 main() {
+    if (malformed_inputs() != 0) return 1;
+    if (marks_and_terminators() != 0) return 2;
+    return 0;
+}

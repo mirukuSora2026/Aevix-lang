@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "integer_facade_plan.json",
+  "description": {
+    "en": "Chosen design for future canonical Integer namespace forwarding, with exact loading, binding, error-carrier and verification boundaries.",
+    "ko": "향후 기본 Integer 네임스페이스 전달에 사용할 설계와 모듈 로딩, 이름 결합, 오류 전달 타입 및 검증 경계를 구분한다."
+  },
+  "status": "design_chosen_future_implementation_not_enabled",
+  "current_implemented": {
+    "provider": "library/Math/integer.avx",
+    "public_access": "Explicit import integer, followed by integer.checked_add and other documented source calls.",
+    "top_level_overloads": 528,
+    "function_names": 48,
+    "constants": 24,
+    "error_carrier": "integer.IntegerArithmeticError implements Copy, Error: Overflow and DivisionByZero.",
+    "proof": "docs/Language/Library/integer_source_checkpoint.json",
+    "canonical_integer_conversion": "Existing Integer.convert remains a compiler-native conversion returning the existing IntegerError.OutOfRange carrier.",
+    "not_implemented": "Canonical forwarding for the new source functions is not enabled. No source declaration can redeclare the prelude Integer type."
+  },
+  "chosen_future_design": {
+    "provider_loading": [
+      "Resolve the ordinary user module graph and original AST names first.",
+      "Collect only call nodes whose receiver resolves to the exact declaration-free prelude Integer symbol and whose method is in a closed, shared forwarding registry.",
+      "Skip existing native conversion operations, unsupported names, ordinary user members, shadowed names and imports with matching spelling.",
+      "Add the standard integer provider once through its compiler installation path, not through project module search or arbitrary module roots. Preserve exact standard-module provenance and ModuleId.",
+      "Do not add ordinary source-visible import names or wildcard access. Provider top-level initialization must remain free of mutable persist values and side effects for implicit builtin use.",
+      "Resolve the expanded graph without changing the original builtin identity. Programs with no forwarded calls, unused spellings or only Integer.convert must not parse or load this provider."
+    ],
+    "call_rewriting": [
+      "Select exact public function declarations from the trusted provider and lower through existing ordinary overload selection, argument evaluation, borrowing, ownership and effect checks.",
+      "Existing GenericResolver builtinMember, originalReferences, compilerImport and use mechanisms are useful foundations, but a textual qualified-name replacement alone is insufficient.",
+      "The initial user-name pass must reject private, unimported and transitive source references before compiler imports are generated. Compiler-only references must not grant additional rights to unrelated user AST nodes.",
+      "Preserve generic clone provenance, named argument order, receiver permissions, exact overload type matching and diagnostics at the original call site.",
+      "One registry must drive provider demand, supported forwarding, signatures and generated API inventory. A method absent from the registry remains unsupported."
+    ],
+    "error_carrier": {
+      "current_difference": "Directly forwarding checked helpers would return integer.IntegerArithmeticError instead of the catalog's canonical IntegerError. This is a nominal type difference, not just a diagnostic wording difference.",
+      "chosen_boundary": "Do not silently present source checked helpers as exact canonical catalog contracts.",
+      "possible_staged_implementation": [
+        "Error-free arithmetic and bit functions can be considered first, with independent canonical spelling gates.",
+        "For checked functions, extend canonical IntegerError with appended Overflow and DivisionByZero only in a dedicated verified compiler batch, preserving the existing OutOfRange variant index.",
+        "Use an explicit, allocation-free adapter from provider Result errors to canonical IntegerError. Do not rely on structural enum similarity or implicit conversion.",
+        "Update every strict IntegerError shape verifier, constructor, CoreError adapter, exhaustive switch, diagnostic code and lifecycle record in the same batch."
+      ],
+      "implementation_status": "The canonical error expansion and adapter are proposals for that future batch; neither is applied by this plan."
+    }
+  },
+  "source_pointers": [
+    {
+      "path": "src/Frontend/Modules/ModuleLoader.cpp",
+      "symbols": ["libraryDirectory", "registerLibraryModule"],
+      "role": "Standard installation-relative module loading and dependency graph registration."
+    },
+    {
+      "path": "src/Frontend/Sema/GenericResolver.cpp",
+      "symbols": ["builtinReceiver", "builtinMember", "originalReferences", "compilerImport", "use", "numericCall"],
+      "role": "Canonical builtin binding checks, generated declaration use and existing native conversion preservation."
+    },
+    {
+      "path": "src/Frontend/Sema/NameResolver.cpp",
+      "symbols": ["linkImports", "typeOperandSlot"],
+      "role": "Source import rights, compiler-only imports and type-operand hints; hints alone are not callable implementations."
+    },
+    {
+      "path": "tools/aevixc/main.cpp",
+      "role": "Current module loading, initial name resolution and generic resolution sequencing."
+    }
+  ],
+  "required_gates": [
+    "Original source tests continue to pass for explicit integer imports and native Integer.convert.",
+    "Every forwarded overload passes check, AOT O0/O2 and ORC JIT O0/O2 with the independent integer oracle, including signed MIN, zero divisors, huge exponents and exact return carriers.",
+    "User modules, imports, local bindings, structs and methods named Integer or integer do not acquire builtin dispatch by spelling.",
+    "Private helpers, selected imports, transitive imports and unrelated user references remain inaccessible after compiler imports are inserted.",
+    "Generic clones, forward declarations and recursive helper calls retain canonical binding provenance.",
+    "No forwarded use, convert-only use and unsupported method names do not load the standard integer provider or create new public names.",
+    "A missing provider file diagnoses only actual supported forwarded use; a project module cannot replace the standard provider.",
+    "Forwarding introduces no runtime namespace object, implicit clone, heap allocation or mutable initialization dependency.",
+    "Canonical error adaptation validates nominal enum identity and every error path independently from source-carrier success."
+  ],
+  "remaining_catalog_boundary": "This plan does not add type-operand APIs, radix parsing, formatting, checked shifts, bit fields, wide arithmetic or other missing catalog operations. Each requires its own provider and exact contract tests."
+}

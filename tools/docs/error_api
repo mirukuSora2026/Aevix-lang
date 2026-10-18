@@ -1,0 +1,421 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : error_api
+#
+# Description :
+#     실제 오류 선언과 검사 문자열을 추출하고 보충 오류 문서의 변경을 검사한다.
+#     Extract concrete error declarations and inspection strings and check supplemental documentation drift.
+#
+# ========================
+
+"""Source inventory only: declaring an error does not prove a complete API catalog."""
+
+import argparse
+from collections import Counter
+import hashlib
+import html
+import importlib.machinery
+import importlib.util
+import json
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[2]
+SECTION = "CPU-Library-Errors-03"
+REFERENCE = "docs/Language/Library/error_reference.json"
+POLICY = "docs/Language/Library/error_reference_policy.json"
+PAGE = "htmls/errors/Error_Types.html"
+loader = importlib.machinery.SourceFileLoader("aevix_error_library_api", str(ROOT / "tools/docs/library_api"))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+api = importlib.util.module_from_spec(spec)
+loader.exec_module(api)
+
+
+def canonical_name(name):
+    return re.sub(r"<.*>", "", name)
+
+
+def implements_error(signature):
+    return bool(re.search(r"\bimplements\b.*\bError\b", signature.split(" where ", 1)[0]))
+
+
+def span(source, declaration):
+    """Find a declaration body with comments and literal braces hidden."""
+    masked = api.masked_source(source)
+    begin = masked.find("{", declaration["offset"])
+    terminal = masked.find(";", declaration["offset"])
+    if begin < 0 or (0 <= terminal < begin):
+        return None
+    depth = 1
+    end = begin + 1
+    while end < len(masked) and depth:
+        if masked[end] == "{": depth += 1
+        if masked[end] == "}": depth -= 1
+        end += 1
+    if depth:
+        raise ValueError("Unbalanced declaration body: " + declaration["name"])
+    return begin + 1, end - 1
+
+
+def tokens(source):
+    """Keep string literals intact and discard real comments, never text inside strings."""
+    result = []
+    cursor = 0
+    for begin, end, kind in api.source_regions(source):
+        result.extend(match.group() for match in api.TOKEN.finditer(source[cursor:begin]))
+        if kind != "comment":
+            result.append(source[begin:end])
+        cursor = end
+    result.extend(match.group() for match in api.TOKEN.finditer(source[cursor:]))
+    return result
+
+
+def literal(expression):
+    if len(expression) != 1:
+        return None
+    value = expression[0]
+    if value.startswith('"'):
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError as error:
+            raise ValueError("Unsupported inspection string literal: " + value) from error
+        return decoded if isinstance(decoded, str) else None
+    raw = re.match(r'r(#+)?"', value)
+    if raw:
+        ending = '"' + (raw.group(1) or "")
+        if value.endswith(ending): return value[raw.end():-len(ending)]
+    return None
+
+
+def case_label(parts, owner):
+    """Use the exact case name; payload bindings remain separate from identity."""
+    head = parts[:parts.index("{")] if "{" in parts else parts
+    text = "".join(head)
+    return re.sub(r"\bSelf\.", owner + ".", text)
+
+
+def inspection_returns(body, owner):
+    """Read nested switch case paths and exact return expressions, not diagnostic prose."""
+    stream = tokens(body)
+    if any(left == "-" and right == ">" for left, right in zip(stream, stream[1:])):
+        raise ValueError("Nested closure inspection requires an explicit reviewed extraction rule")
+    stack = []
+    depth = 0
+    cursor = 0
+    pending_switch = False
+    rows = []
+    while cursor < len(stream):
+        token = stream[cursor]
+        if token == "switch": pending_switch = True
+        elif token == "{":
+            depth += 1
+            if pending_switch:
+                stack.append({"depth": depth, "case": None, "bindings": {}})
+                pending_switch = False
+        elif token == "}":
+            if stack and stack[-1]["depth"] == depth:
+                stack.pop()
+            depth -= 1
+        elif token in ("case", "default"):
+            if not stack:
+                raise ValueError("Inspection case outside a switch")
+            cursor += 1
+            parts = []
+            pattern_depth = 0
+            while cursor < len(stream):
+                value = stream[cursor]
+                if value == ":" and pattern_depth == 0: break
+                if value in ("{", "(", "["): pattern_depth += 1
+                if value in ("}", ")", "]"): pattern_depth -= 1
+                parts.append(value)
+                cursor += 1
+            if cursor == len(stream):
+                raise ValueError("Unterminated inspection case")
+            stack[-1]["case"] = "default" if token == "default" else case_label(parts, owner)
+            bindings = {}
+            if "{" in parts:
+                payload = parts[parts.index("{") + 1:-1]
+                begin = 0
+                while begin < len(payload):
+                    end = payload.index(",", begin) if "," in payload[begin:] else len(payload)
+                    assignment = payload[begin:end]
+                    if "=" in assignment:
+                        equals = assignment.index("=")
+                        if equals >= 2:
+                            bindings[assignment[equals - 1]] = "".join(value for value in assignment[:equals - 1] if value not in ("&", "mut"))
+                    begin = end + 1
+            stack[-1]["bindings"] = bindings
+        elif token == "return":
+            cursor += 1
+            parts = []
+            expression_depth = 0
+            while cursor < len(stream):
+                value = stream[cursor]
+                if value == ";" and expression_depth == 0: break
+                if value in ("(", "[", "{"): expression_depth += 1
+                if value in (")", "]", "}"): expression_depth -= 1
+                parts.append(value)
+                cursor += 1
+            if cursor == len(stream): raise ValueError("Unterminated inspection return")
+            value = literal(parts)
+            expression = "".join(parts)
+            delegated = bool(re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\.(?:code|message)\(\)", expression))
+            rows.append({"case_path": [item["case"] for item in stack if item["case"]],
+                         "kind": "literal" if value is not None else "delegated" if delegated else "expression",
+                         "value": value, "expression": expression,
+                         "bindings": {key: value for item in stack for key, value in item["bindings"].items()}})
+        cursor += 1
+    return rows
+
+
+def source_units(root):
+    result = []
+    for path in sorted((root / "library").rglob("*.avx")):
+        module = ".".join(path.relative_to(root / "library").with_suffix("").parts[1:]) or path.stem
+        result.append({"module": module, "source": path.relative_to(root).as_posix(),
+                       "body": path.read_text(encoding="utf-8"), "source_line": 1, "generated": False})
+    for provider in api.GENERATED_PROVIDERS:
+        path = root / provider
+        if not path.exists(): continue
+        source = path.read_text(encoding="utf-8")
+        for item in api.virtual_literals(source, provider):
+            result.append({"module": item["module"], "source": provider, "body": item["body"],
+                           "source_line": source.count("\n", 0, item["body_start"]) + 1,
+                           "generated": True})
+    return result
+
+
+def declaration_record(unit, declaration, all_declarations):
+    source = unit["body"]
+    bounds = span(source, declaration)
+    if not bounds: raise ValueError("Error carrier has no body: " + declaration["name"])
+    prefix = declaration["name"] + "."
+    children = [item for item in all_declarations
+                if item["name"].startswith(prefix) and "." not in item["name"][len(prefix):]]
+    owner = declaration["short_name"]
+    generic = re.search(r"\b" + re.escape(owner) + r"\s*(<[^>]+>)", declaration["signature"])
+    full_name = declaration["name"] + (re.sub(r"\s+", "", generic.group(1)) if generic else "")
+    variants = []
+    if declaration["kind"] == "enum":
+        for item in children:
+            if item["kind"] != "variant": continue
+            fields = [field for field in all_declarations
+                      if field["kind"] == "field" and field["name"].startswith(item["name"] + ".")]
+            for field in fields:
+                api.validate_lifecycle(field["lifecycle"], field["name"])
+            fields = [{"name": field["short_name"], "declaration": re.sub(r"^(?:public|private)\s+", "", field["signature"]),
+                       "lifecycle": field["lifecycle"]} for field in fields]
+            api.validate_lifecycle(item["lifecycle"], item["name"])
+            variants.append({"name": item["short_name"], "fields": fields, "lifecycle": item["lifecycle"]})
+    else:
+        fields = [item for item in children if item["kind"] == "field"]
+        variants.append({"name": "value", "fields": [
+            {"name": field["short_name"], "declaration": re.sub(r"^(?:public|private)\s+", "", field["signature"]),
+             "lifecycle": field["lifecycle"]} for field in fields], "lifecycle": declaration["lifecycle"]})
+    methods = {}
+    for method in ("code", "message"):
+        candidates = [item for item in children if item["kind"] == "method" and item["short_name"] == method]
+        if len(candidates) > 1: raise ValueError("Ambiguous inspection method: " + full_name + "." + method)
+        if candidates:
+            extent = span(source, candidates[0])
+            if not extent: raise ValueError("Inspection placeholder has no ordinary body: " + full_name)
+            methods[method] = inspection_returns(source[extent[0]:extent[1]], owner)
+            if not methods[method]: raise ValueError("Inspection method contains no extracted return: " + full_name)
+            if declaration["kind"] == "enum":
+                covered = {part.split(".")[-1] for row in methods[method] for part in row["case_path"][:1]}
+                unconditional = any(not row["case_path"] or "default" in row["case_path"][:1] for row in methods[method])
+                missing = {item["name"] for item in variants} - covered
+                if missing and not unconditional:
+                    raise ValueError(full_name + "." + method + " omits variants: " + ", ".join(sorted(missing)))
+    if implements_error(declaration["signature"]) and set(methods) != {"code", "message"}:
+        raise ValueError("Error implementation is missing code/message: " + full_name)
+    api.validate_lifecycle(declaration["lifecycle"], full_name)
+    return {"name": full_name, "canonical_name": declaration["name"], "source": unit["source"],
+            "source_line": unit["source_line"] + declaration["line"] - 1,
+            "lifecycle": declaration["lifecycle"], "declaration": declaration["signature"],
+            "variant_details": variants, "inspection": methods,
+            "status": "concrete_source_present_not_complete_catalog_or_execution_proof"}
+
+
+def mapping_rows(record, method, policy):
+    rows = []
+    curated = policy.get("curated_code_rules", {}).get(record["canonical_name"], []) if method == "code" else []
+    for item in record["inspection"].get(method, []):
+        path = item["case_path"]
+        label = " / ".join(path) or "all values"
+        rule = item["value"] if item["kind"] == "literal" else "delegates to " + item["expression"] if item["kind"] == "delegated" else "source expression: " + item["expression"]
+        for old in curated:
+            if item["kind"] == "literal" and old["code_or_rule"] == item["value"]:
+                label = old["case"]
+                break
+            variant = path[0].split(".")[-1] if path else ""
+            if item["kind"] == "delegated" and old["case"] == variant:
+                expected = re.fullmatch(r"contained ([A-Za-z_][\w.<>]*)\.code\(\)", old["code_or_rule"])
+                receiver = item["expression"].split(".", 1)[0]
+                actual = item.get("bindings", {}).get(receiver)
+                if expected and actual and expected.group(1).split(".")[-1] == actual.split(".")[-1]:
+                    rule = old["code_or_rule"]
+                break
+        rows.append({"case": label, "code_or_rule" if method == "code" else "message_or_rule": rule,
+                     "kind": item["kind"], "case_path": path, "source_expression": item["expression"]})
+    if not rows:
+        rows = [{"case": "no direct Error inspection", "code_or_rule" if method == "code" else "message_or_rule": "no " + method + "() method", "kind": "absent"}]
+    return rows
+
+
+def inventory(root):
+    policy = json.loads((root / POLICY).read_text(encoding="utf-8"))
+    curated = {canonical_name(name) for name in policy["curated_types"]}
+    supplements = set(policy.get("core_module_supplements", []))
+    definitions = {}
+    unit_hashes = {}
+    for unit in source_units(root):
+        declarations = api.declarations(unit["body"], unit["module"])
+        candidates = [item for item in declarations if item["kind"] in ("enum", "struct")
+                      and item["name"].count(".") == 1]
+        for declaration in candidates:
+            name = declaration["name"]
+            selected = name in curated or name in supplements or name in policy["compiler_supplements"]
+            if unit["module"] not in ("error", "$core"):
+                selected |= declaration["short_name"].endswith("Error") or implements_error(declaration["signature"])
+            if not selected: continue
+            if name in definitions: raise ValueError("Duplicate error declaration: " + name)
+            definitions[name] = declaration_record(unit, declaration, declarations)
+            unit_hashes[unit["source"] + "#" + unit["module"]] = hashlib.sha256(unit["body"].encode()).hexdigest()
+    missing = (curated | supplements) - definitions.keys()
+    if missing: raise ValueError("Curated source errors disappeared: " + ", ".join(sorted(missing)))
+    for name, adapter in policy["compiler_supplements"].items():
+        if name not in definitions: raise ValueError("Compiler supplement disappeared: " + name)
+        record = definitions[name]
+        if record["inspection"]: raise ValueError("Compiler supplement now has direct inspection; review policy: " + name)
+        target = definitions.get(adapter["adapter_type"])
+        if not target: raise ValueError("Missing compiler supplement adapter: " + adapter["adapter_type"])
+        record["inspection_adapter"] = adapter
+        for method in ("code", "message"):
+            rows = [row for row in target["inspection"].get(method, []) if row["case_path"] and row["case_path"][0].split(".")[-1] == adapter["adapter_variant"]]
+            if not rows: raise ValueError("Missing compiler supplement adapter branch: " + name + "." + method)
+            record["inspection"]["adapter_" + method] = rows
+        record["name"] = adapter.get("public_name", record["name"])
+    results = []
+    for name, record in sorted(definitions.items()):
+        record["variants_or_fields"] = [item["name"] + (" { " + "; ".join(field["declaration"] for field in item["fields"]) + "; }" if item["fields"] else "") for item in record["variant_details"]]
+        record["code_mappings"] = mapping_rows(record, "code", policy)
+        record["message_mappings"] = mapping_rows(record, "message", policy)
+        if "inspection_adapter" in record:
+            for method in ("code", "message"):
+                record[method + "_mappings"] = [
+                    {"case": " / ".join(row["case_path"][1:]) + " through " + record["inspection_adapter"]["adapter_type"] + "." + record["inspection_adapter"]["adapter_variant"],
+                     "code_or_rule" if method == "code" else "message_or_rule": row["value"] if row["kind"] == "literal" else row["expression"],
+                     "kind": "adapter_" + row["kind"], "case_path": row["case_path"], "source_expression": row["expression"]}
+                    for row in record["inspection"]["adapter_" + method]]
+        results.append(record)
+    rule_audit = []
+    for name, old_rules in policy.get("curated_code_rules", {}).items():
+        record = definitions.get(name)
+        actual = record["code_mappings"] if record else []
+        for old in old_rules:
+            present = any(row["code_or_rule"] == old["code_or_rule"] for row in actual)
+            rule_audit.append({"type": name, "case": old["case"], "curated_rule": old["code_or_rule"],
+                               "status": "verified_in_current_source" if present else "not_present_in_current_source_review_required"})
+    return {"schema_version": 2, "created_by": "miruku_sora2026", "file_name": "error_reference.json",
+            "description": {"en": "Exact supplemental CPU source error variants, lifecycle and inspection return mappings; declaration presence is separate from execution and full catalog support.",
+                            "ko": "보충 CPU 오류의 실제 항목, 수명 주기 및 검사 반환값을 기록하며 소스 선언의 존재를 실행 검증 및 전체 카탈로그 지원과 구분한다."},
+            "source_page": PAGE + "#" + SECTION,
+            "scope": "Curated supplemental types plus discovered non-core Error/carrier declarations and the explicit CharError adapter; other core/prelude reference sections remain separate.",
+            "provenance": {"method": "Lexical declaration and exact return-expression extraction from ordinary source and known generated Aevix payloads, not C++ diagnostic strings.", "source_hashes": unit_hashes,
+                           "policy": POLICY, "boundary": "No source declaration count or inspection mapping implies every API is callable or exercised."},
+            "curated_rule_audit": rule_audit, "types": results}
+
+
+def mapping_html(rows, method):
+    key = "code_or_rule" if method == "code" else "message_or_rule"
+    return "<br>".join("<code>" + html.escape(row["case"]) + "</code> → " +
+                      "<code>" + html.escape(row[key]) + "</code>" for row in rows)
+
+
+def lifecycle_html(values):
+    return "<small>since " + html.escape(values["since"]) + "; deprecated " + html.escape(values["deprecated_at"]) + "; removed " + html.escape(values["removed_at"]) + "</small>"
+
+
+def render(data):
+    rows = []
+    for record in data["types"]:
+        life = record["lifecycle"]
+        identity = "<code>" + html.escape(record["name"]) + "</code><br>" + lifecycle_html(life)
+        variants = "<br>".join("<code>" + html.escape(value) + "</code><br>" + lifecycle_html(detail["lifecycle"]) for value, detail in zip(record["variants_or_fields"], record["variant_details"]))
+        changed_fields = [(field["name"], field["lifecycle"]) for detail in record["variant_details"] for field in detail["fields"] if field["lifecycle"] != detail["lifecycle"]]
+        if changed_fields:
+            variants += "<details><summary>Field lifecycle differences</summary>" + "<br>".join("<code>" + html.escape(name) + "</code> " + lifecycle_html(values) for name, values in changed_fields) + "</details>"
+        inspection = mapping_html(record["code_mappings"], "code")
+        inspection += "<details><summary>Exact message() results</summary>" + mapping_html(record["message_mappings"], "message") + "</details>"
+        if "inspection_adapter" in record:
+            inspection = "<p>" + html.escape(record["inspection_adapter"]["explanation"]) + "</p>" + inspection
+        rows.append("<tr><td>" + identity + "</td><td>" + variants + "</td><td>" + inspection + "</td></tr>")
+    return '''<section id="CPU-Library-Errors-03"><h2>Concrete CPU library errors</h2>
+<!-- Generated by tools/docs/error_api; source presence is not full catalog completion. -->
+<p>This supplemental reference records current source and compiler-bound CPU error carriers by their exact qualified names. It does not mark the later design catalog as implemented or establish that every operation has been executed.</p>
+<p>Each row keeps its own <code>@since</code>, <code>@deprecated_at</code> and <code>@removed_at</code> values from source. Existing 0.1 and 0.2 compiler history remains in the core reference sections. A type without a direct <code>Error</code> implementation has no fabricated <code>code()</code> or <code>message()</code> method. Numeric discriminants and a stable public ABI are not specified here.</p>
+<p><code>integer.IntegerArithmeticError</code> and <code>math.IntegerMathError</code> are distinct from compiler <code>IntegerError</code>; <code>math.FloatMathError</code> is distinct from compiler <code>FloatError</code>. No alias or implicit <code>Result</code> error conversion is implied. <code>CharError</code> is inspected through the explicit <code>error.CoreError.Char</code> adapter.</p>
+<p>Byte and Unicode errors preserve the fields and offset units shown by their source operation. Byte-buffer <code>LengthMismatch</code> and <code>InvalidUtf8</code> are distinct failures. Encoding code-unit offsets count input elements; byte codec offsets count bytes. Error names alone do not implement streaming, lossy conversion or every Unicode property catalog operation.</p>
+<p><code>task.ScopeError.Retry</code> retains a scope owner and cleanup obligations. <code>Failure</code> carries only a reason from a borrowed operation; the caller retains its owner. Both delegate inspection to the contained <code>error.TaskError</code>. <code>task.Cancelled.Requested</code> is an application checkpoint error and is distinct from the lifecycle variant <code>error.TaskError.Cancelled</code>. Async suspension remains a 0.4 feature.</p>
+<p>Ownership-returning errors keep their declared inputs, guards or entries. <code>sync.LockError&lt;G&gt;.Poisoned</code> owns its guard; dropping it releases that capability normally. <code>sync.Poisoned&lt;T&gt;</code> is a separate payload struct. A normal <code>Result.Err</code> does not by itself poison a lock.</p>
+<p>Delegated inspection rules are labeled as delegation rather than expanded into invented literal codes. The exact source return expression is retained in the machine-readable inventory. Missing direct inspection remains explicit for carriers such as <code>vector.MapError&lt;E&gt;</code>, <code>quantized.QuantizationInputError&lt;T&gt;</code> and <code>complex.ComplexError</code>.</p>
+<div class="table-scroll" role="region" aria-label="Concrete CPU error mappings"><table><thead><tr><th scope="col">Qualified type and lifecycle</th><th scope="col">Exact variants or payload fields</th><th scope="col">Current inspection mappings</th></tr></thead><tbody>''' + "\n".join(rows) + '''</tbody></table></div>
+<p>File, process and tensor wrappers retain their typed errors. <code>FsError</code> and <code>WaitError</code> delegate inspection to their contained OS-facing errors. <code>TensorAllocationError.LimitExceeded</code> describes a requested logical element budget, not process RSS or a global managed heap. These declarations do not add GPU support.</p>
+</section>'''
+
+
+def section_span(source):
+    match = re.search(r'<section\b[^>]*\bid=["\']' + SECTION + r'["\'][^>]*>', source)
+    if not match: raise ValueError("Missing supplemental error section")
+    depth = 1
+    for token in re.finditer(r"</?section\b[^>]*>", source[match.end():]):
+        depth += -1 if token.group().startswith("</") else 1
+        if depth == 0: return match.start(), match.end() + token.end()
+    raise ValueError("Unterminated supplemental error section")
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=("inventory", "render", "check"))
+    parser.add_argument("--root", type=Path, default=ROOT)
+    parser.add_argument("--inventory", type=Path)
+    parser.add_argument("--page", type=Path)
+    options = parser.parse_args(argv)
+    root = options.root.resolve()
+    target = options.inventory or root / REFERENCE
+    page = options.page or root / PAGE
+    try:
+        data = inventory(root)
+        serialized = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+        if options.command == "inventory":
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(serialized, encoding="utf-8")
+        elif options.command == "render":
+            if json.loads(target.read_text(encoding="utf-8")) != data:
+                raise ValueError("Error inventory is stale; run inventory before render")
+            source = page.read_text(encoding="utf-8")
+            begin, end = section_span(source)
+            page.write_text(source[:begin] + render(data) + source[end:], encoding="utf-8")
+        else:
+            if target.read_text(encoding="utf-8") != serialized:
+                raise ValueError("Concrete error inventory drifted from source")
+            source = page.read_text(encoding="utf-8")
+            begin, end = section_span(source)
+            if source[begin:end] != render(data):
+                raise ValueError("Supplemental error HTML drifted from inventory")
+        kinds = Counter(row["kind"] for record in data["types"] for row in record["code_mappings"])
+        omissions = [row for row in data["curated_rule_audit"] if row["status"] != "verified_in_current_source"]
+        print(json.dumps({"types": len(data["types"]), "code_mapping_kinds": dict(kinds), "curated_rules_requiring_review": len(omissions), "command": options.command}))
+    except (ValueError, OSError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

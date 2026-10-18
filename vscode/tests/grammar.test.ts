@@ -65,7 +65,7 @@ async function assertScope(source: string, needle: string, expected: RegExp): Pr
 }
 
 test('manifest registers .avx, portable runtime and trusted compiler execution', () => {
-    assert.equal(manifest.version, '0.2.0');
+    assert.equal(manifest.version, '0.3.0');
     assert.equal(manifest.license, 'Apache-2.0');
     assert.equal(manifest.name, 'aevix');
     assert.equal(manifest.contributes.languages[0].id, 'aevix');
@@ -116,9 +116,11 @@ test('string and Unicode character content keeps comments inert', async () => {
 });
 
 test('block comment state spans lines and ends before the next statement', async () => {
-    const source = '/* documentation\n @return value\n @deprecated_at 0.2\n */\nreturn 42;';
+    const source = '/* documentation\n @return value\n @since 0.3\n @deprecated_at none\n @removed_at none\n */\nreturn 42;';
     await assertScope(source, '@return', /comment\.|storage\.type|entity\.name\.tag/);
     await assertScope(source, '@deprecated_at', /comment\.|storage\.type|entity\.name\.tag/);
+    for (const tag of ['@since', '@removed_at'])
+        await assertScope(source, tag, /storage\.type\.annotation/);
     await assertScope(source, 'return 42', /keyword\.control/);
     await assertScope('// struct Item {};\ni32 value = 0;', 'struct', /comment\./);
     await assertScope('// struct Item {};\ni32 value = 0;', 'i32', /storage\.type|support\.type/);

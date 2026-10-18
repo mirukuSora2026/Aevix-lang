@@ -1,0 +1,72 @@
+/*
+ * Exact cpu4096 case lcg_16384, mode parallel_fresh; all arithmetic and storage use u64.
+ * Read six u64 seed tokens: one before the warmup and each of five samples.
+ * Seed parsing, input initialization, checksums, and output are outside timers.
+ * Supply six zero seeds for the shared values[index] = index comparison.
+ * @module lcg_16384_parallel_fresh
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import system;
+import time;
+import parallel;
+
+T success<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+
+void kernel(&mut u64 item) {
+    mut u64 x = *item % 2147483647u64 + 1u64;
+    for (mut usize round = 0usize; round < 16384usize; round++) {
+        x = (x * 48271u64 + 1u64) % 2147483647u64;
+    }
+    *item = x;
+    return;
+}
+
+i32 main() {
+    mut u64 values[4096] = [0u64; 4096];
+    for (mut usize iteration = 0usize; iteration < 6usize; iteration++) {
+        Optional<u64> input = success(system.input<u64>());
+        mut u64 seed = 0u64;
+        switch (input) {
+            case Optional<u64>.Some { u64 supplied = value }: seed = supplied % 4096u64; break;
+            case Optional<u64>.None: return 91; break;
+        }
+        mut u64 initial = 0u64;
+        for (mut usize index = 0usize; index < 4096usize; index++) {
+            values[index] = (initial + seed) % 4096u64;
+            initial++;
+        }
+        usize workers = parallel.worker_count();
+        if (workers < 1usize || workers > 32usize) return 92;
+        u64 started = success(time.monotonic_ns());
+        parallel.for_each(Slice.from_array_mut(&mut values), kernel);
+        u64 stopped = success(time.monotonic_ns());
+        if (stopped < started) return 93;
+        u64 elapsed = stopped - started;
+        if (iteration > 0usize) {
+            mut u64 sum = 0u64;
+            mut u64 weighted = 0u64;
+            mut u64 weight = 1u64;
+            for (mut usize index = 0usize; index < 4096usize; index++) {
+                sum += values[index];
+                weighted = (weighted + weight * values[index]) % 1000000007u64;
+                weight++;
+            }
+            success(system.printf("SAMPLE lcg_16384 parallel_fresh %u %u %u %u %u\n", iteration - 1usize, elapsed, sum, weighted, workers));
+        }
+    }
+    success(system.print("VERIFY lcg_16384 parallel_fresh "));
+    for (mut usize index = 0usize; index < 4096usize; index++) {
+        if (index != 0usize) success(system.print(","));
+        success(system.printf("%u", values[index]));
+    }
+    success(system.println(""));
+    success(system.flush());
+    return 0;
+}

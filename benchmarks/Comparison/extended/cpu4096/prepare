@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : prepare
+#
+# Description :
+#     공통 시계와 C·AOT·JIT 산출물을 준비하고 비측정 기능 검증만 실행한다.
+#     Prepare one shared clock plus C/AOT/JIT artifacts, executing only untimed functional smokes.
+#
+# ========================
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[4]
+HERE = Path(__file__).resolve().parent
+EXTENDED = HERE.parent
+COMPILER_HASH = "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc"
+RUNTIME_HASH = "ae46e345905ab78b8aa30b6b90fd28fd777c32851d5235a94779387d7ecf78d1"
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def relative(path):
+    path = Path(path).absolute()
+    return path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path)
+
+
+def save(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes((json.dumps(data, indent=2) + "\n").encode("utf-8"))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--artifacts", type=Path, required=True)
+    parser.add_argument("--compiler", type=Path, default=Path("build/aevixc"))
+    parser.add_argument("--runtime", type=Path, default=Path("build/bench-cpu4096/baseline-14e539e9/lib/aevix/libaevix_runtime.a"))
+    parser.add_argument("--clang", type=Path, default=Path("/opt/homebrew/opt/llvm/bin/clang"))
+    parser.add_argument("--target", default="arm64-apple-macosx")
+    parser.add_argument("--extra-manifest", type=Path, action="append", default=[])
+    parser.add_argument("--expected-compiler-sha256", default=COMPILER_HASH)
+    parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--skip-smoke", action="store_true", help="Prepare only; do not execute even untimed smoke programs")
+    args = parser.parse_args()
+    for key in ("artifacts", "compiler", "runtime", "clang"):
+        setattr(args, key, (ROOT / getattr(args, key)).absolute())
+    out = args.artifacts
+    if (out / "prepared.json").exists():
+        parser.error("Do not overwrite prepared artifacts; select a fresh base directory")
+    out.mkdir(parents=True, exist_ok=True)
+    if digest(args.compiler) != args.expected_compiler_sha256 or digest(args.runtime) != RUNTIME_HASH:
+        parser.error("Compiler or complete frozen runtime fingerprint changed")
+    fingerprints = {}
+
+    def remember(path, role):
+        key = relative(path)
+        value = digest(Path(path))
+        if key in fingerprints and fingerprints[key]["sha256"] != value:
+            raise ValueError("Input changed during preparation: " + key)
+        fingerprints[key] = {"role": role, "path": key, "sha256": value}
+
+    for path, role in ((args.compiler, "compiler"), (args.runtime, "runtime"), (args.clang, "clang"),
+                       (Path(__file__), "prepare_tool"), (HERE / "generate", "cpu_generator"),
+                       (EXTENDED / "shared_timer.c", "timer_source"), (EXTENDED / "shared_timer.h", "timer_header"),
+                       (EXTENDED / "clock_calibration.c", "calibration_source")):
+        remember(path, role)
+    # 실제로 읽는 모듈 소스와 재현용 소스 사본을 구분하여 기록한다.
+    # Distinguish consumed module-provider sources from source copies kept for provenance.
+    source_providers = []
+    provider_roots = [(ROOT / "library", "repository_library_reference", False),
+                      (args.compiler.parent / "share/aevix/library", "compiler_development_library_provider", True),
+                      (args.compiler.parent.parent / "share/aevix/library", "compiler_install_library_fallback", True),
+                      (args.runtime.parent.parent.parent / "share/aevix/library", "runtime_staging_library_reference", False)]
+    for directory, role, candidate in provider_roots:
+        files = sorted(directory.rglob("*.avx")) if directory.is_dir() else []
+        source_providers.append({"directory": relative(directory), "role": role,
+                                 "module_loader_candidate": candidate, "file_count": len(files)})
+        for source in files:
+            remember(source, role)
+    provenance_sources = ["tools/aevixc/main.cpp", "src/Frontend/Modules/ModuleLoader.cpp",
+                          "include/aevix/Frontend/Modules/ModuleLoader.hpp", "src/Backend/AOT/AOTCompiler.cpp",
+                          "src/Backend/LLVM/LLVMCodeGen.cpp", "src/JIT/ORC/ORCJIT.cpp",
+                          "include/aevix/JIT/JITOptions.hpp", "include/aevix/JIT/JITEngine.hpp"]
+    for name in provenance_sources:
+        remember(ROOT / name, "compiler_source_provenance_not_runtime_input")
+    linked_llvm = args.clang.parent.parent / "lib/libLLVM.dylib"
+    if linked_llvm.is_file():
+        remember(linked_llvm, "JIT_dynamic_LLVM_library")
+    original = ROOT / "benchmarks/Comparison/cpu4096"
+    for source in (original / "run", original / "spec.json", original / "aevix/generate"):
+        remember(source, "original_contract_or_oracle_input")
+    for source in sorted((original / "aevix").glob("*.avx")):
+        remember(source, "original_fixture_adapter_input")
+    commands = []
+
+    def run(argv, label, destination=None, stdin=None):
+        argv = [str(value) for value in argv]
+        destination = destination or out / "logs" / (label + ".stdout")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with destination.open("wb") as stream:
+            result = subprocess.run(argv, cwd=ROOT, input=stdin, stdout=stream,
+                                    stderr=subprocess.PIPE, timeout=args.timeout)
+        error = out / "logs" / (label + ".stderr")
+        error.parent.mkdir(parents=True, exist_ok=True)
+        error.write_bytes(result.stderr)
+        commands.append({"label": label, "argv": [value.replace(str(ROOT) + "/", "") for value in argv],
+                         "exit_code": result.returncode, "stdout": relative(destination), "stderr": relative(error)})
+        save(out / "commands.json", commands)
+        if result.returncode:
+            raise RuntimeError(f"{label} failed; inspect {relative(error)}")
+        print(label + " OK", flush=True)
+        return destination.read_text(encoding="utf-8")
+
+    help_text = run([args.compiler, "--help"], "compiler-help")
+    if any(flag not in help_text for flag in ("--build", "--jit", "--link", "--load", "--runtime", "--no-proof-opt")):
+        raise ValueError("Compiler help does not advertise the required backend/foreign-library options")
+    compiler_version = run([args.compiler, "--version"], "compiler-version").strip()
+    clang_version = run([args.clang, "--version"], "clang-version").strip()
+    if "clang version 22." not in clang_version:
+        raise ValueError("Use the matching LLVM 22 clang toolchain")
+    native_flags = [args.clang, "-target", args.target, "-std=c11", "-O2", "-fno-lto", "-pthread",
+                    "-D_POSIX_C_SOURCE=200809L", "-D_DARWIN_C_SOURCE", "-I" + str(EXTENDED)]
+    suffix = ".dylib" if sys.platform == "darwin" else ".so"
+    timer = out / "lib" / ("libaevixbench_timer" + suffix)
+    timer.parent.mkdir(exist_ok=True)
+    timer_source = EXTENDED / "shared_timer.c"
+    dynamic = ["-dynamiclib", "-Wl,-install_name," + str(timer)] if sys.platform == "darwin" else ["-shared", "-fPIC"]
+    run([*native_flags, *dynamic, timer_source, "-o", timer], "shared-timer-build")
+    remember(timer, "shared_timer_library")
+    timer_info = {"path": relative(timer), "sha256": digest(timer), "clock": "CLOCK_MONOTONIC_RAW",
+                  "symbol": "aevixbench_clock_ns", "resolution_symbol": "aevixbench_clock_resolution_ns",
+                  "ABI": 'extern "C" uint64_t aevixbench_clock_ns(void);', "noinline": True,
+                  "LTO": False, "target": args.target, "resolution_ns": None,
+                  "resolution_provenance": "Query the native calibration executable; advertised resolution is distinct from consecutive-call deltas."}
+    save(out / "timer.json", timer_info)
+    calibration = out / "bin" / "clock_calibration"
+    calibration.parent.mkdir(exist_ok=True)
+    run([*native_flags, EXTENDED / "clock_calibration.c", timer, "-o", calibration], "clock-calibration-build")
+    remember(calibration, "clock_calibration_binary")
+    run([HERE / "generate", "--output-dir", out / "cpu4096"], "cpu-generate")
+    run([HERE / "generate", "--output-dir", out / "cpu4096", "--verify"], "cpu-generate-verify")
+    manifests = [out / "cpu4096/generated.json", *((ROOT / path).absolute() for path in args.extra_manifest)]
+    programs, smoke_rows, keys = [], [], set()
+    for manifest_path in manifests:
+        remember(manifest_path, "generated_manifest")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        programs.extend(manifest["programs"])
+        smoke_rows.extend(manifest.get("functional_smokes", []))
+    for item in programs:
+        key = (item["case"], item["mode"])
+        if key in keys or item.get("clock_symbol") != "aevixbench_clock_ns" or item.get("warmups") != 1 or item.get("samples") != 1 or item.get("stdin") != "0\n0\n":
+            raise ValueError("Duplicate case or incompatible one-warmup/one-sample seed0 protocol")
+        keys.add(key)
+        expected = item["expected"]
+        if not expected or any(not isinstance(value, int) or not 0 <= value < 2**64 for value in expected):
+            raise ValueError("Expected values must be a nonempty exact u64 vector")
+        if sum(expected) >= 2**64 or item["checksums"] != {"sum": sum(expected), "weighted": sum((i + 1) * value for i, value in enumerate(expected)) % 1000000007}:
+            raise ValueError("Expected checksums do not match the exact output vector")
+        for key in ("aevix_source", "c_source"):
+            remember(ROOT / item[key], "workload_source")
+
+    backend_objects = {}
+
+    def c_prefix(item):
+        result = native_flags + ["-I" + str(ROOT / path) for path in item.get("c_include_dirs", [])]
+        for directory in item.get("c_include_dirs", []):
+            for header in (ROOT / directory).glob("*.h"):
+                remember(header, "c_header")
+        return result
+
+    def c_objects(item):
+        objects = []
+        for path in item.get("c_extra_sources", []):
+            source = ROOT / path
+            remember(source, "c_backend_source")
+            if path not in backend_objects:
+                target = out / "objects" / (source.stem + ".o")
+                target.parent.mkdir(exist_ok=True)
+                run([*c_prefix(item), "-c", source, "-o", target], "backend-" + source.stem)
+                backend_objects[path] = target
+            objects.append(backend_objects[path])
+        return objects
+
+    prepared = []
+    remarks = ["-Rpass=loop-vectorize|slp-vectorizer", "-Rpass-missed=loop-vectorize|slp-vectorizer", "-Rpass-analysis=loop-vectorize|slp-vectorizer"]
+    for item in programs:
+        name = item["case"] + "-" + item["mode"]
+        avx, native = ROOT / item["aevix_source"], ROOT / item["c_source"]
+        binaries = {"C": out / "bin" / (name + "-c"), "AOT": out / "bin" / (name + "-aot")}
+        ir_dir = out / "ir"
+        ir_dir.mkdir(exist_ok=True)
+        raw = ir_dir / (name + ".aevix.raw.ll")
+        run([args.compiler, "--emit-llvm", "-O2", "--no-proof-opt", "--target", args.target, avx], name + "-aevix-raw", raw)
+        for suffix, flags in (("c.O2.ll", ["-S", "-emit-llvm"]), ("c.O2.s", ["-S"])):
+            target = ir_dir / (name + "." + suffix)
+            run([*c_prefix(item), *flags, *remarks, native, "-o", target], name + "-" + suffix)
+        for suffix, flags in (("aevix.O2.ll", ["-S", "-emit-llvm"]), ("aevix.O2.s", ["-S"])):
+            target = ir_dir / (name + "." + suffix)
+            run([args.clang, "-x", "ir", raw, "-target", args.target, "-O2", *flags, *remarks, "-o", target], name + "-" + suffix)
+        run([*c_prefix(item), native, *c_objects(item), timer, "-o", binaries["C"]], name + "-c-build")
+        run([args.compiler, "--build", "-O2", "--no-proof-opt", "--target", args.target, "--clang", args.clang,
+             "--runtime", args.runtime, "--link", timer, "-o", binaries["AOT"], avx], name + "-aot-build")
+        for path in binaries.values():
+            remember(path, "measured_binary")
+        count = min(max(int(os.sysconf("SC_NPROCESSORS_ONLN")), 1), 32, 4096) if item["mode"] == "parallel_fresh" else 1
+        prepared.append({**item, "commands": {"C": [relative(binaries["C"])], "AOT": [relative(binaries["AOT"])],
+            "JIT": [relative(args.compiler), "--jit", "-O2", "--no-proof-opt", "--load", str(timer), relative(avx)]},
+            "profile": {"expected_workers": count, "clock_symbol": "aevixbench_clock_ns",
+                "worker_count_kind": "configured participants; Aevix fallback does not expose actual successful starts"},
+            "binary_sha256": {language: digest(path) for language, path in binaries.items()},
+            "source_sha256": {"aevix_source": digest(avx), "c_source": digest(native)},
+            "raw_llvm": relative(raw), "raw_llvm_sha256": digest(raw)})
+    functional = []
+    for index, item in enumerate(smoke_rows):
+        source = ROOT / item["source"]
+        remember(source, "functional_smoke_source")
+        name = f"smoke-{index}-{source.stem}"
+        if item["language"] == "C":
+            binary = out / "bin" / (name + "-c")
+            run([*c_prefix(item), source, *c_objects(item), timer, "-o", binary], name + "-c-build")
+            variants = [("C", [binary])]
+        elif item["language"] == "Aevix":
+            binary = out / "bin" / (name + "-aot")
+            run([args.compiler, "--build", "-O2", "--no-proof-opt", "--target", args.target, "--clang", args.clang,
+                 "--runtime", args.runtime, "--link", timer, "-o", binary, source], name + "-aot-build")
+            variants = [("AOT", [binary]), ("JIT", [args.compiler, "--jit", "-O2", "--no-proof-opt", "--load", timer, source])]
+        else:
+            raise ValueError("Unknown functional smoke language")
+        for label, argv in variants:
+            if not args.skip_smoke:
+                stdout = run(argv, name + "-" + label + "-untimed", stdin=item.get("stdin", "").encode("ascii"))
+                if any(line.startswith("SAMPLE ") for line in stdout.splitlines()):
+                    raise ValueError("Functional smoke unexpectedly collected measured workload samples")
+            functional.append({"source": relative(source), "variant": label, "executed": not args.skip_smoke,
+                               "workload_timing_collected": False})
+    for artifact in sorted((out / "ir").iterdir()):
+        if artifact.is_file():
+            remember(artifact, "generated_IR_or_assembly_provenance")
+    remember(out / "commands.json", "exact_preparation_commands_provenance")
+    for item in fingerprints.values():
+        if digest(ROOT / item["path"]) != item["sha256"]:
+            raise ValueError("Preparation input/artifact changed: " + item["path"])
+    result = {"schema_version": 1, "created_by": "miruku_sora2026", "file_name": "prepared.json",
+        "description": "Common-clock prepared artifacts; measured programs and native calibration were not executed.",
+        "compiler_version": compiler_version, "clang_version": clang_version, "target": args.target,
+        "optimization": "O2, no proof optimization, no LTO, no fast math; C/AOT same explicit target/default CPU",
+        "JIT_target_limit": "The supported JIT detects its host CPU; no supported command forces Clang's default apple-m1 target. Record this difference.",
+        "timer": timer_info, "calibration": {"command": [relative(calibration)], "pairs": 4096, "executed": False,
+            "format": "CLOCK CLOCK_MONOTONIC_RAW <resolution_ns> 4096; DELTAS <comma-separated4096nanoseconds>"},
+        "programs": prepared, "fingerprints": list(fingerprints.values()), "functional_smokes": functional,
+        "source_providers": source_providers,
+        "source_provider_selection": "ModuleLoader first reads compiler-parent/share/aevix/library, then installed fallback. --runtime selects an archive only, not a module-provider directory. Embedded provider text is covered by the compiler binary fingerprint.",
+        "measured_programs_executed": False, "observer_threads": 0,
+        "limits": ["Root must execute measured commands one process at a time after all preparation is finished.",
+            "Each program reads exactly two seed0 lines before warmup/sample and prints one SAMPLE plus full final VERIFY.",
+            "Identical clock API does not establish equal target CPU, scheduling, or power state.",
+            "Native calibration deltas include consecutive native clock calls; Python ctypes overhead is not used."]}
+    save(out / "prepared.json", result)
+    print(json.dumps({"programs": len(prepared), "functional_smokes": len(functional),
+        "measured_programs_executed": False, "calibration_executed": False, "prepared": relative(out / "prepared.json")}))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print("Common-clock preparation failed: " + str(error), file=sys.stderr)
+        raise SystemExit(1)

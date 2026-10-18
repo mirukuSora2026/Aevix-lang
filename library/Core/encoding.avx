@@ -1,0 +1,950 @@
+import error { Error };
+
+/*
+ * Strict, stateless Unicode encoding without locale or character-property tables.
+ * UTF-8 follows RFC 3629; UTF-16 rejects unpaired surrogates. Unicode scalar values
+ * include unassigned and noncharacter code points, but exclude U+D800..U+DFFF.
+ * No operation normalizes text, replaces malformed input, or strips a BOM implicitly.
+ * https://www.rfc-editor.org/info/rfc3629/
+ * https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/
+ * @module encoding
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+/* Offsets count input bytes, u16 units, or u32 units according to the operation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum EncodingError implements Copy, Error {
+    /*
+     * Version history for the encoding.EncodingError.InvalidUtf8 public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidUtf8 { /*
+ * Version history for the encoding.EncodingError.InvalidUtf8.offset public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; };
+    /*
+     * Version history for the encoding.EncodingError.InvalidUtf16 public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidUtf16 { /*
+ * Version history for the encoding.EncodingError.InvalidUtf16.offset public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; };
+    /*
+     * Version history for the encoding.EncodingError.InvalidScalar public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidScalar { /*
+ * Version history for the encoding.EncodingError.InvalidScalar.offset public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; /*
+ * Version history for the encoding.EncodingError.InvalidScalar.value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 value; };
+    /*
+     * Version history for the encoding.EncodingError.InvalidAscii public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidAscii { /*
+ * Version history for the encoding.EncodingError.InvalidAscii.offset public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; };
+    /*
+     * Version history for the encoding.EncodingError.OffsetOutOfBounds public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    OffsetOutOfBounds { /*
+ * Version history for the encoding.EncodingError.OffsetOutOfBounds.offset public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; /*
+ * Version history for the encoding.EncodingError.OffsetOutOfBounds.length public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize length; };
+    /*
+     * Version history for the encoding.EncodingError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the encoding.EncodingError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+/* A serialized code unit is incomplete. Offsets and remaining counts are bytes.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    TruncatedCodeUnit { /*
+ * Version history for the encoding.EncodingError.TruncatedCodeUnit.offset public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; /*
+ * Version history for the encoding.EncodingError.TruncatedCodeUnit.unit_width public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize unit_width; /*
+ * Version history for the encoding.EncodingError.TruncatedCodeUnit.remaining public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize remaining; };
+/* A C string cannot contain NUL before its appended terminator. The offset counts UTF-8 bytes.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    InteriorNul { /*
+ * Version history for the encoding.EncodingError.InteriorNul.offset public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; };
+    /*
+     * Version history for the encoding.EncodingError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) {
+        switch (*self) {
+            case EncodingError.InvalidUtf8: return "encoding.invalid_utf8"; break;
+            case EncodingError.InvalidUtf16: return "encoding.invalid_utf16"; break;
+            case EncodingError.InvalidScalar: return "encoding.invalid_scalar"; break;
+            case EncodingError.InvalidAscii: return "encoding.invalid_ascii"; break;
+            case EncodingError.OffsetOutOfBounds: return "encoding.offset_out_of_bounds"; break;
+            case EncodingError.AllocationFailure: return "encoding.allocation_failure"; break;
+            case EncodingError.SizeOverflow: return "encoding.size_overflow"; break;
+            case EncodingError.TruncatedCodeUnit: return "encoding.truncated_code_unit"; break;
+            case EncodingError.InteriorNul: return "encoding.interior_nul"; break;
+        }
+    }
+    /*
+     * Version history for the encoding.EncodingError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) {
+        switch (*self) {
+            case EncodingError.InvalidUtf8: return "Input contains an invalid or incomplete UTF-8 sequence."; break;
+            case EncodingError.InvalidUtf16: return "Input contains an unpaired UTF-16 surrogate."; break;
+            case EncodingError.InvalidScalar: return "Input is outside the Unicode scalar range."; break;
+            case EncodingError.InvalidAscii: return "Input contains a value outside 7-bit ASCII."; break;
+            case EncodingError.OffsetOutOfBounds: return "The decoding offset is beyond the input length."; break;
+            case EncodingError.AllocationFailure: return "Encoding output storage could not be allocated."; break;
+            case EncodingError.SizeOverflow: return "Encoding output exceeds the supported buffer length."; break;
+            case EncodingError.TruncatedCodeUnit: return "A serialized Unicode code unit is incomplete."; break;
+            case EncodingError.InteriorNul: return "A C string cannot contain an interior NUL byte."; break;
+        }
+    }
+};
+
+/* One decoded scalar and the number of source code units consumed.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Decoded implements Copy { /*
+ * Version history for the encoding.Decoded.scalar public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 scalar; /*
+ * Version history for the encoding.Decoded.width public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize width; };
+
+/* True for Unicode scalar values, including unassigned code points and noncharacters.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_scalar(u32 value) { return value <= 1114111 && !(value >= 55296 && value <= 57343); }
+
+u32 widen(u8 value) {
+    Result<u32, IntegerError> result = Integer.convert<u32>(value);
+    switch (move result) { case Result<u32, IntegerError>.Ok { u32 found = value }: return found; break; default: Never.unreachable(); break; }
+}
+u32 widen(u16 value) {
+    Result<u32, IntegerError> result = Integer.convert<u32>(value);
+    switch (move result) { case Result<u32, IntegerError>.Ok { u32 found = value }: return found; break; default: Never.unreachable(); break; }
+}
+u8 narrow_byte(u32 value) {
+    Result<u8, IntegerError> result = Integer.convert<u8>(value);
+    switch (move result) { case Result<u8, IntegerError>.Ok { u8 found = value }: return found; break; default: Never.unreachable(); break; }
+}
+u16 narrow_unit(u32 value) {
+    Result<u16, IntegerError> result = Integer.convert<u16>(value);
+    switch (move result) { case Result<u16, IntegerError>.Ok { u16 found = value }: return found; break; default: Never.unreachable(); break; }
+}
+
+Result<Vector<T>, EncodingError> allocate<T>(usize capacity) {
+    Result<Vector<T>, CollectionError> empty = [];
+    switch (move empty) {
+        case Result<Vector<T>, CollectionError>.Ok { Vector<T> values = value }:
+            mut Vector<T> output = values;
+            Result<unit, CollectionError> reserved = Vector.reserve(&mut output, capacity);
+            switch (move reserved) {
+                case Result<unit, CollectionError>.Ok: return Result.ok(output); break;
+                case Result<unit, CollectionError>.Err { CollectionError problem = error }:
+                    switch (problem) { case CollectionError.AllocationFailure: return Result.err(EncodingError.AllocationFailure); break; case CollectionError.SizeOverflow: return Result.err(EncodingError.SizeOverflow); break; }
+                    break;
+            }
+            break;
+        case Result<Vector<T>, CollectionError>.Err { CollectionError problem = error }:
+            switch (problem) { case CollectionError.AllocationFailure: return Result.err(EncodingError.AllocationFailure); break; case CollectionError.SizeOverflow: return Result.err(EncodingError.SizeOverflow); break; }
+            break;
+    }
+}
+Result<unit, EncodingError> append<T>(&mut Vector<T> output, T value) {
+    Result<unit, InputError<T>> appended = Vector.push(output, value);
+    switch (move appended) {
+        case Result<unit, InputError<T>>.Ok: return Result.ok(Unit.value()); break;
+        case Result<unit, InputError<T>>.Err { InputError<T> problem = error }:
+            switch (move problem) {
+                case InputError<T>.AllocationFailure: return Result.err(EncodingError.AllocationFailure); break;
+                case InputError<T>.SizeOverflow: return Result.err(EncodingError.SizeOverflow); break;
+                case InputError<T>.OutOfBounds: Never.unreachable(); break;
+            }
+            break;
+    }
+}
+
+Result<Decoded, EncodingError> utf8_at(Slice<byte> input, usize offset) {
+    usize remaining = Slice.len(input) - offset;
+    u8 lead = Byte.to_u8(input[offset]);
+    if (lead < 128) return Result.ok(Decoded { scalar = widen(lead), width = 1 });
+    mut usize width = 0;
+    mut u32 scalar = 0;
+    if (lead >= 194 && lead <= 223) { width = 2; scalar = widen(lead & 31); }
+    else if (lead >= 224 && lead <= 239) { width = 3; scalar = widen(lead & 15); }
+    else if (lead >= 240 && lead <= 244) { width = 4; scalar = widen(lead & 7); }
+    else return Result.err(EncodingError.InvalidUtf8 { offset = offset });
+    /* An incomplete sequence reports its starting byte, without reading past the end. */
+    if (remaining < width) return Result.err(EncodingError.InvalidUtf8 { offset = offset });
+    u8 second = Byte.to_u8(input[offset + 1]);
+    if (second < 128 || second > 191 ||
+        (lead == 224 && second < 160) || (lead == 237 && second > 159) ||
+        (lead == 240 && second < 144) || (lead == 244 && second > 143))
+        return Result.err(EncodingError.InvalidUtf8 { offset = offset + 1 });
+    mut usize position = 1;
+    while (position < width) {
+        u8 continuation = Byte.to_u8(input[offset + position]);
+        if (continuation < 128 || continuation > 191)
+            return Result.err(EncodingError.InvalidUtf8 { offset = offset + position });
+        scalar = (scalar << 6) | widen(continuation & 63);
+        position++;
+    }
+    return Result.ok(Decoded { scalar = scalar, width = width });
+}
+
+/* Decode one scalar. End-of-input is None; an out-of-range offset is an error.
+ * Starting inside a continuation sequence is invalid UTF-8. This operation never allocates.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<Decoded>, EncodingError> decode_utf8_next(Slice<byte> input, usize offset) {
+    if (offset > Slice.len(input)) return Result.err(EncodingError.OffsetOutOfBounds { offset = offset, length = Slice.len(input) });
+    if (offset == Slice.len(input)) return Result.ok(Optional.none());
+    Decoded value = utf8_at(input, offset)?;
+    return Result.ok(Optional.some(value));
+}
+
+/* Validate all bytes and return the scalar count without allocating or accepting overlong forms.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, EncodingError> validate_utf8(Slice<byte> input) {
+    mut usize position = 0;
+    mut usize count = 0;
+    while (position < Slice.len(input)) {
+        Decoded value = utf8_at(input, position)?;
+        position += value.width;
+        count++;
+    }
+    return Result.ok(count);
+}
+
+/* Validate u32 scalar values without allocating. Error offsets count u32 elements.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, EncodingError> validate_scalars(Slice<u32> input) {
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        if (!is_scalar(input[index])) return Result.err(EncodingError.InvalidScalar { offset = index, value = input[index] });
+        index++;
+    }
+    return Result.ok(Slice.len(input));
+}
+
+/* Validate before allocating one output buffer; decoding makes a second pass over the input.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<u32>, EncodingError> decode_utf8_scalars(Slice<byte> input) {
+    usize count = validate_utf8(input)?;
+    mut Vector<u32> output = allocate<u32>(count)?;
+    mut usize position = 0;
+    while (position < Slice.len(input)) {
+        Decoded value = utf8_at(input, position)?;
+        append(&mut output, value.scalar)?;
+        position += value.width;
+    }
+    return Result.ok(output);
+}
+
+/* Return the checked UTF-8 byte length; malformed scalar input is reported before allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, EncodingError> utf8_encoded_len(Slice<u32> input) {
+    mut usize length = 0;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        u32 value = input[index];
+        if (!is_scalar(value)) return Result.err(EncodingError.InvalidScalar { offset = index, value = value });
+        usize width = value < 128 ? 1 : value < 2048 ? 2 : value < 65536 ? 3 : 4;
+        if (length > 9223372036854775807usize - width) return Result.err(EncodingError.SizeOverflow);
+        length += width;
+        index++;
+    }
+    return Result.ok(length);
+}
+
+/* Validate before allocating one output buffer. No terminator or implicit BOM is appended.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_utf8(Slice<u32> input) {
+    usize length = utf8_encoded_len(input)?;
+    mut Vector<byte> output = allocate<byte>(length)?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        u32 value = input[index];
+        if (value < 128) append(&mut output, Byte.from_u8(narrow_byte(value)))?;
+        else {
+            if (value < 2048) append(&mut output, Byte.from_u8(narrow_byte(192u32 | (value >> 6))))?;
+            else {
+                if (value < 65536) append(&mut output, Byte.from_u8(narrow_byte(224u32 | (value >> 12))))?;
+                else {
+                    append(&mut output, Byte.from_u8(narrow_byte(240u32 | (value >> 18))))?;
+                    append(&mut output, Byte.from_u8(narrow_byte(128u32 | ((value >> 12) & 63))))?;
+                }
+                append(&mut output, Byte.from_u8(narrow_byte(128u32 | ((value >> 6) & 63))))?;
+            }
+            append(&mut output, Byte.from_u8(narrow_byte(128u32 | (value & 63))))?;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}
+
+Result<Decoded, EncodingError> utf16_at(Slice<u16> input, usize offset) {
+    u32 first = widen(input[offset]);
+    if (first < 55296 || first > 57343) return Result.ok(Decoded { scalar = first, width = 1 });
+    if (first > 56319 || Slice.len(input) - offset < 2) return Result.err(EncodingError.InvalidUtf16 { offset = offset });
+    u32 second = widen(input[offset + 1]);
+    if (second < 56320 || second > 57343) return Result.err(EncodingError.InvalidUtf16 { offset = offset + 1 });
+    return Result.ok(Decoded { scalar = 65536u32 + ((first - 55296u32) << 10) + second - 56320u32, width = 2 });
+}
+
+/* Decode one UTF-16 scalar; offsets and width count u16 code units, not bytes.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<Decoded>, EncodingError> decode_utf16_next(Slice<u16> input, usize offset) {
+    if (offset > Slice.len(input)) return Result.err(EncodingError.OffsetOutOfBounds { offset = offset, length = Slice.len(input) });
+    if (offset == Slice.len(input)) return Result.ok(Optional.none());
+    Decoded value = utf16_at(input, offset)?;
+    return Result.ok(Optional.some(value));
+}
+
+/* Validate paired UTF-16 code units and return the scalar count without allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, EncodingError> validate_utf16(Slice<u16> input) {
+    mut usize position = 0;
+    mut usize count = 0;
+    while (position < Slice.len(input)) { Decoded value = utf16_at(input, position)?; position += value.width; count++; }
+    return Result.ok(count);
+}
+
+/* Validate all input before allocating one u32 output buffer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<u32>, EncodingError> decode_utf16_scalars(Slice<u16> input) {
+    usize count = validate_utf16(input)?;
+    mut Vector<u32> output = allocate<u32>(count)?;
+    mut usize position = 0;
+    while (position < Slice.len(input)) { Decoded value = utf16_at(input, position)?; append(&mut output, value.scalar)?; position += value.width; }
+    return Result.ok(output);
+}
+
+/* Return the checked UTF-16 code-unit length, independently of byte order.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, EncodingError> utf16_encoded_len(Slice<u32> input) {
+    mut usize length = 0;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        u32 value = input[index];
+        if (!is_scalar(value)) return Result.err(EncodingError.InvalidScalar { offset = index, value = value });
+        usize width = value < 65536 ? 1 : 2;
+        if (length > 9223372036854775807usize / 2 - width) return Result.err(EncodingError.SizeOverflow);
+        length += width;
+        index++;
+    }
+    return Result.ok(length);
+}
+
+/* Allocate UTF-16 code units with valid surrogate pairs; no byte order or BOM is implied.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<u16>, EncodingError> encode_utf16(Slice<u32> input) {
+    usize length = utf16_encoded_len(input)?;
+    mut Vector<u16> output = allocate<u16>(length)?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        u32 value = input[index];
+        if (value < 65536) append(&mut output, narrow_unit(value))?;
+        else {
+            u32 reduced = value - 65536;
+            append(&mut output, narrow_unit(55296u32 | (reduced >> 10)))?;
+            append(&mut output, narrow_unit(56320u32 | (reduced & 1023)))?;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}
+
+/* Convert through an explicit temporary u32 buffer and a final u16 buffer; both can allocate.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<u16>, EncodingError> utf8_to_utf16(Slice<byte> input) {
+    Vector<u32> scalars = decode_utf8_scalars(input)?;
+    return encode_utf16(Slice.from_vector(&scalars));
+}
+
+/* Convert through an explicit temporary u32 buffer and a final byte buffer; both can allocate.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> utf16_to_utf8(Slice<u16> input) {
+    Vector<u32> scalars = decode_utf16_scalars(input)?;
+    return encode_utf8(Slice.from_vector(&scalars));
+}
+
+/* Validate 7-bit ASCII without allocation, returning the number of bytes.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, EncodingError> validate_ascii(Slice<byte> input) {
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        if (Byte.to_u8(input[index]) > 127) return Result.err(EncodingError.InvalidAscii { offset = index });
+        index++;
+    }
+    return Result.ok(Slice.len(input));
+}
+
+/* Validate all ASCII bytes before allocating the u32 output buffer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<u32>, EncodingError> decode_ascii_scalars(Slice<byte> input) {
+    usize count = validate_ascii(input)?;
+    mut Vector<u32> output = allocate<u32>(count)?;
+    mut usize index = 0;
+    while (index < count) { u32 scalar = widen(Byte.to_u8(input[index])); append(&mut output, scalar)?; index++; }
+    return Result.ok(output);
+}
+
+/* Reject non-ASCII scalar input before allocating a byte buffer; no replacement is performed.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_ascii(Slice<u32> input) {
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        if (input[index] > 127) return Result.err(EncodingError.InvalidAscii { offset = index });
+        index++;
+    }
+    usize count = Slice.len(input);
+    mut Vector<byte> output = allocate<byte>(count)?;
+    index = 0;
+    while (index < Slice.len(input)) { append(&mut output, Byte.from_u8(narrow_byte(input[index])))?; index++; }
+    return Result.ok(output);
+}
+
+/* Recognize only an initial EF BB BF byte-order mark. No bytes are consumed or allocated.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool has_utf8_bom(Slice<byte> input) {
+    return Slice.len(input) >= 3 && Byte.to_u8(input[0]) == 239 && Byte.to_u8(input[1]) == 187 && Byte.to_u8(input[2]) == 191;
+}
+
+/* Explicitly strip at most one initial UTF-8 BOM; return a borrowed byte slice.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Slice<byte> strip_utf8_bom(Slice<byte> input) {
+    usize start = has_utf8_bom(input) ? 3 : 0;
+    Result<Slice<byte>, BoundsError> sliced = Slice.slice(input, start, Slice.len(input));
+    switch (move sliced) { case Result<Slice<byte>, BoundsError>.Ok { Slice<byte> output = value }: return output; break; default: Never.unreachable(); break; }
+}
+
+/* Encodings recognized by detect_bom. Numeric code-unit APIs have no implicit byte order.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum Encoding implements Copy { /*
+ * Version history for the encoding.Encoding.Utf8 public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Utf8; /*
+ * Version history for the encoding.Encoding.Utf16Le public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Utf16Le; /*
+ * Version history for the encoding.Encoding.Utf16Be public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Utf16Be; /*
+ * Version history for the encoding.Encoding.Utf32Le public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Utf32Le; /*
+ * Version history for the encoding.Encoding.Utf32Be public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Utf32Be; };
+
+/* Inspect at most four bytes without allocation. Longest prefixes take priority; no BOM is consumed.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<Encoding, usize>> detect_bom(Slice<byte> input) {
+    usize size = Slice.len(input);
+    if (size >= 4) {
+        if (Byte.to_u8(input[0]) == 255 && Byte.to_u8(input[1]) == 254 && Byte.to_u8(input[2]) == 0 && Byte.to_u8(input[3]) == 0)
+            return Optional.some(Tuple.make(Encoding.Utf32Le, 4usize));
+        if (Byte.to_u8(input[0]) == 0 && Byte.to_u8(input[1]) == 0 && Byte.to_u8(input[2]) == 254 && Byte.to_u8(input[3]) == 255)
+            return Optional.some(Tuple.make(Encoding.Utf32Be, 4usize));
+    }
+    if (has_utf8_bom(input)) return Optional.some(Tuple.make(Encoding.Utf8, 3usize));
+    if (size >= 2) {
+        if (Byte.to_u8(input[0]) == 255 && Byte.to_u8(input[1]) == 254) return Optional.some(Tuple.make(Encoding.Utf16Le, 2usize));
+        if (Byte.to_u8(input[0]) == 254 && Byte.to_u8(input[1]) == 255) return Optional.some(Tuple.make(Encoding.Utf16Be, 2usize));
+    }
+    return Optional.none();
+}
+
+u32 serialized_unit(Slice<byte> input, usize offset, usize width, bool little) {
+    mut u32 value = 0;
+    mut usize index = 0;
+    while (index < width) {
+        usize position = little ? offset + width - 1 - index : offset + index;
+        value = (value << 8) | widen(Byte.to_u8(input[position]));
+        index++;
+    }
+    return value;
+}
+Result<Decoded, EncodingError> serialized_at(Slice<byte> input, usize offset, usize width, bool little) {
+    usize remaining = Slice.len(input) - offset;
+    if (remaining < width) return Result.err(EncodingError.TruncatedCodeUnit { offset = offset, unit_width = width, remaining = remaining });
+    u32 first = serialized_unit(input, offset, width, little);
+    if (width == 4) {
+        if (!is_scalar(first)) return Result.err(EncodingError.InvalidScalar { offset = offset, value = first });
+        return Result.ok(Decoded { scalar = first, width = 4 });
+    }
+    if (first < 55296 || first > 57343) return Result.ok(Decoded { scalar = first, width = 2 });
+    if (first > 56319 || remaining < 4) return Result.err(EncodingError.InvalidUtf16 { offset = offset });
+    u32 second = serialized_unit(input, offset + 2, 2, little);
+    if (second < 56320 || second > 57343) return Result.err(EncodingError.InvalidUtf16 { offset = offset + 2 });
+    return Result.ok(Decoded { scalar = 65536u32 + ((first - 55296u32) << 10) + second - 56320u32, width = 4 });
+}
+Result<usize, EncodingError> validate_serialized(Slice<byte> input, usize width, bool little) {
+    mut usize index = 0;
+    mut usize count = 0;
+    while (index < Slice.len(input)) {
+        Decoded decoded = serialized_at(input, index, width, little)?;
+        index += decoded.width;
+        count++;
+    }
+    return Result.ok(count);
+}
+Result<Vector<u32>, EncodingError> decode_serialized(Slice<byte> input, usize width, bool little) {
+    usize count = validate_serialized(input, width, little)?;
+    mut Vector<u32> output = allocate<u32>(count)?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        Decoded decoded = serialized_at(input, index, width, little)?;
+        append(&mut output, decoded.scalar)?;
+        index += decoded.width;
+    }
+    return Result.ok(output);
+}
+Result<string, EncodingError> owned_utf8(Slice<byte> input) {
+    Result<string, TextError> converted = string.from_utf8(input);
+    switch (move converted) {
+        case Result<string, TextError>.Ok { string text = value }: return Result.ok(text); break;
+        case Result<string, TextError>.Err { TextError problem = error }:
+            switch (problem) {
+                case TextError.AllocationFailure: return Result.err(EncodingError.AllocationFailure); break;
+                case TextError.SizeOverflow: return Result.err(EncodingError.SizeOverflow); break;
+                default: Never.unreachable(); break;
+            }
+            break;
+    }
+}
+Result<string, EncodingError> scalars_to_string(Slice<u32> input) {
+    Vector<byte> bytes = encode_utf8(input)?;
+    return owned_utf8(Slice.from_vector(&bytes));
+}
+Result<string, EncodingError> decode_serialized_string(Slice<byte> input, usize width, bool little) {
+    Vector<u32> scalars = decode_serialized(input, width, little)?;
+    return scalars_to_string(Slice.from_vector(&scalars));
+}
+Result<unit, EncodingError> append_serialized(&mut Vector<byte> output, u32 value, usize width, bool little) {
+    mut usize index = 0;
+    while (index < width) {
+        usize shift = little ? index * 8 : (width - 1 - index) * 8;
+        append(output, Byte.from_u8(narrow_byte((value >> shift) & 255u32)))?;
+        index++;
+    }
+    return Result.ok(Unit.value());
+}
+Result<Vector<byte>, EncodingError> encode_serialized(string_view input, usize width, bool little) {
+    Vector<u32> scalars = decode_utf8_scalars(string.as_bytes(input))?;
+    Slice<u32> values = Slice.from_vector(&scalars);
+    usize units = width == 2 ? utf16_encoded_len(values)? : validate_scalars(values)?;
+    if (units > 9223372036854775807usize / width) return Result.err(EncodingError.SizeOverflow);
+    mut Vector<byte> output = allocate<byte>(units * width)?;
+    mut usize index = 0;
+    while (index < Slice.len(values)) {
+        u32 value = values[index];
+        if (width == 2 && value >= 65536u32) {
+            u32 reduced = value - 65536u32;
+            append_serialized(&mut output, 55296u32 | (reduced >> 10), 2, little)?;
+            append_serialized(&mut output, 56320u32 | (reduced & 1023u32), 2, little)?;
+        } else append_serialized(&mut output, value, width, little)?;
+        index++;
+    }
+    return Result.ok(output);
+}
+
+/* Strict UTF-16 little-endian byte decoding into owned UTF-8 text. Error offsets count bytes.
+ * Validation precedes allocation; nonempty success can allocate scalar, UTF-8 byte, and string buffers.
+ * A BOM remains U+FEFF and is never stripped implicitly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_utf16_le(Slice<byte> input) {
+    return decode_serialized_string(input, 2, true);
+}
+
+/* Encode text as UTF-16 little-endian bytes without a BOM or terminator.
+ * This operation uses an explicit temporary scalar buffer plus its output byte buffer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_utf16_le(string_view input) {
+    return encode_serialized(input, 2, true);
+}
+
+/* Strict UTF-16 big-endian byte decoding into owned UTF-8 text. Error offsets count bytes.
+ * Validation precedes allocation; nonempty success can allocate scalar, UTF-8 byte, and string buffers.
+ * A BOM remains U+FEFF and is never stripped implicitly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_utf16_be(Slice<byte> input) {
+    return decode_serialized_string(input, 2, false);
+}
+
+/* Encode text as UTF-16 big-endian bytes without a BOM or terminator.
+ * This operation uses an explicit temporary scalar buffer plus its output byte buffer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_utf16_be(string_view input) {
+    return encode_serialized(input, 2, false);
+}
+
+/* Strict UTF-32 little-endian byte decoding into owned UTF-8 text. Error offsets count bytes.
+ * Validation precedes allocation; nonempty success can allocate scalar, UTF-8 byte, and string buffers.
+ * A BOM remains U+FEFF and is never stripped implicitly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_utf32_le(Slice<byte> input) {
+    return decode_serialized_string(input, 4, true);
+}
+
+/* Encode text as UTF-32 little-endian bytes without a BOM or terminator.
+ * This operation uses an explicit temporary scalar buffer plus its output byte buffer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_utf32_le(string_view input) {
+    return encode_serialized(input, 4, true);
+}
+
+/* Strict UTF-32 big-endian byte decoding into owned UTF-8 text. Error offsets count bytes.
+ * Validation precedes allocation; nonempty success can allocate scalar, UTF-8 byte, and string buffers.
+ * A BOM remains U+FEFF and is never stripped implicitly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_utf32_be(Slice<byte> input) {
+    return decode_serialized_string(input, 4, false);
+}
+
+/* Encode text as UTF-32 big-endian bytes without a BOM or terminator.
+ * This operation uses an explicit temporary scalar buffer plus its output byte buffer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_utf32_be(string_view input) {
+    return encode_serialized(input, 4, false);
+}
+
+/* Validate numeric UTF-32 units and create owned UTF-8 text. Error offsets count u32 elements.
+ * Nonempty success can allocate a temporary UTF-8 byte buffer and its owned string.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_utf32(Slice<u32> input) {
+    return scalars_to_string(input);
+}
+
+/* Return one numeric UTF-32 unit per scalar in valid UTF-8 text. No byte order or BOM is implied.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<u32>, EncodingError> encode_utf32(string_view input) {
+    return decode_utf8_scalars(string.as_bytes(input));
+}
+
+/* UTF-8 byte length in constant time, excluding any C terminator; never allocates.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize utf8_len(string_view input) { return string.byte_len(input); }
+
+/* Count Unicode scalars in valid UTF-8 text without allocating or normalizing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize utf32_len(string_view input) { return string.scalar_count(input); }
+
+/* Count required UTF-16 code units without allocating, excluding any terminator.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize utf16_len(string_view input) {
+    Slice<byte> bytes = string.as_bytes(input);
+    mut usize position = 0;
+    mut usize length = 0;
+    while (position < Slice.len(bytes)) {
+        Result<Decoded, EncodingError> next = utf8_at(bytes, position);
+        switch (move next) {
+            case Result<Decoded, EncodingError>.Ok { Decoded decoded = value }:
+                length += decoded.scalar < 65536u32 ? 1 : 2;
+                position += decoded.width;
+                break;
+            default: Never.unreachable(); break;
+        }
+    }
+    return length;
+}
+
+/* Copy UTF-8 bytes and append exactly one NUL terminator. Reject interior NUL before allocating.
+ * Unlike ordinary Unicode buffers, even empty input needs storage for its terminator.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> to_c_utf8(string_view input) {
+    Slice<byte> bytes = string.as_bytes(input);
+    usize count = Slice.len(bytes);
+    mut usize index = 0;
+    while (index < count) {
+        if (Byte.to_u8(bytes[index]) == 0u8) return Result.err(EncodingError.InteriorNul { offset = index });
+        index++;
+    }
+    if (count == 9223372036854775807usize) return Result.err(EncodingError.SizeOverflow);
+    mut Vector<byte> output = allocate<byte>(count + 1)?;
+    index = 0;
+    while (index < count) { append(&mut output, bytes[index])?; index++; }
+    append(&mut output, Byte.from_u8(0u8))?;
+    return Result.ok(output);
+}
+
+/* Validate all UTF-8 bytes before copying them into owned text. No scalar buffer is created.
+ * Error offsets count bytes; BOM and embedded NUL remain ordinary text content.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_utf8(Slice<byte> input) {
+    validate_utf8(input)?;
+    return owned_utf8(input);
+}
+
+/* Decode UTF-16 code units into owned UTF-8 text. Error offsets count u16 elements.
+ * Nonempty success can allocate scalar, UTF-8 byte, and owned string buffers.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_utf16(Slice<u16> input) {
+    Vector<u32> scalars = decode_utf16_scalars(input)?;
+    return scalars_to_string(Slice.from_vector(&scalars));
+}
+
+/* Validate 7-bit ASCII and copy its bytes into owned UTF-8 text. NUL remains valid text.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, EncodingError> decode_ascii(Slice<byte> input) {
+    validate_ascii(input)?;
+    return owned_utf8(input);
+}
+
+/* Copy valid UTF-8 text into a fallible byte buffer without a terminator or implicit BOM.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_utf8(string_view input) {
+    Slice<byte> bytes = string.as_bytes(input);
+    usize length = Slice.len(bytes);
+    mut Vector<byte> output = allocate<byte>(length)?;
+    mut usize index = 0;
+    while (index < Slice.len(bytes)) { append(&mut output, bytes[index])?; index++; }
+    return Result.ok(output);
+}
+
+/* Encode text into numeric UTF-16 units. Uses a temporary scalar buffer plus its output.
+ * No byte order, BOM, or terminator is implied.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<u16>, EncodingError> encode_utf16(string_view input) {
+    Vector<u32> scalars = decode_utf8_scalars(string.as_bytes(input))?;
+    return encode_utf16(Slice.from_vector(&scalars));
+}
+
+/* Reject non-ASCII input before copying text bytes. Error offsets count UTF-8 bytes.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, EncodingError> encode_ascii(string_view input) {
+    validate_ascii(string.as_bytes(input))?;
+    return encode_utf8(input);
+}

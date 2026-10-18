@@ -17,26 +17,28 @@
   <header class="site-header"><div class="header">
     <a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a>
     <nav class="header-nav" aria-label="로드맵"><a href="index.html">로드맵</a><a href="System_IO_0_3.html" aria-current="page">0.3 콘솔 IO</a><a href="Library_Foundation.html">라이브러리 기반</a><a href="../releases/0_2.html">0.2 프로필</a></nav>
-    <span class="draft-badge">0.3 계획 · 미구현</span>
+    <span class="draft-badge">0.3 개발 중 · 미출시</span>
   <label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header>
   <main id="main-content" class="page-shell">
     <nav class="breadcrumbs" aria-label="현재 위치"><a href="index.html">로드맵</a><span class="separator" aria-hidden="true">/</span><span aria-current="page">0.3 system 콘솔 IO</span></nav>
-    <header class="doc-intro"><div><p class="eyebrow">언어·라이브러리 계획</p><h1>0.3 system 콘솔 IO</h1><p class="doc-subtitle">자원·텍스트·포매팅·IO 기반 위에 두는 작은 콘솔 기능입니다.</p><div class="doc-meta"><span class="meta-chip">import system;</span><span class="meta-chip">네 함수 선택</span><span class="meta-chip">세부 API 검토 중</span></div></div></header>
+    <header class="doc-intro"><div><p class="eyebrow">언어·라이브러리 계획</p><h1>0.3 system 콘솔 IO</h1><p class="doc-subtitle">자원·텍스트·포매팅·IO 기반 위에 두는 작은 콘솔 기능입니다.</p><div class="doc-meta"><span class="meta-chip">import system;</span><span class="meta-chip">콘솔·로깅 API</span><span class="meta-chip">0.3 구현 진행 중</span></div></div></header>
     <div class="docs-layout">
       <aside class="table" aria-label="레퍼런스 탐색"><details class="toc" open><summary>이 페이지의 내용</summary><ol>
-        <li><a href="#status">선택한 범위와 현황</a></li><li><a href="#imports">import와 호출 형태</a></li><li><a href="#output">출력과 오류</a></li><li><a href="#composition">+로 출력 조합하기</a></li><li><a href="#format">검사되는 printf</a></li><li><a href="#input">줄 입력과 UTF-8</a></li><li><a href="#flush">버퍼링·flush·자원</a></li><li><a href="#review">검토·구현 완료 조건</a></li>
+        <li><a href="#status">선택한 범위와 현황</a></li><li><a href="#imports">import와 호출 형태</a></li><li><a href="#output">출력과 오류</a></li><li><a href="#composition">+로 출력 조합하기</a></li><li><a href="#format">검사되는 printf</a></li><li><a href="#input">타입이 있는 입력과 UTF-8</a></li><li><a href="#logging">구조화된 로깅</a></li><li><a href="#flush">버퍼링·flush·자원</a></li><li><a href="#review">검토·구현 완료 조건</a></li>
       </ol></details><nav class="family-nav" aria-label="관련 계획"><h2>관련 레퍼런스</h2><div class="family-links"><a href="Library_Foundation.html">라이브러리 기반</a><a href="Convenience_0_3.html">0.3 편의 기능 계획</a><a href="index.html">버전 로드맵</a><a href="../grammar/modules/index.html">모듈 규칙</a><a href="../grammar/functions/Variadic_Parameters.html">현재 가변 인수 매개변수</a></div></nav></aside>
       <article class="content" aria-label="system 콘솔 IO 계획">
 <section id="status"><h2>선택한 범위와 현황</h2>
-<p><strong>선택된 0.3 범위:</strong> 명시적으로 import하는 <code>system</code> 모듈이 제공할 함수는 <code>print</code>, <code>println</code>, <code>printf</code>, 및 <code>input</code>입니다. print와 println에는 텍스트나 내장 스칼라를 직접 전달할 수 있고, 텍스트와 타입이 정해진 값을 다음 연산자로 조합할 수도 있습니다: <code>+</code>. 기존 자원·FFI·라이브러리 기반 목표에 콘솔 IO를 추가합니다. 출력 전용 포매팅·조합 규칙은 아래에 명시합니다.</p>
-<p><strong>0.2에는 미구현입니다.</strong> 아래 예제는 0.3에 제안된 소스 형태이며 배포된 0.2 컴파일러가 허용하는 프로그램이 아닙니다. 네 이름을 선택한 것만으로 시그니처, 포매팅 문법, 버퍼링과 오류 variant까지 확정되지는 않습니다. 이 세부 사항은 0.3 API 검토를 위한 권고입니다.</p>
+<p><strong>선택된 0.3 범위:</strong> 명시적으로 import하는 <code>system</code> 모듈이 제공할 함수는 <code>print</code>, <code>println</code>, <code>printf</code>, <code>input</code>, <code>flush</code>, 및 <code>log</code>입니다. print와 println에는 텍스트나 내장 스칼라를 직접 전달할 수 있고, 텍스트와 타입이 정해진 값을 다음 연산자로 조합할 수도 있습니다: <code>+</code>. 기존 자원·FFI·라이브러리 기반 목표에 콘솔 IO를 추가합니다. 출력 전용 포매팅·조합 규칙은 아래에 명시합니다.</p>
+<p><strong>0.2에는 미구현입니다.</strong> 아래 예제는 개발 중인 컴파일러를 대상으로 하며, 배포된 0.2 컴파일러가 받아들이는 프로그램은 아니다. 현재 작업 트리에는 컴파일러와 런타임 구현이 있고 0.3 출시 전에 AOT/JIT 회귀 검사를 마무리하고 있다. 아래 계약은 이 구현과 더 넓은 라이브러리 카탈로그를 구분한다.</p>
 <table><thead><tr><th scope="col">선택된 함수</th><th scope="col">계획한 용도</th><th scope="col">권장 결과</th></tr></thead><tbody>
 <tr><td><code>system.print(value_or_composition)</code></td><td>줄바꿈 없이 대여한 텍스트, 내장 스칼라 또는 조합한 조각을 출력합니다.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
 <tr><td><code>system.println(value_or_composition)</code></td><td>대여한 텍스트, 내장 스칼라 또는 조합한 조각을 출력하고 줄바꿈을 붙입니다.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
 <tr><td><code>system.printf(format, values...)</code></td><td>포맷에 맞춰 출력하며 줄바꿈을 자동으로 붙이지 않습니다.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
-<tr><td><code>system.input()</code></td><td>표준 입력에서 UTF-8 한 줄을 읽습니다.</td><td><code>Result&lt;Optional&lt;string&gt;, system.IoError&gt;</code></td></tr>
+<tr><td><code>system.input&lt;T = string&gt;()</code></td><td>string은 완전한 UTF-8 한 줄을, 지원되는 스칼라는 공백으로 구분한 토큰 하나를 읽는다.</td><td><code>Result&lt;Optional&lt;T&gt;, system.ReadError&gt;</code></td></tr>
+<tr><td><code>system.flush()</code></td><td>표준 출력을 명시적으로 flush한다.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
+<tr><td><code>system.log(level, message, code = &quot;&quot;)</code></td><td>info, warning, error 레코드를 표준 오류에 쓴다. 텍스트 코드는 생략할 수 있다.</td><td><code>Result&lt;unit, system.IoError&gt;</code></td></tr>
 </tbody></table>
-<p>이 표는 호출 형태이며 가변 인수 함수 선언이나 범용 조합 타입을 정의하지 않습니다. 인수 없는 <code>println()</code> 오버로드, 사용자 정의 출력 가능 타입과 추가 스트림 연산은 별도 검토가 필요합니다.</p>
+<p>이 표는 호출 형태이며 가변 인수 함수 선언이나 범용 조합 타입을 정의하지 않는다. print와 println에는 값 하나가 필요하다. printf와 log는 아래에서 설명하는 별도의 검사된 호출 형태를 사용한다. 사용자 정의 타입의 출력은 아직 구현하지 않았다.</p>
 </section>
 <section id="imports"><h2>import와 호출 형태</h2>
 <p>모듈 전체를 가져오는 <code>import system;</code> 는 다음과 같은 한정된 호출을 사용합니다: <code>system.print(...)</code> . 내보낸 오류 이름은 <code>system.IoError</code>입니다. IO 타입을 자동 prelude에 추가하지 않습니다.</p>
@@ -60,12 +62,12 @@ Result&lt;unit, IoError&gt; announce() {
 <section id="output"><h2>출력과 오류</h2>
 <p>인식된 print·println 호출은 <code>string_view</code>, 대여한 소유 <code>string</code>, 내장 스칼라 또는 아래 출력 조합을 받습니다. 이 출력 문맥에서는 소유 string 인수를 자동으로 대여하여 읽습니다. 다음 명시적 호출도 유효합니다: <code>string.view(owner)</code> . 소유 string 조각에도 같은 비소비 대여 규칙을 적용합니다. 소유자를 이동하거나 clone하지 않으며 반환 뒤에 호출자의 대여를 보관할 수도 없습니다. 포매팅·내부 버퍼링의 복사·할당에는 비용과 실패 동작을 명시해야 합니다.</p>
 <p>출력의 반환 타입은 <code>Result&lt;unit, system.IoError&gt;</code> 입니다. 쓰기와 자원 연산이 실패할 수 있기 때문입니다. 앞부분을 성공적으로 쓴 뒤에도 Err가 발생할 수 있으며 터미널 출력을 되돌릴 수는 없습니다. 하위 계층의 짧은 쓰기는 명세된 write-all 정책으로 처리해야 합니다. 오류 뒤에 호출자가 메시지 전체를 무조건 다시 보내도 된다고 약속해서는 안 됩니다.</p>
-<p>검토할 오류 범주는 읽기·쓰기·flush 실패, 잘못된 UTF-8, 입력 크기 제한, 할당 실패와 사용할 수 없거나 닫힌 표준 스트림입니다. 확정된 enum variant 이름이 아니라 검토 대상 범주입니다. 의미가 있으면 OS 오류 코드를 보존하되 EOF를 OS 오류로 해석하게 해서는 안 됩니다. broken pipe와 시그널 처리도 플랫폼별 정책을 명시해야 하며 편의 API가 프로세스 전체에 적용되는 처리기를 조용히 설치해서는 안 됩니다.</p>
+<p>error 모듈은 ReadFailed, WriteFailed, FlushFailed, Interrupted, WouldBlock, Closed, InvalidUtf8, InputTooLong, AllocationFailure, SizeOverflow, Unsupported를 정의한다. 읽기·쓰기 실패에는 제공 가능한 OS 코드와 payload 바이트 진행량을 보존한다. EOF는 Optional의 부재이며 OS 오류가 아니다. 런타임은 프로세스 전체의 시그널 처리기를 설치하지 않는다. broken pipe 시그널은 호스트 프로세스의 정책을 따르므로 Result를 반환하기 전에 프로세스가 종료될 수 있다.</p>
 </section>
 <section id="composition"><h2>+로 출력 조합하기</h2>
 <p><strong>권장하는 0.3 의미:</strong> 인식된 <code>system.print</code> 또는 <code>system.println</code> 호출의 출력 인수 안에서는 <code>+</code> 노드에 텍스트 피연산자가 있으면 출력 조각을 결합합니다. 이미 만들어진 조합도 텍스트 피연산자로 취급하므로 다른 타입의 값을 계속 연결할 수 있습니다. 컴파일러는 선택적 import를 포함해 실제 import된 선언을 해석합니다. 이름만 print나 println인 무관한 함수에는 특별 동작을 적용하지 않습니다. 출력 호출 전용 구문이며 전역 string 연산자나 암시적 스칼라→string 변환이 아닙니다.</p>
-<p>초기에 직접 인수와 조합 조각으로 지원할 값은 <code>string</code>, <code>string_view</code>, 내장 부호 있는 정수·부호 없는 정수, 부동소수점 타입, <code>bool</code>, <code>char</code>, 및 <code>byte</code>입니다. 직접 전달한 값도 조각과 같은 내장 포매터를 사용합니다. 텍스트는 UTF-8 바이트를 유지하고 정수는 십진 숫자를 사용합니다. bool의 표기는 <code>true</code> 또는 <code>false</code>이며 char는 유니코드 스칼라를 UTF-8로 씁니다. byte는 <code>0x</code> 뒤에 소문자 16진수 두 자리를 정확히 붙여 수치 u8과 구별합니다.</p>
-<p>유한한 부동소수점은 원래 부동소수점 형식으로 왕복 변환 가능한 가장 짧은 십진 텍스트를 로캘과 무관하게 사용합니다. 음의 0 부호를 보존하고 비유한 값에는 다음 표기를 사용합니다: <code>nan</code>, <code>inf</code>, 또는 <code>-inf</code>. NaN payload를 텍스트로 보존한다고 보장하지 않습니다. 고정 표기·지수 표기의 선택과 같은 길이의 최단 표현 사이의 선택 정책은 구현 전에 명세하고 검사해야 합니다. 임의의 구조체·인터페이스 변환, 암시적 unwrap이나 Result·Optional payload 변환은 추가하지 않습니다.</p>
+<p>초기에 직접 인수와 조합 조각으로 지원할 값은 <code>string</code>, <code>string_view</code>, 내장 부호 있는 정수와 부호 없는 정수, f32/f64, <code>bool</code>, <code>char</code>, 및 <code>byte</code>입니다. 직접 전달한 값도 조각과 같은 내장 포매터를 사용합니다. 텍스트는 UTF-8 바이트를 유지하고 정수는 십진 숫자를 사용합니다. bool의 표기는 <code>true</code> 또는 <code>false</code>이며 char는 유니코드 스칼라를 UTF-8로 씁니다. byte는 <code>0x</code> 뒤에 소문자 16진수 두 자리를 정확히 붙여 수치 u8과 구별합니다.</p>
+<p>지원되는 f32/f64 값은 원래 부동소수 형식의 값으로 다시 변환할 수 있는 가장 짧은 10진수 텍스트를 사용하며 로캘에 의존하지 않는다. 현재 콘솔 특수화는 f16과 bf16을 거부한다. 음의 0의 부호를 보존하며, 비유한 값은 다음 표기를 사용한다: <code>nan</code>, <code>inf</code>, 또는 <code>-inf</code>. NaN payload를 텍스트로 보존한다고 보장하지 않는다. 유한 값은 연결된 C++ 런타임의 std::to_chars로 원래 값으로 다시 변환할 수 있는 최단 문자열로 만든다. 고정 표기와 지수 표기의 선택을 버전 간 직렬화 형식으로 보장하지는 않는다. 안정적인 저장 형식에는 별도의 명세를 갖춘 코덱을 사용한다. 임의의 구조체·인터페이스 변환, 암시적 unwrap, Result·Optional payload 변환은 추가하지 않는다.</p>
 <p>일반적인 우선순위, 괄호 묶음과 왼쪽 결합을 유지합니다. 숫자 피연산자 둘은 기존 타입·산술 실패 규칙에 따라 숫자 결과를 계산합니다. 식의 다른 위치에 string이 있다고 앞선 숫자 부분 트리를 개별 출력 값으로 평탄화해서는 안 됩니다.</p>
 <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import system;
 
@@ -94,15 +96,15 @@ Result&lt;unit, system.IoError&gt; show_label(&amp;string label, i32 count) {
 <p>출력 호출 단위 잠금은 피연산자 평가 후에 얻습니다. 이후 같은 스트림 API의 다른 호출에 대해 조합한 조각과 줄바꿈을 한 호출로 직렬화합니다. 여러 호출이 한 트랜잭션이 되지는 않으며 독립적인 OS writer는 이 보장 밖에 있습니다. 출력이 암시적으로 flush를 수행하지는 않습니다.</p>
 <h3>출력 밖에서의 경계</h3>
 <p>조합은 인식된 출력 호출이 소비합니다. 변수에 대입하거나 반환·캡처하거나 숨은 string 값처럼 임의의 보조 함수에 전달할 수는 없습니다. 조합 전체에 괄호를 붙여도 소유자가 되지는 않습니다. 다른 위치의 숫자 <code>+</code> 와 기존 타입 호환 규칙은 바뀌지 않습니다. 일반 소유 텍스트 생성은 별도의 실패 가능한 연산으로 유지하며, 제안된 <a href="../data_type/String/string.html#string-concat">string.concat</a> 및 <a href="../data_type/String/string.html#string-format">string.format</a> API의 반환 타입은 <code>Result&lt;string, TextError&gt;</code>입니다. 이 카탈로그 항목들이 0.2에 구현된 대안이라는 뜻은 아닙니다.</p>
-<p>이 구문은 printf의 컴파일 타임 포맷 요구를 완화하거나 기존의 동종 <code>values[]</code> 가변 인수를 바꾸거나 일반 사용자 정의 연산자 오버로딩을 추가하지 않습니다. 정확한 직접 호출 lowering과 허용되는 조합 문맥은 구현 전에 허용·거절 검사로 확인해야 합니다.</p>
+<p>이 구문은 printf의 컴파일 타임 포맷 요구를 완화하거나 기존의 동종 <code>values[]</code> 가변 인수를 바꾸거나 일반 사용자 정의 연산자 오버로딩을 추가하지 않는다. AOT/JIT의 승인·거부 검사는 인식된 선언, 조합의 경계, 평가 순서와 대여 수명을 확인한다.</p>
 </section>
 <section id="format"><h2>C varargs 없는 검사형 printf</h2>
-<p>초기에 권장하는 <code>printf</code> 는 익숙한 백분율 스타일 변환을 사용하되 포맷·인수 수·인수 타입을 컴파일 시점에 검사합니다. 포맷은 우선 리터럴 또는 지원하는 컴파일 타임 string으로 제한합니다. 예제의 표기는 <code>%s</code> 가 string_view, <code>%d</code> 가 i32, <code>%%</code> 가 문자 그대로의 백분율 기호를 뜻합니다. 전체 변환·폭·정밀도 문법은 검토 대상이며 다음과 같은 안전하지 않은 변환은 금지합니다: <code>%n</code>.</p>
-<p><strong>혼합 타입 인수에는 0.3 intrinsic 설계가 필요합니다.</strong> 예제의 string_view와 i32 인수는 의도적으로 서로 다른 타입입니다. 기존의 동종 <code>i32 values[]</code> 가변 인수 매개변수 문법을 확장한 것이 아닙니다. 기존 문법과 소유권 규칙은 유지하고 printf를 구현하기 전에 별도의 컴파일러 검사 intrinsic 또는 타입이 지정된 인수 표현을 승인해야 합니다.</p>
+<p>초기에 권장하는 <code>printf</code> 는 익숙한 백분율 스타일 변환을 사용하되 포맷·인수 수·인수 타입을 컴파일 시점에 검사합니다. 포맷은 우선 리터럴 또는 지원하는 컴파일 타임 string으로 제한합니다. 예제의 표기는 <code>%s</code> 가 string_view, <code>%d</code> 가 i32, <code>%%</code> 를 쓰면 문자 그대로의 퍼센트를 출력한다. 구현된 변환은 <code>%s</code> 는 텍스트에, <code>%d</code> 는 부호 있는 정수에, <code>%u</code> 는 부호 없는 정수에 사용한다. <code>%f</code> 및 <code>%g</code> 는 f32/f64에, <code>%c</code> 는 char에, <code>%b</code> 는 bool에 사용하고, <code>%%</code> 를 쓰면 문자 그대로의 퍼센트를 출력한다. 두 부동소수 변환 모두 원래 값으로 다시 변환할 수 있는 가장 짧은 텍스트를 사용한다. C printf처럼 소수점 이하 여섯 자리를 기본으로 출력한다고 보장하지 않는다. 폭, 정밀도, 길이 수정자, 그 밖의 변환은 컴파일 타임에 거부한다. 다음과 같은 안전하지 않은 변환은 금지한다: <code>%n</code>.</p>
+<p><strong>혼합 타입 인수는 컴파일러가 검사하는 intrinsic을 사용한다.</strong> 예제의 string_view와 i32 인수는 의도적으로 서로 다른 타입입니다. 기존의 동종 <code>i32 values[]</code> 가변 인수 매개변수 문법을 확장한 것은 아니다. 컴파일러는 기존 문법이나 소유권 규칙을 바꾸지 않고 모든 자리 표시자와 값을 검사한다.</p>
 <p>이 인터페이스를 검사되지 않은 C varargs로 lowering하거나 C의 기본 인수 승격에 의존해서는 안 됩니다. 포맷 문자열이 암시적 소유권 이동, 깊은 clone이나 임의의 출력 가능 타입 변환을 추가하지는 않습니다. 잘못된 정적 포맷은 컴파일 오류로 처리하고 실제 출력·자원 실패는 Result 값으로 유지합니다.</p>
 </section>
-<section id="input"><h2>줄 입력·EOF·UTF-8</h2>
-<p>권장하는 <code>input()</code> 의 결과 타입은 <code>Result&lt;Optional&lt;string&gt;, system.IoError&gt;</code>입니다. 바깥 Result는 실패를 보고하고 안쪽 Optional은 한 줄과 EOF를 구분합니다. 소유 string을 반환하므로 할당과 소유권 이전도 계약의 일부입니다.</p>
+<section id="input"><h2>타입이 있는 입력·EOF·UTF-8</h2>
+<p><code>input()</code> 및 <code>input&lt;string&gt;()</code> return <code>Result&lt;Optional&lt;string&gt;, system.ReadError&gt;</code>. 문자열은 한 줄 안의 모든 공백을 보존한다. 입력이 <code>he ll o</code> 이면 그 텍스트를 그대로 얻는다. LF와 CRLF 줄 끝은 제거하지만 단독 CR은 텍스트에 남는다. 안쪽 Optional로 빈 줄과 EOF를 구분한다. 소유 문자열에는 할당과 소유권 이전이 명시적으로 드러난다.</p><p><code>input&lt;i32&gt;()</code> 등 지원되는 스칼라 특수화는 앞쪽 ASCII 공백을 건너뛰고 토큰 하나를 읽는다. 다음 입력에서 정수 세 개를 읽으면 <code>10 20 30</code> 이면 10, 20, 30을 얻는다. 토큰 뒤의 구분자는 스트림에 남으므로, 바로 뒤에서 문자열을 입력받으면 그 줄의 나머지가 빈 문자열일 수 있다. 자동으로 줄을 건너뛰지 않는다. char 입력은 유니코드 스칼라 하나로 이루어진 토큰을 읽는다. 이는 공백으로 구분한 토큰 추출이며, C++ iostream의 모든 숫자 접두사 해석이나 로캘 동작을 보장하지 않는다.</p><p>스칼라 토큰에는 다음과 동일하게 입력 전체를 엄격하게 변환하는 규칙을 적용한다: <code>T.parse(value)</code>: 8~128비트 정수와 별칭, f32/f64, bool, char, byte를 지원한다. 비유한 부동소수 값, 잘못된 형식, 표현 범위를 벗어난 값은 오류다. <code>ReadError.Io</code> 는 다음 값을 담는다: <code>IoError</code>; <code>ReadError.Parse</code> 는 다음 값을 담는다: <code>ParseError</code>. 입력이 실패해도 일부 바이트는 이미 소비되었을 수 있다. 잘못된 토큰도 소비하므로 다음 토큰을 읽을 때 앞으로 진행할 수 있다.</p>
 <table><thead><tr><th scope="col">관측한 입력</th><th scope="col">권장 결과</th></tr></thead><tbody>
 <tr><td>텍스트 뒤에 줄 종결자가 있는 줄</td><td><code>Ok(Some(text))</code>이며 종결자는 제거합니다.</td></tr>
 <tr><td>빈 줄</td><td><code>Ok(Some(""))</code>이며 EOF가 아닙니다.</td></tr>
@@ -110,20 +112,33 @@ Result&lt;unit, system.IoError&gt; show_label(&amp;string label, i32 count) {
 <tr><td>종결자 없이 끝나는 마지막 줄 뒤의 EOF</td><td><code>Ok(Some(text))</code>를 반환하고, 다음 성공한 읽기에서 None을 반환합니다.</td></tr>
 <tr><td>잘못된 UTF-8, IO 실패, 크기 제한 실패 또는 할당 실패</td><td><code>Err(...)</code> 를 검토된 오류 정책에 따라 반환합니다.</td></tr>
 </tbody></table>
-<p>이 표는 생성자 문법이 아니라 결과 표기를 사용합니다. 빈 줄의 payload는 소유한 빈 string입니다. 모든 네이티브 콘솔 스트림이 이미 UTF-8을 제공한다고 가정하지 말고 각 OS의 터미널 입력·리디렉션 바이트 인코딩을 따로 검토해야 합니다.</p>
-<p>LF·CRLF 줄바꿈을 인식하고 종결자 전체를 제거하며 잘못된 UTF-8을 조용히 대체하지 않는 방식을 권장합니다. 단독 CR, 최대 줄 길이, 중단된 읽기, 실패 전에 이미 소비한 바이트와 잘못된 입력 이후의 복구는 구현 전에 확정해야 합니다.</p>
+<p>표에는 생성자 문법이 아닌 결과 표기를 사용한다. 빈 줄의 payload는 소유권을 가진 빈 문자열이다. 네이티브 스트림 경계는 UTF-8 바이트를 읽고 쓴다. macOS ARM64에서는 로컬 실행으로 확인했지만, Linux와 Windows의 네이티브 콘솔 동작은 Windows 콘솔 코드 페이지 처리를 포함해 각 대상 환경에서 통과해야 할 조건으로 남는다.</p>
+<p>구현은 LF와 CRLF 줄 끝을 인식해 제거하고, 단독 CR은 보존하며, 잘못된 UTF-8은 대체 문자로 바꾸지 않고 거부한다. 버퍼 크기는 대상 환경의 ptrdiff 한도를 넘을 수 없다. 읽기가 실패하면 제공 가능한 OS 오류와 payload 바이트 진행량을 보존한다. 할당이나 디코딩이 실패해도 이미 소비한 입력은 되돌리지 않는다.</p>
 <pre class="code-block"><code class="language-aevix" data-language="aevix">import system;
 
-Result&lt;Optional&lt;string&gt;, system.IoError&gt; read_next_line() {
+Result&lt;Optional&lt;string&gt;, system.ReadError&gt; read_next_line() {
     return system.input();
 }</code></pre>
 </section>
+<section id="logging"><h2>구조화된 로깅</h2>
+<p><code>system.log(level, message, code)</code> 는 다음을 받는다: <code>system.info</code>, <code>system.warn</code>, 또는 <code>system.error</code>는 해당하는 다음 항목을 식별한다: <code>system.LogLevel</code> 변형에 해당한다. 마지막 텍스트 코드가 필요하지 않으면 생략한다. 로그는 stderr에 기록하며 다음을 반환한다: <code>Result&lt;unit, system.IoError&gt;</code>이므로 호출자가 쓰기 실패를 전파할 수 있다. 제어 흐름이 예외 방식으로 바뀌지는 않는다.</p>
+<pre class="code-block"><code class="language-aevix" data-language="aevix">import system;
+
+Result&lt;unit, system.IoError&gt; announce() {
+    system.log(system.info, "Compiler ready")?;
+    system.log(system.warn, "Cache entry ignored", "W1001")?;
+    system.log(system.error, "Cannot open source", "E1001")?;
+    return Result.ok(Unit.value());
+}</code></pre>
+<p>레코드 형식은 <code>[INFO] Compiler ready</code>, <code>[WARN W1001] Cache entry ignored</code>, 및 <code>[ERROR E1001] Cannot open source</code>이며, 각 레코드 끝에 줄바꿈 하나를 붙인다. 인수를 평가하고 형식을 변환한 다음, 레코드 전체를 출력하는 동안 출력 잠금을 유지한다. 로그에 타임스탬프, 색상, 파일 출력, 자동 flush 또는 영구적인 오류 코드 레지스트리를 추가하지 않는다. 코드는 애플리케이션이 제공하는 텍스트다. 계획된 <a href="Diagnostics_0_5.html">0.5 컴파일러 진단</a> 는 버전이 있는 자체 컴파일러 코드와 소스 위치 모델을 사용한다.</p>
+</section>
 <section id="flush"><h2>버퍼링·flush·자원 경계</h2>
 <p>쓰기, 라이브러리 버퍼의 flush와 자원 해제를 구분합니다. 버퍼에 성공적으로 썼다고 터미널에 이미 표시됐다는 뜻은 아닙니다. 줄바꿈 추가가 명세되지 않은 flush를 암시해서도 안 됩니다.</p>
-<p><strong>권장하는 추가 연산:</strong> 명시적인 <code>system.flush()</code> 호출이며 반환 타입은 <code>Result&lt;unit, system.IoError&gt;</code>입니다. 특히 프롬프트를 출력한 뒤 입력을 기다리기 전에 유용합니다. 이 이름과 포함 여부는 확정한 네 함수의 일부가 아니며 별도의 API 승인이 필요합니다.</p>
+<p><strong>추가로 선택한 연산:</strong> 명시적인 <code>system.flush()</code> 호출이며 반환 타입은 <code>Result&lt;unit, system.IoError&gt;</code>를 사용해야 한다. 특히 프롬프트를 출력한 뒤 입력을 기다리기 전에 필요하다. 이 기능은 0.3 콘솔 구현에 포함된다.</p>
 <p>지원하는 OS마다 표준 스트림 소유권, 리디렉션과 닫기 동작을 정의합니다. 자동 정리가 실패 가능한 flush의 성공을 보장하지는 않습니다. 피연산자 평가 뒤 스레드 안전한 호출 단위 스트림 직렬화를 권장하되 경쟁하는 호출 사이의 상대 순서는 정하지 않습니다. 여러 호출이 자동으로 하나의 출력 트랜잭션을 이루지는 않습니다.</p>
-<p>공개 system 기능은 검토된 text/format과 io/resource 기능 위의 편의 계층이어야 합니다. 범위 제한 바이트 대여, 소유권, OS 오류 변환과 안전한 FFI 규칙을 우회해서는 안 됩니다. 이 계획이 0.3에 비동기 IO, GPU 동작, 셸 실행이나 완전한 일반 IO 라이브러리를 추가하지는 않습니다.</p>
+<p>공개 system API는 검토된 text/format 및 io/resource 기능 위의 편의 계층이어야 한다. 길이가 있는 바이트 대여, 소유권, OS 오류 변환, 안전한 FFI 규칙을 우회하면 안 된다. 이 콘솔 구현은 동기식이며 GPU 연산이나 셸 실행을 구현하지 않는다. 승인된 더 넓은 CPU 라이브러리 작업은 별개로 진행한다.</p>
 </section>
+<p>현재 AOT 경로는 대상에 맞는 Aevix C++ 런타임 아카이브와 C++ 표준 라이브러리를 연결한다. macOS에서는 libc++, Linux와 GNU Windows에서는 libstdc++를 사용하며 Linux에는 pthread 지원도 필요하다. 교차 대상 객체에는 아직 연결되지 않은 런타임 호출이 남을 수 있다. 실행 파일을 만들려면 대상에 맞는 런타임·링커·sysroot가 필요하다.</p>
 <section id="review"><h2>검토·구현 완료 조건</h2>
 <ol><li>텍스트·스칼라 직접 전달과 조합의 호출 형태, 정확한 결과 타입, 오류 범주, 줄바꿈 정책과 명시적 flush 단계를 확정합니다.</li><li>최단 부동소수점 표현의 동률 처리와 고정·지수 표기 선택을 명세하고, 부호 있는 0·비유한 값·소문자 두 자리 byte 출력을 검사합니다. 일반 숫자 +를 바꾸지 않고 인식할 import 선언, 조합 문맥, 평가 순서, 대여·임시값 수명과 실패 가능한 할당을 정합니다.</li><li>동종 가변 인수를 바꾸지 않고 혼합 타입 printf intrinsic과 검사할 포맷 문법을 승인합니다.</li><li>동기 표준 스트림에 필요한 자원·FFI·바이트·UTF-8·할당·오류 기반을 완성합니다.</li><li>직접 전달한 스칼라·대여한 소유자, 텍스트·스칼라 연쇄, 괄호로 묶은 숫자 합, 정수 오버플로, 한 번의 평가, 충돌하는 변경, 임시값 정리와 출력 전 탈출을 검사합니다. 저장된 조합, 이름만 같은 무관한 함수와 지원하지 않는 출력 타입은 거절합니다.</li><li>빈 입력·빈 줄·CRLF·종결자 없는 마지막 줄·잘못된 UTF-8·크기 제한·할당 실패·짧거나 중단된 쓰기·부분 출력·broken pipe·리디렉션 스트림·flush 오류·동시 호출을 구현하고 검사합니다.</li><li>지원 대상의 AOT·JIT에서 같은 언어·소유권 동작을 검증합니다. 그 후에만 구현된 함수라고 설명합니다.</li></ol>
 <p><a href="Library_Foundation.html">라이브러리 기반</a> 에 더 넓은 구현 순서를 기록합니다. <a href="../releases/0_2.html">0.2 실행 가능 범위</a> 는 이 계획 문서로 바뀌지 않습니다.</p>

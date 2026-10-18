@@ -1,0 +1,154 @@
+import map { Map, Entry };
+import map_entry { MapEntry, EntryInputError, EntryBuildError };
+import map_entry;
+import optional;
+
+struct Key implements Drop {
+    public i32 id;
+    public &mut i32 drops;
+    public void drop(&mut Self self) { *self.drops += 1; return; }
+};
+struct Value implements Drop {
+    public i32 id;
+    public &mut i32 drops;
+    public void drop(&mut Self self) { *self.drops += 1; return; }
+};
+struct Watch implements Drop {
+    public i32 id;
+    public &mut i32 drops;
+    public void drop(&mut Self self) { *self.drops += 1; return; }
+};
+bool initial(Result<Optional<Value>, InputError<Entry<Key, Value>>> input) {
+    switch (move input) { case Result<Optional<Value>, InputError<Entry<Key, Value>>>.Ok: return true; break; case Result<Optional<Value>, InputError<Entry<Key, Value>>>.Err: return false; break; }
+}
+i32 keep<F>(MapEntry<Key, Value, F> entry, Value unused, i32 expected) where F implements Fn<Tuple<&Key, &Key>, bool> {
+    Result<&mut Value, EntryInputError<Key, Value, F>> result = entry.or_insert(unused);
+    switch (move result) {
+        case Result<&mut Value, EntryInputError<Key, Value, F>>.Ok { &mut Value value = value }: return value.id == expected ? 0 : 1; break;
+        case Result<&mut Value, EntryInputError<Key, Value, F>>.Err: return 2; break;
+    }
+}
+i32 replace<F>(MapEntry<Key, Value, F> entry, Value replacement) where F implements Fn<Tuple<&Key, &Key>, bool> {
+    Result<Optional<Value>, EntryInputError<Key, Value, F>> result = entry.insert(replacement);
+    switch (move result) {
+        case Result<Optional<Value>, EntryInputError<Key, Value, F>>.Ok { Optional<Value> old = value }:
+            switch (move old) { case Optional<Value>.Some { Value previous = value }: return previous.id == 3 ? 0 : 3; break; case Optional<Value>.None: return 4; break; }
+            break;
+        case Result<Optional<Value>, EntryInputError<Key, Value, F>>.Err: return 5; break;
+    }
+}
+i32 remove<F>(MapEntry<Key, Value, F> entry) where F implements Fn<Tuple<&Key, &Key>, bool> {
+    Optional<Value> removed = entry.remove();
+    switch (move removed) { case Optional<Value>.Some { Value previous = value }: return previous.id == 1 ? 0 : 6; break; case Optional<Value>.None: return 7; break; }
+}
+i32 reject<F>(MapEntry<Key, Value, F> entry, Watch failure) where F implements Fn<Tuple<&Key, &Key>, bool> {
+    mut Optional<Watch> pending = Optional.some(failure);
+    Result<&mut Value, EntryBuildError<Key, Value, F, Watch>> result = entry.try_or_insert_with<Watch>([&mut pending]() -> Result<Value, Watch> {
+        Optional<Watch> taken = optional.take(&mut pending);
+        switch (move taken) {
+            case Optional<Watch>.Some { Watch problem = value }: return Result.err(problem); break;
+            case Optional<Watch>.None: Never.unreachable(); break;
+        }
+    });
+    switch (move result) {
+        case Result<&mut Value, EntryBuildError<Key, Value, F, Watch>>.Ok: return 8; break;
+        case Result<&mut Value, EntryBuildError<Key, Value, F, Watch>>.Err { EntryBuildError<Key, Value, F, Watch> problem = error }:
+            switch (move problem) {
+                case EntryBuildError<Key, Value, F, Watch>.Build { Watch error = error, MapEntry<Key, Value, F> retry = entry }:
+                    if (error.id != 77 || retry.is_occupied()) return 9;
+                    Key recovered = retry.into_incoming_key();
+                    return recovered.id == 3 ? 0 : 10;
+                    break;
+                case EntryBuildError<Key, Value, F, Watch>.Preflight: return 11; break;
+                case EntryBuildError<Key, Value, F, Watch>.Insertion: return 12; break;
+            }
+            break;
+    }
+}
+
+Map<Key, Value> make_map() {
+    Result<Map<Key, Value>, CollectionError> created = Map<Key, Value>.new();
+    switch (move created) {
+        case Result<Map<Key, Value>, CollectionError>.Ok { Map<Key, Value> value = value }: return value; break;
+        case Result<Map<Key, Value>, CollectionError>.Err: Never.unreachable(); break;
+    }
+}
+
+/* Every moved key, value, comparator capture, and builder error must drop exactly once. */
+i32 main() {
+    mut i32 k1 = 0;
+    mut i32 k2 = 0;
+    mut i32 k3 = 0;
+    mut i32 k4 = 0;
+    mut i32 k5 = 0;
+    mut i32 k6 = 0;
+    mut i32 k7 = 0;
+    mut i32 v1 = 0;
+    mut i32 v2 = 0;
+    mut i32 v3 = 0;
+    mut i32 v4 = 0;
+    mut i32 c1 = 0;
+    mut i32 c2 = 0;
+    mut i32 c3 = 0;
+    mut i32 c4 = 0;
+    mut i32 c5 = 0;
+    mut i32 c6 = 0;
+    mut i32 e1 = 0;
+    {
+        mut Map<Key, Value> owner = make_map();
+                rsn initial_same = [](&Key a, &Key b) -> bool { return a.id % 10 == b.id % 10; };
+                if (!initial(owner.insert_with(Key { id = 1, drops = &mut k1 }, Value { id = 1, drops = &mut v1 }, 1u64, &initial_same))) return 90;
+                {
+                    Watch watch = Watch { id = 0, drops = &mut c1 };
+                    Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id % 10 == b.id % 10 && captures[0].id == 0; };
+                    rsn entry = map_entry.entry_with(&mut owner, Key { id = 11, drops = &mut k2 }, 1u64, same);
+                    i32 code = keep(entry, Value { id = 2, drops = &mut v2 }, 1);
+                    if (code != 0) return code;
+                }
+                {
+                    Watch watch = Watch { id = 0, drops = &mut c2 };
+                    Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id % 10 == b.id % 10 && captures[0].id == 0; };
+                    rsn entry = map_entry.entry_with(&mut owner, Key { id = 2, drops = &mut k3 }, 1u64, same);
+                    i32 code = keep(entry, Value { id = 3, drops = &mut v3 }, 3);
+                    if (code != 0) return code;
+                }
+                {
+                    Watch watch = Watch { id = 0, drops = &mut c3 };
+                    Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id % 10 == b.id % 10 && captures[0].id == 0; };
+                    rsn entry = map_entry.entry_with(&mut owner, Key { id = 12, drops = &mut k4 }, 1u64, same);
+                    i32 code = replace(entry, Value { id = 4, drops = &mut v4 });
+                    if (code != 0) return code;
+                }
+                {
+                    Watch watch = Watch { id = 0, drops = &mut c4 };
+                    Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id % 10 == b.id % 10 && captures[0].id == 0; };
+                    rsn entry = map_entry.entry_with(&mut owner, Key { id = 11, drops = &mut k5 }, 1u64, same);
+                    i32 code = remove(entry);
+                    if (code != 0) return code;
+                }
+                {
+                    Watch watch = Watch { id = 0, drops = &mut c5 };
+                    Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id % 10 == b.id % 10 && captures[0].id == 0; };
+                    rsn entry = map_entry.entry_with(&mut owner, Key { id = 9, drops = &mut k6 }, 1u64, same);
+                    if (entry.is_occupied()) return 13;
+                }
+                {
+                    Watch watch = Watch { id = 0, drops = &mut c6 };
+                    Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id % 10 == b.id % 10 && captures[0].id == 0; };
+                    rsn entry = map_entry.entry_with(&mut owner, Key { id = 3, drops = &mut k7 }, 1u64, same);
+                    i32 code = reject(entry, Watch { id = 77, drops = &mut e1 });
+                    if (code != 0) return code;
+                }
+        if (owner.len() != 1) return 14;
+    }
+    if (k1 != 1 || k2 != 1 || k3 != 1 || k4 != 1 || k5 != 1 || k6 != 1 || k7 != 1) return 15;
+    if (v1 != 1 || v2 != 1 || v3 != 1 || v4 != 1) return 16;
+    if (c1 != 1 || c2 != 1 || c3 != 1 || c4 != 1 || c5 != 1 || c6 != 1 || e1 != 1) return 17;
+    return 0;
+}

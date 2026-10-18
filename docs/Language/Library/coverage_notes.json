@@ -1,0 +1,468 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "coverage_notes.json",
+  "description": {
+    "ko": "전체 CPU 라이브러리 목표를 축소하지 않고 실제 소스·내장 연산·설계 표를 구분한다.",
+    "en": "Keep the complete CPU target while separating source declarations, compiler-bound operations, and design contracts."
+  },
+  "counting": {
+    "source": "api_inventory.json",
+    "rules": [
+      "cpu_callable_names counts distinct written qualified names, not implementation count.",
+      "cpu_signature_rows retains distinct documented signatures and merges exact duplicate rows.",
+      "Array/Vector/Slice documentation families overlap; their family totals are not disjoint language modules.",
+      "source_equivalents are explicitly recorded alternate calling forms from the test manifest.",
+      "Unmapped catalog names are unresolved coverage, not proof that the API is missing; builtin operations require separate semantic evidence.",
+      "Source declarations, comments, compiler marker declarations, and fixture paths do not prove current execution success."
+    ]
+  },
+  "cpu_groups": [
+    {
+      "families": [
+        "Boolean",
+        "Integer",
+        "Float",
+        "Complex",
+        "Char",
+        "Byte",
+        "Unit",
+        "Never"
+      ],
+      "prerequisites": [
+        "Typed scalar intrinsics and explicit numeric conversion policies",
+        "Width-specific formatting/parsing, byte order and UTF-8/Unicode validation",
+        "Low-precision float representation and unsupported-capability behavior",
+        "Checked arithmetic and exact error payloads"
+      ],
+      "boundary": "The released scalar/complex subset is narrower than the complete numeric and Unicode catalogs."
+    },
+    {
+      "families": [
+        "Array",
+        "Vector",
+        "Slice",
+        "Tuple",
+        "Range"
+      ],
+      "prerequisites": [
+        "Move-aware element cleanup and partial initialization",
+        "Fallible growth that preserves accepted input",
+        "Projection-aware loans, disjoint mutable views and bounds validation",
+        "Closure-driven algorithms and ordering contracts"
+      ],
+      "boundary": "Current source functions and compiler builtins use distinct calling forms; copied Array/Vector/Slice pages require canonical reconciliation."
+    },
+    {
+      "families": [
+        "Optional",
+        "Result"
+      ],
+      "prerequisites": [
+        "Move/borrow-safe carrier transformations",
+        "Exact error types and explicit error mapping",
+        "Fn/FnMut/FnOnce call permissions and closure lifetime checks"
+      ],
+      "boundary": "Source combinators are inventoried independently from compiler-owned constructors and predicates."
+    },
+    {
+      "families": [
+        "String"
+      ],
+      "prerequisites": [
+        "Owned UTF-8 storage versus borrowed views",
+        "Allocation failures, scalar boundaries and byte offsets",
+        "Search/split/trim/encoding contracts without hidden copies",
+        "Unicode classification/grapheme policy and reproducible tables"
+      ],
+      "boundary": "Byte positions, Unicode scalar counts, and grapheme boundaries must remain distinct."
+    },
+    {
+      "families": [
+        "Box",
+        "Shared",
+        "Weak"
+      ],
+      "prerequisites": [
+        "Typed allocation handles, Drop and failure-safe construction",
+        "Reference-count control-block lifetimes and weak upgrade",
+        "Thread-safe sharing eligibility and synchronized mutation",
+        "No pointer/integer or private-handle forgery"
+      ],
+      "boundary": "A safe C++ owner alone does not complete the public generic Aevix API or borrow checking."
+    },
+    {
+      "families": [
+        "Map",
+        "Set"
+      ],
+      "prerequisites": [
+        "Eq/Hash/Ord contracts and borrowed-key lookup",
+        "Documented collision policy and randomized versus stable hashing",
+        "Allocation-preserving insert and entry APIs",
+        "Loan-safe mutation, ordered navigation and algebra"
+      ],
+      "boundary": "Hash maps and ordered maps have different cost and invalidation contracts."
+    },
+    {
+      "families": [
+        "Atomic",
+        "Mutex",
+        "Rwlock"
+      ],
+      "prerequisites": [
+        "Native synchronization boundary and concrete memory-order validation",
+        "Move/borrow-safe guards and poisoning policy",
+        "Cross-thread ownership constraints and interior mutation",
+        "Shutdown behavior and no callback retention beyond loans"
+      ],
+      "boundary": "CPU parallel for_each is not a substitute for these general synchronization APIs."
+    },
+    {
+      "families": [
+        "Task"
+      ],
+      "prerequisites": [
+        "Structured task scopes, result ownership and joining",
+        "Cancellation as a request with explicit quiescence",
+        "Captured owner/borrow lifetime and cross-thread eligibility",
+        "Completion and cleanup on all paths"
+      ],
+      "boundary": "Task.from_pending and all device-completion bridges remain GPU-deferred."
+    },
+    {
+      "families": [
+        "Tensor",
+        "Quantized"
+      ],
+      "prerequisites": [
+        "CPU buffer owners with checked shape products and strides",
+        "Static shape compatibility plus runtime validation",
+        "Injective mutable views and alias-safe into operations",
+        "Defined reductions, broadcasting, accumulator precision and quantization error policies"
+      ],
+      "boundary": "CPU arithmetic remains in scope; device queues, GPU kernels, transfer plans, asynchronous copies and Pending are excluded."
+    },
+    {
+      "families": [
+        "Simd",
+        "Parallel"
+      ],
+      "prerequisites": [
+        "Per-target element/lane profile validation",
+        "Consistent integer overflow and floating behavior",
+        "Worker call-graph, capture and storage restrictions",
+        "AArch64/x86-64 execution evidence on each claimed target"
+      ],
+      "boundary": "Accepted checker operation names do not imply every broader portable-SIMD catalog signature is implemented."
+    },
+    {
+      "families": [
+        "System"
+      ],
+      "prerequisites": [
+        "Output operand evaluation and text-loan lifetime",
+        "Structured IO/parse/format errors and partial progress",
+        "Line versus token input and EOF",
+        "Explicit flushing and logging level identity"
+      ],
+      "boundary": "Console intrinsics are separate from general File/Path/Process APIs."
+    }
+  ],
+  "additional_cpu_plan": [
+    {
+      "group": "io / path / fs",
+      "reference": "htmls/roadmap/Library_Foundation.html#order",
+      "prerequisites": [
+        "Typed native handles and explicit close/flush Result",
+        "Partial IO, bounded reads and preserved progress",
+        "Lossless Unix byte paths and Windows UTF-16 paths",
+        "Metadata versus symlink metadata and explicit overwrite policy"
+      ]
+    },
+    {
+      "group": "process / env / time",
+      "reference": "htmls/roadmap/Library_Foundation.html#order",
+      "prerequisites": [
+        "Argument-vector spawn without implicit shell parsing",
+        "Child reaping, timeout, signals and exit status",
+        "Lossless environment values and executable paths",
+        "Monotonic duration and checked time arithmetic"
+      ]
+    },
+    {
+      "group": "compiler support / build",
+      "reference": "htmls/roadmap/Library_Foundation.html#missing",
+      "prerequisites": [
+        "Typed IDs/spans and selective interning",
+        "Stable content hashes distinct from randomized table hashing",
+        "Versioned AIR/cache serialization and corrupt-cache rejection",
+        "Temporary-output publication and allocation-failure injection"
+      ]
+    }
+  ],
+  "gpu_exclusion": "All Pending pages and GPU-only queue/transfer/compilation rows are retained under excluded_gpu for traceability; they are not silently removed from the language plan.",
+  "completion_gate": "Every claimed public contract needs real behavior, explicit error/ownership semantics, and appropriate execution/negative tests; no success-returning placeholders count as completion.",
+  "verified_checkpoint": {
+    "path": "verified_checkpoint.json",
+    "checkpoint_id": "2026-10-18-39088693",
+    "binary_sha256": "390886932eb9e335dcc8094cdb62fd397f36ae1ed4b8387eb99ac95145930d93",
+    "inventory_sha256": "7f6d3780699239c26743097b7148fdf53ec54d0dd576485ea32983a23c2007ab",
+    "result": "138/138 CTest passed in703.69 seconds on one coherent macOS ARM64 binary;3797 public declarations had current lifecycle metadata.",
+    "frozen_input_files": 526,
+    "boundary": "This result identifies the recorded executable,526 frozen inputs and3797-declaration inventory. Later source/compiler changes require a new checkpoint. Complete CPU support and latest-source Linux/Windows execution are not claimed."
+  },
+  "current_development_profile": {
+    "status": "coherent_3854_declaration_checkpoint_passed_full_cpu_incomplete",
+    "checkpoint_id": "2026-10-18-proof-b87fb39d",
+    "source_inventory": "api_inventory.json",
+    "public_declarations": 3854,
+    "source_support": "128 bytes functions;107 unicode functions including50 pinned Unicode17 UCD operations;108 floating functions;528 integer overloads across48 names plus24 constants;20 boolean functions;27 canonical Task name candidates plus extra blocking Task.wait. Source calling forms, nominal carriers and full catalog contracts remain distinct. Subsequent integrated additions include opaque TaskId, workerless Task.ready, Box.into_inner and29 range.* source overloads across18 names.",
+    "char_catalog_split": {
+      "catalog_rows": 107,
+      "direct_Core_bindings": 2,
+      "same_carrier_source_alternatives": 76,
+      "adapted_UnicodeError_source_alternatives": 29,
+      "checkpoint": "char_source_checkpoint.json",
+      "boundary": "Source alternatives require explicit unicode import and do not implement the105 remaining Char namespace spellings. Scalar properties/default isolated-scalar mappings are not whole-string normalization, segmentation, bidi, locale/context casing or layout."
+    },
+    "task_catalog_split": {
+      "canonical_rows": 59,
+      "canonical_names_with_candidates": 27,
+      "extra_source_names": [
+        "Task.wait"
+      ],
+      "canonical_rows_without_matching_providers": 32,
+      "synchronous_target_0_3": 22,
+      "suspending_target_0_4": 10,
+      "boundary": "Provider presence is not exact signature/callback/carrier/cost/lifetime equivalence. Task.wait is outside the original59-row catalog and does not reduce its remainder."
+    },
+    "task_limits": "Fully owned captures/results; concrete zero-argument compiler closures; conditional sealed Send/Sync plus transitive effect/cleanup checks; one native thread per spawned child; Task.ready creates no worker but retains fallible result/control allocation; retained lexical Scope observation loans. No borrowed/static views, nested scopes, worker-side spawn, global/persist Task storage, pools or detach in this tested profile.",
+    "thread_transfer_limits": "Shared/Weak require inner Send+Sync; Mutex derives Send/Sync from inner Send; RwLock Send needs inner Send and Sync needs inner Send+Sync. Atomic sealed facts cover bool and8/16/32/64-bit integers. All Send additionally requires worker-safe cleanup; contained borrows and owned Task admission restrictions remain. Guards are non-Send/non-Sync borrowed carriers. These facts do not complete the synchronization catalogs.",
+    "remaining_task_rows": {
+      "synchronous_target_0_3": 22,
+      "suspending_target_0_4": 10
+    },
+    "byte_limits": "Owning buffers and strict UTF8 adapters are now present; native-endian codecs, lazy iterators and exact canonical Byte/carrier contracts remain separate. Owned UTF8 decoding may validate again and copy through string.from_utf8.",
+    "representation_limits": "Exact raw bits and source classification/sign/magnitude/next/total-order/constants support f16,bf16,f32,f64. No f8 or automatic widening of low-precision math is inferred. Native C f32/f64 math is not a correctly-rounded cross-platform guarantee.",
+    "numeric_carrier_limits": "IntegerArithmeticError and BooleanError are source carriers, not aliases for every conceptual IntegerError, AllocError or BufferError signature. No canonical Integer namespace forwarding or all broader numeric contracts are certified.",
+    "boundary": "The registered154-test suite passed on b87fb39d with345 selected source inputs unchanged during the run. This local checkpoint does not complete all synchronous CPU catalog contracts. Async remains0.4 and GPU remains deferred. The explicitly requested bounded proof pass is opt-in; other held performance changes still await the final Claude advice.",
+    "integrated_suite": {
+      "compiler_sha256": "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc",
+      "ctest_passed": 154,
+      "ctest_total": 154,
+      "elapsed_seconds": 1209.0799842919987,
+      "source_inputs_unchanged_during_run": true,
+      "selected_source_input_files": 345,
+      "result": "build/checkpoints/proof-b87fb39d/result.json",
+      "result_sha256": "33df676b3d8381ee39eb0b5d239b2222b422033d71d2c1c4e964dda88d2df480",
+      "log": "build/checkpoints/proof-b87fb39d/LastTest.log",
+      "log_sha256": "75461ad7f3ea553e8c39f41f78455376096e0a7ed14cffec21ee4acc0d451362",
+      "boundary": "Registered local macOS ARM64 suite, including dedicated Ready/Box/Range materialization/proof gates; not every CPU catalog API or cross-target execution."
+    }
+  },
+  "historical_profiles": [
+    {
+      "checkpoint_summary": {
+        "path": "verified_checkpoint.json",
+        "checkpoint_id": "2026-10-18-f46a65b2",
+        "binary_sha256": "f46a65b285de877890db475919d5b1820099f16369c35a42d4de41b28172b91c",
+        "inventory_sha256": "e701f519bca8f236784343deee10cac51869e2175012efa192af8548ff92ea2b",
+        "result": "120/120 CTest passed in376.54 seconds on one coherent macOS ARM64 binary;2200 public declarations had current lifecycle metadata.",
+        "boundary": "This result identifies the frozen recorded executable source and2200-declaration inventory. Later source additions and compiler changes remain outside it; complete CPU support and every target execution are not claimed."
+      },
+      "profile": {
+        "status": "coherent_2200_declaration_checkpoint_passed_full_cpu_incomplete",
+        "source_inventory": "api_inventory.json",
+        "public_declarations": 2200,
+        "source_support": "107 bytes free functions, imported Ordering with ten helpers, two exact Float representation intrinsics, seven borrowed Range inspection intrinsics and15 Task catalog name candidates (five cancellation aliases plus ten owned Task/Scope operations).",
+        "task_limits": "Fully owned captures/results; sealed transfer/transitive effects; one native thread per child; lexical Scope; no borrowed/static views, nested scopes, worker-side spawn, global/persist Task storage, pools or detach in this profile.",
+        "remaining_task_rows": {
+          "synchronous_target_0_3": 34,
+          "suspending_target_0_4": 10
+        },
+        "boundary": "The recorded f46a65b2 coherent suite passed120/120. Future declarations and compiler changes need a later checkpoint; the complete synchronous CPU catalog remains incomplete.",
+        "representation_limits": "Exact bit reinterpretation supports f16/bf16/u16, f32/u32 and f64/u64 without arithmetic or NaN canonicalization. This does not supply native-endian codecs, f8, all scalar math, all Byte contracts or complete CPU libraries."
+      },
+      "boundary": "Historical snapshot; superseded as the current profile by the138-test39088693 checkpoint."
+    },
+    {
+      "status": "coherent_3797_declaration_checkpoint_passed_full_cpu_incomplete",
+      "checkpoint_id": "2026-10-18-39088693",
+      "source_inventory": "api_inventory.json",
+      "public_declarations": 3797,
+      "source_support": "128 bytes functions;107 unicode functions including50 pinned Unicode17 UCD operations;108 floating functions;528 integer overloads across48 names plus24 constants;20 boolean functions;25 canonical Task name candidates plus extra blocking Task.wait. Source calling forms, nominal carriers and full catalog contracts remain distinct.",
+      "char_catalog_split": {
+        "catalog_rows": 107,
+        "direct_Core_bindings": 2,
+        "same_carrier_source_alternatives": 76,
+        "adapted_UnicodeError_source_alternatives": 29,
+        "checkpoint": "char_source_checkpoint.json",
+        "boundary": "Source alternatives require explicit unicode import and do not implement the105 remaining Char namespace spellings. Scalar properties/default isolated-scalar mappings are not whole-string normalization, segmentation, bidi, locale/context casing or layout."
+      },
+      "task_catalog_split": {
+        "canonical_rows": 59,
+        "canonical_names_with_candidates": 25,
+        "extra_source_names": [
+          "Task.wait"
+        ],
+        "canonical_rows_without_matching_providers": 34,
+        "synchronous_target_0_3": 24,
+        "suspending_target_0_4": 10,
+        "boundary": "Provider presence is not exact signature/callback/carrier/cost/lifetime equivalence. Task.wait is outside the original59-row catalog and does not reduce its remainder."
+      },
+      "task_limits": "Fully owned captures/results; concrete zero-argument compiler closures; conditional sealed Send/Sync plus transitive effect/cleanup checks; one native thread per child; retained lexical Scope observation loans. No borrowed/static views, nested scopes, worker-side spawn, global/persist Task storage, pools or detach in this tested profile.",
+      "thread_transfer_limits": "Shared/Weak require inner Send+Sync; Mutex derives Send/Sync from inner Send; RwLock Send needs inner Send and Sync needs inner Send+Sync. Atomic sealed facts cover bool and8/16/32/64-bit integers. All Send additionally requires worker-safe cleanup; contained borrows and owned Task admission restrictions remain. Guards are non-Send/non-Sync borrowed carriers. These facts do not complete the synchronization catalogs.",
+      "remaining_task_rows": {
+        "synchronous_target_0_3": 24,
+        "suspending_target_0_4": 10
+      },
+      "byte_limits": "Owning buffers and strict UTF8 adapters are now present; native-endian codecs, lazy iterators and exact canonical Byte/carrier contracts remain separate. Owned UTF8 decoding may validate again and copy through string.from_utf8.",
+      "representation_limits": "Exact raw bits and source classification/sign/magnitude/next/total-order/constants support f16,bf16,f32,f64. No f8 or automatic widening of low-precision math is inferred. Native C f32/f64 math is not a correctly-rounded cross-platform guarantee.",
+      "numeric_carrier_limits": "IntegerArithmeticError and BooleanError are source carriers, not aliases for every conceptual IntegerError, AllocError or BufferError signature. No canonical Integer namespace forwarding or all broader numeric contracts are certified.",
+      "boundary": "The recorded39088693 suite passed138/138 with526 unchanged inputs and3797 public lifecycle declarations. This is one local macOS ARM64 development checkpoint; all remaining synchronous CPU catalog contracts stay targeted for0.3, async Task remains0.4, GPU remains deferred, and performance-changing optimization still awaits the final Claude advice."
+    }
+  ],
+  "post_checkpoint_additions": {
+    "full_checkpoint_unchanged": "2026-10-18-39088693",
+    "TaskId": {
+      "compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+      "registered_related_tests_passed": 40,
+      "seconds": 84.14,
+      "evidence": "task_identity_checkpoint.json",
+      "scope": "Task.id, opaque Copy diagnostic identity and16-byte Task layout only; not a new full144-test suite."
+    },
+    "Range_source": {
+      "source": "library/Collections/range.avx",
+      "explicit_import": "range",
+      "function_overloads": 29,
+      "function_names": 18,
+      "source_presence": "Promoted current source has complete lifecycle metadata; historical foundation execution and private materialization execution are recorded separately.",
+      "evidence": "range_materialization_checkpoint.json",
+      "boundary": "Explicit range.* source alternatives include collect_vector/to_array. No canonical Range forwarding; RangeArrayError remains distinct and aggregate error ABI work remains O(N). Dedicated materialization and full registered suite passed, not all CPU catalog contracts.",
+      "historical_foundation": {
+        "function_overloads": 27,
+        "function_names": 16,
+        "source_presence": "Present with complete lifecycle metadata and registered7d2c5ce7 gate passed358.52seconds.",
+        "evidence": "range_source_checkpoint.json",
+        "boundary": "Explicit range helpers and Cursor<T>; no canonical Range forwarding, collect_vector or to_array yet. Cross-target object generation is separate from execution.",
+        "active_registered_tests_passed": 1
+      },
+      "source_sha256": "7d35b81522e05c347247656c7baca44af7b33b2aa8e9c96b375d227965da04e5",
+      "current_active_registered_gate": "passed in integrated154-test suite"
+    },
+    "current_inventory": {
+      "public_source_declarations": 3854,
+      "inventory_sha256": "e50d6155bf9c4ae71b77e6256637120253b46f833724eec27ba0a2588f41c61c",
+      "lifecycle_status": "3854 declarations have complete metadata; source presence is separate from current execution.",
+      "full_cpu_suite": "Registered154/154 passed; complete CPU catalog implementation remains incomplete.",
+      "historical_full_checkpoint_unchanged": "2026-10-18-39088693",
+      "concrete_error_types": 32,
+      "error_reference_sha256": "5563dc7f5b3c811c17e64dac9dde12a08e2a06601b98540dff0b9e39b5bb0d23"
+    },
+    "Task_ready": {
+      "evidence": "task_ready_checkpoint.json",
+      "private_stage": {
+        "compiler_sha256": "6e15183c7237e05869ccb79b080d17a6cf01a3b41b645eb5be21d2642f2c214f",
+        "positive_mode_executions": 30,
+        "negative_programs": 12,
+        "fault_processes": 22,
+        "air_checks": 431,
+        "boundary": "Private overlay evidence only."
+      },
+      "root_stage": {
+        "tests_passed": 3,
+        "tests_total": 3,
+        "elapsed_seconds": 0.69,
+        "host": "macOS ARM64",
+        "scope": "v03_task_ready_runtime, v03_task_ready_exhaustion, v03_task_ready_jit only",
+        "result": "build/checkpoints/task-ready-integration-smoke/result.json",
+        "result_sha256": "c3c2deff12b5aa6473e1c5611f85d7226778267558d71f76b976f0136994627f",
+        "log": "build/checkpoints/task-ready-integration-smoke/LastTest.log",
+        "log_sha256": "43823558063523d7761fb0ecb61486d6685cd45ff93183746ee687924daa602b",
+        "full_suite": false,
+        "boundary": "Root built the promoted Ready implementation and ran only the native runtime, exhaustion, and JIT gates. This is not an active source CLI, fault CLI, AIR, or coherent/full-suite result."
+      },
+      "current_active_full_suite": "passed154/154; five Ready gates and existing Task AIR included",
+      "integrated_full_suite": {
+        "compiler_sha256": "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc",
+        "ctest_passed": 154,
+        "ctest_total": 154,
+        "elapsed_seconds": 1209.0799842919987,
+        "source_inputs_unchanged_during_run": true,
+        "selected_source_input_files": 345,
+        "result": "build/checkpoints/proof-b87fb39d/result.json",
+        "result_sha256": "33df676b3d8381ee39eb0b5d239b2222b422033d71d2c1c4e964dda88d2df480",
+        "log": "build/checkpoints/proof-b87fb39d/LastTest.log",
+        "log_sha256": "75461ad7f3ea553e8c39f41f78455376096e0a7ed14cffec21ee4acc0d451362",
+        "boundary": "Registered local macOS ARM64 suite, including dedicated Ready/Box/Range materialization/proof gates; not every CPU catalog API or cross-target execution."
+      }
+    },
+    "Box_into_inner": {
+      "evidence": "box_extraction_checkpoint.json",
+      "private_stage": {
+        "compiler_sha256": "316e11750fbe2bf4e47e7111660189f7239f1d76bedd0e1c32e6205147cb05a2",
+        "positive_fixture_modes": 70,
+        "negative_check_only": 27,
+        "strict_air_checks": 48,
+        "boundary": "Private source/ownership/fault/sanitizer evidence; zero-size ASan O0 limitation remains separate."
+      },
+      "root_stage": {
+        "source_applied": true,
+        "all_targets_build": "passed, reported by root",
+        "recorded_build_compiler_sha256": "14e539e98708b8a0b3b8985574a66794d44329bf5c1f63c7e4baba49eeb96e16",
+        "dedicated_Box_registered_execution": "passed in integrated full suite",
+        "full_cpu_suite": "registered154/154 passed; CPU catalog incomplete"
+      },
+      "integrated_full_suite": {
+        "compiler_sha256": "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc",
+        "ctest_passed": 154,
+        "ctest_total": 154,
+        "elapsed_seconds": 1209.0799842919987,
+        "source_inputs_unchanged_during_run": true,
+        "selected_source_input_files": 345,
+        "result": "build/checkpoints/proof-b87fb39d/result.json",
+        "result_sha256": "33df676b3d8381ee39eb0b5d239b2222b422033d71d2c1c4e964dda88d2df480",
+        "log": "build/checkpoints/proof-b87fb39d/LastTest.log",
+        "log_sha256": "75461ad7f3ea553e8c39f41f78455376096e0a7ed14cffec21ee4acc0d451362",
+        "boundary": "Registered local macOS ARM64 suite, including dedicated Ready/Box/Range materialization/proof gates; not every CPU catalog API or cross-target execution."
+      }
+    },
+    "Range_materialization": {
+      "evidence": "range_materialization_checkpoint.json",
+      "source_sha256": "7d35b81522e05c347247656c7baca44af7b33b2aa8e9c96b375d227965da04e5",
+      "source_function_names": 18,
+      "source_overloads": 29,
+      "error_carrier": "range.RangeArrayError",
+      "private_stage": {
+        "compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+        "packaged_positive_points": 60,
+        "negative_points": 4,
+        "native_observer_executables": 10,
+        "native_observer_entry_invocations": 36,
+        "boundary": "Pinned private package plus actual generated-code sanitizer observers; this does not claim a current active compiler execution."
+      },
+      "root_stage": {
+        "source_applied": true,
+        "source_matches_private_candidate": true,
+        "all_targets_build": "passed, reported by root",
+        "registered_materialization_execution": "passed in integrated full suite",
+        "full_cpu_suite": "registered154/154 passed; CPU catalog incomplete"
+      },
+      "carrier_and_cost_boundary": "collect_vector preserves Core CollectionError. to_array uses distinct RangeArrayError; aggregate Result ABI still performs O(N) work on errors. No canonical Range namespace or Core RangeError extension.",
+      "integrated_full_suite": {
+        "compiler_sha256": "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc",
+        "ctest_passed": 154,
+        "ctest_total": 154,
+        "elapsed_seconds": 1209.0799842919987,
+        "source_inputs_unchanged_during_run": true,
+        "selected_source_input_files": 345,
+        "result": "build/checkpoints/proof-b87fb39d/result.json",
+        "result_sha256": "33df676b3d8381ee39eb0b5d239b2222b422033d71d2c1c4e964dda88d2df480",
+        "log": "build/checkpoints/proof-b87fb39d/LastTest.log",
+        "log_sha256": "75461ad7f3ea553e8c39f41f78455376096e0a7ed14cffec21ee4acc0d451362",
+        "boundary": "Registered local macOS ARM64 suite, including dedicated Ready/Box/Range materialization/proof gates; not every CPU catalog API or cross-target execution."
+      }
+    }
+  }
+}

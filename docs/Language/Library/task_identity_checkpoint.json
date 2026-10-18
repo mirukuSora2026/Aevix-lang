@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "task_identity_checkpoint.json",
+  "description": {
+    "en": "Separate private TaskId prototype evidence from a targeted active-compiler regression checkpoint, including opaque identity, the 16-byte Task descriptor, ownership and worker lifecycle boundaries."
+  },
+  "recorded_date": "2026-10-18",
+  "status": "active_targeted_checkpoint_passed",
+  "contract": {
+    "source_api": [
+      "Task.id(&Task<T>) -> TaskId",
+      "TaskId.equals(&TaskId self, TaskId other) -> bool"
+    ],
+    "task_id": "Opaque Copy diagnostic data with a private serial; no source field constructor, integer conversion, address conversion, native owner token, or OS thread ID.",
+    "uniqueness": "Nonzero monotonically issued identities within one linked runtime instance; failed creation may leave gaps. Slots, Scope closure, consumed observation and JIT invocations do not recycle identities.",
+    "exhaustion": "The last serial is issued once; later construction reports SpawnError.Overflow without wrapping.",
+    "task_storage": {
+      "bytes": 16,
+      "alignment": 8,
+      "supported_target_width_bits": 64,
+      "source_fields_exposed": false,
+      "observation_consumption": "Only the first observation word is cleared; the stored identity survives try_take consumption."
+    },
+    "native_abi": "Identified prepare operations return observation, uninitialized storage and diagnostic serial in one transaction; legacy prepare entry points remain wrappers.",
+    "ownership": "Task remains move-only and retains its Scope loan. A copied TaskId grants no Task, Scope, result-storage or cancellation authority.",
+    "worker_effect_admission_changed": false,
+    "not_in_this_batch": [
+      "Task.ready",
+      "Task.failed",
+      "borrowed child roots",
+      "downward cancellation hierarchy",
+      "async/await",
+      "GPU support",
+      "performance optimization"
+    ]
+  },
+  "private_prototype": {
+    "boundary": "Ignored private overlay and standalone programs; these results are not evidence from the later active compiler binary.",
+    "overlay_compiler_sha256": "99e5696112b860b8efa04bf4dbbd82dc577835968896fe47a78d26c383aa65c3",
+    "active_compiler_during_prototype_sha256": "390886932eb9e335dcc8094cdb62fd397f36ae1ed4b8387eb99ac95145930d93",
+    "freeze_integrity": {
+      "checked_paths": 532,
+      "changed_paths": []
+    },
+    "gates": {
+      "source_positive_mode_executions": 30,
+      "source_negative_programs": 18,
+      "source_modes": [
+        "check",
+        "AOT O0",
+        "AOT O2",
+        "ORC JIT O0",
+        "ORC JIT O2"
+      ],
+      "actually_instrumented_emitted_asan_programs": 6,
+      "air_checks": 414,
+      "canonical_source_schema_checks": 21,
+      "layout_checks": 26,
+      "layout_targets": [
+        "AArch64",
+        "x86-64"
+      ],
+      "native_identity_checks": 50,
+      "native_small_limit_exhaustion_checks": 26,
+      "standalone_legacy_native": {
+        "task_checks": 865,
+        "task_scope_checks": 1341,
+        "cancellation_checks": 1370,
+        "cancellation_clone_query_release_iterations": 4000,
+        "cancellation_derivation_cleanup_races": 200
+      }
+    },
+    "integrity_report": "build/task-next-preview/overlay-build-report.json",
+    "source_gate_log": "build/task-next-preview/identity-cli.log",
+    "source_gate_log_sha256": "4e2361a90a0fef1c5afaa5de86ed0956e0d4972fd19e17c43a029187ace07d6a",
+    "legacy_native_report": "build/task-next-preview/identity-native-legacy-report.json"
+  },
+  "active_targeted_checkpoint": {
+    "compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+    "host": {
+      "system": "Darwin",
+      "machine": "arm64"
+    },
+    "tests_passed": 40,
+    "tests_selected": 40,
+    "registered_tests_at_run": 143,
+    "elapsed_seconds": 84.14,
+    "tests": [
+      "v03_task_resources_cli",
+      "ir_aot",
+      "v03_sync_cli",
+      "v03_memory_cli",
+      "v03_closure_consume_cli",
+      "v03_cancellation_cli",
+      "v03_task_observation_cli",
+      "v03_task_cli",
+      "v03_task_ownership_cli",
+      "v03_task_generic_cli",
+      "v03_task_fault_cli",
+      "v03_task_scope_cli",
+      "dynamic_interfaces",
+      "v03_shared_cli",
+      "v03_task_system_cli",
+      "dynamic_arrays",
+      "v03_cancellation_runtime",
+      "v03_task_scope_runtime",
+      "v03_task_jit_lifetime",
+      "v03_task_runtime",
+      "v03_cancellation_air",
+      "v03_task_scope_jit_prepare",
+      "ownership",
+      "generics_interfaces",
+      "type_checker",
+      "v03_memory_air",
+      "v03_shared_air",
+      "v03_thread_safety_analysis",
+      "constant_layout",
+      "name_resolution",
+      "v03_closure_consume_air",
+      "v03_task_convenience_cli",
+      "v03_shared_runtime",
+      "type_cli",
+      "v03_task_air",
+      "v03_task_identity_runtime",
+      "v03_task_identity_exhaustion",
+      "v03_task_identity_layout",
+      "v03_task_identity_schema",
+      "v03_task_identity_cli"
+    ],
+    "log": "build/checkpoints/task-identity-active/LastTest.log",
+    "log_sha256": "9096ec18e5462e2f4c0104f62cc44fb16c02152de79f4f6fbf78133d2e9196ca",
+    "compiled_inputs": "build/checkpoints/task-identity-active/compiled-inputs.json",
+    "compiled_inputs_sha256": "7798ed250e276aa340338f0766e5f045e0a570a5475fbe9a729d9ddda8498b17",
+    "scope": "Five new Task identity gates and Task AIR/JIT preparation plus related Task, Scope, Cancellation, Closure, Shared, Sync, Memory, dynamic-interface, array and basic-type regressions.",
+    "identity_gates": [
+      "v03_task_identity_runtime",
+      "v03_task_identity_exhaustion",
+      "v03_task_identity_layout",
+      "v03_task_identity_schema",
+      "v03_task_identity_cli"
+    ],
+    "new_identity_counts": {
+      "native_identity_checks": 50,
+      "native_small_limit_exhaustion_checks": 26,
+      "layout_checks": 26,
+      "canonical_source_schema_checks": 21,
+      "positive_mode_executions": 30,
+      "negative_programs": 18,
+      "actually_instrumented_emitted_asan_programs": 6,
+      "task_air_checks": 414
+    },
+    "not_a_new_full_suite": true
+  },
+  "limits": [
+    "The 40-test active checkpoint is targeted coverage, not a completed 143-test full-suite run.",
+    "AArch64 and x86-64 layout contracts were checked; execution in this checkpoint ran on local macOS ARM64. It does not establish Linux or Windows execution.",
+    "macOS LeakSanitizer is unavailable. ASan instrumentation and explicit live-resource counters provide separate evidence; no LeakSanitizer success is claimed.",
+    "Preserved JIT module residency is module-level ctor/dtor retention, not a newly implemented per-Control resource-tracker pin.",
+    "Full CPU library completion and the separate pending Task features are not implied by this checkpoint."
+  ]
+}

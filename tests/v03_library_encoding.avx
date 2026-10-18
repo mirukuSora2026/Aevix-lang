@@ -1,0 +1,147 @@
+import encoding;
+T success<T>(Result<T, encoding.EncodingError> result) {
+    switch (move result) { case Result<T, encoding.EncodingError>.Ok { T value = value }: return value; break; case Result<T, encoding.EncodingError>.Err: Never.unreachable(); break; }
+}
+bool equal_u32(Slice<u32> a, Slice<u32> b) {
+    if (Slice.len(a) != Slice.len(b)) return false;
+    mut usize i = 0; while (i < Slice.len(a)) { if (a[i] != b[i]) return false; i++; } return true;
+}
+bool equal_u16(Slice<u16> a, Slice<u16> b) {
+    if (Slice.len(a) != Slice.len(b)) return false;
+    mut usize i = 0; while (i < Slice.len(a)) { if (a[i] != b[i]) return false; i++; } return true;
+}
+bool equal_bytes(Slice<byte> a, Slice<byte> b) {
+    if (Slice.len(a) != Slice.len(b)) return false;
+    mut usize i = 0; while (i < Slice.len(a)) { if (a[i] != b[i]) return false; i++; } return true;
+}
+i32 boundaries() {
+    u32 scalars[16] = [0u32, 1u32, 127u32, 128u32, 2047u32, 2048u32, 55295u32, 57344u32, 65535u32, 65536u32, 1114111u32, 65279u32, 97u32, 769u32, 44032u32, 128512u32];
+    byte expected_bytes[40] = [Byte.from_u8(0u8), Byte.from_u8(1u8), Byte.from_u8(127u8), Byte.from_u8(194u8), Byte.from_u8(128u8), Byte.from_u8(223u8), Byte.from_u8(191u8), Byte.from_u8(224u8), Byte.from_u8(160u8), Byte.from_u8(128u8), Byte.from_u8(237u8), Byte.from_u8(159u8), Byte.from_u8(191u8), Byte.from_u8(238u8), Byte.from_u8(128u8), Byte.from_u8(128u8), Byte.from_u8(239u8), Byte.from_u8(191u8), Byte.from_u8(191u8), Byte.from_u8(240u8), Byte.from_u8(144u8), Byte.from_u8(128u8), Byte.from_u8(128u8), Byte.from_u8(244u8), Byte.from_u8(143u8), Byte.from_u8(191u8), Byte.from_u8(191u8), Byte.from_u8(239u8), Byte.from_u8(187u8), Byte.from_u8(191u8), Byte.from_u8(97u8), Byte.from_u8(204u8), Byte.from_u8(129u8), Byte.from_u8(234u8), Byte.from_u8(176u8), Byte.from_u8(128u8), Byte.from_u8(240u8), Byte.from_u8(159u8), Byte.from_u8(152u8), Byte.from_u8(128u8)];
+    u16 expected_units[19] = [0u16, 1u16, 127u16, 128u16, 2047u16, 2048u16, 55295u16, 57344u16, 65535u16, 55296u16, 56320u16, 56319u16, 57343u16, 65279u16, 97u16, 769u16, 44032u16, 55357u16, 56832u16];
+    Slice<u32> input = Slice.from_array(&scalars);
+    Slice<byte> bytes = Slice.from_array(&expected_bytes);
+    Slice<u16> units = Slice.from_array(&expected_units);
+    if (!encoding.is_scalar(0u32) || !encoding.is_scalar(1114111u32) || encoding.is_scalar(55296u32) || encoding.is_scalar(4294967295u32)) return 1;
+    if (success(encoding.validate_scalars(input)) != 16) return 2;
+    if (success(encoding.validate_utf8(bytes)) != 16 || success(encoding.validate_utf16(units)) != 16) return 3;
+    if (success(encoding.utf8_encoded_len(input)) != Slice.len(bytes) || success(encoding.utf16_encoded_len(input)) != Slice.len(units)) return 4;
+    Vector<byte> utf8 = success(encoding.encode_utf8(input));
+    Vector<u16> utf16 = success(encoding.encode_utf16(input));
+    if (!equal_bytes(Slice.from_vector(&utf8), bytes) || !equal_u16(Slice.from_vector(&utf16), units)) return 5;
+    Vector<u32> decoded8 = success(encoding.decode_utf8_scalars(bytes));
+    Vector<u32> decoded16 = success(encoding.decode_utf16_scalars(units));
+    if (!equal_u32(Slice.from_vector(&decoded8), input) || !equal_u32(Slice.from_vector(&decoded16), input)) return 6;
+    Vector<u16> converted16 = success(encoding.utf8_to_utf16(bytes));
+    Vector<byte> converted8 = success(encoding.utf16_to_utf8(units));
+    if (!equal_u16(Slice.from_vector(&converted16), units) || !equal_bytes(Slice.from_vector(&converted8), bytes)) return 7;
+    mut usize position = 0;
+    mut usize index = 0;
+    while (position < Slice.len(bytes)) {
+        Optional<encoding.Decoded> result = success(encoding.decode_utf8_next(bytes, position));
+        switch (move result) { case Optional<encoding.Decoded>.Some { encoding.Decoded item = value }: if (item.scalar != scalars[index] || item.width < 1 || item.width > 4) return 8; position += item.width; break; default: return 9; break; }
+        index++;
+    }
+    if (index != 16) return 10;
+    Optional<encoding.Decoded> end = success(encoding.decode_utf8_next(bytes, position));
+    if (!Optional.is_none(&end)) return 11;
+    position = 0; index = 0;
+    while (position < Slice.len(units)) {
+        Optional<encoding.Decoded> result = success(encoding.decode_utf16_next(units, position));
+        switch (move result) { case Optional<encoding.Decoded>.Some { encoding.Decoded item = value }: if (item.scalar != scalars[index] || item.width < 1 || item.width > 2) return 12; position += item.width; break; default: return 13; break; }
+        index++;
+    }
+    if (index != 16) return 14;
+    Optional<encoding.Decoded> end16 = success(encoding.decode_utf16_next(units, position));
+    if (!Optional.is_none(&end16)) return 15;
+    return 0;
+}
+i32 malformed() {
+    byte bad_0[1] = [Byte.from_u8(128u8)];
+    Result<usize, encoding.EncodingError> check_0 = encoding.validate_utf8(Slice.from_array(&bad_0));
+    switch (check_0) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 1; break; default: return 1; break; }
+    byte bad_1[2] = [Byte.from_u8(192u8), Byte.from_u8(128u8)];
+    Result<usize, encoding.EncodingError> check_1 = encoding.validate_utf8(Slice.from_array(&bad_1));
+    switch (check_1) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 2; break; default: return 2; break; }
+    byte bad_2[2] = [Byte.from_u8(193u8), Byte.from_u8(191u8)];
+    Result<usize, encoding.EncodingError> check_2 = encoding.validate_utf8(Slice.from_array(&bad_2));
+    switch (check_2) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 3; break; default: return 3; break; }
+    byte bad_3[1] = [Byte.from_u8(194u8)];
+    Result<usize, encoding.EncodingError> check_3 = encoding.validate_utf8(Slice.from_array(&bad_3));
+    switch (check_3) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 4; break; default: return 4; break; }
+    byte bad_4[2] = [Byte.from_u8(194u8), Byte.from_u8(32u8)];
+    Result<usize, encoding.EncodingError> check_4 = encoding.validate_utf8(Slice.from_array(&bad_4));
+    switch (check_4) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 5; break; default: return 5; break; }
+    byte bad_5[3] = [Byte.from_u8(224u8), Byte.from_u8(159u8), Byte.from_u8(191u8)];
+    Result<usize, encoding.EncodingError> check_5 = encoding.validate_utf8(Slice.from_array(&bad_5));
+    switch (check_5) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 6; break; default: return 6; break; }
+    byte bad_6[3] = [Byte.from_u8(237u8), Byte.from_u8(160u8), Byte.from_u8(128u8)];
+    Result<usize, encoding.EncodingError> check_6 = encoding.validate_utf8(Slice.from_array(&bad_6));
+    switch (check_6) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 7; break; default: return 7; break; }
+    byte bad_7[2] = [Byte.from_u8(239u8), Byte.from_u8(191u8)];
+    Result<usize, encoding.EncodingError> check_7 = encoding.validate_utf8(Slice.from_array(&bad_7));
+    switch (check_7) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 8; break; default: return 8; break; }
+    byte bad_8[4] = [Byte.from_u8(240u8), Byte.from_u8(143u8), Byte.from_u8(191u8), Byte.from_u8(191u8)];
+    Result<usize, encoding.EncodingError> check_8 = encoding.validate_utf8(Slice.from_array(&bad_8));
+    switch (check_8) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 9; break; default: return 9; break; }
+    byte bad_9[4] = [Byte.from_u8(244u8), Byte.from_u8(144u8), Byte.from_u8(128u8), Byte.from_u8(128u8)];
+    Result<usize, encoding.EncodingError> check_9 = encoding.validate_utf8(Slice.from_array(&bad_9));
+    switch (check_9) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 10; break; default: return 10; break; }
+    byte bad_10[4] = [Byte.from_u8(245u8), Byte.from_u8(128u8), Byte.from_u8(128u8), Byte.from_u8(128u8)];
+    Result<usize, encoding.EncodingError> check_10 = encoding.validate_utf8(Slice.from_array(&bad_10));
+    switch (check_10) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 11; break; default: return 11; break; }
+    byte bad_11[1] = [Byte.from_u8(255u8)];
+    Result<usize, encoding.EncodingError> check_11 = encoding.validate_utf8(Slice.from_array(&bad_11));
+    switch (check_11) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 12; break; default: return 12; break; }
+    byte bad_12[4] = [Byte.from_u8(97u8), Byte.from_u8(226u8), Byte.from_u8(130u8), Byte.from_u8(32u8)];
+    Result<usize, encoding.EncodingError> check_12 = encoding.validate_utf8(Slice.from_array(&bad_12));
+    switch (check_12) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: if (!string.equals(problem.code(), "encoding.invalid_utf8") || string.byte_len(problem.message()) == 0) return 13; break; default: return 13; break; }
+    u16 lone_low[1] = [56320u16];
+    u16 lone_high[1] = [55296u16];
+    u16 wrong_pair[2] = [55296u16, 65u16];
+    Result<usize, encoding.EncodingError> failure_probe_0 = encoding.validate_utf16(Slice.from_array(&lone_low));
+    if (!Result.is_err(&failure_probe_0)) return 30;
+    Result<usize, encoding.EncodingError> failure_probe_1 = encoding.validate_utf16(Slice.from_array(&lone_high));
+    if (!Result.is_err(&failure_probe_1)) return 31;
+    Result<usize, encoding.EncodingError> invalid16 = encoding.validate_utf16(Slice.from_array(&wrong_pair));
+    switch (invalid16) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: switch (*problem) { case encoding.EncodingError.InvalidUtf16 { usize offset = offset }: if (offset != 1) return 32; break; default: return 33; break; } break; default: return 34; break; }
+    u32 invalid_scalars[3] = [65u32, 55296u32, 1114112u32];
+    Result<usize, encoding.EncodingError> bad_scalar = encoding.validate_scalars(Slice.from_array(&invalid_scalars));
+    switch (bad_scalar) { case Result<usize, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: switch (*problem) { case encoding.EncodingError.InvalidScalar { usize offset = offset, u32 scalar = value }: if (offset != 1 || scalar != 55296u32) return 35; break; default: return 36; break; } break; default: return 37; break; }
+    byte empty[0] = [];
+    Result<Optional<encoding.Decoded>, encoding.EncodingError> out_of_bounds = encoding.decode_utf8_next(Slice.from_array(&empty), 1);
+    switch (out_of_bounds) { case Result<Optional<encoding.Decoded>, encoding.EncodingError>.Err { &encoding.EncodingError problem = error }: switch (*problem) { case encoding.EncodingError.OffsetOutOfBounds { usize offset = offset, usize length = length }: if (offset != 1 || length != 0) return 38; break; default: return 39; break; } break; default: return 40; break; }
+    Result<Vector<byte>, encoding.EncodingError> failure_probe_2 = encoding.encode_utf8(Slice.from_array(&invalid_scalars));
+    if (!Result.is_err(&failure_probe_2)) return 41;
+    Result<Vector<u16>, encoding.EncodingError> failure_probe_3 = encoding.encode_utf16(Slice.from_array(&invalid_scalars));
+    if (!Result.is_err(&failure_probe_3)) return 42;
+    return 0;
+}
+i32 ascii_and_bom() {
+    byte bytes[4] = [Byte.from_u8(0u8), Byte.from_u8(65u8), Byte.from_u8(10u8), Byte.from_u8(127u8)];
+    u32 expected[4] = [0u32, 65u32, 10u32, 127u32];
+    if (success(encoding.validate_ascii(Slice.from_array(&bytes))) != 4) return 1;
+    Vector<u32> scalars = success(encoding.decode_ascii_scalars(Slice.from_array(&bytes)));
+    Vector<byte> encoded = success(encoding.encode_ascii(Slice.from_array(&expected)));
+    if (!equal_u32(Slice.from_vector(&scalars), Slice.from_array(&expected)) || !equal_bytes(Slice.from_vector(&encoded), Slice.from_array(&bytes))) return 2;
+    byte invalid[1] = [Byte.from_u8(128u8)];
+    Result<usize, encoding.EncodingError> failure_probe_4 = encoding.validate_ascii(Slice.from_array(&invalid));
+    if (!Result.is_err(&failure_probe_4)) return 3;
+    Result<Vector<u32>, encoding.EncodingError> failure_probe_5 = encoding.decode_ascii_scalars(Slice.from_array(&invalid));
+    if (!Result.is_err(&failure_probe_5)) return 4;
+    u32 invalid_scalar[1] = [128u32];
+    Result<Vector<byte>, encoding.EncodingError> failure_probe_6 = encoding.encode_ascii(Slice.from_array(&invalid_scalar));
+    if (!Result.is_err(&failure_probe_6)) return 5;
+    Slice<byte> bom = string.as_bytes("﻿A");
+    if (!encoding.has_utf8_bom(bom) || encoding.has_utf8_bom(Slice.from_array(&bytes))) return 6;
+    Slice<byte> stripped = encoding.strip_utf8_bom(bom);
+    if (Slice.len(stripped) != 1 || Byte.to_u8(stripped[0]) != 65u8) return 7;
+    if (Slice.len(encoding.strip_utf8_bom(Slice.from_array(&bytes))) != 4) return 8;
+    if (success(encoding.validate_utf8(bom)) != 2) return 9;
+    byte empty[0] = []; u16 empty16[0] = []; u32 empty32[0] = [];
+    if (success(encoding.validate_utf8(Slice.from_array(&empty))) != 0 || success(encoding.validate_utf16(Slice.from_array(&empty16))) != 0 || success(encoding.validate_scalars(Slice.from_array(&empty32))) != 0) return 10;
+    Vector<byte> empty_encoded = success(encoding.encode_utf8(Slice.from_array(&empty32)));
+    Vector<u32> empty_decoded = success(encoding.decode_utf8_scalars(Slice.from_array(&empty)));
+    if (Vector.len(&empty_encoded) != 0 || Vector.len(&empty_decoded) != 0) return 11;
+    return 0;
+}
+i32 main() { i32 a = boundaries(); if (a != 0) return a; i32 b = malformed(); if (b != 0) return b + 50; i32 c = ascii_and_bom(); return c == 0 ? 0 : c + 100; }

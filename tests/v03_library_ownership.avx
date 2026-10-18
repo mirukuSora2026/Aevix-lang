@@ -1,0 +1,69 @@
+import optional;
+import result;
+
+struct Counter implements Drop {
+    public &mut i32 target;
+    public i32 id;
+    public void drop(&mut Counter self) { *self.target += 1; return; }
+};
+void consume(Counter input) { return; }
+
+i32 main() {
+    mut i32 left_drops = 0;
+    mut i32 right_drops = 0;
+    {
+        Optional<Counter> input = Optional.some(Counter { target = &mut left_drops, id = 1 });
+        Counter fallback = Counter { target = &mut right_drops, id = 2 };
+        consume(optional.unwrap_or(input, fallback));
+    }
+    if (left_drops != 1 || right_drops != 1) return 1;
+    {
+        Optional<Counter> input = Optional.some(Counter { target = &mut left_drops, id = 3 });
+        Optional<Counter> mapped = optional.map<Counter, Counter>(input, [](Counter item) -> Counter { return item; });
+        if (!Optional.is_some(&mapped)) return 2;
+    }
+    if (left_drops != 2) return 3;
+    {
+        Optional<Counter> input = Optional.some(Counter { target = &mut left_drops, id = 4 });
+        Optional<Counter> filtered = optional.filter(input, [](&Counter item) -> bool { return false; });
+        if (!Optional.is_none(&filtered)) return 4;
+    }
+    if (left_drops != 3) return 5;
+    {
+        Optional<i32> missing = Optional.none();
+        Optional<Counter> input = Optional.some(Counter { target = &mut right_drops, id = 5 });
+        Optional<Tuple<i32, Counter>> paired = optional.zip(missing, input);
+        if (!Optional.is_none(&paired)) return 6;
+    }
+    if (right_drops != 2) return 7;
+    {
+        Result<i32, Counter> left = Result.err(Counter { target = &mut left_drops, id = 7 });
+        Result<i32, Counter> right = Result.err(Counter { target = &mut right_drops, id = 8 });
+        Result<Tuple<i32, i32>, Counter> paired = result.zip(left, right);
+        switch (move paired) {
+            case Result<Tuple<i32, i32>, Counter>.Ok: return 8; break;
+            case Result<Tuple<i32, i32>, Counter>.Err { Counter problem = error }: if (problem.id != 7) return 9; break;
+        }
+    }
+    if (left_drops != 4 || right_drops != 3) return 10;
+    {
+        Result<Counter, i32> input = Result.ok(Counter { target = &mut left_drops, id = 9 });
+        Result<Counter, i32> mapped = result.map<Counter, i32, Counter>(input, [](Counter item) -> Counter { return item; });
+        if (!Result.is_ok(&mapped)) return 11;
+    }
+    if (left_drops != 5) return 12;
+    mut i32 calls = 0;
+    Optional<i32> some = Optional.some(7);
+    i32 first = optional.unwrap_or_else(some, [&mut calls]() -> i32 { calls++; return 8; });
+    if (first != 7 || calls != 0) return 13;
+    Optional<i32> none = Optional.none();
+    i32 second = optional.unwrap_or_else(none, [&mut calls]() -> i32 { calls++; return 8; });
+    if (second != 8 || calls != 1) return 14;
+    Result<i32, i32> ok = Result.ok(7);
+    i32 third = result.unwrap_or_else(ok, [&mut calls](i32 problem) -> i32 { calls++; return problem; });
+    if (third != 7 || calls != 1) return 15;
+    Result<i32, i32> err = Result.err(9);
+    i32 fourth = result.unwrap_or_else(err, [&mut calls](i32 problem) -> i32 { calls++; return problem; });
+    if (fourth != 9 || calls != 2) return 16;
+    return 0;
+}

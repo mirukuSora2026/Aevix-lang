@@ -1,0 +1,124 @@
+import boolean;
+import atomic { Atomic, MemoryOrder };
+import error { AnyError, Error };
+import ordering { Ordering };
+T success<T,E>(Result<T,E> input) { switch (move input) { case Result<T,E>.Ok { T value = value }: return value; break; default: Never.unreachable(); break; } }
+persist Atomic<i32> destroyed = Atomic.new(0);
+persist Atomic<i32> evaluated = Atomic.new(0);
+struct Owned implements Drop {
+    public i32 value;
+    public void drop(&mut Self self) { success(Atomic.fetch_add(&destroyed,1,MemoryOrder.Relaxed)); return; }
+};
+bool bump(bool value) { success(Atomic.fetch_add(&evaluated,1,MemoryOrder.Relaxed)); return value; }
+bool invalid_text(string_view token) {
+    switch (boolean.parse(token)) {
+        case Result<bool,boolean.BooleanError>.Ok: return false; break;
+        case Result<bool,boolean.BooleanError>.Err { boolean.BooleanError failure = error }:
+            switch (failure) { case boolean.BooleanError.InvalidText: return true; break; default: return false; break; }
+            break;
+    }
+}
+i32 main() {
+    for (i32 l in Range.new(0,2)) {
+        for (i32 r in Range.new(0,2)) {
+            bool left = l == 1;
+            bool right = r == 1;
+            if (boolean.not(left) != !left || boolean.and(left,right) != (left && right) || boolean.or(left,right) != (left || right)) return 1;
+            if (boolean.xor(left,right) != (left != right) || boolean.equal(left,right) != (left == right)) return 2;
+            switch (boolean.compare(left,right)) {
+                case Ordering.Less: if (!(l < r)) return 3; break;
+                case Ordering.Equal: if (l != r) return 4; break;
+                case Ordering.Greater: if (!(l > r)) return 5; break;
+            }
+        }
+    }
+    boolean.and(bump(false),bump(true));
+    if (success(Atomic.load(&evaluated,MemoryOrder.Relaxed)) != 2) return 6;
+    boolean.or(bump(true),bump(false));
+    if (success(Atomic.load(&evaluated,MemoryOrder.Relaxed)) != 4) return 7;
+    if (!success(boolean.parse("true")) || success(boolean.parse("false"))) return 8;
+    if (!invalid_text("") || !invalid_text("True") || !invalid_text("FALSE") || !invalid_text(" true") || !invalid_text("false ") || !invalid_text("1") || !invalid_text("true\0") || !invalid_text("trué")) return 9;
+    bool empty[0] = [];
+    bool inputs[5] = [false,true,true,false,true];
+    if (!boolean.all(Slice.from_array(&empty)) || boolean.any(Slice.from_array(&empty)) || boolean.count_true(Slice.from_array(&empty)) != 0usize) return 10;
+    if (boolean.all(Slice.from_array(&inputs)) || !boolean.any(Slice.from_array(&inputs)) || boolean.count_true(Slice.from_array(&inputs)) != 3usize) return 11;
+    for (i32 encoded in Range.new(0,2)) {
+        bool value = encoded == 1;
+        string_view token = value ? "true" : "false";
+        usize required = string.byte_len(token);
+        string owned = success(boolean.format(value));
+        if (!string.equals(string.view(&owned),token)) return 12;
+        for (usize capacity in Range.new(0usize,7usize)) {
+            mut byte output[6] = [Byte.from_u8(99u8),Byte.from_u8(99u8),Byte.from_u8(99u8),Byte.from_u8(99u8),Byte.from_u8(99u8),Byte.from_u8(99u8)];
+            Result<usize,boolean.BooleanError> result = boolean.format_into(value,success(Slice.slice_mut(Slice.from_array_mut(&mut output),0usize,capacity)));
+            if (capacity < required) {
+                switch (result) {
+                    case Result<usize,boolean.BooleanError>.Ok: return 13; break;
+                    case Result<usize,boolean.BooleanError>.Err { boolean.BooleanError cause = error }:
+                        switch (cause) { case boolean.BooleanError.BufferTooSmall { usize needed = required, usize available = available }: if (needed != required || available != capacity) return 14; break; default: return 15; break; }
+                        break;
+                }
+                for (byte item : output) if (Byte.to_u8(item) != 99u8) return 16;
+            } else {
+                if (success(result) != required) return 17;
+                Slice<byte> expected = string.as_bytes(token);
+                for (usize index in Range.new(0usize,6usize)) if (Byte.to_u8(output[index]) != (index < required ? Byte.to_u8(expected[index]) : 99u8)) return 18;
+            }
+        }
+    }
+    {
+        Owned selected = boolean.select(true,Owned { value = 10 },Owned { value = 20 });
+        if (selected.value != 10 || success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 1) return 19;
+    }
+    if (success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 2) return 20;
+    Optional<Owned> absent = boolean.then_some(false,Owned { value = 30 });
+    if (Optional.is_some(&absent) || success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 3) return 21;
+    {
+        Optional<Owned> present = boolean.then_some(true,Owned { value = 40 });
+        if (!Optional.is_some(&present) || success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 3) return 22;
+    }
+    if (success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 4) return 23;
+    {
+        Owned capture = Owned { value = 50 };
+        Optional<Owned> uncalled = boolean.then(false,[capture]() -> Owned { success(Atomic.fetch_add(&evaluated,1,MemoryOrder.Relaxed)); return Owned { value = capture.value }; });
+        if (Optional.is_some(&uncalled) || success(Atomic.load(&evaluated,MemoryOrder.Relaxed)) != 4 || success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 5) return 24;
+    }
+    {
+        Owned capture = Owned { value = 60 };
+        Optional<Owned> called = boolean.then(true,[capture]() -> Owned { success(Atomic.fetch_add(&evaluated,1,MemoryOrder.Relaxed)); return Owned { value = capture.value }; });
+        if (!Optional.is_some(&called) || success(Atomic.load(&evaluated,MemoryOrder.Relaxed)) != 5 || success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 6) return 25;
+    }
+    if (success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 7) return 26;
+    success(boolean.ok_or(true,Owned { value = 70 }));
+    if (success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 8) return 27;
+    {
+        Result<unit,Owned> failed = boolean.ok_or(false,Owned { value = 80 });
+        if (!Result.is_err(&failed) || success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 8) return 28;
+    }
+    if (success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 9) return 29;
+    {
+        Owned capture = Owned { value = 90 };
+        Result<unit,Owned> passed = boolean.ok_or_else(true,[capture]() -> Owned { success(Atomic.fetch_add(&evaluated,1,MemoryOrder.Relaxed)); return Owned { value = capture.value }; });
+        success(passed);
+        if (success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 10 || success(Atomic.load(&evaluated,MemoryOrder.Relaxed)) != 5) return 30;
+    }
+    {
+        Owned capture = Owned { value = 100 };
+        Result<unit,Owned> failed = boolean.ok_or_else(false,[capture]() -> Owned { success(Atomic.fetch_add(&evaluated,1,MemoryOrder.Relaxed)); return Owned { value = capture.value }; });
+        if (!Result.is_err(&failed) || success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 11 || success(Atomic.load(&evaluated,MemoryOrder.Relaxed)) != 6) return 31;
+    }
+    if (success(Atomic.load(&destroyed,MemoryOrder.Relaxed)) != 12) return 32;
+    boolean.BooleanError reason = boolean.BooleanError.InvalidText;
+    &dyn Error view = &reason;
+    if (!string.equals(view.code(),"boolean.invalid_text")) return 33;
+    if (string.is_empty(view.message())) return 35;
+    AnyError packed = success(AnyError.pack(reason));
+    if (!string.equals(packed.code(),"boolean.invalid_text")) return 34;
+    if (string.is_empty(packed.message())) return 36;
+    boolean.BooleanError reasons[4] = [boolean.BooleanError.InvalidRepresentation,boolean.BooleanError.InvalidText,boolean.BooleanError.AllocationFailure,boolean.BooleanError.BufferTooSmall { required = 5usize, available = 4usize }];
+    string_view codes[4] = ["boolean.invalid_representation","boolean.invalid_text","boolean.allocation_failure","boolean.buffer_too_small"];
+    for (usize index in Range.new(0usize,4usize)) {
+        if (!string.equals(reasons[index].code(),codes[index]) || string.is_empty(reasons[index].message())) return 37;
+    }
+    return 0;
+}

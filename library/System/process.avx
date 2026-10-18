@@ -1,0 +1,248 @@
+/*
+ * Lifecycle of the process public module.
+ * @module process
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public import error { ProcessError };
+import error { Error, TimeError };
+import memory;
+import time { Duration, Instant, sleep };
+
+/*
+ * A process wait may fail while polling the child or reading the monotonic clock.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum WaitError implements Copy, Error {
+    /*
+     * Version history for the process.WaitError.Process public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Process { /*
+ * Version history for the process.WaitError.Process.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public ProcessError error; };
+    /*
+     * Version history for the process.WaitError.Clock public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Clock { /*
+ * Version history for the process.WaitError.Clock.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public TimeError error; };
+
+    /*
+     * Version history for the process.WaitError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&WaitError self) {
+        switch (*self) {
+            case WaitError.Process { &ProcessError cause = error }: return cause.code(); break;
+            case WaitError.Clock { &TimeError cause = error }: return cause.code(); break;
+        }
+    }
+    /*
+     * Version history for the process.WaitError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&WaitError self) {
+        switch (*self) {
+            case WaitError.Process { &ProcessError cause = error }: return cause.message(); break;
+            case WaitError.Clock { &TimeError cause = error }: return cause.message(); break;
+        }
+    }
+};
+
+/*
+ * Version history for the process.ExitStatus public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct ExitStatus implements Copy {
+    /*
+     * Version history for the process.ExitStatus.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public i32 code;
+    /*
+     * Version history for the process.ExitStatus.signal public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public i32 signal;
+    /*
+     * Version history for the process.ExitStatus.success public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool success(&ExitStatus self) { return self.signal == 0 && self.code == 0; }
+    /*
+     * Version history for the process.ExitStatus.signaled public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool signaled(&ExitStatus self) { return self.signal != 0; }
+};
+
+/*
+ * Owns one child process. Drop waits and reaps; it never implicitly terminates a child.
+ * Arguments are passed individually without shell expansion.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Child implements Drop {
+    u64 token;
+    /*
+     * Version history for the process.Child.spawn public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Child, ProcessError> spawn(Slice<string_view> arguments) {
+        Tuple<i32, u64, i32, i32> outcome = __process_spawn(arguments);
+        i32 status = *Tuple.get<0>(&outcome);
+        if (status == 0) return Result.ok(Child { token = *Tuple.get<1>(&outcome) });
+        if (status == 2 || status == 3) return Result.err(ProcessError.InvalidArgument);
+        if (status == 4 || status == 5) return Result.err(ProcessError.AllocationFailure);
+        if (status == 7) return Result.err(ProcessError.Unsupported);
+        return Result.err(ProcessError.SpawnFailed { os_code = *Tuple.get<2>(&outcome) });
+    }
+    /*
+     * Version history for the process.Child.is_joined public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_joined(&Child self) { return self.token == 0; }
+    /*
+     * Version history for the process.Child.wait public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<ExitStatus, ProcessError> wait(&mut Child self) {
+        if (self.token == 0) return Result.err(ProcessError.AlreadyReaped);
+        Tuple<i32, Tuple<i32, i32>, i32, i32> outcome = __process_wait(self.token);
+        i32 status = *Tuple.get<0>(&outcome);
+        if (status != 0) {
+            if (status == 6) return Result.err(ProcessError.AlreadyReaped);
+            return Result.err(ProcessError.WaitFailed { os_code = *Tuple.get<2>(&outcome) });
+        }
+        self.token = 0;
+        &Tuple<i32, i32> exited = Tuple.get<1>(&outcome);
+        return Result.ok(ExitStatus { code = *Tuple.get<0>(exited), signal = *Tuple.get<1>(exited) });
+    }
+    /*
+     * Poll once without blocking. None preserves the child; Some consumes its native token.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Optional<ExitStatus>, ProcessError> try_wait(&mut Child self) {
+        if (self.token == 0) return Result.err(ProcessError.AlreadyReaped);
+        Tuple<i32, Tuple<i32, i32>, i32, i32> outcome = __process_try_wait(self.token);
+        i32 status = *Tuple.get<0>(&outcome);
+        if (status == 8) return Result.ok(Optional.none());
+        if (status != 0) {
+            if (status == 6) return Result.err(ProcessError.AlreadyReaped);
+            return Result.err(ProcessError.WaitFailed { os_code = *Tuple.get<2>(&outcome) });
+        }
+        self.token = 0;
+        &Tuple<i32, i32> exited = Tuple.get<1>(&outcome);
+        return Result.ok(Optional.some(ExitStatus { code = *Tuple.get<0>(exited), signal = *Tuple.get<1>(exited) }));
+    }
+    /*
+     * Request forced termination: SIGKILL on POSIX, TerminateProcess with code 1 on Windows.
+     * Success does not mean completion; wait or try_wait must still reap the child.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, ProcessError> kill(&mut Child self) {
+        if (self.token == 0) return Result.err(ProcessError.AlreadyReaped);
+        Tuple<i32, usize, i32, i32> outcome = __process_kill(self.token);
+        i32 status = *Tuple.get<0>(&outcome);
+        if (status == 0) return Result.ok(Unit.value());
+        if (status == 6) return Result.err(ProcessError.AlreadyReaped);
+        return Result.err(ProcessError.TerminationFailed { os_code = *Tuple.get<2>(&outcome) });
+    }
+    /*
+     * Poll at intervals of at most one millisecond; zero timeout performs one poll.
+     * None retains the running child and does not kill it. Scheduling may delay return.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Optional<ExitStatus>, WaitError> wait_timeout(&mut Child self, Duration timeout) {
+        Optional<ExitStatus> initial = wait_process(self.try_wait())?;
+        if (Optional.is_some(&initial) || timeout.is_zero()) return Result.ok(initial);
+        Instant start = wait_clock(Instant.now())?;
+        while (true) {
+            Duration elapsed = wait_clock(start.elapsed())?;
+            if (elapsed.as_nanos() >= timeout.as_nanos()) return Result.ok(Optional.none());
+            u64 remaining = timeout.as_nanos() - elapsed.as_nanos();
+            wait_clock(sleep(Duration.from_nanos(remaining < 1000000 ? remaining : 1000000)))?;
+            Optional<ExitStatus> finished = wait_process(self.try_wait())?;
+            if (Optional.is_some(&finished)) return Result.ok(finished);
+        }
+    }
+    /*
+     * Version history for the process.Child.drop public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public void drop(&mut Child self) { __process_cleanup(self.token); return; }
+};
+/*
+ * Version history for the process.run public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<ExitStatus, ProcessError> run(Slice<string_view> arguments) {
+    mut Child child = Child.spawn(arguments)?;
+    return child.wait();
+}
+Tuple<i32, u64, i32, i32> __process_spawn(Slice<string_view> arguments) {}
+Tuple<i32, Tuple<i32, i32>, i32, i32> __process_wait(u64 token) {}
+Tuple<i32, Tuple<i32, i32>, i32, i32> __process_try_wait(u64 token) {}
+Tuple<i32, usize, i32, i32> __process_kill(u64 token) {}
+unit __process_cleanup(u64 token) {}
+
+Result<T, WaitError> wait_process<T>(Result<T, ProcessError> outcome) {
+    switch (move outcome) {
+        case Result<T, ProcessError>.Ok { T item = value }: return Result.ok(item); break;
+        case Result<T, ProcessError>.Err { ProcessError cause = error }: return Result.err(WaitError.Process { error = cause }); break;
+    }
+}
+Result<T, WaitError> wait_clock<T>(Result<T, TimeError> outcome) {
+    switch (move outcome) {
+        case Result<T, TimeError>.Ok { T item = value }: return Result.ok(item); break;
+        case Result<T, TimeError>.Err { TimeError cause = error }: return Result.err(WaitError.Clock { error = cause }); break;
+    }
+}

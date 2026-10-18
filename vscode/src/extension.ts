@@ -306,7 +306,7 @@ export function activate(context: vscode.ExtensionContext): { refreshIndex(): Pr
             const analysis = tools.analysis(document); const offset = document.offsetAt(position); const token = tokenAt(analysis, Math.max(0, offset - 1));
             if (token && ['comment', 'string', 'number'].includes(token.kind)) {
                 if (token.kind === 'comment' && /@\w*$/.test(document.getText(range(document, token.start, offset)))) {
-                    return ['parameter', 'return', 'version', 'deprecated', 'deprecated_at'].map(name => new vscode.CompletionItem(name, vscode.CompletionItemKind.Keyword));
+                    return ['parameter', 'return', 'version', 'since', 'deprecated', 'deprecated_at', 'removed_at'].map(name => new vscode.CompletionItem(name, vscode.CompletionItemKind.Keyword));
                 }
                 return [];
             }

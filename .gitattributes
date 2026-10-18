@@ -1,0 +1,35 @@
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : .gitattributes
+#
+# Description :
+#     줄바꿈 변환으로 고정 유니코드 원본과 재생성 라이브러리의 해시가 달라지지 않도록 한다.
+#     Preserve pinned Unicode data and reproducible library hashes across checkout platforms.
+#
+# ========================
+
+/third_party/unicode/17.0.0/** -text
+/tools/unicode/generate_ucd text eol=lf
+/tools/library/generate_* text eol=lf
+/library/**/*.avx text eol=lf
+/tests/generate_*_golden.py text eol=lf
+/docs/Language/Library/*_source_schema.json text eol=lf
+/library/Core/unicode.avx text eol=lf
+/docs/Language/Library/unicode_properties.json text eol=lf
+/third_party/unicode/17.0.0/artifact-manifest.json text eol=lf
+/third_party/unicode/17.0.0/PropertyValueAliases.txt whitespace=-blank-at-eol
+
+# 벤치마크 CSV의 기록된 SHA256이 플랫폼별 줄바꿈 변환으로 바뀌지 않게 한다.
+# Keep benchmark CSV SHA256 values stable across platform line-ending conversion.
+/benchmarks/Comparison/**/*.csv -text whitespace=cr-at-eol
+
+# 고정된 생성물과 측정 입력은 공백까지 원본 해시를 유지한다.
+# Preserve exact whitespace in pinned generated artifacts and measured inputs.
+/library/Math/floating.avx whitespace=-blank-at-eof
+/third_party/unicode/17.0.0/SpecialCasing.txt whitespace=-blank-at-eof
+/benchmarks/Comparison/extended/workloads/struct_direct.c whitespace=-blank-at-eol
+/benchmarks/Comparison/extended/workloads/interface_static.c whitespace=-blank-at-eol
+/benchmarks/Comparison/extended/workloads/smoke/struct_direct.c whitespace=-blank-at-eol
+/benchmarks/Comparison/extended/workloads/smoke/interface_static.c whitespace=-blank-at-eol

@@ -1,0 +1,2001 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "char_contract_audit.json",
+  "description": {
+    "en": "Exact Char catalog spelling, alternate source behavior, error-carrier differences and absent-provider audit at one compiler snapshot. This is not a full CPU implementation claim.",
+    "ko": "한 컴파일러 스냅샷에서 Char 카탈로그 표기·대체 소스 동작·오류 전달 타입 차이·제공자 부재를 구분한다. CPU 전체 구현의 완성을 뜻하지 않는다."
+  },
+  "status": "read_only_snapshot_audit_not_new_implementation",
+  "compiler_sha256": "f46a65b285de877890db475919d5b1820099f16369c35a42d4de41b28172b91c",
+  "catalog_rows": 107,
+  "direct_namespace": {
+    "supported_catalog_calls": 0,
+    "unsupported_catalog_calls": 107,
+    "validation": "All107 catalog calls were compile-checked with basic valid argument types; none was executed. Each failed because the Char namespace has no concrete callable binding in the audited compiler.",
+    "boundary": "A prelude namespace symbol is not a public operation implementation; later Char compiler changes require a new audit."
+  },
+  "classification": {
+    "no_provider_ucd_profile_required": 50,
+    "no_provider_unicode_independent": 37,
+    "existing_operation_error_carrier_differs": 2,
+    "existing_behavior_alternate_namespace": 18
+  },
+  "sources": [
+    {
+      "path": "src/Frontend/Sema/NameResolver.cpp",
+      "role": "Prelude Char namespace registration; no operation implementation implied"
+    },
+    {
+      "path": "src/Frontend/Sema/GenericResolver.cpp",
+      "role": "Type-directed char.parse dispatch; no Char numeric scalar conversion dispatch"
+    },
+    {
+      "path": "src/Frontend/Sema/TypeChecker.cpp",
+      "role": "Actual scalar, numeric and text operation contracts"
+    },
+    {
+      "path": "runtime/Text/ParseRuntime.cpp",
+      "role": "Strict exact-one scalar parse, shortest UTF8 and scalar-domain checks"
+    },
+    {
+      "path": "library/Core/ascii.avx",
+      "role": "Explicit ASCII char/byte/text overloads; not Unicode property operations"
+    },
+    {
+      "path": "library/Core/encoding.avx",
+      "role": "Strict UTF scalar/code-unit foundation with u32 Decoded.scalar and EncodingError"
+    }
+  ],
+  "next_bounded_batch": {
+    "compiler_prerequisites": [
+      "Exact nonfallible Char.to_u32(char)->u32 and checked Char.from_u32(u32)->Result<char, explicit error> without numeric reinterpretation or allocation.",
+      "Keep Unicode scalar invariants: reject surrogates/>0x10ffff; preserve U+0000/noncharacters/unassigned scalars.",
+      "Retain canonical builtin identity and strict result shapes through lowering/AIR/JIT."
+    ],
+    "source_surface": [
+      "Scalar constants/predicates and UTF8/UTF16 lengths",
+      "ASCII blank/sign/compare and checked ASCII encode/decode",
+      "Exact-one UTF8/UTF16 decode, prefix decode, bounded encode and fixed zero-padded output",
+      "Escape/U+ parsing and owned scalar-to-string with explicit allocation errors"
+    ],
+    "testing": [
+      "Every Unicode scalar plus surrogate/out-of-range errors",
+      "Every ASCII input and byte boundary, binary UTF malformed boundaries, output preserved on short capacity",
+      "Exact payloads, allocation failure and same-name namespace regressions"
+    ],
+    "later_ucd": [
+      "Pin a chosen released Unicode dataset version, its hashes and license before property/classification/name/case/segmentation tables.",
+      "Do not replace Unicode operations with ASCII or locale-dependent host libc.",
+      "Define scalar-only full-case behavior separately from string-context/locale-sensitive casing."
+    ]
+  },
+  "records": [
+    {
+      "id": "catalog:7e0e7e74f993be90cabd",
+      "name": "Char.age",
+      "signature": "Char.age(char c)",
+      "returns": "Optional<UnicodeVersion>",
+      "contract": "Return UCD age when available; unassigned values have no invented age.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-age",
+          "section": "Properties",
+          "line": 462
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:c4497a7c5ca6bbd14ef7",
+      "name": "Char.ascii_compare_ignore_case",
+      "signature": "Char.ascii_compare_ignore_case(char left, char right)",
+      "returns": "Ordering",
+      "contract": "Compare scalar values after ASCII folding; no locale or allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_compare_ignore_case",
+          "section": "Case-Mapping",
+          "line": 235
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:1b6a8c536cf8565d5c7d",
+      "name": "Char.ascii_decode",
+      "signature": "Char.ascii_decode(byte value)",
+      "returns": "Result<char, CharError>",
+      "contract": "Decode one seven-bit byte; reject values 128…255.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_decode",
+          "section": "Encoding",
+          "line": 327
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:2b54e8b65b389fd259be",
+      "name": "Char.ascii_digit_value",
+      "signature": "Char.ascii_digit_value(char c, u32 radix)",
+      "returns": "Result<Optional<u32>, CharError>",
+      "contract": "Require radix 2…36; accept ASCII digits and letters only.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_digit_value",
+          "section": "Digits",
+          "line": 274
+        }
+      ],
+      "status": "existing_operation_error_carrier_differs",
+      "provider": "ascii.digit_value(char,u32)",
+      "difference": "Returns Result<Optional<u32>,ascii.DigitError>, not CharError."
+    },
+    {
+      "id": "catalog:d51192a1376dc20e3649",
+      "name": "Char.ascii_encode",
+      "signature": "Char.ascii_encode(char c)",
+      "returns": "Result<byte, CharError>",
+      "contract": "Encode one ASCII scalar as one byte; reject non-ASCII values.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_encode",
+          "section": "Encoding",
+          "line": 320
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:d3df9bb9d36d52ffbe8e",
+      "name": "Char.ascii_equal_ignore_case",
+      "signature": "Char.ascii_equal_ignore_case(char left, char right)",
+      "returns": "bool",
+      "contract": "Compare after ASCII folding; never Unicode-fold non-ASCII scalars.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_equal_ignore_case",
+          "section": "Case-Mapping",
+          "line": 228
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.equal_ignore_case",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:6f1527819bc4a8d41d4e",
+      "name": "Char.ascii_escape",
+      "signature": "Char.ascii_escape(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate an ASCII diagnostic escape; reject non-ASCII input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_escape",
+          "section": "Encoding",
+          "line": 341
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:1e36e5b7a9680bad2dae",
+      "name": "Char.ascii_from_u8",
+      "signature": "Char.ascii_from_u8(u8 value)",
+      "returns": "Result<char, CharError>",
+      "contract": "Accept 0…127, including NUL and controls; reject high-bit input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_from_u8",
+          "section": "Encoding",
+          "line": 313
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:295d3fd10b28f80ac62f",
+      "name": "Char.ascii_is_alphabetic",
+      "signature": "Char.ascii_is_alphabetic(char c)",
+      "returns": "bool",
+      "contract": "A–Z or a–z; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_alphabetic",
+          "section": "Classification",
+          "line": 74
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_alphabetic",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:a41fcae64cd1fd39cf92",
+      "name": "Char.ascii_is_alphanumeric",
+      "signature": "Char.ascii_is_alphanumeric(char c)",
+      "returns": "bool",
+      "contract": "ASCII letter or decimal digit; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_alphanumeric",
+          "section": "Classification",
+          "line": 81
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_alphanumeric",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:a6638082fe185b7d947c",
+      "name": "Char.ascii_is_binary_digit",
+      "signature": "Char.ascii_is_binary_digit(char c)",
+      "returns": "bool",
+      "contract": "0 or 1; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_binary_digit",
+          "section": "Classification",
+          "line": 123
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_binary_digit",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:2070891ff566b50e0f39",
+      "name": "Char.ascii_is_blank",
+      "signature": "Char.ascii_is_blank(char c)",
+      "returns": "bool",
+      "contract": "SPACE or horizontal tab; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_blank",
+          "section": "Classification",
+          "line": 167
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:f2a39865684581f9b312",
+      "name": "Char.ascii_is_control",
+      "signature": "Char.ascii_is_control(char c)",
+      "returns": "bool",
+      "contract": "U+0000…U+001F or U+007F; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_control",
+          "section": "Classification",
+          "line": 137
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_control",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:d5d5a08787e76b93338a",
+      "name": "Char.ascii_is_digit",
+      "signature": "Char.ascii_is_digit(char c)",
+      "returns": "bool",
+      "contract": "0–9; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_digit",
+          "section": "Classification",
+          "line": 102
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_digit",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:af092cc7f7dc6c5f8ee7",
+      "name": "Char.ascii_is_graphic",
+      "signature": "Char.ascii_is_graphic(char c)",
+      "returns": "bool",
+      "contract": "U+0021…U+007E; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_graphic",
+          "section": "Classification",
+          "line": 144
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_graphic",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:457aaf2d513bafc33b5c",
+      "name": "Char.ascii_is_hex_digit",
+      "signature": "Char.ascii_is_hex_digit(char c)",
+      "returns": "bool",
+      "contract": "0–9, A–F, or a–f; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_hex_digit",
+          "section": "Classification",
+          "line": 109
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_hex_digit",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:94f3911bf2a26959d344",
+      "name": "Char.ascii_is_lowercase",
+      "signature": "Char.ascii_is_lowercase(char c)",
+      "returns": "bool",
+      "contract": "a–z; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_lowercase",
+          "section": "Classification",
+          "line": 95
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_lowercase",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:a916d3035270655ee635",
+      "name": "Char.ascii_is_octal_digit",
+      "signature": "Char.ascii_is_octal_digit(char c)",
+      "returns": "bool",
+      "contract": "0–7; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_octal_digit",
+          "section": "Classification",
+          "line": 116
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_oct_digit",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:8e151c77b3ed5e305cf3",
+      "name": "Char.ascii_is_printable",
+      "signature": "Char.ascii_is_printable(char c)",
+      "returns": "bool",
+      "contract": "U+0020…U+007E; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_printable",
+          "section": "Classification",
+          "line": 151
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_printable",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:245473eba0ae2ff4f9b1",
+      "name": "Char.ascii_is_punctuation",
+      "signature": "Char.ascii_is_punctuation(char c)",
+      "returns": "bool",
+      "contract": "Graphic ASCII excluding letters and digits; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_punctuation",
+          "section": "Classification",
+          "line": 158
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_punctuation",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:bf1c123c696f03f6da39",
+      "name": "Char.ascii_is_sign",
+      "signature": "Char.ascii_is_sign(char c)",
+      "returns": "bool",
+      "contract": "Plus or minus; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_sign",
+          "section": "Classification",
+          "line": 174
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:f63e6401da4ea489a0bf",
+      "name": "Char.ascii_is_uppercase",
+      "signature": "Char.ascii_is_uppercase(char c)",
+      "returns": "bool",
+      "contract": "A–Z; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_uppercase",
+          "section": "Classification",
+          "line": 88
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_uppercase",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:1587f700e4d7566abf7b",
+      "name": "Char.ascii_is_whitespace",
+      "signature": "Char.ascii_is_whitespace(char c)",
+      "returns": "bool",
+      "contract": "HT, LF, FF, CR, or SPACE; VT excluded; non-ASCII returns false, without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_is_whitespace",
+          "section": "Classification",
+          "line": 130
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_whitespace",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:3d50311dc0b1ab5d137c",
+      "name": "Char.ascii_parse",
+      "signature": "Char.ascii_parse(string_view text)",
+      "returns": "Result<char, CharError>",
+      "contract": "Require exactly one ASCII scalar and consume the whole input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_parse",
+          "section": "Encoding",
+          "line": 334
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:c7f0a5801422eee62811",
+      "name": "Char.ascii_to_lowercase",
+      "signature": "Char.ascii_to_lowercase(char c)",
+      "returns": "char",
+      "contract": "Map A–Z to a–z; all other scalars remain unchanged.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_to_lowercase",
+          "section": "Case-Mapping",
+          "line": 214
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.to_lower",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:e336983f012356ba3dd9",
+      "name": "Char.ascii_to_uppercase",
+      "signature": "Char.ascii_to_uppercase(char c)",
+      "returns": "char",
+      "contract": "Map a–z to A–Z; all other scalars remain unchanged.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/ASCII.html",
+          "anchor": "Char-ascii_to_uppercase",
+          "section": "Case-Mapping",
+          "line": 221
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.to_upper",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:dc9ec1f90328b312cb58",
+      "name": "Char.bidi_class",
+      "signature": "Char.bidi_class(char c)",
+      "returns": "BidiClass",
+      "contract": "Return the directional property; does not reorder text.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-bidi_class",
+          "section": "Properties",
+          "line": 413
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:37a91977fd9b3c063ccd",
+      "name": "Char.block",
+      "signature": "Char.block(char c)",
+      "returns": "Optional<UnicodeBlock>",
+      "contract": "Return the named block when present; a block is not a script.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-block",
+          "section": "Properties",
+          "line": 406
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:8a6bfd8c1a29374e7796",
+      "name": "Char.case_fold",
+      "signature": "Char.case_fold(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate full default non-Turkic folding; normalization is separate.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-case_fold",
+          "section": "Case-Mapping",
+          "line": 615
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:f3612a14702cade19c71",
+      "name": "Char.combining_class",
+      "signature": "Char.combining_class(char c)",
+      "returns": "u8",
+      "contract": "Return Canonical_Combining_Class without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-combining_class",
+          "section": "Properties",
+          "line": 420
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:007e3ddecf9d18c92d65",
+      "name": "Char.decimal_value",
+      "signature": "Char.decimal_value(char c)",
+      "returns": "Optional<u8>",
+      "contract": "Return zero through nine for Nd scalars; otherwise None.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-decimal_value",
+          "section": "Properties",
+          "line": 518
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:f067eea9081bacca53e1",
+      "name": "Char.decode_utf16_at",
+      "signature": "Char.decode_utf16_at(Slice<u16> units, usize offset)",
+      "returns": "Result<(char, usize), CharError>",
+      "contract": "Decode at a code-unit offset; return the scalar and units consumed.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-decode_utf16_at",
+          "section": "Strict-Decoding",
+          "line": 146
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:ef911ef146ffcf01ace3",
+      "name": "Char.decode_utf8_at",
+      "signature": "Char.decode_utf8_at(Slice<byte> units, usize offset)",
+      "returns": "Result<(char, usize), CharError>",
+      "contract": "Decode at a byte boundary; return the scalar and byte count consumed.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-decode_utf8_at",
+          "section": "Strict-Decoding",
+          "line": 139
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:e59fc94a4b171166606a",
+      "name": "Char.east_asian_width",
+      "signature": "Char.east_asian_width(char c)",
+      "returns": "EastAsianWidth",
+      "contract": "Return the property, not terminal cells or rendered glyph width.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-east_asian_width",
+          "section": "Properties",
+          "line": 427
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:24f986dd907ca1a7dbbc",
+      "name": "Char.encode_utf16_into",
+      "signature": "Char.encode_utf16_into(char c, MutSlice<u16> output)",
+      "returns": "Result<usize, CharError>",
+      "contract": "Validate exclusive capacity before writing one or two units.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-encode_utf16_into",
+          "section": "Buffer-Encoding",
+          "line": 192
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:367e4f1e7c1be696eb29",
+      "name": "Char.encode_utf8_into",
+      "signature": "Char.encode_utf8_into(char c, MutSlice<byte> output)",
+      "returns": "Result<usize, CharError>",
+      "contract": "Validate capacity before writing one to four bytes; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-encode_utf8_into",
+          "section": "Buffer-Encoding",
+          "line": 185
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:c8a4d7cd2d4198701eb7",
+      "name": "Char.escape_debug",
+      "signature": "Char.escape_debug(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate a diagnostic spelling, not a portable serialization format.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-escape_debug",
+          "section": "Encoding",
+          "line": 704
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:ba1bc02d15c0765bdb76",
+      "name": "Char.escape_default",
+      "signature": "Char.escape_default(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate the versioned draft source-literal escape.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-escape_default",
+          "section": "Encoding",
+          "line": 697
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:34142d5c469bcb5df76e",
+      "name": "Char.escape_unicode",
+      "signature": "Char.escape_unicode(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate a scalar escape containing an explicit hexadecimal value.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-escape_unicode",
+          "section": "Encoding",
+          "line": 690
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:71105055e6844e89f521",
+      "name": "Char.from_u32",
+      "signature": "Char.from_u32(u32 value)",
+      "returns": "Result<char, CharError>",
+      "contract": "Reject surrogates and values above U+10FFFF; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-from_u32",
+          "section": "Construction",
+          "line": 109
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:a4e6a65a6e1fa8806e9a",
+      "name": "Char.from_utf16",
+      "signature": "Char.from_utf16(Slice<u16> units)",
+      "returns": "Result<char, CharError>",
+      "contract": "Require one nonsurrogate unit or a valid pair; reject leftovers.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-from_utf16",
+          "section": "Strict-Decoding",
+          "line": 125
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:6c9ddc5710faabf6da6b",
+      "name": "Char.from_utf32",
+      "signature": "Char.from_utf32(u32 unit)",
+      "returns": "Result<char, CharError>",
+      "contract": "Validate one UTF-32 code unit as a scalar; no byte-order inference.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-from_utf32",
+          "section": "Strict-Decoding",
+          "line": 132
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:68f0a0a98f7d58d84749",
+      "name": "Char.from_utf8",
+      "signature": "Char.from_utf8(Slice<byte> units)",
+      "returns": "Result<char, CharError>",
+      "contract": "Require one shortest-form valid UTF-8 sequence and consume the whole slice.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-from_utf8",
+          "section": "Strict-Decoding",
+          "line": 118
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:2a49f3ae51cc2309bd98",
+      "name": "Char.general_category",
+      "signature": "Char.general_category(char c)",
+      "returns": "GeneralCategory",
+      "contract": "Return the pinned UCD category without allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-general_category",
+          "section": "Properties",
+          "line": 385
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:fddb741c04fb348017c5",
+      "name": "Char.grapheme_break",
+      "signature": "Char.grapheme_break(char c)",
+      "returns": "GraphemeBreak",
+      "contract": "Return a property used by segmentation, not a complete boundary decision.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-grapheme_break",
+          "section": "Properties",
+          "line": 434
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:58fc974836dd5ce4244f",
+      "name": "Char.is_alphabetic",
+      "signature": "Char.is_alphabetic(char c)",
+      "returns": "bool",
+      "contract": "Unicode Alphabetic property, not ASCII letters alone.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_alphabetic",
+          "section": "Classification",
+          "line": 184
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:4654a2a20db750535e42",
+      "name": "Char.is_ascii",
+      "signature": "Char.is_ascii(char c)",
+      "returns": "bool",
+      "contract": "Code point below U+0080; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_ascii",
+          "section": "Classification",
+          "line": 177
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "ascii.is_ascii",
+      "difference": "Actual char overload and explicit module import; not a callable Char namespace spelling."
+    },
+    {
+      "id": "catalog:186f93168a40cde05152",
+      "name": "Char.is_assigned",
+      "signature": "Char.is_assigned(char c)",
+      "returns": "bool",
+      "contract": "General category other than Cn for a valid scalar.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_assigned",
+          "section": "Classification",
+          "line": 289
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:a53ee2fbbce1df97a702",
+      "name": "Char.is_bmp",
+      "signature": "Char.is_bmp(char c)",
+      "returns": "bool",
+      "contract": "Scalar lies in the Basic Multilingual Plane.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_bmp",
+          "section": "Classification",
+          "line": 338
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:66e69bf4aa9712b1d7e3",
+      "name": "Char.is_case_ignorable",
+      "signature": "Char.is_case_ignorable(char c)",
+      "returns": "bool",
+      "contract": "Unicode Case_Ignorable property; not a case-mapping algorithm.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_case_ignorable",
+          "section": "Classification",
+          "line": 212
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:a324f5982758d8282b69",
+      "name": "Char.is_cased",
+      "signature": "Char.is_cased(char c)",
+      "returns": "bool",
+      "contract": "Unicode Cased property; no contextual casing is performed.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_cased",
+          "section": "Classification",
+          "line": 205
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:57531984de33ea4033f4",
+      "name": "Char.is_control",
+      "signature": "Char.is_control(char c)",
+      "returns": "bool",
+      "contract": "General category Cc; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_control",
+          "section": "Classification",
+          "line": 240
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:dcdb696712349f12d1e7",
+      "name": "Char.is_decimal_digit",
+      "signature": "Char.is_decimal_digit(char c)",
+      "returns": "bool",
+      "contract": "General category Nd; decimal_value supplies the corresponding digit.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_decimal_digit",
+          "section": "Classification",
+          "line": 233
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:d3acda6a67f2a437f62c",
+      "name": "Char.is_default_ignorable",
+      "signature": "Char.is_default_ignorable(char c)",
+      "returns": "bool",
+      "contract": "Default_Ignorable_Code_Point property; no automatic deletion.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_default_ignorable",
+          "section": "Classification",
+          "line": 296
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:bd9621cc619eba0aa69b",
+      "name": "Char.is_format",
+      "signature": "Char.is_format(char c)",
+      "returns": "bool",
+      "contract": "General category Cf; not permission to discard the scalar.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_format",
+          "section": "Classification",
+          "line": 247
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:e3e205a3c0eec2d203e3",
+      "name": "Char.is_join_control",
+      "signature": "Char.is_join_control(char c)",
+      "returns": "bool",
+      "contract": "Join_Control property.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_join_control",
+          "section": "Classification",
+          "line": 303
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:92a4916ceb60255c2a2c",
+      "name": "Char.is_letter",
+      "signature": "Char.is_letter(char c)",
+      "returns": "bool",
+      "contract": "Any letter general category.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_letter",
+          "section": "Classification",
+          "line": 261
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:2bf72250acf5e008353d",
+      "name": "Char.is_letter_or_number",
+      "signature": "Char.is_letter_or_number(char c)",
+      "returns": "bool",
+      "contract": "Any letter or number general category.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_letter_or_number",
+          "section": "Classification",
+          "line": 268
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:ae63b414e8f9c5ccf441",
+      "name": "Char.is_lowercase",
+      "signature": "Char.is_lowercase(char c)",
+      "returns": "bool",
+      "contract": "Unicode Lowercase property; property lookup, no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_lowercase",
+          "section": "Classification",
+          "line": 191
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:3b82c08da7bad95927c3",
+      "name": "Char.is_mark",
+      "signature": "Char.is_mark(char c)",
+      "returns": "bool",
+      "contract": "Any combining-mark general category.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_mark",
+          "section": "Classification",
+          "line": 254
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:fefe5feea6ffa93e4cdd",
+      "name": "Char.is_noncharacter",
+      "signature": "Char.is_noncharacter(char c)",
+      "returns": "bool",
+      "contract": "Noncharacter_Code_Point property; the scalar remains valid.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_noncharacter",
+          "section": "Classification",
+          "line": 317
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:1fe744b04d441a9fb3d8",
+      "name": "Char.is_numeric",
+      "signature": "Char.is_numeric(char c)",
+      "returns": "bool",
+      "contract": "Numeric_Type is not None; this includes non-decimal numbers.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_numeric",
+          "section": "Classification",
+          "line": 226
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:2e0471473ff6fc0e0b29",
+      "name": "Char.is_private_use",
+      "signature": "Char.is_private_use(char c)",
+      "returns": "bool",
+      "contract": "General category Co.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_private_use",
+          "section": "Classification",
+          "line": 275
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:f1b3f0cbb6615a29702a",
+      "name": "Char.is_supplementary",
+      "signature": "Char.is_supplementary(char c)",
+      "returns": "bool",
+      "contract": "Scalar is above U+FFFF.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_supplementary",
+          "section": "Classification",
+          "line": 345
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:fac08084158f639b4712",
+      "name": "Char.is_unassigned",
+      "signature": "Char.is_unassigned(char c)",
+      "returns": "bool",
+      "contract": "General category Cn in the pinned database.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_unassigned",
+          "section": "Classification",
+          "line": 282
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:66ad3f79ff9478d170fb",
+      "name": "Char.is_uppercase",
+      "signature": "Char.is_uppercase(char c)",
+      "returns": "bool",
+      "contract": "Unicode Uppercase property; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_uppercase",
+          "section": "Classification",
+          "line": 198
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:badbd790e326ba470c6c",
+      "name": "Char.is_valid_scalar",
+      "signature": "Char.is_valid_scalar(u32 value)",
+      "returns": "bool",
+      "contract": "Accept precisely the scalar ranges, including unassigned values and noncharacters.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_valid_scalar",
+          "section": "Construction",
+          "line": 123
+        }
+      ],
+      "status": "existing_behavior_alternate_namespace",
+      "provider": "encoding.is_scalar(u32)",
+      "difference": "Scalar-domain validation is already implemented without Unicode property tables; namespace differs."
+    },
+    {
+      "id": "catalog:1daa90b02a10b06946df",
+      "name": "Char.is_variation_selector",
+      "signature": "Char.is_variation_selector(char c)",
+      "returns": "bool",
+      "contract": "Variation_Selector property.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_variation_selector",
+          "section": "Classification",
+          "line": 310
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:3e8ba39630891fc13896",
+      "name": "Char.is_whitespace",
+      "signature": "Char.is_whitespace(char c)",
+      "returns": "bool",
+      "contract": "Unicode White_Space property, independent of the ambient locale.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_whitespace",
+          "section": "Classification",
+          "line": 219
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:e0af692e1f92fde8fd39",
+      "name": "Char.is_xid_continue",
+      "signature": "Char.is_xid_continue(char c)",
+      "returns": "bool",
+      "contract": "Unicode XID_Continue property; not whole-identifier validation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_xid_continue",
+          "section": "Classification",
+          "line": 331
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:19751655871bba129222",
+      "name": "Char.is_xid_start",
+      "signature": "Char.is_xid_start(char c)",
+      "returns": "bool",
+      "contract": "Unicode XID_Start property; language identifier policy stays separate.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-is_xid_start",
+          "section": "Classification",
+          "line": 324
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:d862b67e13a1bd81caa1",
+      "name": "Char.line_break",
+      "signature": "Char.line_break(char c)",
+      "returns": "LineBreak",
+      "contract": "Return line-break class; actual wrapping needs text and layout context.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-line_break",
+          "section": "Properties",
+          "line": 455
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:a6c3dd44822b2bf7bce3",
+      "name": "Char.lookup_name",
+      "signature": "Char.lookup_name(string_view name)",
+      "returns": "Result<char, CharError>",
+      "contract": "Resolve a canonical or explicitly supported alias name; reject unknown input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-lookup_name",
+          "section": "Properties",
+          "line": 483
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:7ed042dc7844385ef77f",
+      "name": "Char.max_value",
+      "signature": "Char.max_value()",
+      "returns": "char",
+      "contract": "Return U+10FFFF; constant, no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-max_value",
+          "section": "Construction",
+          "line": 95
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:6d041f186bdf8b4ca1bc",
+      "name": "Char.min_value",
+      "signature": "Char.min_value()",
+      "returns": "char",
+      "contract": "Return U+0000; constant, no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-min_value",
+          "section": "Construction",
+          "line": 88
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:972b67f6e454704d01b1",
+      "name": "Char.name",
+      "signature": "Char.name(char c)",
+      "returns": "Result<Optional<string>, CharError>",
+      "contract": "Allocate a Unicode name, including algorithmic names; absent names remain None.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-name",
+          "section": "Properties",
+          "line": 469
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:52b4cb2bf8cd0215f4d4",
+      "name": "Char.name_aliases",
+      "signature": "Char.name_aliases(char c)",
+      "returns": "Result<Vector<string>, CharError>",
+      "contract": "Allocate documented Name_Alias entries; the result may be empty.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-name_aliases",
+          "section": "Properties",
+          "line": 476
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:13799a25e9d1c48b11f2",
+      "name": "Char.nfc_quick_check",
+      "signature": "Char.nfc_quick_check(char c)",
+      "returns": "QuickCheck",
+      "contract": "Return the scalar NFC quick-check property; not whole-string normalization.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-nfc_quick_check",
+          "section": "Properties",
+          "line": 490
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:484bcf87096ec2bb74b8",
+      "name": "Char.nfd_quick_check",
+      "signature": "Char.nfd_quick_check(char c)",
+      "returns": "QuickCheck",
+      "contract": "Return the scalar NFD quick-check property.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-nfd_quick_check",
+          "section": "Properties",
+          "line": 497
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:e6be90b51e12c93f076b",
+      "name": "Char.nfkc_quick_check",
+      "signature": "Char.nfkc_quick_check(char c)",
+      "returns": "QuickCheck",
+      "contract": "Return the scalar compatibility-composition quick-check property.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-nfkc_quick_check",
+          "section": "Properties",
+          "line": 504
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:d52c2c4e295585c5d07c",
+      "name": "Char.nfkd_quick_check",
+      "signature": "Char.nfkd_quick_check(char c)",
+      "returns": "QuickCheck",
+      "contract": "Return the scalar compatibility-decomposition quick-check property.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-nfkd_quick_check",
+          "section": "Properties",
+          "line": 511
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:84ab00fb62795fcb53eb",
+      "name": "Char.numeric_value",
+      "signature": "Char.numeric_value(char c)",
+      "returns": "Optional<UnicodeNumeric>",
+      "contract": "Return an exact rational property record rather than a rounded float.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-numeric_value",
+          "section": "Properties",
+          "line": 525
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:7ce70ee550285d534a44",
+      "name": "Char.parse_escape",
+      "signature": "Char.parse_escape(string_view text)",
+      "returns": "Result<char, CharError>",
+      "contract": "Decode exactly one complete draft scalar escape; reject trailing input.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-parse_escape",
+          "section": "Strict-Decoding",
+          "line": 111
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:3267c7ae72584043b433",
+      "name": "Char.parse_scalar",
+      "signature": "Char.parse_scalar(string_view text)",
+      "returns": "Result<char, CharError>",
+      "contract": "Require exactly one scalar in valid UTF-8; reject empty or multiple scalars.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-parse_scalar",
+          "section": "Strict-Decoding",
+          "line": 97
+        }
+      ],
+      "status": "existing_operation_error_carrier_differs",
+      "provider": "char.parse(string_view)",
+      "difference": "Returns Result<char,ParseError>, not CharError; exact one-scalar parsing is implemented."
+    },
+    {
+      "id": "catalog:616b9441fab9f83f5344",
+      "name": "Char.parse_uplus",
+      "signature": "Char.parse_uplus(string_view text)",
+      "returns": "Result<char, CharError>",
+      "contract": "Parse complete U+ hexadecimal notation and validate the scalar; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-parse_uplus",
+          "section": "Strict-Decoding",
+          "line": 104
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:58a1daa7574cd7c4c039",
+      "name": "Char.replacement",
+      "signature": "Char.replacement()",
+      "returns": "char",
+      "contract": "Return U+FFFD without invoking implicit error recovery.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-replacement",
+          "section": "Construction",
+          "line": 102
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:4d3c96e87f9447549eda",
+      "name": "Char.script",
+      "signature": "Char.script(char c)",
+      "returns": "Script",
+      "contract": "Return Script; Common and Inherited are meaningful values.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-script",
+          "section": "Properties",
+          "line": 392
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:5fd7ab6d4b3b782732eb",
+      "name": "Char.script_extensions",
+      "signature": "Char.script_extensions(char c)",
+      "returns": "Result<Vector<Script>, CharError>",
+      "contract": "Allocate the Script_Extensions set using documented UCD defaults.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-script_extensions",
+          "section": "Properties",
+          "line": 399
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:d0dc6fe5f1db1a59ceec",
+      "name": "Char.sentence_break",
+      "signature": "Char.sentence_break(char c)",
+      "returns": "SentenceBreak",
+      "contract": "Return the sentence-break property without segmenting text.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-sentence_break",
+          "section": "Properties",
+          "line": 448
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:6077c6504344019c03fa",
+      "name": "Char.simple_case_fold",
+      "signature": "Char.simple_case_fold(char c)",
+      "returns": "char",
+      "contract": "Apply the default non-Turkic simple fold or identity; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-simple_case_fold",
+          "section": "Case-Mapping",
+          "line": 587
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:d3245e56e09bd0cd433c",
+      "name": "Char.simple_lowercase",
+      "signature": "Char.simple_lowercase(char c)",
+      "returns": "char",
+      "contract": "Apply the simple mapping or identity; no allocation or neighboring context.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-simple_lowercase",
+          "section": "Case-Mapping",
+          "line": 566
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:a2c98fac5d0192feea46",
+      "name": "Char.simple_titlecase",
+      "signature": "Char.simple_titlecase(char c)",
+      "returns": "char",
+      "contract": "Apply the simple title mapping or identity; no word-boundary inference.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-simple_titlecase",
+          "section": "Case-Mapping",
+          "line": 580
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:c30ffb84c282ea8b503a",
+      "name": "Char.simple_uppercase",
+      "signature": "Char.simple_uppercase(char c)",
+      "returns": "char",
+      "contract": "Apply the simple mapping or identity; never truncate an expansion.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-simple_uppercase",
+          "section": "Case-Mapping",
+          "line": 573
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:8d2b46711164637800d5",
+      "name": "Char.to_lowercase",
+      "signature": "Char.to_lowercase(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate the default isolated-scalar lowercase mapping; it may expand.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-to_lowercase",
+          "section": "Case-Mapping",
+          "line": 594
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:86e817927c39c5bf60c3",
+      "name": "Char.to_string",
+      "signature": "Char.to_string(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate valid UTF-8 text containing exactly this scalar.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-to_string",
+          "section": "Encoding",
+          "line": 683
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:f97639534e61154e2a6a",
+      "name": "Char.to_titlecase",
+      "signature": "Char.to_titlecase(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate the isolated-scalar full title mapping; not word title-casing.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-to_titlecase",
+          "section": "Case-Mapping",
+          "line": 608
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:09f5690c307d7968318e",
+      "name": "Char.to_u32",
+      "signature": "Char.to_u32(char c)",
+      "returns": "u32",
+      "contract": "Return the scalar value, not an encoded code unit.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-to_u32",
+          "section": "Construction",
+          "line": 116
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:d82cd5d40ff1c35a0918",
+      "name": "Char.to_uppercase",
+      "signature": "Char.to_uppercase(char c)",
+      "returns": "Result<string, CharError>",
+      "contract": "Allocate the full uppercase mapping; multiple scalars are possible.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-to_uppercase",
+          "section": "Case-Mapping",
+          "line": 601
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:8183c08ea999e0d45f68",
+      "name": "Char.to_utf16",
+      "signature": "Char.to_utf16(char c)",
+      "returns": "(Array<u16, 2>, u32)",
+      "contract": "Return zero-padded code-unit storage and used length; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-to_utf16",
+          "section": "Encoding",
+          "line": 676
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:07d8a76d9e67ba0fde97",
+      "name": "Char.to_utf8",
+      "signature": "Char.to_utf8(char c)",
+      "returns": "(Array<byte, 4>, u32)",
+      "contract": "Return zero-padded storage and used length; only its prefix is encoded text.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-to_utf8",
+          "section": "Encoding",
+          "line": 669
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:2408e1378525d6564c20",
+      "name": "Char.ucd_fingerprint",
+      "signature": "Char.ucd_fingerprint()",
+      "returns": "string_view",
+      "contract": "Borrow the documented fingerprint identifying the selected property artifact.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-ucd_fingerprint",
+          "section": "Construction",
+          "line": 137
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:b841244548c90e883b24",
+      "name": "Char.unicode_version",
+      "signature": "Char.unicode_version()",
+      "returns": "string_view",
+      "contract": "Borrow the exact Unicode version embedded in the compiler data artifact.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-unicode_version",
+          "section": "Construction",
+          "line": 130
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    },
+    {
+      "id": "catalog:505c50cb25f22f2c4055",
+      "name": "Char.utf16_length",
+      "signature": "Char.utf16_length(char c)",
+      "returns": "u32",
+      "contract": "Return one or two UTF-16 code units; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-utf16_length",
+          "section": "Encoding",
+          "line": 662
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:8ef1fa966d74ab510b7a",
+      "name": "Char.utf8_length",
+      "signature": "Char.utf8_length(char c)",
+      "returns": "u32",
+      "contract": "Return one through four encoded bytes; no allocation.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-utf8_length",
+          "section": "Encoding",
+          "line": 655
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:da73fcdc904877cf77d0",
+      "name": "Char.validate_utf16_prefix",
+      "signature": "Char.validate_utf16_prefix(Slice<u16> units)",
+      "returns": "Result<usize, CharError>",
+      "contract": "Validate one complete leading scalar and return its unit count.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-validate_utf16_prefix",
+          "section": "Buffer-Encoding",
+          "line": 206
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:12c87bcd031150afcbc0",
+      "name": "Char.validate_utf8_prefix",
+      "signature": "Char.validate_utf8_prefix(Slice<byte> units)",
+      "returns": "Result<usize, CharError>",
+      "contract": "Validate one complete leading scalar and return its byte count.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Unicode_Scalar.html",
+          "anchor": "Char-validate_utf8_prefix",
+          "section": "Buffer-Encoding",
+          "line": 199
+        }
+      ],
+      "status": "no_provider_unicode_independent",
+      "provider": null,
+      "difference": "No callable matching this scalar/ASCII/codec contract; existing whole-text/u32 encoding is a foundation rather than exact char or bounded-buffer support."
+    },
+    {
+      "id": "catalog:b20b8b46a09bd3f5a163",
+      "name": "Char.word_break",
+      "signature": "Char.word_break(char c)",
+      "returns": "WordBreak",
+      "contract": "Return the word-break property; surrounding context remains necessary.",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Char/Char.html",
+          "anchor": "Char-word_break",
+          "section": "Properties",
+          "line": 441
+        }
+      ],
+      "status": "no_provider_ucd_profile_required",
+      "provider": null,
+      "difference": "No pinned UCD property/name/case/segmentation profile or declared result carrier is supplied. Existing ASCII helpers are not Unicode implementations."
+    }
+  ]
+}

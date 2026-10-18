@@ -1,0 +1,76 @@
+import algorithm;
+import optional;
+
+struct Item implements Copy { public i32 key; public i32 original; };
+
+usize index_or_missing(Optional<usize> input) { return optional.unwrap_or(input, 999); }
+i32 main() {
+    i32 data[6] = [1, 2, 2, 4, 7, 9];
+    i32 empty[0] = [];
+    i32 prefix[2] = [1, 2];
+    i32 suffix[2] = [7, 9];
+    i32 different[2] = [7, 8];
+    Slice<i32> values = Slice.from_array(&data);
+    Slice<i32> zero = Slice.from_array(&empty);
+    rsn positive = [](&i32 item) -> bool { return *item > 0; };
+    rsn even = [](&i32 item) -> bool { return *item % 2 == 0; };
+    rsn absent = [](&i32 item) -> bool { return *item == 100; };
+    rsn equal = [](&i32 left, &i32 right) -> bool { return *left == *right; };
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return *left < *right ? -1 : (*left > *right ? 1 : 0); };
+    rsn combine = [](i32 accumulated, &i32 item) -> i32 { return accumulated + *item; };
+    if (!algorithm.all(values, &positive) || !algorithm.all(zero, &positive) || algorithm.all(values, &even)) return 1;
+    if (!algorithm.any(values, &even) || algorithm.any(zero, &even) || algorithm.any(values, &absent)) return 2;
+    if (!algorithm.none(values, &absent) || !algorithm.none(zero, &even) || algorithm.none(values, &even)) return 3;
+    if (algorithm.count_if(values, &even) != 3 || algorithm.count_if(zero, &even) != 0) return 4;
+    if (index_or_missing(algorithm.find_index(values, &even)) != 1 || index_or_missing(algorithm.find_index(values, &absent)) != 999 ||
+        index_or_missing(algorithm.find_last_index(values, &even)) != 3 || index_or_missing(algorithm.find_last_index(zero, &even)) != 999) return 5;
+    if (algorithm.fold(values, 5, &combine) != 30 || algorithm.fold(zero, 5, &combine) != 5) return 6;
+    mut i32 observed = 0;
+    mut rsn observe = [&mut observed](&i32 item) -> unit { observed += *item; return Unit.value(); };
+    algorithm.for_each(values, &mut observe);
+    if (observed != 25) return 7;
+    if (!algorithm.equal_by(values, values, &equal) || algorithm.equal_by(values, zero, &equal) ||
+        !algorithm.equal_by(zero, zero, &equal) || algorithm.equal_by(Slice.from_array(&suffix), Slice.from_array(&different), &equal)) return 8;
+    if (!algorithm.starts_with_by(values, Slice.from_array(&prefix), &equal) ||
+        algorithm.starts_with_by(values, Slice.from_array(&suffix), &equal) || !algorithm.starts_with_by(values, zero, &equal)) return 9;
+    if (!algorithm.ends_with_by(values, Slice.from_array(&suffix), &equal) ||
+        algorithm.ends_with_by(values, Slice.from_array(&different), &equal) || !algorithm.ends_with_by(values, zero, &equal)) return 10;
+    if (algorithm.lexicographical_compare_by(values, values, &compare) != 0 ||
+        algorithm.lexicographical_compare_by(zero, values, &compare) != -1 ||
+        algorithm.lexicographical_compare_by(values, zero, &compare) != 1 ||
+        algorithm.lexicographical_compare_by(Slice.from_array(&suffix), Slice.from_array(&different), &compare) != 1) return 11;
+    if (!algorithm.is_sorted_by(values, &compare) || !algorithm.is_sorted_by(zero, &compare) ||
+        !algorithm.is_sorted_by(Slice.from_array(&prefix), &compare)) return 12;
+    if (index_or_missing(algorithm.min_index_by(values, &compare)) != 0 || index_or_missing(algorithm.max_index_by(values, &compare)) != 5 ||
+        index_or_missing(algorithm.min_index_by(zero, &compare)) != 999 || index_or_missing(algorithm.max_index_by(zero, &compare)) != 999) return 13;
+    i32 key = 2;
+    i32 missing = 3;
+    i32 larger = 10;
+    i32 smaller = 0;
+    if (algorithm.lower_bound_by(values, &key, &compare) != 1 || algorithm.upper_bound_by(values, &key, &compare) != 3 ||
+        algorithm.lower_bound_by(values, &missing, &compare) != 3 || algorithm.upper_bound_by(values, &missing, &compare) != 3 ||
+        algorithm.lower_bound_by(values, &larger, &compare) != 6 || algorithm.upper_bound_by(values, &smaller, &compare) != 0 ||
+        algorithm.lower_bound_by(zero, &key, &compare) != 0) return 14;
+    if (index_or_missing(algorithm.binary_search_by(values, &key, &compare)) != 1 ||
+        index_or_missing(algorithm.binary_search_by(values, &missing, &compare)) != 999 ||
+        index_or_missing(algorithm.binary_search_by(zero, &key, &compare)) != 999) return 15;
+    mut i32 reversed[5] = [1, 2, 3, 4, 5];
+    algorithm.reverse(Slice.from_array_mut(&mut reversed));
+    if (reversed[0] != 5 || reversed[2] != 3 || reversed[4] != 1) return 16;
+    algorithm.fill(Slice.from_array_mut(&mut reversed), 8);
+    if (reversed[0] != 8 || reversed[4] != 8) return 17;
+    mut i32 unsorted[6] = [5, 2, 7, 2, -1, 4];
+    algorithm.sort_by(Slice.from_array_mut(&mut unsorted), &compare);
+    if (unsorted[0] != -1 || unsorted[1] != 2 || unsorted[2] != 2 || unsorted[5] != 7 ||
+        !algorithm.is_sorted_by(Slice.from_array(&unsorted), &compare)) return 18;
+    mut i32 nothing[0] = [];
+    algorithm.reverse(Slice.from_array_mut(&mut nothing));
+    algorithm.fill(Slice.from_array_mut(&mut nothing), 8);
+    algorithm.sort_by(Slice.from_array_mut(&mut nothing), &compare);
+    mut Item tied[4] = [Item { key = 2, original = 0 }, Item { key = 1, original = 1 },
+                        Item { key = 2, original = 2 }, Item { key = 1, original = 3 }];
+    rsn by_key = [](&Item left, &Item right) -> i32 { return left.key < right.key ? -1 : (left.key > right.key ? 1 : 0); };
+    algorithm.sort_by(Slice.from_array_mut(&mut tied), &by_key);
+    if (tied[0].original != 1 || tied[1].original != 3 || tied[2].original != 0 || tied[3].original != 2) return 19;
+    return 0;
+}

@@ -97,12 +97,12 @@ struct Player implements Scored {
             </section>
             <section id="common-error"><h2>공통 오류 인터페이스</h2>
                 <p><strong>선택된 0.3 모델:</strong> Result를 사용하는 공통 오류 처리입니다. 명시적으로 import한 <code>error.Error</code> 인터페이스로 대여한 오류를 살펴보고 구체적인 <code>error.AnyError</code> 타입으로 소유하는 공통 오류를 전파합니다.</p>
-                <p>제안하는 최소 인터페이스는 할당 없이 code와 message를 읽을 수 있게 합니다. code는 오류 종류를 식별하고 message는 사람이 읽을 요약입니다. 뷰는 오류 소유자나 정적 저장소를 대여할 수 있지만 해당 저장소보다 오래 살 수 없습니다.</p>
+                <p>개발 중인 소스 모듈은 호출할 때마다 새 할당을 요구하지 않고 코드와 메시지를 조회하도록 구현한다. 코드는 오류의 종류를 식별하고 메시지는 사람이 읽을 수 있는 요약이다. 뷰는 오류 소유자나 정적 저장소를 대여할 수 있으며, 해당 저장소의 수명을 벗어나면 안 된다.</p>
                 <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">public interface Error {
     public string_view code(&amp;Self self);
     public string_view message(&amp;Self self);
 };</code></pre>
-                <p>이는 error.avx에 둘 공개 선언의 제안이며 자동 prelude 타입이 아닙니다. 표준 복구 가능 오류 타입은 구체 필드와 enum variant를 유지하면서 이를 구현할 수 있습니다. 사용자 오류는 기존 인터페이스 규칙에 따라 implements Error로 참여합니다.</p>
+                <p>이것은 error.avx의 공개 선언이며 자동 제공되는 기본 환경 타입은 아니다. 일반적인 복구 가능한 오류 타입은 구체적인 필드나 enum 변형을 잃지 않고 이를 구현할 수 있다. 사용자 정의 오류는 기존 인터페이스 규칙에 따라 implements Error로 참여한다.</p>
                 <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import error { Error };
 import system;
 
@@ -124,9 +124,9 @@ Result&lt;i32, AnyError&gt; forward(Result&lt;i32, AnyError&gt; operation) {
     return Result.ok(value);
 }</code></pre>
                 <p>이 예제는 이미 AnyError로 저장된 오류를 전달하며 다른 오류 타입을 암시적으로 변환하지 않습니다. AnyError는 Error를 구현하고 기본적으로 이동합니다. 애플리케이션 경계에서의 사용은 명시적이며, 타입이 정해진 라이브러리 오류와 그 payload도 계속 사용할 수 있습니다.</p>
-                <p>명시적으로 선택한 고정 크기 표준 오류 집합에는 인라인 저장을 권장합니다. 해당 오류를 운반자로 바꿀 때 추가 할당이 필요하지 않도록 하기 위해서입니다. 오류 생성 자체에 할당이 없었다거나 InputError&lt;T&gt; 같은 임의의 payload 포함 오류가 인라인에 들어간다고 보장하지는 않습니다. 이런 오류는 타입이 정해진 Result에 두거나 명시적인 실패 가능 패킹을 사용합니다.</p>
+                <p>현재 AnyError는 Box&lt;dyn Error&gt;를 저장한다. AnyError.pack(value)는 명시적으로 메모리를 할당하고 Result&lt;AnyError, InputError&lt;E&gt;&gt;를 반환하며, 실패 payload에 원래 오류를 보존한다. AnyError.from_box는 기존 Box&lt;dyn Error&gt;의 소유권을 받아 추가 할당 없이 사용한다. 작은 오류의 인라인 저장은 구현하지 않았다. 구체적인 타입을 쓰는 Result 오류에는 AnyError 할당이 필요하지 않다.</p>
                 <p>다른 오류의 소유형 타입 소거에는 별도의 명시적이고 실패 가능한 변환이 필요합니다. 할당 실패를 표현하면서 원래 오류를 보존해야 하며, 또 다른 래퍼를 재귀적으로 할당하지 않고도 할당 실패를 보고할 수 있어야 합니다. 실패 가능한 패킹은 실패 시 원래 오류를 반환해야 합니다. 이를 실패하지 않는 map_err 콜백이나 자동 ? 변환에 숨길 수 없고 중첩 실패도 자동으로 평탄화하지 않습니다.</p>
-                <p>0.3의 <a href="Library_Foundation.html#order">오류 매핑 기반</a> 은 계속 명시적으로 유지합니다. AnyError는 0.3에 포함하기로 선택했습니다. 구현 전에 생성자 이름, 인라인 variant 집합, 레이아웃, 할당, 실패 시 소유권 표현, 수명과 스레드 간 이전 규칙을 확정합니다. 자동 스레드 간 사용 권한이나 대여 수명 연장은 암시하지 않습니다.</p>
+                <p>0.3의 <a href="Library_Foundation.html#order">오류 매핑 기반</a> 은 명시적으로 유지한다. 구현된 소스 운반 타입은 pack, from_box, as_error를 제공한다. 할당, 실패 시 입력 보존 방식, 수명, 이동 의미는 소스 실행 검사와 거부 검사로 확인한다. 스레드 전송 권한을 뜻하지는 않는다. 자동 스레드 간 전달 권한이나 대여 수명 연장도 보장하지 않는다.</p>
             </section>
             <section id="try"><h2>try·catch와의 관계</h2>
                 <p><strong>확정된 결정:</strong> 0.3은 Result와 명시적 매핑을 사용하는 공통 오류 모델을 채택합니다. Java식 try/catch는 추가하지 않습니다. 기존 0.4 try 작업은 유지합니다. 공유 오류 인터페이스가 throw 문, 예외 상속, 런타임 스택 되감기나 함수 사이의 오류 포착을 조용히 추가하지는 않습니다.</p>

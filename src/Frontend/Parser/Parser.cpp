@@ -660,7 +660,8 @@ namespace aevix
             NodePtr declaration(
                 bool local,
                 bool interfaceMember,
-                bool enumMember = false
+                bool enumMember = false,
+                bool concreteMember = false
             )
             {
                 Depth depth(*this);
@@ -678,6 +679,12 @@ namespace aevix
                 }
                 const auto flags = modifiers();
 
+                // override의 대상 서명 검사는 의미 분석에 맡기되 메서드가 아닌 위치는 즉시 거부한다.
+                // Leave override signature checks to semantic analysis, but reject non-method contexts here.
+                const bool overriding = flags.find("override") != std::string::npos;
+                if (overriding && !local && (!concreteMember || interfaceMember))
+                    fail("override is only allowed on concrete struct or enum methods.");
+
                 if (
                     local
                     && (
@@ -692,6 +699,7 @@ namespace aevix
 
                 if (take("type"))
                 {
+                    if (overriding) fail("override cannot apply to a type alias.");
                     if (bench) fail("@bench only applies to functions with a body.");
                     if (local)
                         fail("Type aliases belong at module or type scope.");
@@ -710,6 +718,7 @@ namespace aevix
 
                 if (is("struct") || is("enum") || is("interface"))
                 {
+                    if (overriding) fail("override cannot apply to a type declaration.");
                     if (bench) fail("@bench only applies to functions with a body.");
                     if (flags.find("extern") != std::string::npos)
                         fail("extern C declarations must be module-level function prototypes.");
@@ -739,7 +748,8 @@ namespace aevix
                             declaration(
                                 false,
                                 category == "interface",
-                                category == "enum"
+                                category == "enum",
+                                category != "interface"
                             )
                         );
                     }
@@ -762,6 +772,7 @@ namespace aevix
                     && (is(";", 1) || is("{", 1))
                 )
                 {
+                    if (overriding) fail("override cannot apply to an enum variant.");
                     if (bench) fail("@bench only applies to functions with a body.");
                     auto result = node("Variant", name(), start);
 
@@ -875,6 +886,7 @@ namespace aevix
                 }
                 else
                 {
+                    if (overriding) fail("override cannot apply to a field or variable.");
                     if (bench) fail("@bench only applies to functions with a body.");
                     if (flags.find("extern") != std::string::npos)
                         fail("extern C declarations must be module-level function prototypes.");
@@ -912,7 +924,7 @@ namespace aevix
             {
                 if (
                     is("mut") || is("const") || is("persist") || is("rsn") || is("extern") || is("@")
-                    || is("public") || is("private")
+                    || is("public") || is("private") || is("override")
                     || is("struct") || is("enum") || is("interface") || is("type")
                 )
                 {
@@ -1758,8 +1770,19 @@ namespace aevix
                                     fieldStart
                                 );
 
-                                expect("=");
-                                attach(*field, parseExpression(1));
+                                if (take("="))
+                                {
+                                    attach(*field, parseExpression(1));
+                                }
+                                else
+                                {
+                                    if (!is(",") && !is("}"))
+                                        fail("Expected '=', ',' or '}' after an initializer field name.");
+
+                                    // 축약 필드도 일반 이름 표현식으로 만들어 기존 이름 및 소유권 검사를 그대로 적용한다.
+                                    // Expand shorthand to an ordinary name expression for existing name and ownership checks.
+                                    attach(*field, node("Name", field->value, fieldStart));
+                                }
                                 attach(*initial, std::move(field));
                             }
                             while (take(",") && !is("}"));

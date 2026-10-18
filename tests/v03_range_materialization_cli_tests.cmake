@@ -1,0 +1,116 @@
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : v03_range_materialization_cli_tests.cmake
+#
+# Description :
+#     Range 구체화의 독립 수열·할당 실패·정적 배열 비용 경계를 실제 실행으로 검사한다.
+#     Execute independent Range materialization sequences, allocation failures and fixed-array cost boundaries.
+#
+# ========================
+if(NOT DEFINED AEVIXC OR NOT DEFINED TEST_DIR OR NOT DEFINED AEVIX_RUNTIME_ARCHIVE)
+    message(FATAL_ERROR "AEVIXC, TEST_DIR and AEVIX_RUNTIME_ARCHIVE are required")
+endif()
+find_program(PYTHON_EXECUTABLE NAMES python3 REQUIRED)
+if(NOT DEFINED CLANGXX)
+    if(DEFINED CLANG)
+        get_filename_component(clang_directory "${CLANG}" DIRECTORY)
+        find_program(CLANGXX NAMES clang++ HINTS "${clang_directory}" REQUIRED)
+    else()
+        find_program(CLANGXX NAMES clang++ REQUIRED)
+    endif()
+endif()
+file(MAKE_DIRECTORY "${TEST_DIR}")
+file(SHA256 "${AEVIXC}" compiler_sha)
+execute_process(COMMAND "${AEVIXC}" --version OUTPUT_VARIABLE version TIMEOUT 10)
+message(STATUS "Range materialization compiler SHA256 ${compiler_sha}")
+set(module_flags)
+if(DEFINED TEST_MODULE_ROOT)
+    list(APPEND module_flags --module-root "${TEST_MODULE_ROOT}")
+endif()
+function(materialization_run label expected)
+    execute_process(COMMAND "${AEVIXC}" ${module_flags} ${ARGN} RESULT_VARIABLE status
+        OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 180)
+    if(NOT "${status}" STREQUAL "${expected}")
+        message(FATAL_ERROR "${label}: expected ${expected}, got ${status}\n${output}${error}")
+    endif()
+endfunction()
+set(oracle "${CMAKE_CURRENT_LIST_DIR}/generate_range_materialization_golden.py")
+execute_process(COMMAND "${PYTHON_EXECUTABLE}" "${oracle}" --output-dir "${TEST_DIR}"
+    --metadata "${TEST_DIR}/range_materialization_golden.json"
+    RESULT_VARIABLE generated OUTPUT_VARIABLE summary ERROR_VARIABLE error TIMEOUT 60)
+if(NOT "${generated}" STREQUAL "0")
+    message(FATAL_ERROR "Range materialization oracle failed: ${error}")
+endif()
+message(STATUS "${summary}")
+foreach(element i8 u8 i16 u16 i32 u32 i64 u64 i128 u128 isize usize)
+    set(fixture "${TEST_DIR}/materialize_${element}.avx")
+    materialization_run("${element} check" 0 --check "${fixture}")
+    foreach(optimization -O0 -O2)
+        materialization_run("${element} AOT ${optimization}" 0 --run "${optimization}" "${fixture}")
+        if(version MATCHES "ORC JIT enabled")
+            materialization_run("${element} JIT ${optimization}" 0 --jit "${optimization}" "${fixture}")
+        endif()
+    endforeach()
+endforeach()
+foreach(fixture layout_overflow noncopy_repeat runtime_extent negative_extent)
+    materialization_run("reject ${fixture}" 1 --check "${TEST_DIR}/${fixture}.avx")
+endforeach()
+set(sanitizer_flags)
+if(ENABLE_RANGE_PROBE_SANITIZERS)
+    list(APPEND sanitizer_flags -fsanitize=address)
+endif()
+foreach(probe allocator no_allocation boundary init_mismatch init_match)
+    set(raw_ir "${TEST_DIR}/${probe}.ll")
+    execute_process(COMMAND "${AEVIXC}" ${module_flags} --emit-llvm "${TEST_DIR}/${probe}.avx"
+        RESULT_VARIABLE emitted OUTPUT_FILE "${raw_ir}" ERROR_VARIABLE error TIMEOUT 180)
+    if(NOT "${emitted}" STREQUAL "0")
+        message(FATAL_ERROR "${probe} IR emission failed: ${error}")
+    endif()
+    set(observer allocator)
+    set(kind 1)
+    set(stores 0)
+    if(probe STREQUAL "no_allocation")
+        set(kind 2)
+    elseif(probe STREQUAL "boundary")
+        set(kind 3)
+    elseif(probe MATCHES "^init_")
+        set(kind 4)
+        set(observer initializer)
+        if(probe STREQUAL "init_match")
+            set(stores 4096)
+        endif()
+    endif()
+    set(instrumented "${TEST_DIR}/${probe}_observed.ll")
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}" "${oracle}" --instrument-ir "${raw_ir}"
+        --output-ir "${instrumented}" --probe "${observer}" RESULT_VARIABLE instrumented_status
+        OUTPUT_VARIABLE instrumented_summary ERROR_VARIABLE error TIMEOUT 30)
+    if(NOT "${instrumented_status}" STREQUAL "0")
+        message(FATAL_ERROR "${probe} observer seam failed: ${error}")
+    endif()
+    foreach(level 0 2)
+        set(executable "${TEST_DIR}/${probe}_O${level}")
+        if(WIN32)
+            string(APPEND executable ".exe")
+        endif()
+        execute_process(COMMAND "${CLANGXX}" "-O${level}" ${sanitizer_flags}
+            "-DRANGE_PROBE_KIND=${kind}" "-DEXPECTED_STORES=${stores}"
+            "${instrumented}" "${CMAKE_CURRENT_LIST_DIR}/Range/RangeMaterializationProbe.cpp"
+            "${AEVIX_RUNTIME_ARCHIVE}" -o "${executable}" RESULT_VARIABLE compiled
+            OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 180)
+        if(NOT "${compiled}" STREQUAL "0")
+            message(FATAL_ERROR "${probe} native observer build failed: ${output}${error}")
+        endif()
+        execute_process(COMMAND "${executable}" RESULT_VARIABLE executed
+            OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 60)
+        if(NOT "${executed}" STREQUAL "0")
+            message(FATAL_ERROR "${probe} O${level} native observer failed: ${output}${error}")
+        endif()
+    endforeach()
+endforeach()
+file(SHA256 "${AEVIXC}" final_compiler_sha)
+if(NOT compiler_sha STREQUAL final_compiler_sha)
+    message(FATAL_ERROR "The compiler changed during the Range materialization gate")
+endif()
+message(STATUS "Range materialization: 12 types, 194 exact sequence cases, 992 expected elements per container, 4 rejections, exact reserve/OOM/cleanup observers and fixed-array initialization/ABI boundary passed")

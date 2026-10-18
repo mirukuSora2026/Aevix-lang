@@ -1,0 +1,101 @@
+/*
+ * Lifecycle of the array public module.
+ * @module array
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import slice;
+
+/*
+ * Fixed-array helpers retain compile-time extents and require explicit loans.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize len<T, const usize N>(&Array<T, N> values) { return N; }
+/*
+ * Version history for the array.is_empty public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_empty<T, const usize N>(&Array<T, N> values) { return N == 0; }
+/*
+ * Version history for the array.as_slice public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Slice<T> as_slice<T, const usize N>(&Array<T, N> values) { return Slice.from_array(values); }
+/*
+ * Version history for the array.as_mut_slice public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public MutSlice<T> as_mut_slice<T, const usize N>(&mut Array<T, N> values) { return Slice.from_array_mut(values); }
+/*
+ * Version history for the array.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> get<T, const usize N>(&Array<T, N> values, usize index) {
+    return slice.get(Slice.from_array(values), index);
+}
+/*
+ * Version history for the array.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> get_mut<T, const usize N>(&mut Array<T, N> values, usize index) {
+    return slice.get_mut(Slice.from_array_mut(values), index);
+}
+/*
+ * Version history for the array.first public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> first<T, const usize N>(&Array<T, N> values) { return get(values, 0); }
+/*
+ * Version history for the array.last public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> last<T, const usize N>(&Array<T, N> values) {
+    if (N == 0) return Optional.none();
+    usize index = N - 1;
+    return get(values, index);
+}
+/*
+ * Version history for the array.first_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> first_mut<T, const usize N>(&mut Array<T, N> values) { return get_mut(values, 0); }
+/*
+ * Version history for the array.last_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> last_mut<T, const usize N>(&mut Array<T, N> values) {
+    if (N == 0) return Optional.none();
+    usize index = N - 1;
+    return get_mut(values, index);
+}
+
+/*
+ * Return an explicit element-wise Copy of inline storage; no heap buffer is created.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Array<T, N> copy<T, const usize N>(&Array<T, N> values) where T implements Copy {
+    return Array.from_copy(values);
+}

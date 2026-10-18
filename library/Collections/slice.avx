@@ -1,0 +1,168 @@
+/*
+ * Lifecycle of the slice public module.
+ * @module slice
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import error { Error };
+
+/*
+ * Copy operations report unequal lengths before modifying either buffer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct LengthMismatch implements Copy, Error {
+    /*
+     * Version history for the slice.LengthMismatch.expected public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize expected;
+    /*
+     * Version history for the slice.LengthMismatch.actual public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize actual;
+    /*
+     * Version history for the slice.LengthMismatch.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) { return "slice.length_mismatch"; }
+    /*
+     * Version history for the slice.LengthMismatch.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) { return "Source and destination slices must have equal lengths."; }
+};
+
+/*
+ * Borrowed slice helpers never allocate or copy owning elements implicitly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize len<T>(Slice<T> values) { return Slice.len(values); }
+/*
+ * Version history for the slice.is_empty public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_empty<T>(Slice<T> values) { return Slice.len(values) == 0; }
+/*
+ * Version history for the slice.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> get<T>(Slice<T> values, usize index) {
+    if (index >= Slice.len(values)) return Optional.none();
+    return Optional.some(&values[index]);
+}
+/*
+ * Version history for the slice.first public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> first<T>(Slice<T> values) { return get(values, 0); }
+/*
+ * Version history for the slice.last public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> last<T>(Slice<T> values) {
+    usize length = Slice.len(values);
+    if (length == 0) return Optional.none();
+    return get(values, length - 1);
+}
+
+/*
+ * Consume the exclusive view and return a checked exclusive element loan.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> get_mut<T>(MutSlice<T> values, usize index) {
+    if (index >= Slice.len(&values)) return Optional.none();
+    return Optional.some(&mut values[index]);
+}
+/*
+ * Version history for the slice.first_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> first_mut<T>(MutSlice<T> values) { return get_mut(values, 0); }
+/*
+ * Version history for the slice.last_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> last_mut<T>(MutSlice<T> values) {
+    usize length = Slice.len(&values);
+    if (length == 0) return Optional.none();
+    return get_mut(values, length - 1);
+}
+/*
+ * Version history for the slice.subrange public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Slice<T>, BoundsError> subrange<T>(Slice<T> values, usize start, usize end) {
+    return Slice.slice(values, start, end);
+}
+/*
+ * Version history for the slice.subrange_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<MutSlice<T>, BoundsError> subrange_mut<T>(MutSlice<T> values, usize start, usize end) {
+    return Slice.slice_mut(values, start, end);
+}
+/*
+ * Version history for the slice.for_each_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit for_each_mut<T, F>(MutSlice<T> values, &mut F callback)
+    where F implements FnMut<Tuple<&mut T>, unit> {
+    mut usize index = 0;
+    while (index < Slice.len(&values)) {
+        callback(&mut values[index]);
+        index++;
+    }
+    return Unit.value();
+}
+
+/*
+ * Copy the source after checking equal lengths. No implicit allocation occurs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, LengthMismatch> copy_from<T>(MutSlice<T> destination, Slice<T> source)
+    where T implements Copy {
+    if (Slice.len(&destination) != Slice.len(source))
+        return Result.err(LengthMismatch { expected = Slice.len(&destination), actual = Slice.len(source) });
+    mut usize index = 0;
+    while (index < Slice.len(source)) {
+        destination[index] = source[index];
+        index++;
+    }
+    return Result.ok(Unit.value());
+}

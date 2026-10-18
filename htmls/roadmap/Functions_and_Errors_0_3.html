@@ -97,12 +97,12 @@ struct Player implements Scored {
             </section>
             <section id="common-error"><h2>A common error interface</h2>
                 <p><strong>Selected 0.3 model:</strong> common error handling with Result. Use an explicitly imported <code>error.Error</code> interface for borrowed inspection and a concrete <code>error.AnyError</code> carrier for owned common propagation.</p>
-                <p>The proposed minimal interface has allocation-free code and message access. The code identifies the error kind; the message is a human-readable summary. A view may borrow from the error owner or static storage and must not outlive that storage.</p>
+                <p>The development source module implements code and message access without requiring a new allocation for each call. The code identifies the error kind; the message is a human-readable summary. A view may borrow from the error owner or static storage and must not outlive that storage.</p>
                 <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">public interface Error {
     public string_view code(&amp;Self self);
     public string_view message(&amp;Self self);
 };</code></pre>
-                <p>This is the proposed public declaration in error.avx, not an automatic prelude type. Standard recoverable error types can implement it without losing their concrete fields or enum variants. A user-defined error opts in with implements Error under the existing interface rules.</p>
+                <p>This is the public declaration in error.avx, not an automatic prelude type. Standard recoverable error types can implement it without losing their concrete fields or enum variants. A user-defined error opts in with implements Error under the existing interface rules.</p>
                 <pre class="code-block" data-status="planned-0.3"><code class="language-aevix" data-language="aevix">import error { Error };
 import system;
 
@@ -124,9 +124,9 @@ Result&lt;i32, AnyError&gt; forward(Result&lt;i32, AnyError&gt; operation) {
     return Result.ok(value);
 }</code></pre>
                 <p>The example forwards an error already stored as AnyError; it does not implicitly convert another error type. AnyError implements Error and moves by default. Its use at an application boundary is explicit; typed library errors and their payloads remain available.</p>
-                <p>Recommend inline storage for an explicitly selected set of fixed-size standard errors, so converting those errors into the carrier requires no additional allocation. This does not promise that error creation was allocation-free or that arbitrary payload-bearing errors such as InputError&lt;T&gt; fit inline. Keep those in a typed Result or use explicit fallible packing.</p>
+                <p>The current AnyError stores Box&lt;dyn Error&gt;. AnyError.pack(value) allocates explicitly and returns Result&lt;AnyError, InputError&lt;E&gt;&gt;, preserving the original error in the failure payload. AnyError.from_box consumes an existing Box&lt;dyn Error&gt; without another allocation. Small inline error storage is not implemented; typed Result errors need no AnyError allocation.</p>
                 <p>Owning type erasure for other errors requires a separate explicit fallible conversion. Allocation failure must be represented without losing the original error. It must be possible to report allocation failure without allocating another wrapper recursively. A fallible packing operation must return the original error on failure. It cannot be hidden as an infallible map_err callback or automatic ? conversion, and nested failures are not automatically flattened.</p>
-                <p>The 0.3 <a href="Library_Foundation.html#order">error-mapping foundation</a> remains explicit. AnyError is selected for 0.3; finalize its constructor names, inline variant set, layout, allocation, ownership-on-failure representation, lifetime, and thread-transfer rules before implementation. No automatic cross-thread permission or borrow lifetime extension is implied.</p>
+                <p>The 0.3 <a href="Library_Foundation.html#order">error-mapping foundation</a> remains explicit. The implemented source carrier exposes pack, from_box, and as_error. Its allocation, preserved-input failure representation, lifetime, and move semantics are covered by source execution and rejection tests; thread-transfer permission is not implied. No automatic cross-thread permission or borrow lifetime extension is implied.</p>
             </section>
             <section id="try"><h2>Relationship to try and catch</h2>
                 <p><strong>Confirmed decision:</strong> 0.3 uses common errors with Result and explicit mapping. It does not add Java-like try/catch. The existing 0.4 try work is retained. A shared error interface does not silently add throw statements, exception inheritance, runtime stack unwinding, or catching across functions.</p>

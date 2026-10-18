@@ -19,6 +19,16 @@
 #if AEVIX_HAS_LLVM_ORC
 #include "aevix/Runtime/PersistRuntime.hpp"
 #include "aevix/Runtime/TextRuntime.hpp"
+#include "aevix/Runtime/ParseRuntime.hpp"
+#include "aevix/Runtime/SystemRuntime.hpp"
+#include "aevix/Runtime/OsRuntime.hpp"
+#include "aevix/Runtime/SharedRuntime.hpp"
+#include "aevix/Runtime/AtomicRuntime.hpp"
+#include "aevix/Runtime/LockRuntime.hpp"
+#include "aevix/Runtime/TaskRuntime.hpp"
+#include "aevix/Runtime/TaskScopeRuntime.hpp"
+#include "aevix/Runtime/CancellationRuntime.hpp"
+#include <cmath>
 #include "aevix/Runtime/Integer128Runtime.hpp"
 #include "aevix/Runtime/ComplexRuntime.hpp"
 #include "aevix/Runtime/BenchRuntime.hpp"
@@ -206,6 +216,19 @@ namespace aevix
             || !session->defineSymbol("aevix_persist_shutdown",
                 reinterpret_cast<std::uintptr_t>(&aevix_persist_shutdown), error)) return nullptr;
         for (const auto& [name, address] : std::initializer_list<std::pair<const char*, std::uintptr_t>>{
+#define AEVIX_SCALAR_MATH_UNARY(name) \
+            {#name, reinterpret_cast<std::uintptr_t>(static_cast<double(*)(double)>(&std::name))}, \
+            {#name "f", reinterpret_cast<std::uintptr_t>(static_cast<float(*)(float)>(&std::name))},
+#define AEVIX_SCALAR_MATH_BINARY(name) \
+            {#name, reinterpret_cast<std::uintptr_t>(static_cast<double(*)(double, double)>(&std::name))}, \
+            {#name "f", reinterpret_cast<std::uintptr_t>(static_cast<float(*)(float, float)>(&std::name))},
+#define AEVIX_SCALAR_MATH_TERNARY(name) \
+            {#name, reinterpret_cast<std::uintptr_t>(static_cast<double(*)(double, double, double)>(&std::name))}, \
+            {#name "f", reinterpret_cast<std::uintptr_t>(static_cast<float(*)(float, float, float)>(&std::name))},
+#include "aevix/Native/ScalarMath.def"
+#undef AEVIX_SCALAR_MATH_UNARY
+#undef AEVIX_SCALAR_MATH_BINARY
+#undef AEVIX_SCALAR_MATH_TERNARY
             {"aevix_parallel_for_each", reinterpret_cast<std::uintptr_t>(&aevix_parallel_for_each)},
             {"aevix_integer128_binary", reinterpret_cast<std::uintptr_t>(&aevix_integer128_binary)},
             {"aevix_integer128_to_float", reinterpret_cast<std::uintptr_t>(&aevix_integer128_to_float)},
@@ -223,7 +246,126 @@ namespace aevix
             {"aevix_text_count", reinterpret_cast<std::uintptr_t>(&aevix_text_count)},
             {"aevix_text_decode", reinterpret_cast<std::uintptr_t>(&aevix_text_decode)},
             {"aevix_text_boundary", reinterpret_cast<std::uintptr_t>(&aevix_text_boundary)},
-            {"aevix_text_equal", reinterpret_cast<std::uintptr_t>(&aevix_text_equal)}})
+            {"aevix_text_equal", reinterpret_cast<std::uintptr_t>(&aevix_text_equal)},
+            {"aevix_parse_scalar", reinterpret_cast<std::uintptr_t>(&aevix_parse_scalar)},
+            {"aevix_system_write", reinterpret_cast<std::uintptr_t>(&aevix_system_write)},
+            {"aevix_system_flush", reinterpret_cast<std::uintptr_t>(&aevix_system_flush)},
+            {"aevix_system_log", reinterpret_cast<std::uintptr_t>(&aevix_system_log)},
+            {"aevix_system_input", reinterpret_cast<std::uintptr_t>(&aevix_system_input)},
+            {"aevix_system_output", reinterpret_cast<std::uintptr_t>(&aevix_system_output)},
+            {"aevix_system_error_code", reinterpret_cast<std::uintptr_t>(&aevix_system_error_code)},
+            {"aevix_system_error_progress", reinterpret_cast<std::uintptr_t>(&aevix_system_error_progress)},
+            {"aevix_system_format_scalar", reinterpret_cast<std::uintptr_t>(&aevix_system_format_scalar)},
+            {"aevix_os_file_open_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_file_open_utf8)},
+            {"aevix_os_file_read", reinterpret_cast<std::uintptr_t>(&aevix_os_file_read)},
+            {"aevix_os_file_write", reinterpret_cast<std::uintptr_t>(&aevix_os_file_write)},
+            {"aevix_os_file_seek", reinterpret_cast<std::uintptr_t>(&aevix_os_file_seek)},
+            {"aevix_os_file_flush", reinterpret_cast<std::uintptr_t>(&aevix_os_file_flush)},
+            {"aevix_os_file_close", reinterpret_cast<std::uintptr_t>(&aevix_os_file_close)},
+            {"aevix_os_file_cleanup", reinterpret_cast<std::uintptr_t>(&aevix_os_file_cleanup)},
+            {"aevix_os_file_size", reinterpret_cast<std::uintptr_t>(&aevix_os_file_size)},
+            {"aevix_os_file_set_len", reinterpret_cast<std::uintptr_t>(&aevix_os_file_set_len)},
+            {"aevix_os_last_error", reinterpret_cast<std::uintptr_t>(&aevix_os_last_error)},
+            {"aevix_os_error_kind", reinterpret_cast<std::uintptr_t>(&aevix_os_error_kind)},
+            {"aevix_os_env_get_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_env_get_utf8)},
+            {"aevix_os_env_set_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_env_set_utf8)},
+            {"aevix_os_env_remove_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_env_remove_utf8)},
+            {"aevix_os_monotonic_ns", reinterpret_cast<std::uintptr_t>(&aevix_os_monotonic_ns)},
+            {"aevix_os_unix_time_ns", reinterpret_cast<std::uintptr_t>(&aevix_os_unix_time_ns)},
+            {"aevix_os_sleep_ns", reinterpret_cast<std::uintptr_t>(&aevix_os_sleep_ns)},
+            {"aevix_os_path_normalize_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_path_normalize_utf8)},
+            {"aevix_os_path_metadata_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_path_metadata_utf8)},
+            {"aevix_os_path_mkdir_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_path_mkdir_utf8)},
+            {"aevix_os_path_remove_utf8", reinterpret_cast<std::uintptr_t>(&aevix_os_path_remove_utf8)},
+            {"aevix_os_process_spawn", reinterpret_cast<std::uintptr_t>(&aevix_os_process_spawn)},
+            {"aevix_os_process_wait", reinterpret_cast<std::uintptr_t>(&aevix_os_process_wait)},
+            {"aevix_os_process_try_wait", reinterpret_cast<std::uintptr_t>(&aevix_os_process_try_wait)},
+            {"aevix_os_process_kill", reinterpret_cast<std::uintptr_t>(&aevix_os_process_kill)},
+            {"aevix_os_process_cleanup", reinterpret_cast<std::uintptr_t>(&aevix_os_process_cleanup)},
+            {"aevix_shared_prepare", reinterpret_cast<std::uintptr_t>(&aevix_shared_prepare)},
+            {"aevix_shared_commit", reinterpret_cast<std::uintptr_t>(&aevix_shared_commit)},
+            {"aevix_shared_abort", reinterpret_cast<std::uintptr_t>(&aevix_shared_abort)},
+            {"aevix_shared_clone", reinterpret_cast<std::uintptr_t>(&aevix_shared_clone)},
+            {"aevix_shared_release", reinterpret_cast<std::uintptr_t>(&aevix_shared_release)},
+            {"aevix_shared_downgrade", reinterpret_cast<std::uintptr_t>(&aevix_shared_downgrade)},
+            {"aevix_weak_clone", reinterpret_cast<std::uintptr_t>(&aevix_weak_clone)},
+            {"aevix_weak_release", reinterpret_cast<std::uintptr_t>(&aevix_weak_release)},
+            {"aevix_weak_upgrade", reinterpret_cast<std::uintptr_t>(&aevix_weak_upgrade)},
+            {"aevix_shared_payload", reinterpret_cast<std::uintptr_t>(&aevix_shared_payload)},
+            {"aevix_shared_unique_payload", reinterpret_cast<std::uintptr_t>(&aevix_shared_unique_payload)},
+            {"aevix_shared_take", reinterpret_cast<std::uintptr_t>(&aevix_shared_take)},
+            {"aevix_shared_counts", reinterpret_cast<std::uintptr_t>(&aevix_shared_counts)},
+            {"aevix_shared_same_allocation", reinterpret_cast<std::uintptr_t>(&aevix_shared_same_allocation)},
+            {"aevix_atomic_operation", reinterpret_cast<std::uintptr_t>(&aevix_atomic_operation)},
+            {"aevix_atomic_fence", reinterpret_cast<std::uintptr_t>(&aevix_atomic_fence)},
+            {"aevix_atomic_wait", reinterpret_cast<std::uintptr_t>(&aevix_atomic_wait)},
+            {"aevix_atomic_alignment", reinterpret_cast<std::uintptr_t>(&aevix_atomic_alignment)},
+            {"aevix_atomic_lock_free", reinterpret_cast<std::uintptr_t>(&aevix_atomic_lock_free)},
+            {"aevix_mutex_init", reinterpret_cast<std::uintptr_t>(&aevix_mutex_init)},
+            {"aevix_mutex_lock", reinterpret_cast<std::uintptr_t>(&aevix_mutex_lock)},
+            {"aevix_mutex_try_lock", reinterpret_cast<std::uintptr_t>(&aevix_mutex_try_lock)},
+            {"aevix_mutex_lock_timeout", reinterpret_cast<std::uintptr_t>(&aevix_mutex_lock_timeout)},
+            {"aevix_mutex_unlock", reinterpret_cast<std::uintptr_t>(&aevix_mutex_unlock)},
+            {"aevix_mutex_is_poisoned", reinterpret_cast<std::uintptr_t>(&aevix_mutex_is_poisoned)},
+            {"aevix_mutex_clear_poison", reinterpret_cast<std::uintptr_t>(&aevix_mutex_clear_poison)},
+            {"aevix_rwlock_init", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_init)},
+            {"aevix_rwlock_read", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_read)},
+            {"aevix_rwlock_write", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_write)},
+            {"aevix_rwlock_try_read", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_try_read)},
+            {"aevix_rwlock_try_write", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_try_write)},
+            {"aevix_rwlock_read_timeout", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_read_timeout)},
+            {"aevix_rwlock_write_timeout", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_write_timeout)},
+            {"aevix_rwlock_read_unlock", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_read_unlock)},
+            {"aevix_rwlock_write_unlock", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_write_unlock)},
+            {"aevix_rwlock_is_poisoned", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_is_poisoned)},
+            {"aevix_rwlock_clear_poison", reinterpret_cast<std::uintptr_t>(&aevix_rwlock_clear_poison)},
+            {"aevix_cancel_source_new", reinterpret_cast<std::uintptr_t>(&aevix_cancel_source_new)},
+            {"aevix_cancel_source_clone", reinterpret_cast<std::uintptr_t>(&aevix_cancel_source_clone)},
+            {"aevix_cancel_token_from_source", reinterpret_cast<std::uintptr_t>(&aevix_cancel_token_from_source)},
+            {"aevix_cancel_token_clone", reinterpret_cast<std::uintptr_t>(&aevix_cancel_token_clone)},
+            {"aevix_cancel_source_request", reinterpret_cast<std::uintptr_t>(&aevix_cancel_source_request)},
+            {"aevix_cancel_token_requested", reinterpret_cast<std::uintptr_t>(&aevix_cancel_token_requested)},
+            {"aevix_cancel_source_release", reinterpret_cast<std::uintptr_t>(&aevix_cancel_source_release)},
+            {"aevix_cancel_token_release", reinterpret_cast<std::uintptr_t>(&aevix_cancel_token_release)},
+            {"aevix_task_cancel_token", reinterpret_cast<std::uintptr_t>(&aevix_task_cancel_token)},
+            {"aevix_scoped_task_cancel_token", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_cancel_token)},
+            {"aevix_task_scope_open", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_open)},
+            {"aevix_task_scope_prepare", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_prepare)},
+            {"aevix_task_scope_prepare_identified", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_prepare_identified)},
+            {"aevix_scoped_task_commit", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_commit)},
+            {"aevix_task_scope_prepare_ready", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_prepare_ready)},
+            {"aevix_scoped_task_ready_commit", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_ready_commit)},
+            {"aevix_scoped_task_abort", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_abort)},
+            {"aevix_scoped_task_join", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_join)},
+            {"aevix_scoped_task_try_take", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_try_take)},
+            {"aevix_scoped_task_wait", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_wait)},
+            {"aevix_scoped_task_wait_timeout", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_wait_timeout)},
+            {"aevix_scoped_task_discard", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_discard)},
+            {"aevix_scoped_task_request_cancel", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_request_cancel)},
+            {"aevix_scoped_task_snapshot", reinterpret_cast<std::uintptr_t>(&aevix_scoped_task_snapshot)},
+            {"aevix_task_scope_request_cancel", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_request_cancel)},
+            {"aevix_task_scope_snapshot", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_snapshot)},
+            {"aevix_task_scope_close_admission", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_close_admission)},
+            {"aevix_task_scope_active_count", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_active_count)},
+            {"aevix_task_scope_status", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_status)},
+            {"aevix_task_scope_close", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_close)},
+            {"aevix_task_scope_cleanup", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_cleanup)},
+            {"aevix_task_scope_runtime_drain", reinterpret_cast<std::uintptr_t>(&aevix_task_scope_runtime_drain)},
+            {"aevix_task_prepare", reinterpret_cast<std::uintptr_t>(&aevix_task_prepare)},
+            {"aevix_task_prepare_identified", reinterpret_cast<std::uintptr_t>(&aevix_task_prepare_identified)},
+            {"aevix_task_commit", reinterpret_cast<std::uintptr_t>(&aevix_task_commit)},
+            {"aevix_task_abort", reinterpret_cast<std::uintptr_t>(&aevix_task_abort)},
+            {"aevix_task_join", reinterpret_cast<std::uintptr_t>(&aevix_task_join)},
+            {"aevix_task_try_take", reinterpret_cast<std::uintptr_t>(&aevix_task_try_take)},
+            {"aevix_task_wait", reinterpret_cast<std::uintptr_t>(&aevix_task_wait)},
+            {"aevix_task_wait_timeout", reinterpret_cast<std::uintptr_t>(&aevix_task_wait_timeout)},
+            {"aevix_task_cleanup", reinterpret_cast<std::uintptr_t>(&aevix_task_cleanup)},
+            {"aevix_task_runtime_drain", reinterpret_cast<std::uintptr_t>(&aevix_task_runtime_drain)},
+            {"aevix_task_request_cancel", reinterpret_cast<std::uintptr_t>(&aevix_task_request_cancel)},
+            {"aevix_task_snapshot", reinterpret_cast<std::uintptr_t>(&aevix_task_snapshot)},
+            {"aevix_task_context_cancel_requested", reinterpret_cast<std::uintptr_t>(&aevix_task_context_cancel_requested)},
+            {"aevix_task_last_error", reinterpret_cast<std::uintptr_t>(&aevix_task_last_error)},
+            {"aevix_task_error_domain", reinterpret_cast<std::uintptr_t>(&aevix_task_error_domain)}})
             if (!session->defineSymbol(name, address, error)) return nullptr;
         return session;
     }

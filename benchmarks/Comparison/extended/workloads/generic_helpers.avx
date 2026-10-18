@@ -1,0 +1,75 @@
+/*
+ * Generated generic_helpers: exact unsigned arithmetic, runtime inputs, no fast math.
+ * Initialization, input parsing, validation and output are outside clock calls.
+ * @module generic_helpers
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import system;
+extern "C" u64 aevixbench_clock_ns();
+T success<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+u64 read_seed() {
+    Optional<u64> input = success(system.input<u64>());
+    switch (input) {
+        case Optional<u64>.Some { u64 supplied = value }: return supplied % 97u64; break;
+        case Optional<u64>.None: Never.unreachable(); break;
+    }
+}
+
+T identity<T>(T value) { return value; }
+u64 project(u64 value) { return value * 3u64 + 1u64; }
+void kernel(&Array<u64, 4096> input, &mut Array<u64, 16> output) {
+    for (mut usize repeat = 0usize; repeat < 64usize; repeat++) {
+        for (mut usize index = 0usize; index < 4096usize; index++) {
+            usize slot = index % 16usize;
+            output[slot] += project(identity(input[index]));
+        }
+    }
+    return;
+}
+
+i32 main() {
+    u64 seeds[2] = [read_seed(), read_seed()];
+    mut u64 values[4096] = [0u64; 4096];
+    mut u64 right[4096] = [0u64; 4096];
+    mut u64 output[16] = [0u64; 16];
+    for (mut usize iteration = 0usize; iteration < 2usize; iteration++) {
+        u64 seed = seeds[iteration];
+        mut u64 initial = 0u64;
+        for (mut usize index = 0usize; index < 4096usize; index++) {
+            values[index] = (initial * 17u64 + seed * 13u64) % 251u64;
+            right[index] = (initial * 7u64 + seed * 3u64) % 19u64;
+            initial++;
+        }
+        for (mut usize index = 0usize; index < 16usize; index++) output[index] = 0u64;
+        u64 started = aevixbench_clock_ns();
+        kernel(&values, &mut output);
+        u64 stopped = aevixbench_clock_ns();
+        if (stopped < started) return 93;
+        if (iteration == 1usize) {
+            mut u64 sum = 0u64;
+            mut u64 weighted = 0u64;
+            mut u64 weight = 1u64;
+            for (mut usize index = 0usize; index < 16usize; index++) {
+                sum += output[index];
+                weighted = (weighted + weight * output[index]) % 1000000007u64;
+                weight++;
+            }
+            success(system.printf("SAMPLE generic_helpers serial 0 %u %u %u 1\n", stopped - started, sum, weighted));
+        }
+    }
+    success(system.print("VERIFY generic_helpers serial "));
+    for (mut usize index = 0usize; index < 16usize; index++) {
+        if (index != 0usize) success(system.print(","));
+        success(system.printf("%u", output[index]));
+    }
+    success(system.println(""));
+    success(system.flush());
+    return 0;
+}

@@ -1,0 +1,242 @@
+/*
+ * Lifecycle of the vector public module.
+ * @module vector
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * These helpers preserve borrowed input and clean already-created output elements on failure.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum MapError<E> {
+    /*
+     * Version history for the vector.MapError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the vector.MapError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+    /*
+     * Version history for the vector.MapError.CallbackFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    CallbackFailure { /*
+ * Version history for the vector.MapError.CallbackFailure.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public E error; };
+};
+
+/*
+ * Version history for the vector.copy_from_slice public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<T>, CollectionError> copy_from_slice<T>(Slice<T> input) where T implements Copy {
+    mut Vector<T> output = []?;
+    Vector.reserve(&mut output, Slice.len(input))?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        Result<unit, InputError<T>> appended = Vector.push(&mut output, input[index]);
+        switch (move appended) {
+            case Result<unit, InputError<T>>.Ok: break;
+            case Result<unit, InputError<T>>.Err { InputError<T> problem = error }:
+                switch (move problem) {
+                    case InputError<T>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                    case InputError<T>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                    // This path only delegates to push/rehash, which never reports an index error.
+                    case InputError<T>.OutOfBounds: Never.unreachable(); break;
+                }
+                break;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}
+/*
+ * Version history for the vector.repeat_copy public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<T>, CollectionError> repeat_copy<T>(usize count, T value) where T implements Copy {
+    mut Vector<T> output = []?;
+    Vector.reserve(&mut output, count)?;
+    mut usize index = 0;
+    while (index < count) {
+        Result<unit, InputError<T>> appended = Vector.push(&mut output, value);
+        switch (move appended) {
+            case Result<unit, InputError<T>>.Ok: break;
+            case Result<unit, InputError<T>>.Err { InputError<T> problem = error }:
+                switch (move problem) {
+                    case InputError<T>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                    case InputError<T>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                    // This path only delegates to push/rehash, which never reports an index error.
+                    case InputError<T>.OutOfBounds: Never.unreachable(); break;
+                }
+                break;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}
+/*
+ * Version history for the vector.map_ref public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<U>, CollectionError> map_ref<T, U, F>(Slice<T> input, &F transform) where F implements Fn<Tuple<&T>, U> {
+    mut Vector<U> output = []?;
+    Vector.reserve(&mut output, Slice.len(input))?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        U transformed = transform(&input[index]);
+        Result<unit, InputError<U>> appended = Vector.push(&mut output, transformed);
+        switch (move appended) {
+            case Result<unit, InputError<U>>.Ok: break;
+            case Result<unit, InputError<U>>.Err { InputError<U> problem = error }:
+                switch (move problem) {
+                    case InputError<U>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                    case InputError<U>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                    // This path only delegates to push/rehash, which never reports an index error.
+                    case InputError<U>.OutOfBounds: Never.unreachable(); break;
+                }
+                break;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}
+/*
+ * Version history for the vector.filter_copy public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<T>, CollectionError> filter_copy<T, F>(Slice<T> input, &F keep)
+    where T implements Copy, F implements Fn<Tuple<&T>, bool> {
+    mut Vector<T> output = []?;
+    Vector.reserve(&mut output, Slice.len(input))?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        if (keep(&input[index])) {
+            Result<unit, InputError<T>> appended = Vector.push(&mut output, input[index]);
+            switch (move appended) {
+                case Result<unit, InputError<T>>.Ok: break;
+                case Result<unit, InputError<T>>.Err { InputError<T> problem = error }:
+                    switch (move problem) {
+                    case InputError<T>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                    case InputError<T>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                    // This path only delegates to push/rehash, which never reports an index error.
+                    case InputError<T>.OutOfBounds: Never.unreachable(); break;
+                }
+                    break;
+            }
+        }
+        index++;
+    }
+    return Result.ok(output);
+}
+/*
+ * Version history for the vector.concat_copy public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<T>, CollectionError> concat_copy<T>(Slice<T> left, Slice<T> right) where T implements Copy {
+    mut Vector<T> output = copy_from_slice(left)?;
+    mut usize index = 0;
+    while (index < Slice.len(right)) {
+        Result<unit, InputError<T>> appended = Vector.push(&mut output, right[index]);
+        switch (move appended) {
+            case Result<unit, InputError<T>>.Ok: break;
+            case Result<unit, InputError<T>>.Err { InputError<T> problem = error }:
+                switch (move problem) {
+                    case InputError<T>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                    case InputError<T>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                    // This path only delegates to push/rehash, which never reports an index error.
+                    case InputError<T>.OutOfBounds: Never.unreachable(); break;
+                }
+                break;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}
+/*
+ * Version history for the vector.try_map_ref public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<U>, MapError<E>> try_map_ref<T, U, E, F>(Slice<T> input, &F transform)
+    where F implements Fn<Tuple<&T>, Result<U, E>> {
+    mut Vector<U> output;
+    Result<Vector<U>, CollectionError> created = [];
+    switch (move created) {
+        case Result<Vector<U>, CollectionError>.Ok { Vector<U> empty = value }: output = empty; break;
+        case Result<Vector<U>, CollectionError>.Err { CollectionError problem = error }:
+            switch (problem) {
+                case CollectionError.AllocationFailure:
+                    MapError<E> mapped_error = MapError<E>.AllocationFailure;
+                    return Result.err(mapped_error);
+                    break;
+                case CollectionError.SizeOverflow:
+                    MapError<E> mapped_error = MapError<E>.SizeOverflow;
+                    return Result.err(mapped_error);
+                    break;
+            }
+            break;
+    }
+    Result<unit, CollectionError> reserved = Vector.reserve(&mut output, Slice.len(input));
+    switch (move reserved) {
+        case Result<unit, CollectionError>.Ok: break;
+        case Result<unit, CollectionError>.Err { CollectionError problem = error }:
+            switch (problem) {
+                case CollectionError.AllocationFailure: MapError<E> mapped_error = MapError<E>.AllocationFailure; return Result.err(mapped_error); break;
+                case CollectionError.SizeOverflow: MapError<E> mapped_error = MapError<E>.SizeOverflow; return Result.err(mapped_error); break;
+            }
+            break;
+    }
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        Result<U, E> transformed = transform(&input[index]);
+        switch (move transformed) {
+            case Result<U, E>.Ok { U item = value }:
+                Result<unit, InputError<U>> appended = Vector.push(&mut output, item);
+                switch (move appended) {
+                    case Result<unit, InputError<U>>.Ok: break;
+                    case Result<unit, InputError<U>>.Err { InputError<U> problem = error }:
+                        switch (move problem) {
+                            case InputError<U>.AllocationFailure: MapError<E> mapped_error = MapError<E>.AllocationFailure; return Result.err(mapped_error); break;
+                            case InputError<U>.SizeOverflow: MapError<E> mapped_error = MapError<E>.SizeOverflow; return Result.err(mapped_error); break;
+                            // This path only delegates to push/rehash, which never reports an index error.
+                            case InputError<U>.OutOfBounds: Never.unreachable(); break;
+                        }
+                        break;
+                }
+                break;
+            case Result<U, E>.Err { E problem = error }:
+                return Result.err(MapError<E>.CallbackFailure { error = problem });
+                break;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}

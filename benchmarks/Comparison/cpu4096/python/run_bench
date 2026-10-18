@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : run_bench
+#
+# Description :
+#     공유 명세의 정확한 정수 계산을 순차 실행하거나 새 프로세스들과 실행한다.
+#     Run the shared exact-integer kernels serially or with fresh spawned processes.
+#
+# ========================
+
+import ctypes
+import json
+import multiprocessing
+import os
+from pathlib import Path
+import sys
+import time
+
+
+MODULUS = 2147483647
+MULTIPLIER = 48271
+CHECKSUM_MODULUS = 1000000007
+
+
+def run_range(values, begin, end, kernel, rounds):
+    """원소마다 명세의 계산 순서를 그대로 지킨다.
+    Preserve the specified arithmetic sequence for every element.
+    """
+    if kernel == "lcg":
+        for index in range(begin, end):
+            value = values[index] % MODULUS + 1
+            for _ in range(rounds):
+                value = (value * MULTIPLIER + 1) % MODULUS
+            values[index] = value
+    elif kernel == "next_prime":
+        for index in range(begin, end):
+            candidate = 1000000001 + (values[index] % 4096) * 1024
+            while True:
+                divisor = 3
+                while divisor * divisor <= candidate:
+                    if candidate % divisor == 0:
+                        break
+                    divisor += 2
+                if divisor * divisor > candidate:
+                    values[index] = candidate
+                    break
+                candidate += 2
+    else:
+        raise ValueError("Unsupported kernel: " + str(kernel))
+
+
+def chunks(length, workers):
+    """앞쪽 나머지 구간만 원소 하나를 더 받는다.
+    Assign one extra element only to the first remainder chunks.
+    """
+    quotient, remainder = divmod(length, workers)
+    begin = 0
+    output = []
+    for index in range(workers):
+        end = begin + quotient + (1 if index < remainder else 0)
+        output.append((begin, end))
+        begin = end
+    return output
+
+
+def run_parallel(context, values, workers, kernel, rounds):
+    """공유 버퍼는 복사하지 않고 시작과 합류는 호출 안에 둔다.
+    Share the buffer without copying and keep startup and joins inside the call.
+    """
+    regions = chunks(len(values), workers)
+    processes = []
+    try:
+        for begin, end in regions[:-1]:
+            process = context.Process(
+                target=run_range, args=(values, begin, end, kernel, rounds)
+            )
+            process.start()
+            processes.append(process)
+        begin, end = regions[-1]
+        run_range(values, begin, end, kernel, rounds)
+    except BaseException:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+        raise
+    finally:
+        for process in processes:
+            process.join()
+    failures = [process.exitcode for process in processes if process.exitcode != 0]
+    for process in processes:
+        process.close()
+    if failures:
+        raise RuntimeError("A spawned benchmark worker failed: " + repr(failures))
+
+
+def load_spec():
+    path = Path(__file__).resolve().parents[1] / "spec.json"
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    if spec.get("schema_version") != 1 or spec.get("elements") != 4096:
+        raise ValueError("This runner requires cpu4096 spec schema 1 with 4096 elements")
+    if spec.get("lcg") != "x=values[i]%2147483647+1; repeat rounds times: x=(x*48271+1)%2147483647; store x":
+        raise ValueError("The LCG contract changed; update the runner explicitly")
+    if spec.get("next_prime") != "n=1000000001+(values[i]%4096)*1024; test odd divisors d=3,5,... while d*d<=n; if composite n+=2 and retry; store the first prime":
+        raise ValueError("The prime-search contract changed; update the runner explicitly")
+    if spec.get("modes") != ["serial", "parallel_fresh"]:
+        raise ValueError("The benchmark mode contract changed")
+    if not spec.get("input", "").startswith("values[i]=(i+seed)%4096"):
+        raise ValueError("The runtime-seeded input contract changed")
+    return spec
+
+
+def logical_cpus():
+    """별도 가용성 보정 없이 OS의 온라인 논리 CPU 수를 사용한다.
+    Use the OS online logical CPU count without a private availability adjustment.
+    """
+    try:
+        return max(1, os.sysconf("SC_NPROCESSORS_ONLN"))
+    except (AttributeError, OSError, ValueError):
+        return max(1, os.cpu_count() or 1)
+
+
+def parse_count(value, name, minimum):
+    if not value.isascii() or not value.isdecimal():
+        raise ValueError(name + " must be a decimal integer")
+    result = int(value)
+    if result < minimum:
+        raise ValueError(name + " must be >= " + str(minimum))
+    return result
+
+
+def main(arguments):
+    spec = load_spec()
+    if len(arguments) < 2 or len(arguments) > 5:
+        raise ValueError("Usage: run_bench CASE MODE [REPEATS=5] [WARMUPS=1] [SEED=0]")
+    case, mode = arguments[:2]
+    if case not in spec["cases"] or mode not in spec["modes"]:
+        raise ValueError("Unknown case or mode; see ../spec.json")
+    repeats = parse_count(arguments[2], "repeats", 1) if len(arguments) > 2 else spec["measurement"]["samples"]
+    warmups = parse_count(arguments[3], "warmups", 0) if len(arguments) > 3 else spec["measurement"]["warmups"]
+    seed = parse_count(arguments[4], "seed", 0) if len(arguments) > 4 else 0
+    if seed > 9007199254740991:
+        raise ValueError("seed must be an exact shared-domain integer <= 2^53-1")
+    kernel = spec["cases"][case]["kernel"]
+    rounds = spec["cases"][case].get("rounds", 0)
+    if kernel not in ("lcg", "next_prime") or (kernel == "lcg" and (not isinstance(rounds, int) or rounds < 1)):
+        raise ValueError("Unsupported case configuration")
+    length = spec["elements"]
+    fallback_seed = seed % length
+    workers = min(logical_cpus(), 32, length) if mode == "parallel_fresh" else 1
+    context = multiprocessing.get_context("spawn")
+    values = context.RawArray(ctypes.c_uint64, length)
+    for iteration in range(warmups + repeats):
+        # 부모만 매 회차의 입력 줄을 읽고 EOF에서는 명령행 기본값을 쓴다.
+        # Only the parent reads each iteration's input line; EOF uses the CLI fallback.
+        line = "" if sys.stdin.isatty() else sys.stdin.readline()
+        seed = parse_count(line.strip(), "stdin seed", 0) if line else fallback_seed
+        if seed > 9007199254740991:
+            raise ValueError("stdin seed must be an exact shared-domain integer <= 2^53-1")
+        seed %= length
+        # 초기화와 결과 검사는 측정 구간 밖에 둔다.
+        # Keep initialization and result inspection outside the measured interval.
+        for index in range(length):
+            values[index] = (index + seed) % length
+        start = time.perf_counter_ns()
+        if mode == "parallel_fresh":
+            run_parallel(context, values, workers, kernel, rounds)
+        else:
+            run_range(values, 0, length, kernel, rounds)
+        elapsed = time.perf_counter_ns() - start
+        if iteration >= warmups:
+            total = 0
+            weighted = 0
+            for index, value in enumerate(values):
+                total += value
+                weighted = (weighted + (index + 1) * value) % CHECKSUM_MODULUS
+            print("SAMPLE", case, mode, iteration - warmups, elapsed, total, weighted, workers)
+    print("VERIFY", case, mode, ",".join(str(value) for value in values))
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except (OSError, RuntimeError, ValueError) as error:
+        print("Benchmark error:", error, file=sys.stderr)
+        sys.exit(1)

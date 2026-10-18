@@ -44,6 +44,31 @@ namespace aevix
                 else if (type.kind == TypeKind::Reference || type.kind == TypeKind::Function)
                     result = {type.kind == TypeKind::Reference && types_.get(type.element).kind == TypeKind::Dynamic ? 16u : 8u, 8, {}};
                 else if (type.kind == TypeKind::Dynamic) return failure(declaration, "dyn is unsized; use a borrowed view or Box owner.");
+                else if (type.kind == TypeKind::Atomic)
+                {
+                    const auto& scalar = types_.get(type.element);
+                    if (scalar.kind != TypeKind::Bool && !(scalar.kind == TypeKind::Integer && (scalar.bits == 8 || scalar.bits == 16 || scalar.bits == 32 || scalar.bits == 64)))
+                        return failure(declaration, "Atomic supports only bool and 8/16/32/64-bit integers in the CPU profile.");
+                    result = {scalar.kind == TypeKind::Bool ? 1u : scalar.bits / 8, scalar.kind == TypeKind::Bool ? 1u : scalar.bits / 8, {}};
+                }
+                else if (type.kind == TypeKind::MutexGuard || type.kind == TypeKind::RwLockReadGuard || type.kind == TypeKind::RwLockWriteGuard)
+                    result = {24, 8, {}};
+                else if (type.kind == TypeKind::Mutex || type.kind == TypeKind::RwLock)
+                {
+                    active_.insert(id);
+                    const auto payload = run(type.element, depth + 1);
+                    active_.erase(id);
+                    if (!payload.succeeded) return payload;
+                    const auto alignment = std::max<std::size_t>(8, payload.layout.alignment);
+                    const auto offset = 8 + (payload.layout.alignment - 8 % payload.layout.alignment) % payload.layout.alignment;
+                    if (payload.layout.size >= maximum() - offset) return failure(declaration, "Inline lock payload exceeds the target address space.");
+                    const auto bytes = offset + payload.layout.size + 1;
+                    const auto padding = (alignment - bytes % alignment) % alignment;
+                    if (bytes > maximum() - padding) return failure(declaration, "Inline lock tail padding overflows the target address space.");
+                    result = {bytes + padding, alignment, {}};
+                }
+                else if (type.kind == TypeKind::Task) result = {16, 8, {}};
+                else if (type.kind == TypeKind::Shared || type.kind == TypeKind::Weak || type.kind == TypeKind::CancellationSource || type.kind == TypeKind::CancellationToken || type.kind == TypeKind::TaskScope) result = {8, 8, {}};
                 else if (type.kind == TypeKind::Box) result = {types_.get(type.element).kind == TypeKind::Dynamic ? 16u : 8u, 8, {}};
                 else if (type.kind == TypeKind::String || type.kind == TypeKind::Vector) result = {24, 8, {}};
                 else if (type.kind == TypeKind::Slice) result = {16, 8, {}};

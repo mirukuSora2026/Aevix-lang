@@ -1,0 +1,35 @@
+/* Strict byte UTF-8 wrappers retain valid NUL/BOM and return independent owners. */
+import bytes;
+T success<T,E>(Result<T,E> input) { switch(move input){case Result<T,E>.Ok{T value=value}:return value;break;default:Never.unreachable();break;} }
+bool same(Slice<byte> first, Slice<byte> second) {
+    if(Slice.len(first)!=Slice.len(second))return false;
+    mut usize index=0;
+    while(index<Slice.len(first)){if(!bytes.equal(first[index],second[index]))return false;index++;}
+    return true;
+}
+Vector<byte> escaping_bytes() {
+    string owner=success(string.from_view("A\0한\u{1f600}"));
+    return success(bytes.encode_utf8(string.view(&owner)));
+}
+string escaping_string() {
+    byte input[4]=[Byte.from_u8(240u8),Byte.from_u8(159u8),Byte.from_u8(152u8),Byte.from_u8(128u8)];
+    return success(bytes.decode_utf8(Slice.from_array(&input)));
+}
+i32 main() {
+    string_view text="\u{feff}\0A한\u{1f600}\u{10ffff}";
+    Vector<byte> encoded=success(bytes.encode_utf8(text));
+    if(!same(Slice.from_vector(&encoded),string.as_bytes(text)) || Vector.len(&encoded)!=16)return 1;
+    success(bytes.utf8_validate(Slice.from_vector(&encoded)));
+    string decoded=success(bytes.decode_utf8(Slice.from_vector(&encoded)));
+    if(!string.equals(string.view(&decoded),text) || !same(Slice.from_vector(&encoded),string.as_bytes(text)))return 2;
+    Vector<byte> independent=escaping_bytes();
+    if(!same(Slice.from_vector(&independent),string.as_bytes("A\0한\u{1f600}")))return 3;
+    string independent_text=escaping_string();
+    if(!string.equals(string.view(&independent_text),"\u{1f600}"))return 4;
+    byte empty[0]=[];
+    success(bytes.utf8_validate(Slice.from_array(&empty)));
+    string empty_text=success(bytes.decode_utf8(Slice.from_array(&empty)));
+    Vector<byte> empty_bytes=success(bytes.encode_utf8(""));
+    if(!string.is_empty(string.view(&empty_text)) || Vector.len(&empty_bytes)!=0)return 5;
+    return 0;
+}

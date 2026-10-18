@@ -1,0 +1,264 @@
+/*
+ * Lifecycle of the time public module.
+ * @module time
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public import error { TimeError };
+
+/*
+ * An unsigned duration measured in nanoseconds; checked constructors report overflow.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Duration implements Copy {
+    u64 nanoseconds;
+    /*
+     * Version history for the time.Duration.from_nanos public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Duration from_nanos(u64 count) { return Duration { nanoseconds = count }; }
+    /*
+     * Version history for the time.Duration.from_micros public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> from_micros(u64 count) {
+        if (count > 18446744073709551u64) return Result.err(TimeError.OutOfRange);
+        return Result.ok(Duration { nanoseconds = count * 1000 });
+    }
+    /*
+     * Version history for the time.Duration.from_millis public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> from_millis(u64 count) {
+        if (count > 18446744073709u64) return Result.err(TimeError.OutOfRange);
+        return Result.ok(Duration { nanoseconds = count * 1000000 });
+    }
+    /*
+     * Version history for the time.Duration.from_secs public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> from_secs(u64 count) {
+        if (count > 18446744073u64) return Result.err(TimeError.OutOfRange);
+        return Result.ok(Duration { nanoseconds = count * 1000000000 });
+    }
+    /*
+     * Version history for the time.Duration.as_nanos public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public u64 as_nanos(&Duration self) { return self.nanoseconds; }
+    /*
+     * Version history for the time.Duration.as_micros public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public u64 as_micros(&Duration self) { return self.nanoseconds / 1000; }
+    /*
+     * Version history for the time.Duration.as_millis public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public u64 as_millis(&Duration self) { return self.nanoseconds / 1000000; }
+    /*
+     * Version history for the time.Duration.as_secs public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public u64 as_secs(&Duration self) { return self.nanoseconds / 1000000000; }
+    /*
+     * Version history for the time.Duration.subsec_nanos public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public u64 subsec_nanos(&Duration self) { return self.nanoseconds % 1000000000; }
+    /*
+     * Version history for the time.Duration.is_zero public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_zero(&Duration self) { return self.nanoseconds == 0; }
+    /*
+     * Version history for the time.Duration.checked_add public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> checked_add(&Duration self, Duration other) {
+        if (self.nanoseconds > 18446744073709551615u64 - other.nanoseconds) return Result.err(TimeError.OutOfRange);
+        return Result.ok(Duration { nanoseconds = self.nanoseconds + other.nanoseconds });
+    }
+    /*
+     * Version history for the time.Duration.checked_sub public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> checked_sub(&Duration self, Duration other) {
+        if (self.nanoseconds < other.nanoseconds) return Result.err(TimeError.InvalidDuration);
+        return Result.ok(Duration { nanoseconds = self.nanoseconds - other.nanoseconds });
+    }
+    /*
+     * Version history for the time.Duration.checked_mul public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> checked_mul(&Duration self, u64 factor) {
+        if (factor != 0 && self.nanoseconds > 18446744073709551615u64 / factor) return Result.err(TimeError.OutOfRange);
+        return Result.ok(Duration { nanoseconds = self.nanoseconds * factor });
+    }
+    /*
+     * Version history for the time.Duration.checked_div public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> checked_div(&Duration self, u64 divisor) {
+        if (divisor == 0) return Result.err(TimeError.InvalidDuration);
+        return Result.ok(Duration { nanoseconds = self.nanoseconds / divisor });
+    }
+};
+
+/*
+ * Version history for the time.Instant public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Instant implements Copy {
+    u64 ticks;
+    /*
+     * Version history for the time.Instant.now public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Instant, TimeError> now() {
+        u64 value = monotonic_ns()?;
+        return Result.ok(Instant { ticks = value });
+    }
+    /*
+     * Version history for the time.Instant.elapsed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> elapsed(&Instant self) {
+        Instant current = Instant.now()?;
+        return current.duration_since(self);
+    }
+    /*
+     * Version history for the time.Instant.duration_since public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Duration, TimeError> duration_since(&Instant self, &Instant earlier) {
+        if (self.ticks < earlier.ticks) return Result.err(TimeError.InvalidDuration);
+        return Result.ok(Duration.from_nanos(self.ticks - earlier.ticks));
+    }
+};
+
+/*
+ * Version history for the time.SystemTime public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct SystemTime implements Copy {
+    i64 nanoseconds;
+    /*
+     * Version history for the time.SystemTime.now public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<SystemTime, TimeError> now() {
+        i64 value = unix_time_ns()?;
+        return Result.ok(SystemTime { nanoseconds = value });
+    }
+    /*
+     * Version history for the time.SystemTime.from_unix_nanos public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public SystemTime from_unix_nanos(i64 value) { return SystemTime { nanoseconds = value }; }
+    /*
+     * Version history for the time.SystemTime.unix_nanos public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public i64 unix_nanos(&SystemTime self) { return self.nanoseconds; }
+};
+
+/*
+ * Version history for the time.monotonic_ns public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64, TimeError> monotonic_ns() {
+    Tuple<i32, u64, i32, i32> outcome = __monotonic_ns();
+    i32 status = *Tuple.get<0>(&outcome);
+    if (status == 0) return Result.ok(*Tuple.get<1>(&outcome));
+    return Result.err(time_error(status, *Tuple.get<2>(&outcome)));
+}
+/*
+ * Version history for the time.unix_time_ns public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64, TimeError> unix_time_ns() {
+    Tuple<i32, i64, i32, i32> outcome = __unix_time_ns();
+    i32 status = *Tuple.get<0>(&outcome);
+    if (status == 0) return Result.ok(*Tuple.get<1>(&outcome));
+    return Result.err(time_error(status, *Tuple.get<2>(&outcome)));
+}
+/*
+ * Version history for the time.sleep_ns public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, TimeError> sleep_ns(u64 duration) {
+    Tuple<i32, usize, i32, i32> outcome = __sleep_ns(duration);
+    i32 status = *Tuple.get<0>(&outcome);
+    if (status == 0) return Result.ok(Unit.value());
+    return Result.err(time_error(status, *Tuple.get<2>(&outcome)));
+}
+/*
+ * Version history for the time.sleep public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, TimeError> sleep(Duration duration) { return sleep_ns(duration.as_nanos()); }
+TimeError time_error(i32 status, i32 native) {
+    if (status == 5) return TimeError.OutOfRange;
+    if (status == 2) return TimeError.InvalidDuration;
+    if (status == 7) return TimeError.ClockUnavailable;
+    return TimeError.Os { os_code = native };
+}
+Tuple<i32, u64, i32, i32> __monotonic_ns() {}
+Tuple<i32, i64, i32, i32> __unix_time_ns() {}
+Tuple<i32, usize, i32, i32> __sleep_ns(u64 duration) {}

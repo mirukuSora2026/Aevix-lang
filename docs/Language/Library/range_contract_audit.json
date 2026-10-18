@@ -1,0 +1,1100 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "range_contract_audit.json",
+  "description": {
+    "en": "Exact Range catalog call spelling, concrete providers, alternate behavior and error-carrier differences at one pinned compiler snapshot; not a complete CPU implementation claim.",
+    "ko": "고정한 컴파일러 스냅샷에서 Range 카탈로그 호출 표기, 실제 제공자, 대체 동작과 오류 전달 타입 차이를 구분한다. CPU 전체 구현 완료를 뜻하지 않는다."
+  },
+  "status": "dated_canonical_probe_with_later_verified_explicit_source_alternatives",
+  "compiler_sha256": "6a3a75286411030c75ef334bc919221879e7a91f3bd9ba15e35588e513386b75",
+  "catalog_inventory_sha256": "675ff635a4057ac62c7ca5c0a26ffee20b43db050578816f2d040d798e14e05d",
+  "catalog_rows": 29,
+  "distinct_catalog_names": 29,
+  "direct_namespace": {
+    "accepted_catalog_rows": 11,
+    "rejected_catalog_rows": 18,
+    "accepted_distinct_names": 11,
+    "validation": "Every catalog row was independently compile-checked with basic valid primitive argument types. No audit fixture was executed. Source review distinguishes canonical bindings from related functions and parser name hints; later changes require re-audit."
+  },
+  "classification": {
+    "alternate_fact_return_shape_differs": 1,
+    "direct_catalog_namespace": 11,
+    "language_iteration_not_public_cursor": 1,
+    "no_concrete_provider": 16
+  },
+  "alternate_validation": {
+    "mode": "check_only_never_executed",
+    "accepted": true,
+    "typed_checks": 305,
+    "breakdown": {
+      "math_integer_overloads": 108,
+      "type_directed_integer_parse": 12,
+      "integer_conversion_source_destination_pairs": 144,
+      "explicit_width_integer_byte_codecs": 36,
+      "float_conversion_range_alias_and_language_iteration_checks": 5
+    },
+    "boundary": "Representative operation signatures across supported primitive widths are type checked; this is not a new exhaustive arithmetic/runtime proof."
+  },
+  "sources": [
+    {
+      "path": "src/Frontend/Sema/GenericResolver.cpp",
+      "role": "Actual conversion, parse and Range result/inspection rewrites with builtin identity checks"
+    },
+    {
+      "path": "src/Frontend/Sema/TypeChecker.cpp",
+      "role": "Concrete numeric/Range operation typing and language iteration"
+    },
+    {
+      "path": "src/Frontend/Sema/NameResolver.cpp",
+      "role": "Type-operand hints are not callable provider declarations"
+    },
+    {
+      "path": "src/Frontend/Sema/CoreErrorTypes.cpp",
+      "role": "Current IntegerError.OutOfRange and RangeError.InvalidStep/CountOverflow carriers"
+    },
+    {
+      "path": "library/Math/math.avx",
+      "role": "Explicit primitive integer overloads and IntegerMathError"
+    },
+    {
+      "path": "library/Core/bytes.avx",
+      "role": "Explicit-width endian Slice codecs returning ByteError"
+    },
+    {
+      "path": "runtime/Text/ParseRuntime.cpp",
+      "role": "Strict type-directed decimal integer parse foundation"
+    }
+  ],
+  "records": [
+    {
+      "id": "catalog:a21ea172f4e563695762",
+      "name": "Range.at",
+      "signature": "Range.at(&Range<T> range, usize index)",
+      "returns": "Result<T, RangeError>",
+      "contract": "Ordinal lookup with OutOfBounds instead of None. | O(1) checked arithmetic",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-at",
+          "section": "Function-Reference",
+          "line": 119
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.at(&range, 1usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:989071a77a0d2a6d807c",
+      "name": "Range.closed",
+      "signature": "Range.closed(T start, T end)",
+      "returns": "Range<T>",
+      "contract": "Ascending inclusive unit-step range; start > end is empty. Endpoints at T maximum are valid. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-closed",
+          "section": "Function-Reference",
+          "line": 85
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.closed(0i32, 7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/TypeChecker.cpp",
+        "symbol": "Range.closed"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:93223e6f75c45dca77af",
+      "name": "Range.collect_vector",
+      "signature": "Range.collect_vector(Range<T> range)",
+      "returns": "Result<Vector<T>, CollectionError>",
+      "contract": "Materializes all values; validates representable length/allocation size before allocation. | O(n) time and storage",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-collect_vector",
+          "section": "Function-Reference",
+          "line": 133
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.collect_vector(range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:a1d67378f0f379384516",
+      "name": "Range.contains",
+      "signature": "Range.contains(&Range<T> range, T value)",
+      "returns": "bool",
+      "contract": "Checks directional bounds and divisibility from start by the step magnitude. | O(1) integer operations",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-contains",
+          "section": "Function-Reference",
+          "line": 109
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.contains(&range, 3i32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:21dea5b1361a79dd03ba",
+      "name": "Range.descending",
+      "signature": "Range.descending(T start, T end)",
+      "returns": "Range<T>",
+      "contract": "Descending half-open unit-step range; start <= end is empty. Unsigned T is supported. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-descending",
+          "section": "Function-Reference",
+          "line": 87
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.descending(0i32, 7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/TypeChecker.cpp",
+        "symbol": "Range.descending"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:27aec12dd6fbd5f81f32",
+      "name": "Range.descending_closed",
+      "signature": "Range.descending_closed(T start, T end)",
+      "returns": "Range<T>",
+      "contract": "Descending inclusive unit-step range; start < end is empty. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-descending_closed",
+          "section": "Function-Reference",
+          "line": 89
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.descending_closed(0i32, 7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/TypeChecker.cpp",
+        "symbol": "Range.descending_closed"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:ae4a8793ff25ab60affc",
+      "name": "Range.direction",
+      "signature": "Range.direction(&Range<T> range)",
+      "returns": "RangeDirection",
+      "contract": "Ascending or Descending; direction is not encoded as a potentially overflowing signed step. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-direction",
+          "section": "Function-Reference",
+          "line": 97
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.direction(&range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "alternate_fact_return_shape_differs",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.is_descending"
+      },
+      "difference": "The direction fact is available as bool; no RangeDirection enum or canonical Range.direction function is supplied."
+    },
+    {
+      "id": "catalog:442f8834485dc4171ce6",
+      "name": "Range.empty",
+      "signature": "Range.empty<T>()",
+      "returns": "Range<T>",
+      "contract": "Canonical empty descriptor for integer T; has no first or last element. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-empty",
+          "section": "Function-Reference",
+          "line": 91
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.empty<i32>()",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:0d8f117468d954034f9a",
+      "name": "Range.end",
+      "signature": "Range.end(&Range<T> range)",
+      "returns": "T",
+      "contract": "Returns the descriptor end bound; inclusion is queried separately. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-end",
+          "section": "Function-Reference",
+          "line": 95
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.end(&range)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.end"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:6c0cdd128663e3dcede7",
+      "name": "Range.equal",
+      "signature": "Range.equal(&Range<T> left, &Range<T> right)",
+      "returns": "bool",
+      "contract": "Descriptor equality of bounds, direction, inclusion and magnitude; not sequence equality. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-equal",
+          "section": "Function-Reference",
+          "line": 137
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.equal(&range, &other)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:92500d25765fea7ce18a",
+      "name": "Range.first",
+      "signature": "Range.first(&Range<T> range)",
+      "returns": "Optional<T>",
+      "contract": "First yielded value, or None for empty. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-first",
+          "section": "Function-Reference",
+          "line": 113
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.first(&range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:11a0d57cd14a74a6d1c4",
+      "name": "Range.get",
+      "signature": "Range.get(&Range<T> range, usize index)",
+      "returns": "Optional<T>",
+      "contract": "Zero-based ordinal lookup; None when absent. Does not require total count to fit usize. | O(1) checked arithmetic",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-get",
+          "section": "Function-Reference",
+          "line": 117
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.get(&range, 1usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:2b8aaa23e68e5ca5686e",
+      "name": "Range.is_empty",
+      "signature": "Range.is_empty(&Range<T> range)",
+      "returns": "bool",
+      "contract": "Determines whether the descriptor yields any value without enumerating it. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-is_empty",
+          "section": "Function-Reference",
+          "line": 107
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.is_empty(&range)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.is_empty"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:db1476b1bc3d2f882566",
+      "name": "Range.is_inclusive",
+      "signature": "Range.is_inclusive(&Range<T> range)",
+      "returns": "bool",
+      "contract": "Whether the end bound is eligible to be included when reached exactly. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-is_inclusive",
+          "section": "Function-Reference",
+          "line": 99
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.is_inclusive(&range)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.is_inclusive"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:a5b94f4b4697618dbaae",
+      "name": "Range.iter",
+      "signature": "Range.iter(Range<T> range)",
+      "returns": "RangeIterator<T>",
+      "contract": "Creates an independent cursor; does not allocate or require the full count to fit usize. | O(1) setup; O(1) per item",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-iter",
+          "section": "Function-Reference",
+          "line": 129
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.iter(range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "language_iteration_not_public_cursor",
+      "provider": {
+        "source": "src/Frontend/Sema/TypeChecker.cpp",
+        "symbol": "for (T item in descriptor)"
+      },
+      "difference": "Language range iteration creates an internal independent cursor and preserves the descriptor; no public RangeIterator<T> result or Range.iter call is supplied. Enhanced colon-for does not accept a Range."
+    },
+    {
+      "id": "catalog:090b6515940dd475b020",
+      "name": "Range.last",
+      "signature": "Range.last(&Range<T> range)",
+      "returns": "Optional<T>",
+      "contract": "Last reachable value, which can differ from the inclusive end when the step does not divide the span. | O(1) checked arithmetic",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-last",
+          "section": "Function-Reference",
+          "line": 115
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.last(&range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:6be3fa1b84c3c0971243",
+      "name": "Range.len",
+      "signature": "Range.len(&Range<T> range)",
+      "returns": "Result<usize, RangeError>",
+      "contract": "Exact element count; CountOverflow if it cannot fit target usize. No wrap or truncation. | O(1) checked arithmetic",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-len",
+          "section": "Function-Reference",
+          "line": 111
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.len(&range)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.len"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:0fde0906e98c945fd1e6",
+      "name": "Range.new",
+      "signature": "Range.new(T start, T end)",
+      "returns": "Range<T>",
+      "contract": "Ascending half-open unit-step range; start >= end is empty. T is a supported fixed-width integer. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-new",
+          "section": "Function-Reference",
+          "line": 83
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.new(0i32, 7i32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/TypeChecker.cpp",
+        "symbol": "Range.new"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:2ee66103dde7f5502976",
+      "name": "Range.rev_iter",
+      "signature": "Range.rev_iter(Range<T> range)",
+      "returns": "RangeIterator<T>",
+      "contract": "Creates a cursor beginning at the last reachable value. | O(1) setup; O(1) per item",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-rev_iter",
+          "section": "Function-Reference",
+          "line": 131
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.rev_iter(range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:b3ee79823750d7dde873",
+      "name": "Range.reverse",
+      "signature": "Range.reverse(Range<T> range)",
+      "returns": "Range<T>",
+      "contract": "Reverses the finite sequence using its first/last reachable values and opposite direction; never negates an unsigned step. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-reverse",
+          "section": "Function-Reference",
+          "line": 127
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.reverse(range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:085215862dc0097bbafe",
+      "name": "Range.sequence_equal",
+      "signature": "Range.sequence_equal(&Range<T> left, &Range<T> right)",
+      "returns": "bool",
+      "contract": "Compares the represented finite sequences; all empty sequences equal, singleton step differences irrelevant. | O(1) exact descriptor arithmetic",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-sequence_equal",
+          "section": "Function-Reference",
+          "line": 139
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.sequence_equal(&range, &other)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:7860d556d0688d38c08d",
+      "name": "Range.skip",
+      "signature": "Range.skip(Range<T> range, usize count)",
+      "returns": "Range<T>",
+      "contract": "Removes up to count leading yielded values; skipping beyond the end yields empty. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-skip",
+          "section": "Function-Reference",
+          "line": 123
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.skip(range, 1usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:ff38c5e67046ab2d9aa4",
+      "name": "Range.split_at",
+      "signature": "Range.split_at(Range<T> range, usize index)",
+      "returns": "Result<Tuple<Range<T>, Range<T>>, RangeError>",
+      "contract": "Index must be no greater than cardinality; returns ordinal prefix/suffix without enumeration. | O(1) checked arithmetic",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-split_at",
+          "section": "Function-Reference",
+          "line": 125
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.split_at(range, 1usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:d03319dbf1b2385adac4",
+      "name": "Range.start",
+      "signature": "Range.start(&Range<T> range)",
+      "returns": "T",
+      "contract": "Returns the descriptor start bound, including for an empty descriptor. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-start",
+          "section": "Function-Reference",
+          "line": 93
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.start(&range)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.start"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:3a09f05131b5d7756336",
+      "name": "Range.step_by",
+      "signature": "Range.step_by(Range<T> range, U factor)",
+      "returns": "Result<Range<T>, RangeError>",
+      "contract": "Positive factor multiplies the existing magnitude; zero or an unrepresentable product is an error even for an empty range. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-step_by",
+          "section": "Function-Reference",
+          "line": 105
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.step_by(range, 2u32)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:242943afcd80b4115f41",
+      "name": "Range.step_magnitude",
+      "signature": "Range.step_magnitude(&Range<T> range)",
+      "returns": "U",
+      "contract": "Same-width unsigned magnitude; always positive for a valid noncanonical descriptor. Canonical empty uses 1. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-step_magnitude",
+          "section": "Function-Reference",
+          "line": 101
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.step_magnitude(&range)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.step_magnitude"
+      },
+      "difference": null
+    },
+    {
+      "id": "catalog:c9f2ebdd2c35210d3ffb",
+      "name": "Range.take",
+      "signature": "Range.take(Range<T> range, usize count)",
+      "returns": "Range<T>",
+      "contract": "Returns a descriptor for at most the first count yielded values; count zero is empty. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-take",
+          "section": "Function-Reference",
+          "line": 121
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.take(range, 1usize)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:6c6dc5b9c6bf30ec08cd",
+      "name": "Range.to_array",
+      "signature": "Range.to_array<N>(Range<T> range)",
+      "returns": "Result<Array<T, N>, RangeError>",
+      "contract": "Exact count must equal static N; no partial output escapes. Target layout bounds still apply. | O(N) writes",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-to_array",
+          "section": "Function-Reference",
+          "line": 135
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.to_array<3>(range)",
+        "accepted": false,
+        "mode": "check_only_never_executed"
+      },
+      "status": "no_concrete_provider",
+      "provider": null,
+      "difference": "No concrete public callable provider or exact source wrapper was found; existing descriptor inspection and language iteration do not implement this contract."
+    },
+    {
+      "id": "catalog:741c393c2d1ca3bb899e",
+      "name": "Range.with_step",
+      "signature": "Range.with_step(Range<T> range, U magnitude)",
+      "returns": "Result<Range<T>, RangeError>",
+      "contract": "Zero is InvalidStep; otherwise replaces the positive magnitude and retains bounds/direction. | O(1)",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Range/Range.html",
+          "anchor": "Range-with_step",
+          "section": "Function-Reference",
+          "line": 103
+        }
+      ],
+      "canonical_call": {
+        "expression": "Range.with_step(range, 2u32)",
+        "accepted": true,
+        "mode": "check_only_never_executed"
+      },
+      "status": "direct_catalog_namespace",
+      "provider": {
+        "source": "src/Frontend/Sema/GenericResolver.cpp",
+        "symbol": "Range.with_step"
+      },
+      "difference": null
+    }
+  ],
+  "actual_extra_calls": [
+    {
+      "name": "Range.step",
+      "returns": "same-width unsigned step magnitude",
+      "role": "Alias for Range.step_magnitude; not a separate catalog row"
+    },
+    {
+      "name": "Range.is_descending",
+      "returns": "bool",
+      "role": "Directional inspection; not the RangeDirection-returning catalog method"
+    }
+  ],
+  "actual_error_contract": {
+    "RangeError": [
+      "InvalidStep",
+      "CountOverflow"
+    ],
+    "missing_catalog_carriers": [
+      "RangeDirection",
+      "RangeIterator<T>"
+    ],
+    "missing_error_variant": "Catalog Range.at requires OutOfBounds; current RangeError has no such variant."
+  },
+  "next_bounded_batch": {
+    "first_source_groups": [
+      "Descriptor equal, first, contains and a clearly named direction enum wrapper based on borrowed inspection.",
+      "Ordinal get/at/last with exact unsigned span/product checks; do not require total cardinality to fit usize.",
+      "take/skip/reverse/step_by/sequence_equal/split_at only after full-range endpoint and error-carrier rules are implemented."
+    ],
+    "prerequisites": [
+      "A source module cannot redeclare the prelude Range type; canonical method extension needs an explicit compiler design, otherwise use documented imported range helpers.",
+      "Fixed concrete integer overloads are feasible; exact generic Range.empty<T>() needs a primitive generic arithmetic/typed-zero capability or a closed compiler helper.",
+      "Full i128/u128 spans can exceed both usize and u128 cardinality even though get/last are meaningful. Avoid signed end-start and end+1 at maximum.",
+      "RangeError.OutOfBounds/other exact domain carriers and public cursor protocol are absent."
+    ],
+    "defer_until_proven": [
+      "Public RangeIterator/rev_iter with independent cursor, ownership and fused exhaustion semantics.",
+      "collect_vector prechecks usize/layout/allocation size and reports actual allocation errors.",
+      "to_array<N> proves exact count and partial-initialization cleanup."
+    ],
+    "tests": [
+      "Every i8/u8 descriptor endpoint pair in both directions/inclusion modes plus varied valid magnitudes.",
+      "Signed extrema and u128 full-domain cases, cardinality overflow with valid ordinal lookup.",
+      "Descriptor lifetime and preserved independent iteration; exact errors instead of trap or wrap."
+    ]
+  },
+  "historical_provenance": {
+    "compiler_sha256": "6a3a75286411030c75ef334bc919221879e7a91f3bd9ba15e35588e513386b75",
+    "catalog_inventory_sha256": "675ff635a4057ac62c7ca5c0a26ffee20b43db050578816f2d040d798e14e05d",
+    "preserved_fields": [
+      "direct_namespace",
+      "classification",
+      "alternate_validation",
+      "sources",
+      "records",
+      "actual_extra_calls",
+      "actual_error_contract",
+      "next_bounded_batch"
+    ],
+    "boundary": "The original canonical Range snapshot remains intact. This refresh does not turn Integer source arithmetic helpers into Range methods."
+  },
+  "current_canonical_recheck": {
+    "compiler_sha256": "9a69330b8c08f7a78f015a17f15fb70fef5d2a59e504437c32b1e930b6b9adfe",
+    "mode": "check_only_never_executed",
+    "catalog_rows": 29,
+    "accepted_catalog_rows": 11,
+    "changed_results": 0,
+    "conclusion": "Canonical Range call acceptance remains 11/29; no new Range source provider or public iterator was added."
+  },
+  "current_source_foundations": {
+    "compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+    "source_sha256": "19478df2776a91671759c50e5016672a1aedb5743963338145caab31bdb7693b",
+    "source": "library/Collections/range.avx",
+    "evidence": "docs/Language/Library/range_source_checkpoint.json",
+    "registered_test": "v03_range_cli",
+    "registered_test_status": "passed",
+    "public_top_level_overloads": 27,
+    "public_top_level_names": 16,
+    "source_alternatives_to_canonical_rows": 16,
+    "canonical_direct_bindings_from_dated_probe": 11,
+    "no_source_alternative_yet": [
+      "Range.collect_vector",
+      "Range.to_array"
+    ],
+    "canonical_spelling_boundary": "Explicit import range and range.* calls do not extend the canonical Range namespace. Original canonical probes remain dated evidence.",
+    "records": [
+      {
+        "catalog_name": "Range.at",
+        "provider_name": "range.at",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Result<T,RangeOperationError> at<T>(&Range<T> descriptor,usize index) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "adapted_error",
+        "notes": [
+          "Returns range.RangeOperationError rather than the canonical RangeError carrier; error adaptation is explicit."
+        ],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.contains",
+        "provider_name": "range.contains",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public bool contains<T>(&Range<T> descriptor,T value) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.direction",
+        "provider_name": "range.direction",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public RangeDirection direction<T>(&Range<T> descriptor) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "module_owned_nominal_type",
+        "notes": [
+          "Returns module-owned range.RangeDirection, not an injected Core enum."
+        ],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.empty",
+        "provider_name": "range.empty",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Range<T> empty<T>() where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.equal",
+        "provider_name": "range.equal",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public bool equal<T>(&Range<T> left,&Range<T> right) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.first",
+        "provider_name": "range.first",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Optional<T> first<T>(&Range<T> descriptor) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.get",
+        "provider_name": "range.get",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Optional<T> get<T>(&Range<T> descriptor,usize index) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.iter",
+        "provider_name": "range.iter",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Cursor<T> iter<T>(Range<T> descriptor) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "module_owned_nominal_type",
+        "notes": [
+          "Returns range.Cursor<T>, not the catalog RangeIterator<T>; explicit next/next_back calls do not add a language iterator protocol."
+        ],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.last",
+        "provider_name": "range.last",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Optional<T> last<T>(&Range<T> descriptor) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.rev_iter",
+        "provider_name": "range.rev_iter",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Cursor<T> rev_iter<T>(Range<T> descriptor) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "module_owned_nominal_type",
+        "notes": [
+          "Returns range.Cursor<T>, not the catalog RangeIterator<T>; explicit next/next_back calls do not add a language iterator protocol."
+        ],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.reverse",
+        "provider_name": "range.reverse",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Range<T> reverse<T>(Range<T> descriptor) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.sequence_equal",
+        "provider_name": "range.sequence_equal",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public bool sequence_equal<T>(&Range<T> left,&Range<T> right) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.skip",
+        "provider_name": "range.skip",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Range<T> skip<T>(Range<T> descriptor,usize count) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.split_at",
+        "provider_name": "range.split_at",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Result<Tuple<Range<T>,Range<T>>,RangeOperationError> split_at<T>(Range<T> descriptor,usize index) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "adapted_error",
+        "notes": [
+          "Returns range.RangeOperationError rather than the canonical RangeError carrier; error adaptation is explicit."
+        ],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.step_by",
+        "provider_name": "range.step_by",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Result<Range<i8>,RangeOperationError> step_by(Range<i8> descriptor,u8 factor)",
+          "public Result<Range<u8>,RangeOperationError> step_by(Range<u8> descriptor,u8 factor)",
+          "public Result<Range<i16>,RangeOperationError> step_by(Range<i16> descriptor,u16 factor)",
+          "public Result<Range<u16>,RangeOperationError> step_by(Range<u16> descriptor,u16 factor)",
+          "public Result<Range<i32>,RangeOperationError> step_by(Range<i32> descriptor,u32 factor)",
+          "public Result<Range<u32>,RangeOperationError> step_by(Range<u32> descriptor,u32 factor)",
+          "public Result<Range<i64>,RangeOperationError> step_by(Range<i64> descriptor,u64 factor)",
+          "public Result<Range<u64>,RangeOperationError> step_by(Range<u64> descriptor,u64 factor)",
+          "public Result<Range<i128>,RangeOperationError> step_by(Range<i128> descriptor,u128 factor)",
+          "public Result<Range<u128>,RangeOperationError> step_by(Range<u128> descriptor,u128 factor)",
+          "public Result<Range<isize>,RangeOperationError> step_by(Range<isize> descriptor,usize factor)",
+          "public Result<Range<usize>,RangeOperationError> step_by(Range<usize> descriptor,usize factor)"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "adapted_error",
+        "notes": [
+          "Returns range.RangeOperationError rather than the canonical RangeError carrier; error adaptation is explicit."
+        ],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      },
+      {
+        "catalog_name": "Range.take",
+        "provider_name": "range.take",
+        "source": "library/Collections/range.avx",
+        "signatures": [
+          "public Range<T> take<T>(Range<T> descriptor,usize count) where T implements Copy"
+        ],
+        "canonical_spelling_provided": false,
+        "return_carrier_relation": "same_return_shape",
+        "notes": [],
+        "evidence": "docs/Language/Library/range_source_checkpoint.json"
+      }
+    ]
+  },
+  "historical_source_foundations": {
+    "source": "library/Math/integer.avx",
+    "checkpoint": "docs/Language/Library/integer_source_checkpoint.json",
+    "providers": [
+      "integer.abs_diff",
+      "integer.unsigned_abs",
+      "integer.checked_add",
+      "integer.checked_sub",
+      "integer.checked_mul",
+      "integer.checked_div",
+      "integer.checked_rem"
+    ],
+    "role": "Verified magnitude and bounded-arithmetic building blocks for a later Range batch; these are not current implementations of Range.get/at/last/reverse or public cursor behavior.",
+    "new_range_catalog_rows_implemented": 0,
+    "range_error_unchanged": [
+      "InvalidStep",
+      "CountOverflow"
+    ],
+    "next_bounded_batch_status": "The existing Range proposal and its cardinality/ordinal/lifetime gates remain pending."
+  }
+}

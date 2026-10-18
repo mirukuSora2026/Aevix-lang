@@ -116,7 +116,7 @@ test('real compiler checks current unsaved entry text through stdin', async (con
     try {
         const input = path.join(temporary, 'main.avx');
         fs.writeFileSync(input, 'i32 main() { return 42; }');
-        const checked = await runCompiler({ executable: compiler, args: ['--check', '--stdin', input], input: 'i32 main() { return true; }' });
+        const checked = await runCompiler({ executable: compiler, args: ['--check', '--stdin', input], input: 'i32 main() { return "invalid"; }' });
         assert.equal(checked.exitCode, 1);
         const diagnostics = parseCompilerDiagnostics(checked.stderr);
         assert.ok(diagnostics.some((diagnostic) => diagnostic.path === fs.realpathSync(input) && diagnostic.severity === 'error'));

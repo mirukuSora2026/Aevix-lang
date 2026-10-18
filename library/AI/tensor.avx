@@ -1,0 +1,659 @@
+/*
+ * Lifecycle of the tensor public module.
+ * @module tensor
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import shape { Shape, ShapeClone, Shape1, Shape2 };
+import vector;
+import memory;
+import numeric { Floating };
+public import error { TensorError, ShapeError };
+import error { Error };
+
+/*
+ * Keep an explicit per-output element-limit rejection distinct from an allocator or shape failure.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum TensorAllocationError implements Copy, Error {
+    /*
+     * An explicit logical element limit rejected this output before payload construction.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    LimitExceeded {
+        /*
+         * The requested logical output count.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public usize required;
+        /*
+         * The selected per-output maximum logical count.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public usize limit;
+    };
+    /*
+     * A shape, layout, allocation, or storage-size failure from the underlying tensor operation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Tensor {
+        /*
+         * Preserve the underlying tensor error without erasing its typed metadata.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public TensorError error;
+    };
+
+    /*
+     * Return a stable code, preserving the wrapped TensorError code for real tensor failures.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&TensorAllocationError self) {
+        switch (*self) {
+            case TensorAllocationError.LimitExceeded: return "tensor.element_budget_exceeded"; break;
+            case TensorAllocationError.Tensor { TensorError cause = error }: return cause.code(); break;
+        }
+    }
+    /*
+     * Return a stable summary without allocating or formatting the numeric limit metadata.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&TensorAllocationError self) {
+        switch (*self) {
+            case TensorAllocationError.LimitExceeded: return "The requested output exceeds its explicit logical element limit."; break;
+            case TensorAllocationError.Tensor { TensorError cause = error }: return cause.message(); break;
+        }
+    }
+};
+
+/*
+ * A per-output logical element limit checked before payload construction.
+ * This is not a byte limit, allocator-capacity limit, cumulative quota, process RSS cap, or global managed heap.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct ElementBudget implements Copy {
+    usize element_limit;
+
+    /*
+     * Select an immutable maximum logical output count; zero permits empty outputs only.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new(usize maximum) { return Self { element_limit = maximum }; }
+    /*
+     * Read the configured per-output element limit.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize maximum_elements(&Self self) { return self.element_limit; }
+    /*
+     * Validate a logical count without allocating or changing cumulative process state.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, TensorAllocationError> check(&Self self, usize requested) {
+        if (requested > self.element_limit) return Result.err(TensorAllocationError.LimitExceeded { required = requested, limit = self.element_limit });
+        return Result.ok(Unit.value());
+    }
+};
+
+/*
+ * A placement capability for CPU allocations only. This module supplies Cpu, and no GPU marker or operation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public interface CpuPlacement {};
+
+/*
+ * A compile-time CPU placement marker. No device address, transfer, or asynchronous work is implied.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Cpu implements Copy, CpuPlacement {};
+
+TensorError collection_error(CollectionError problem) {
+    switch (problem) {
+        case CollectionError.AllocationFailure: return TensorError.AllocationFailure; break;
+        case CollectionError.SizeOverflow: return TensorError.SizeOverflow; break;
+    }
+}
+
+Result<usize, TensorError> index_offset<S>(&S dimensions, usize count, Slice<usize> index) where S implements Shape {
+        if (Slice.len(index) != dimensions.rank()) return Result.err(TensorError.Shape { error = ShapeError.RankMismatch });
+        mut usize flattened = 0;
+        mut usize axis = 0;
+        while (axis < Slice.len(index)) {
+            Result<usize, ShapeError> checked = dimensions.dim(axis);
+            switch (checked) {
+                case Result<usize, ShapeError>.Ok { usize extent = value }:
+                    if (index[axis] >= extent) return Result.err(TensorError.OutOfBounds);
+                    if (flattened > (18446744073709551615usize - index[axis]) / extent) return Result.err(TensorError.SizeOverflow);
+                    flattened = flattened * extent + index[axis];
+                    break;
+                case Result<usize, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+            }
+            axis++;
+        }
+        if (flattened >= count) return Result.err(TensorError.OutOfBounds);
+        return Result.ok(flattened);
+    }
+
+Result<T, TensorAllocationError> budget_result<T>(Result<T, TensorError> outcome) {
+    switch (move outcome) {
+        case Result<T, TensorError>.Ok { T owner = value }: return Result.ok(owner); break;
+        case Result<T, TensorError>.Err { TensorError cause = error }: return Result.err(TensorAllocationError.Tensor { error = cause }); break;
+    }
+}
+
+/*
+ * An owning contiguous row-major CPU tensor. S carries the shape; P is a CPU-only compile-time marker.
+ * Shape implementations must keep their extents stable for the lifetime of an immutable descriptor.
+ * No method silently copies, transfers, broadcasts, launches work, or changes placement.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Tensor<T, S, P = Cpu> where S implements Shape, P implements CpuPlacement {
+    Vector<T> storage;
+    S dimensions;
+    usize count;
+
+    /*
+     * Consume a vector and shape after checking their element counts; no element allocation or clone occurs.
+     * A rejected input is consumed and cleaned according to the ordinary Result<Tensor, TensorError> contract.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorError> from_vector(Vector<T> values, S dimensions) {
+        Result<usize, ShapeError> checked = dimensions.element_count();
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize total = value }:
+                if (Vector.len(&values) != total) return Result.err(TensorError.Shape { error = ShapeError.ExtentMismatch { axis = 0 } });
+                return Result.ok(Self { storage = values, dimensions = dimensions, count = total });
+                break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }:
+                return Result.err(TensorError.Shape { error = cause });
+                break;
+        }
+    }
+    /*
+     * Explicitly copy every input element into independent CPU storage after validating its shape.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorError> from_slice(Slice<T> values, S dimensions) where T implements Copy {
+        Result<usize, ShapeError> checked = dimensions.element_count();
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize total = value }:
+                if (Slice.len(values) != total) return Result.err(TensorError.Shape { error = ShapeError.ExtentMismatch { axis = 0 } });
+                break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+        }
+        Result<Vector<T>, CollectionError> copied = vector.copy_from_slice(values);
+        switch (move copied) {
+            case Result<Vector<T>, CollectionError>.Ok { Vector<T> data = value }: return Self.from_vector(data, dimensions); break;
+            case Result<Vector<T>, CollectionError>.Err { CollectionError cause = error }: return Result.err(collection_error(cause)); break;
+        }
+    }
+    /*
+     * Copy a fixed-size array into an independently owned tensor; lengths must match the checked shape.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorError> from_array<const usize N>(Array<T, N> values, S dimensions) where T implements Copy {
+        return Self.from_slice(Slice.from_array(&values), dimensions);
+    }
+    /*
+     * Allocate and initialize exactly the checked shape product with a Copy value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorError> full(T fill, S dimensions) where T implements Copy {
+        Result<usize, ShapeError> checked = dimensions.element_count();
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize total = value }:
+                Result<Vector<T>, CollectionError> filled = vector.repeat_copy(total, fill);
+                switch (move filled) {
+                    case Result<Vector<T>, CollectionError>.Ok { Vector<T> data = value }: return Self.from_vector(data, dimensions); break;
+                    case Result<Vector<T>, CollectionError>.Err { CollectionError cause = error }: return Result.err(collection_error(cause)); break;
+                }
+                break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+        }
+    }
+    /*
+     * Reject an excessive logical output count before building its payload; ordinary allocation failures remain explicit.
+     * The immutable budget applies separately to this output, not to total process memory or allocator capacity.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorAllocationError> full_bounded(T fill, S dimensions, &ElementBudget budget) where T implements Copy {
+        Result<usize, ShapeError> checked = dimensions.element_count();
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize total = value }: budget.check(total)?; break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }:
+                return Result.err(TensorAllocationError.Tensor { error = TensorError.Shape { error = cause } });
+                break;
+        }
+        return budget_result(Self.full(fill, dimensions));
+    }
+    /*
+     * Explicitly copy a slice after checking the requested shape against a per-output logical element limit.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorAllocationError> from_slice_bounded(Slice<T> values, S dimensions, &ElementBudget budget) where T implements Copy {
+        Result<usize, ShapeError> checked = dimensions.element_count();
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize total = value }: budget.check(total)?; break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }:
+                return Result.err(TensorAllocationError.Tensor { error = TensorError.Shape { error = cause } });
+                break;
+        }
+        return budget_result(Self.from_slice(values, dimensions));
+    }
+    /*
+     * Read rank without allocating or copying elements.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self) { return self.dimensions.rank(); }
+    /*
+     * Borrow the immutable shape descriptor; the reference cannot outlive its owner.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public &S shape(&Self self) { return &self.dimensions; }
+    /*
+     * Read a checked extent from the shape descriptor.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis) { return self.dimensions.dim(axis); }
+    /*
+     * Return the validated cached logical count, not allocation capacity.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize element_count(&Self self) { return self.count; }
+    /*
+     * Test the only layout this owning foundation constructs: contiguous row-major CPU storage.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_contiguous(&Self self) { return true; }
+    /*
+     * Borrow all elements in row-major order without a copy or allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Slice<T> view(&Self self) { return Slice.from_vector(&self.storage); }
+    /*
+     * Borrow one exclusive contiguous view; the owner remains unavailable for conflicting access.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public MutSlice<T> view_mut(&mut Self self) { return Slice.from_vector_mut(&mut self.storage); }
+
+    private Result<usize, TensorError> offset(&Self self, Slice<usize> index) {
+        return index_offset(&self.dimensions, self.count, index);
+    }
+    /*
+     * Reinterpret contiguous row-major elements under an equal-count owned shape without copying any element.
+     * The resulting read-only descriptor retains this owner's loan and cannot outlive it.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<TensorView<T, S2, P>, TensorError> reshape_view<S2>(&Self self, S2 dimensions) where S2 implements Shape {
+        return TensorView<T, S2, P>.from_slice(self.view(), dimensions);
+    }
+    /*
+     * Copy one checked CPU element. Every coordinate and the final flat offset are validated.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<T, TensorError> get(&Self self, Slice<usize> index) where T implements Copy {
+        usize position = self.offset(index)?;
+        return Result.ok(self.storage[position]);
+    }
+    /*
+     * Replace one element after all bounds checks, using the ordinary owned-assignment cleanup rule.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, TensorError> set(&mut Self self, Slice<usize> index, T value) {
+        usize position = self.offset(index)?;
+        T previous = memory.replace(&mut self.storage[position], value);
+        return Result.ok(Unit.value());
+    }
+    /*
+     * Replace every element with an explicit Copy value; no allocation or hidden clone occurs.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, TensorError> fill(&mut Self self, T value) where T implements Copy {
+        mut usize index = 0;
+        while (index < self.count) { self.storage[index] = value; index++; }
+        return Result.ok(Unit.value());
+    }
+    /*
+     * Explicitly allocate a deep Copy-element clone and an independent cloned shape descriptor.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorError> clone(&Self self) where T implements Copy, S implements ShapeClone {
+        Result<S, ShapeError> copied = self.dimensions.clone();
+        switch (move copied) {
+            case Result<S, ShapeError>.Ok { S dimensions = value }: return Self.from_slice(self.view(), dimensions); break;
+            case Result<S, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+        }
+    }
+    /*
+     * Reject an excessive cloned output count before copying shape metadata or allocating payload storage.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorAllocationError> clone_bounded(&Self self, &ElementBudget budget)
+        where T implements Copy, S implements ShapeClone {
+        budget.check(self.count)?;
+        return budget_result(self.clone());
+    }
+    /*
+     * Explicitly copy into an independent owner with a new shape after checking equal element counts.
+     * This is an allocating reshape_copy, not an implicit copy, a strided view, or a consuming zero-copy reshape.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Tensor<T, S2, P>, TensorError> reshape_copy<S2>(&Self self, S2 dimensions)
+        where T implements Copy, S2 implements Shape {
+        Result<usize, ShapeError> checked = dimensions.element_count();
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize total = value }:
+                if (total != self.count) return Result.err(TensorError.InvalidLayout);
+                return Tensor<T, S2, P>.from_slice(self.view(), dimensions);
+                break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }:
+                return Result.err(TensorError.Shape { error = cause });
+                break;
+        }
+    }
+    /*
+     * Consume this owner and recover its vector without allocation or element copy.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Vector<T>, TensorError> into_vector(mut Self self) {
+        Result<Vector<T>, CollectionError> empty = [];
+        switch (move empty) {
+            case Result<Vector<T>, CollectionError>.Ok { Vector<T> replacement = value }:
+                return Result.ok(memory.replace(&mut self.storage, replacement));
+                break;
+            case Result<Vector<T>, CollectionError>.Err { CollectionError cause = error }:
+                return Result.err(collection_error(cause));
+                break;
+        }
+    }
+    /*
+     * Allocate a mapped tensor with an explicitly cloned shape; callback loans cannot escape an invocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Tensor<U, S, P>, TensorError> map<U, F>(&Self self, &F transform)
+        where S implements ShapeClone, F implements Fn<Tuple<&T>, U> {
+        Result<S, ShapeError> copied_shape = self.dimensions.clone();
+        mut S dimensions;
+        switch (move copied_shape) {
+            case Result<S, ShapeError>.Ok { S copy = value }: dimensions = copy; break;
+            case Result<S, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+        }
+        Result<Vector<U>, CollectionError> mapped = vector.map_ref<T, U>(self.view(), transform);
+        switch (move mapped) {
+            case Result<Vector<U>, CollectionError>.Ok { Vector<U> data = value }: return Tensor<U, S, P>.from_vector(data, dimensions); break;
+            case Result<Vector<U>, CollectionError>.Err { CollectionError cause = error }: return Result.err(collection_error(cause)); break;
+        }
+    }
+};
+
+/*
+ * Add exactly matching CPU shapes, preserving scalar IEEE evaluation and allocating a new result.
+ * This foundation deliberately provides add_exact rather than claiming general broadcasted Tensor.add.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Tensor<F, S, Cpu>, TensorError> add_exact<F, S>(&Tensor<F, S, Cpu> left, &Tensor<F, S, Cpu> right)
+    where F implements Floating, F implements Copy, S implements Shape, S implements ShapeClone {
+    if (left.rank() != right.rank()) return Result.err(TensorError.Shape { error = ShapeError.RankMismatch });
+    mut usize axis = 0;
+    while (axis < left.rank()) {
+        Result<usize, ShapeError> a = left.dim(axis);
+        Result<usize, ShapeError> b = right.dim(axis);
+        switch (a) {
+            case Result<usize, ShapeError>.Ok { usize first = value }:
+                switch (b) {
+                    case Result<usize, ShapeError>.Ok { usize second = value }:
+                        if (first != second) return Result.err(TensorError.Shape { error = ShapeError.ExtentMismatch { axis = axis } });
+                        break;
+                    case Result<usize, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+                }
+                break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+        }
+        axis++;
+    }
+    Result<S, ShapeError> copied_shape = left.shape().clone();
+    mut S dimensions;
+    switch (move copied_shape) {
+        case Result<S, ShapeError>.Ok { S copy = value }: dimensions = copy; break;
+        case Result<S, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+    }
+    mut Tensor<F, S, Cpu> output = Tensor<F, S, Cpu>.full(0.0, dimensions)?;
+    Slice<F> a = left.view();
+    Slice<F> b = right.view();
+    {
+        MutSlice<F> target = output.view_mut();
+        mut usize index = 0;
+        while (index < Slice.len(a)) { target[index] = a[index] + b[index]; index++; }
+    }
+    return Result.ok(output);
+}
+
+/*
+ * Sum all CPU floating elements in deterministic row-major order with an explicit zero identity.
+ * No axis selection, widening accumulator, reassociation, parallelism, or fused contraction is implied.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public F sum_all<F, S>(&Tensor<F, S, Cpu> value) where F implements Floating, F implements Copy, S implements Shape {
+    mut F total = 0.0;
+    for (F element : value.view()) total += element;
+    return total;
+}
+
+/*
+ * Multiply rank-two static CPU matrices; the shared K parameter enforces the contraction extent at compile time.
+ * Floating multiplication and addition remain separate in deterministic row-major loop order; empty contraction gives zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Tensor<F, Shape2<M, N>, Cpu>, TensorError> matmul<F, const usize M, const usize K, const usize N>(
+    &Tensor<F, Shape2<M, K>, Cpu> left, &Tensor<F, Shape2<K, N>, Cpu> right)
+    where F implements Floating, F implements Copy {
+    Shape2<M, N> dimensions = Shape2<M, N>.new();
+    mut Tensor<F, Shape2<M, N>, Cpu> output = Tensor<F, Shape2<M, N>, Cpu>.full(0.0, dimensions)?;
+    Slice<F> a = left.view();
+    Slice<F> b = right.view();
+    {
+        MutSlice<F> target = output.view_mut();
+        mut usize row = 0;
+        while (row < M) {
+            mut usize column = 0;
+            while (column < N) {
+                mut F total = 0.0;
+                mut usize inner = 0;
+                while (inner < K) { total += a[row * K + inner] * b[inner * N + column]; inner++; }
+                target[row * N + column] = total;
+                column++;
+            }
+            row++;
+        }
+    }
+    return Result.ok(output);
+}
+
+/*
+ * A read-only contiguous row-major CPU descriptor: element storage is borrowed and its shape is owned.
+ * This foundation does not represent negative strides, transposition, overlapping writable layouts, or GPU storage.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct TensorView<T, S, P = Cpu> where S implements Shape, P implements CpuPlacement {
+    Slice<T> storage;
+    S dimensions;
+    usize count;
+
+    /*
+     * Validate a contiguous slice's count before borrowing it under the supplied shape; no element copy occurs.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, TensorError> from_slice(Slice<T> values, S dimensions) {
+        Result<usize, ShapeError> checked = dimensions.element_count();
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize total = value }:
+                if (Slice.len(values) != total) return Result.err(TensorError.InvalidLayout);
+                return Result.ok(Self { storage = values, dimensions = dimensions, count = total });
+                break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+        }
+    }
+    /*
+     * Read the owned descriptor's rank without allocating or copying elements.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self) { return self.dimensions.rank(); }
+    /*
+     * Borrow the view's immutable shape descriptor.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public &S shape(&Self self) { return &self.dimensions; }
+    /*
+     * Read a checked logical axis extent.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis) { return self.dimensions.dim(axis); }
+    /*
+     * Return the validated logical count without allocating or copying elements.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize element_count(&Self self) { return self.count; }
+    /*
+     * Borrow the already borrowed contiguous data without changing its owner lifetime.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Slice<T> view(&Self self) { return self.storage; }
+    /*
+     * Copy one CPU element after checking every logical coordinate and the final flat offset.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<T, TensorError> get(&Self self, Slice<usize> index) where T implements Copy {
+        usize position = index_offset(&self.dimensions, self.count, index)?;
+        return Result.ok(self.storage[position]);
+    }
+    /*
+     * Produce another read-only equal-count descriptor without copying data or extending its actual storage lifetime.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<TensorView<T, S2, P>, TensorError> reshape_view<S2>(&Self self, S2 dimensions) where S2 implements Shape {
+        return TensorView<T, S2, P>.from_slice(self.storage, dimensions);
+    }
+    /*
+     * Explicitly allocate an independent owner and cloned shape from this view's Copy elements.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Tensor<T, S, P>, TensorError> materialize(&Self self) where T implements Copy, S implements ShapeClone {
+        Result<S, ShapeError> copied = self.dimensions.clone();
+        switch (move copied) {
+            case Result<S, ShapeError>.Ok { S dimensions = value }: return Tensor<T, S, P>.from_slice(self.storage, dimensions); break;
+            case Result<S, ShapeError>.Err { ShapeError cause = error }: return Result.err(TensorError.Shape { error = cause }); break;
+        }
+    }
+    /*
+     * Check a per-output logical element limit before materializing an independent owner.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Tensor<T, S, P>, TensorAllocationError> materialize_bounded(&Self self, &ElementBudget budget)
+        where T implements Copy, S implements ShapeClone {
+        budget.check(self.count)?;
+        return budget_result(self.materialize());
+    }
+
+};

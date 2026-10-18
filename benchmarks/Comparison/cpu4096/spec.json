@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "spec.json",
+  "description": {
+    "en": "Shared exact-integer CPU benchmark contract for Python,C,JavaScript,Aevix and C++.",
+    "ko": "다섯 언어에서 동일한 정수 계산을 실행하는 CPU 벤치마크 계약이다."
+  },
+  "elements": 4096,
+  "cases": {
+    "lcg_1": {
+      "kernel": "lcg",
+      "rounds": 1
+    },
+    "lcg_256": {
+      "kernel": "lcg",
+      "rounds": 256
+    },
+    "lcg_16384": {
+      "kernel": "lcg",
+      "rounds": 16384
+    },
+    "prime_search": {
+      "kernel": "next_prime"
+    }
+  },
+  "input": "values[i]=(i+seed)%4096 for i=0..4095; initialize before each timer; runtime seed0 supplied explicitly by runner, Aevix reads it from stdin before any timers",
+  "lcg": "x=values[i]%2147483647+1; repeat rounds times: x=(x*48271+1)%2147483647; store x",
+  "next_prime": "n=1000000001+(values[i]%4096)*1024; test odd divisors d=3,5,... while d*d<=n; if composite n+=2 and retry; store the first prime",
+  "arithmetic": "All operations and checksums are exact integers below2^53 in every implementation. Native/Aevix/Python data use uint64 values; JS uses Float64Array. No fast math or approximate kernel.",
+  "checksums": "sum(values); weighted checksum h=0 then h=(h+(i+1)*values[i])%1000000007 for each i",
+  "modes": [
+    "serial",
+    "parallel_fresh"
+  ],
+  "partition": "W=min(online logical CPUs,32,4096). W contiguous chunks: quotient plus one for first remainder chunks. Launch W-1 workers; caller runs final chunk; join all before stop timer.",
+  "parallel_backends": {
+    "C": "pthread",
+    "C++": "std::thread",
+    "Python": "multiprocessing spawn with shared uint64 array; parent executes last chunk",
+    "JavaScript": "worker_threads with SharedArrayBuffer Float64Array; parent executes last chunk",
+    "Aevix": "existing parallel.for_each; no runtime changes"
+  },
+  "measurement": {
+    "warmups": 1,
+    "samples": 5,
+    "clock": "monotonic nanoseconds",
+    "timed": "kernel execution including per-call worker/process startup and joins; excludes input initialization, checksums, output and executable/process startup",
+    "run_order": "rotate language/program order across isolated invocations; one benchmark at a time",
+    "output": "SAMPLE <case> <mode> <sample_index> <elapsed_ns> <sum> <weighted> <workers>; print VERIFY <case> <mode> <comma-separated4096values> once outside timing for exact comparison"
+  },
+  "no_performance_implementation_changes": true,
+  "anti_elision": "Every final4096value is observed outside timing; runtime opaque input seed prevents compile-time full input precomputation. Inspect optimizedIR for motion across timer calls; no unsupported black_box/volatile syntax assumed."
+}

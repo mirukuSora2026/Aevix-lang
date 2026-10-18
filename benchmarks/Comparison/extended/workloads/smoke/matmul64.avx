@@ -1,0 +1,62 @@
+/*
+ * Generated matmul64: exact unsigned arithmetic, runtime inputs, no fast math.
+ * Initialization, input parsing, validation and output are outside clock calls.
+ * @module matmul64
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import system;
+T success<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+u64 read_seed() {
+    Optional<u64> input = success(system.input<u64>());
+    switch (input) {
+        case Optional<u64>.Some { u64 supplied = value }: return supplied % 97u64; break;
+        case Optional<u64>.None: Never.unreachable(); break;
+    }
+}
+
+void kernel(&Array<u64, 16> left, &Array<u64, 16> right, &mut Array<u64, 16> output) {
+    for (mut usize row = 0usize; row < 4usize; row++) {
+        for (mut usize column = 0usize; column < 4usize; column++) {
+            mut u64 total = 0u64;
+            for (mut usize inner = 0usize; inner < 4usize; inner++) {
+                total += left[row * 4usize + inner] * right[inner * 4usize + column];
+            }
+            output[row * 4usize + column] = total;
+        }
+    }
+    return;
+}
+
+i32 main() {
+    u64 seeds[2] = [read_seed(), read_seed()];
+    mut u64 values[16] = [0u64; 16];
+    mut u64 right[16] = [0u64; 16];
+    mut u64 output[16] = [0u64; 16];
+    for (mut usize iteration = 0usize; iteration < 2usize; iteration++) {
+        u64 seed = seeds[iteration];
+        mut u64 initial = 0u64;
+        for (mut usize index = 0usize; index < 16usize; index++) {
+            values[index] = (initial * 11u64 + seed * 13u64) % 17u64;
+            right[index] = (initial * 7u64 + seed * 3u64) % 19u64;
+            initial++;
+        }
+        for (mut usize index = 0usize; index < 16usize; index++) output[index] = 0u64;
+        kernel(&values, &right, &mut output);
+        if (iteration == 0usize) {
+            u64 expected[16] = [317u64, 446u64, 157u64, 286u64, 378u64, 359u64, 378u64, 169u64, 286u64, 323u64, 208u64, 188u64, 177u64, 389u64, 259u64, 224u64];
+            for (mut usize index = 0usize; index < 16usize; index++) if (output[index] != expected[index]) return 1;
+        }
+        if (iteration == 1usize) {
+            u64 expected[16] = [257u64, 355u64, 358u64, 323u64, 95u64, 249u64, 308u64, 139u64, 341u64, 466u64, 496u64, 431u64, 179u64, 360u64, 446u64, 247u64];
+            for (mut usize index = 0usize; index < 16usize; index++) if (output[index] != expected[index]) return 1;
+        }
+    }
+    return 0;
+}

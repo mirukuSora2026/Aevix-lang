@@ -1,0 +1,44 @@
+import ordered_map { OrderedMap, InsertError };
+
+/* The generated-IR allocator gate rejects the second node allocation only. */
+struct Key implements Drop {
+    public i32 order;
+    public &mut i32 drops;
+    public void drop(&mut Self self) { *self.drops += 1; return; }
+};
+struct Value implements Drop {
+    public i32 id;
+    public &mut i32 drops;
+    public void drop(&mut Self self) { *self.drops += 1; return; }
+};
+i32 main() {
+    mut i32 first_key = 0;
+    mut i32 first_value = 0;
+    mut i32 second_key = 0;
+    mut i32 second_value = 0;
+    mut i32 query_key = 0;
+    {
+        mut OrderedMap<Key, Value> owner = OrderedMap<Key, Value>.new();
+        rsn compare = [](&Key left, &Key right) -> i32 { return left.order < right.order ? -1 : left.order > right.order ? 1 : 0; };
+        Result<Optional<Value>, InsertError<Key, Value>> first = owner.insert_with(Key { order = 1, drops = &mut first_key }, Value { id = 11, drops = &mut first_value }, &compare);
+        switch (move first) { case Result<Optional<Value>, InsertError<Key, Value>>.Ok: break; case Result<Optional<Value>, InsertError<Key, Value>>.Err: return 1; break; }
+        Result<Optional<Value>, InsertError<Key, Value>> rejected = owner.insert_with(Key { order = 2, drops = &mut second_key }, Value { id = 22, drops = &mut second_value }, &compare);
+        switch (move rejected) {
+            case Result<Optional<Value>, InsertError<Key, Value>>.Ok: return 2; break;
+            case Result<Optional<Value>, InsertError<Key, Value>>.Err { InsertError<Key, Value> problem = error }:
+                switch (move problem) {
+                    case InsertError<Key, Value>.AllocationFailure { Key key = key, Value value = value }:
+                        if (key.order != 2 || value.id != 22) return 3;
+                        break;
+                    case InsertError<Key, Value>.SizeOverflow: return 4; break;
+                    case InsertError<Key, Value>.Occupied: return 5; break;
+                }
+                break;
+        }
+        if (owner.len() != 1 || owner.height() != 1) return 6;
+        Key query = Key { order = 1, drops = &mut query_key };
+        Optional<&Value> retained = owner.get_with(&query, &compare);
+        switch (move retained) { case Optional<&Value>.Some { &Value value = value }: if (value.id != 11) return 7; break; case Optional<&Value>.None: return 8; break; }
+    }
+    return first_key == 1 && first_value == 1 && second_key == 1 && second_value == 1 && query_key == 1 ? 0 : 9;
+}

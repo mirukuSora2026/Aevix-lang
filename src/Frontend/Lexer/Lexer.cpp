@@ -11,6 +11,7 @@
 // ========================
 
 #include "aevix/Frontend/Lexer/Lexer.hpp"
+#include "aevix/Frontend/Lexer/LiteralText.hpp"
 
 #include <cstdint>
 #include <string>
@@ -456,6 +457,59 @@ namespace aevix
         );
     }
 
+    Token Lexer::rawQuoted()
+    {
+        const auto begin = position_++;
+        std::size_t hashes = 0;
+        while (peek() == '#')
+        {
+            ++hashes;
+            ++position_;
+        }
+
+        // 호출자는 r과 선택적 # 뒤의 여는 따옴표를 먼저 확인한다.
+        // The caller first checks for an opening quote after r and optional hashes.
+        ++position_;
+        bool valid = hashes <= MaxRawStringHashes;
+        if (!valid)
+            error(begin, position_, "Raw string delimiter exceeds 255 hash marks.");
+
+        bool closed = false;
+        bool diagnosedUtf8 = false;
+        while (position_ < source_.text.size())
+        {
+            if (peek() == '"')
+            {
+                std::size_t matched = 0;
+                while (matched < hashes && peek(matched + 1) == '#')
+                    ++matched;
+                if (matched == hashes)
+                {
+                    position_ += hashes + 1;
+                    closed = true;
+                    break;
+                }
+            }
+
+            const auto byte = position_;
+            if (!utf8(source_.text, position_))
+            {
+                valid = false;
+                if (!diagnosedUtf8)
+                    error(byte, position_, "Invalid UTF-8 byte sequence in raw string literal.");
+                diagnosedUtf8 = true;
+            }
+        }
+
+        if (!closed)
+        {
+            valid = false;
+            error(begin, position_, "Unterminated raw string literal.");
+        }
+
+        return token(valid ? TokenKind::String : TokenKind::Invalid, begin);
+    }
+
     std::vector<Token> Lexer::tokenize()
     {
         std::vector<Token> tokens;
@@ -472,7 +526,15 @@ namespace aevix
                 return tokens;
             }
 
-            if (letter(peek()))
+            std::size_t rawOpening = 1;
+            if (peek() == 'r')
+                while (peek(rawOpening) == '#') ++rawOpening;
+
+            if (peek() == 'r' && peek(rawOpening) == '"')
+            {
+                tokens.push_back(rawQuoted());
+            }
+            else if (letter(peek()))
             {
                 do
                 {

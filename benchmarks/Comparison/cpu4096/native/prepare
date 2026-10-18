@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : prepare
+#
+# Description :
+#     LLVM 22 기준 실행 파일과 원본·최적화 IR, 어셈블리 및 명령 기록을 만든다.
+#     Build LLVM 22 baselines and preserve raw/optimized IR, assembly, and exact command records.
+#
+# ========================
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def main():
+    source = Path(__file__).resolve().parent
+    root = source.parents[3]
+    contract_path = source.parent / "spec.json"
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    formula = "x=values[i]%2147483647+1; repeat rounds times: x=(x*48271+1)%2147483647; store x"
+    prime = "n=1000000001+(values[i]%4096)*1024; test odd divisors d=3,5,... while d*d<=n; if composite n+=2 and retry; store the first prime"
+    expected = {"lcg_1": {"kernel": "lcg", "rounds": 1}, "lcg_256": {"kernel": "lcg", "rounds": 256},
+                "lcg_16384": {"kernel": "lcg", "rounds": 16384}, "prime_search": {"kernel": "next_prime"}}
+    if (contract.get("schema_version") != 1 or contract.get("elements") != 4096 or
+        contract.get("lcg") != formula or contract.get("next_prime") != prime or contract.get("cases") != expected or
+        contract.get("modes") != ["serial", "parallel_fresh"] or
+        not contract.get("input", "").startswith("values[i]=(i+seed)%4096") or
+        contract.get("checksums") != "sum(values); weighted checksum h=0 then h=(h+(i+1)*values[i])%1000000007 for each i"):
+        raise ValueError("Shared benchmark arithmetic/input contract changed; update native sources explicitly")
+    if os.name != "posix":
+        raise ValueError("These native baseline build commands require POSIX pthread and monotonic clock APIs")
+    parser = argparse.ArgumentParser(description=__doc__)
+    homebrew = Path("/opt/homebrew/opt/llvm/bin")
+    parser.add_argument("--cc", default=str(homebrew / "clang") if (homebrew / "clang").exists() else shutil.which("clang"))
+    parser.add_argument("--cxx", default=str(homebrew / "clang++") if (homebrew / "clang++").exists() else shutil.which("clang++"))
+    args = parser.parse_args()
+    output = root / "build/bench-cpu4096/native"
+    output.mkdir(parents=True, exist_ok=True)
+    spec_hash = digest(contract_path)
+    versions = {}
+    for name, tool in (("C", args.cc), ("C++", args.cxx)):
+        if not tool:
+            raise ValueError("LLVM 22 clang and clang++ must be installed")
+        result = subprocess.run([tool, "--version"], text=True, capture_output=True, check=True)
+        if not re.search(r"clang version 22\.", result.stdout):
+            raise ValueError(name + " baseline requires LLVM 22: " + result.stdout.splitlines()[0])
+        versions[name] = {"executable": tool, "version": result.stdout.strip()}
+    header = output / "bench_spec.h"
+    lines = ["// ========================", "// Created By : miruku_sora2026", "// File name : bench_spec.h",
+             "// Description :", "//     공유 JSON 명세에서 재현 가능하게 생성한 상수이다.",
+             "//     Reproducibly generated constants from the shared JSON contract.", "// ========================",
+             "#ifndef AEVIX_CPU4096_GENERATED_SPEC_H", "#define AEVIX_CPU4096_GENERATED_SPEC_H",
+             '#define BENCH_SPEC_SHA256 "' + spec_hash + '"',
+             "#define BENCH_ELEMENTS UINT64_C(" + str(contract["elements"]) + ")",
+             "#define BENCH_LCG_MODULUS UINT64_C(2147483647)",
+             "#define BENCH_LCG_MULTIPLIER UINT64_C(48271)",
+             "#define BENCH_CHECKSUM_MODULUS UINT64_C(1000000007)"]
+    for case in ["lcg_1", "lcg_256", "lcg_16384"]:
+        lines.append("#define BENCH_ROUNDS_" + case.upper() + " UINT64_C(" + str(contract["cases"][case]["rounds"]) + ")")
+    for macro, key in [("SAMPLES", "samples"), ("WARMUPS", "warmups")]:
+        value = contract["measurement"][key]
+        if not isinstance(value, int) or value < (1 if key == "samples" else 0):
+            raise ValueError("Invalid measurement defaults")
+        lines.append("#define BENCH_DEFAULT_" + macro + " UINT64_C(" + str(value) + ")")
+    header.write_text("\n".join(lines + ["#endif", ""]), encoding="utf-8")
+    inputs = {str(path.relative_to(root)): digest(path) for path in sorted(source.iterdir()) if path.is_file()}
+    commands = []
+    metadata = {"created_by": "miruku_sora2026", "file_name": "build_commands.json", "description": {
+        "ko": "측정 없이 만든 C/C++ 기준 실행 파일의 정확한 컴파일·링크 기록이다.",
+        "en": "Exact compile/link records for C/C++ baseline artifacts; no timed benchmark is executed."},
+        "cwd": ".", "spec": str(contract_path.relative_to(root)), "spec_sha256": spec_hash,
+        "source_sha256": inputs, "generated_header_sha256": digest(header), "compilers": versions,
+        "optimization": "-O2, no fast math, separate translation units, no LTO", "commands": commands,
+        "benchmark_timing_executed": False}
+    record = output / "build_commands.json"
+
+    def run(arguments, log):
+        result = subprocess.run(arguments, cwd=root, text=True, capture_output=True)
+        log.write_text(result.stdout + result.stderr, encoding="utf-8")
+        commands.append({"argv": arguments, "shell": shlex.join(arguments), "exit_code": result.returncode,
+                         "log": str(log.relative_to(root))})
+        record.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+        if result.returncode:
+            raise RuntimeError("Compiler command failed: " + shlex.join(arguments) + "\n" + result.stdout + result.stderr)
+
+    common = ["-pthread", "-fno-lto", "-D_POSIX_C_SOURCE=200809L", "-Wall", "-Wextra", "-Wpedantic",
+              "-I" + str(source.relative_to(root)), "-I" + str(output.relative_to(root))]
+    if sys.platform == "darwin":
+        common.append("-D_DARWIN_C_SOURCE")
+    remarks = ["-Rpass=loop-vectorize|slp-vectorizer", "-Rpass-missed=loop-vectorize|slp-vectorizer",
+               "-Rpass-analysis=loop-vectorize|slp-vectorizer"]
+    for language, compiler, standard, units, executable in [
+        ("C", args.cc, "c11", ["c_main.c", "pthread_backend.c"], "c_bench"),
+        ("C++", args.cxx, "c++20", ["cpp_main.cpp", "thread_backend.cpp"], "cpp_bench")]:
+        objects = []
+        for unit in units:
+            path = str((source / unit).relative_to(root))
+            stem = Path(unit).stem
+            prefix = [compiler, "-std=" + standard] + common
+            for suffix, flags in [
+                ("O0.ll", ["-O0", "-S", "-emit-llvm"]),
+                ("O2.ll", ["-O2", "-S", "-emit-llvm"] + remarks),
+                ("O2.s", ["-O2", "-S"]),
+                ("o", ["-O2", "-c"])]:
+                target = output / (stem + "." + suffix)
+                log = output / (stem + "." + suffix + ".log")
+                run(prefix + flags + [path, "-o", str(target.relative_to(root))], log)
+            objects.append(str((output / (stem + ".o")).relative_to(root)))
+        binary = output / executable
+        run([compiler, "-O2", "-pthread", "-fno-lto"] + objects + ["-o", str(binary.relative_to(root))], output / (executable + ".link.log"))
+    if digest(contract_path) != spec_hash or inputs != {str(path.relative_to(root)): digest(path) for path in sorted(source.iterdir()) if path.is_file()}:
+        raise RuntimeError("Benchmark source or shared spec changed while preparing artifacts")
+    artifacts = {str(path.relative_to(root)): digest(path) for path in sorted(output.iterdir()) if path.is_file() and path != record}
+    metadata["artifacts_sha256"] = artifacts
+    metadata["status"] = "built_not_performance_measured"
+    record.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"status": metadata["status"], "commands": len(commands), "metadata": str(record.relative_to(root)),
+                      "binaries": [str((output / name).relative_to(root)) for name in ["c_bench", "cpp_bench"]]}))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print("Benchmark preparation error:", error, file=sys.stderr)
+        sys.exit(1)

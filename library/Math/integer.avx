@@ -1,0 +1,6449 @@
+/*
+ * Explicit-import integer arithmetic and bit utilities. No hidden allocation. IntegerArithmeticError is distinct from compiler IntegerError and math.IntegerMathError. Native-sized types follow the supported 64-bit targets.
+ * @module integer
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+import error { Error };
+
+/*
+ * Failures of explicitly imported arithmetic helpers; the canonical IntegerError is unchanged.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum IntegerArithmeticError implements Copy, Error {
+/*
+ * The exact arithmetic result cannot be represented by the requested output type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+    Overflow;
+/*
+ * The divisor is zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+    DivisionByZero;
+/*
+ * Return a stable, allocation-free error code.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public string_view code(&Self self) {
+        switch (*self) {
+            case IntegerArithmeticError.Overflow: return "integer.overflow"; break;
+            case IntegerArithmeticError.DivisionByZero: return "integer.division_by_zero"; break;
+        }
+    }
+/*
+ * Return a stable, allocation-free error description.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public string_view message(&Self self) {
+        switch (*self) {
+            case IntegerArithmeticError.Overflow: return "The exact result does not fit its integer type."; break;
+            case IntegerArithmeticError.DivisionByZero: return "Integer division requires a nonzero divisor."; break;
+        }
+    }
+};
+T represent<T,U>(U value) {
+    switch (Integer.convert<T>(value)) {
+        case Result<T,IntegerError>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+bool has_error<T>(Result<T,IntegerArithmeticError> outcome) {
+    switch (move outcome) { case Result<T,IntegerArithmeticError>.Err: return true; break; default: return false; break; }
+}
+
+/*
+ * The exact i8 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i8 MIN_I8 = -128i8;
+
+/*
+ * The exact i8 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i8 MAX_I8 = 127i8;
+
+u8 bits(i8 value) { if (value >= 0i8) return represent<u8>(value); return 255u8 - represent<u8>(-(value + 1i8)); }
+
+i8 signed_bits_i8(u8 value) { if (value <= 127u8) return represent<i8>(value); return -represent<i8>(255u8 - value) - 1i8; }
+
+/*
+ * Exact i8 magnitude, including MIN, returned in u8; never negate MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 unsigned_abs(i8 value) {
+    return value < 0i8 ? represent<u8>(-(value + 1i8)) + 1u8 : represent<u8>(value);
+}
+
+/*
+ * Exact checked i8 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_add(i8 left, i8 right) {
+    if ((right > 0i8 && left > 127i8 - right) || (right < 0i8 && left < -128i8 - right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked i8 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_sub(i8 left, i8 right) {
+    if ((right > 0i8 && left < -128i8 + right) || (right < 0i8 && left > 127i8 + right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked i8 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_mul(i8 left, i8 right) {
+    if (left == 0i8 || right == 0i8) return Result.ok(0i8);
+    bool negative = (left < 0i8) != (right < 0i8);
+    u8 a = unsigned_abs(left);
+    u8 b = unsigned_abs(right);
+    u8 limit = negative ? 128u8 : 127u8;
+    if (a > limit / b) return Result.err(IntegerArithmeticError.Overflow);
+    u8 product = a * b;
+    return Result.ok(negative ? -represent<i8>(product - 1u8) - 1i8 : represent<i8>(product));
+}
+
+/*
+ * Checked truncated i8 div; MIN/-1 is Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_div(i8 left, i8 right) {
+    if (right == 0i8) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -128i8 && right == -1i8) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated i8 rem; MIN%-1 is zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_rem(i8 left, i8 right) {
+    if (right == 0i8) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -128i8 && right == -1i8) return Result.ok(0i8);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked i8 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_pow(i8 base, u32 exponent) {
+    mut i8 result = 1i8;
+    mut i8 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Checked signed i8 neg; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_neg(i8 value) {
+    if (value == -128i8) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(-value);
+}
+
+/*
+ * Checked signed i8 abs; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8,IntegerArithmeticError> checked_abs(i8 value) {
+    if (value == -128i8) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(value < 0i8 ? -value : value);
+}
+
+/*
+ * i8 add modulo 2^8, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 wrapping_add(i8 left, i8 right) {
+    return signed_bits_i8(wrapping_add(bits(left), bits(right)));
+}
+
+/*
+ * i8 sub modulo 2^8, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 wrapping_sub(i8 left, i8 right) {
+    return signed_bits_i8(wrapping_sub(bits(left), bits(right)));
+}
+
+/*
+ * i8 mul modulo 2^8, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 wrapping_mul(i8 left, i8 right) {
+    return signed_bits_i8(wrapping_mul(bits(left), bits(right)));
+}
+
+/*
+ * Modular i8 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 wrapping_neg(i8 value) {
+    return wrapping_sub(0i8, value);
+}
+
+/*
+ * i8 power modulo 2^8; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 wrapping_pow(i8 base, u32 exponent) {
+    mut i8 result = 1i8;
+    mut i8 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular absolute i8 value; signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 wrapping_abs(i8 value) {
+    return value < 0i8 ? wrapping_neg(value) : value;
+}
+
+/*
+ * i8 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 saturating_add(i8 left, i8 right) {
+    switch (checked_add(left, right)) {
+        case Result<i8,IntegerArithmeticError>.Ok { i8 output = value }: return output; break;
+        default: return right < 0i8 ? -128i8 : 127i8; break;
+    }
+}
+
+/*
+ * Wrapped i8 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i8,bool> overflowing_add(i8 left, i8 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * i8 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 saturating_sub(i8 left, i8 right) {
+    switch (checked_sub(left, right)) {
+        case Result<i8,IntegerArithmeticError>.Ok { i8 output = value }: return output; break;
+        default: return right > 0i8 ? -128i8 : 127i8; break;
+    }
+}
+
+/*
+ * Wrapped i8 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i8,bool> overflowing_sub(i8 left, i8 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * i8 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 saturating_mul(i8 left, i8 right) {
+    switch (checked_mul(left, right)) {
+        case Result<i8,IntegerArithmeticError>.Ok { i8 output = value }: return output; break;
+        default: return (left < 0i8) != (right < 0i8) ? -128i8 : 127i8; break;
+    }
+}
+
+/*
+ * Wrapped i8 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i8,bool> overflowing_mul(i8 left, i8 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * i8 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 saturating_pow(i8 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<i8,IntegerArithmeticError>.Ok { i8 output = value }: return output; break;
+        default: return base < 0i8 && exponent % 2u32 != 0u32 ? -128i8 : 127i8; break;
+    }
+}
+
+/*
+ * Wrapped i8 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i8,bool> overflowing_pow(i8 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * i8 neg clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 saturating_neg(i8 value) {
+    if (value == -128i8) return 127i8;
+    return -value;
+}
+
+/*
+ * Wrapped i8 neg and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i8,bool> overflowing_neg(i8 value) {
+    return Tuple.make(wrapping_neg(value), value == -128i8);
+}
+
+/*
+ * i8 abs clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 saturating_abs(i8 value) {
+    if (value == -128i8) return 127i8;
+    return value < 0i8 ? -value : value;
+}
+
+/*
+ * Wrapped i8 abs and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i8,bool> overflowing_abs(i8 value) {
+    return Tuple.make(wrapping_abs(value), value == -128i8);
+}
+
+/*
+ * Test zero for i8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(i8 value) {
+    return value == 0i8;
+}
+
+/*
+ * Test negative for i8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(i8 value) {
+    return value < 0i8;
+}
+
+/*
+ * Test positive for i8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(i8 value) {
+    return value > 0i8;
+}
+
+/*
+ * Test even for i8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(i8 value) {
+    return value % 2i8 == 0i8;
+}
+
+/*
+ * Test odd for i8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(i8 value) {
+    return value % 2i8 != 0i8;
+}
+
+/*
+ * Test power of two for i8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(i8 value) {
+    return value > 0i8 && (bits(value) & (bits(value) - 1u8)) == 0u8;
+}
+
+/*
+ * Exact i8 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(i8 left, i8 right) {
+    if (right == 0i8) return left == 0i8;
+    if (left == -128i8 && right == -1i8) return true;
+    return left % right == 0i8;
+}
+
+/*
+ * Number of set bits in the full 8-bit i8 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(i8 value) {
+    mut u8 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u8) { remaining &= remaining - 1u8; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 8-bit i8 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(i8 value) {
+    return 8u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of i8; zero returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(i8 value) {
+    mut u8 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 8u32 && (remaining & 128u8) == 0u8) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of i8; all ones returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(i8 value) {
+    return leading_zeros(signed_bits_i8(~bits(value)));
+}
+
+/*
+ * Count trailing zero bits of i8; zero returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(i8 value) {
+    mut u8 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 8u32 && (remaining & 1u8) == 0u8) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of i8; all ones returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(i8 value) {
+    return trailing_zeros(signed_bits_i8(~bits(value)));
+}
+
+/*
+ * Bit length of the mathematical i8 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(i8 value) {
+    u8 magnitude = unsigned_abs(value);
+    return 8u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 8 bits of i8, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 reverse_bits(i8 value) {
+    mut u8 remaining = bits(value);
+    mut u8 output = 0u8;
+    mut u32 position = 0u32;
+    while (position < 8u32) { output = (output << 1u32) | (remaining & 1u8); remaining = remaining >> 1u32; position++; }
+    return signed_bits_i8(output);
+}
+
+/*
+ * Reverse i8 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 swap_bytes(i8 value) {
+    mut u8 remaining = bits(value);
+    mut u8 output = 0u8;
+    mut u32 position = 0u32;
+    while (position < 1u32) { output = (output << 0u32) | (remaining & 255u8); remaining = remaining >> 0u32; position++; }
+    return signed_bits_i8(output);
+}
+
+/*
+ * Rotate i8 bits left; count is reduced modulo 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 rotate_left(i8 value, u32 count) {
+    u32 amount = count % 8u32;
+    if (amount == 0u32) return value;
+    u8 raw = bits(value);
+    return signed_bits_i8((raw << amount) | (raw >> (8u32 - amount)));
+}
+
+/*
+ * Rotate i8 bits right; count is reduced modulo 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 rotate_right(i8 value, u32 count) {
+    u32 amount = count % 8u32;
+    if (amount == 0u32) return value;
+    u8 raw = bits(value);
+    return signed_bits_i8((raw >> amount) | (raw << (8u32 - amount)));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of i8, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 highest_one_bit(i8 value) {
+    if (value == 0i8) return 0u8;
+    return 1u8 << (7u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of i8, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 lowest_one_bit(i8 value) {
+    u8 raw = bits(value);
+    return raw == 0u8 ? 0u8 : raw & (~raw + 1u8);
+}
+
+/*
+ * Exact nonnegative difference of i8 values, in u8, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 abs_diff(i8 left, i8 right) {
+    u8 a = unsigned_abs(left);
+    u8 b = unsigned_abs(right);
+    if ((left < 0i8) != (right < 0i8)) return a + b;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact u8 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u8 MIN_U8 = 0u8;
+
+/*
+ * The exact u8 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u8 MAX_U8 = 255u8;
+
+u8 bits(u8 value) { return value; }
+
+/*
+ * Exact checked u8 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8,IntegerArithmeticError> checked_add(u8 left, u8 right) {
+    if (left > 255u8 - right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked u8 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8,IntegerArithmeticError> checked_sub(u8 left, u8 right) {
+    if (left < right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked u8 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8,IntegerArithmeticError> checked_mul(u8 left, u8 right) {
+    if (right != 0u8 && left > 255u8 / right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left * right);
+}
+
+/*
+ * Checked truncated u8 div; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8,IntegerArithmeticError> checked_div(u8 left, u8 right) {
+    if (right == 0u8) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated u8 rem; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8,IntegerArithmeticError> checked_rem(u8 left, u8 right) {
+    if (right == 0u8) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked u8 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8,IntegerArithmeticError> checked_pow(u8 base, u32 exponent) {
+    mut u8 result = 1u8;
+    mut u8 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * u8 addition modulo 2^8, without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 wrapping_add(u8 left, u8 right) {
+    return left > 255u8 - right ? left - (255u8 - right) - 1u8 : left + right;
+}
+
+/*
+ * u8 subtraction modulo 2^8, without underflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 wrapping_sub(u8 left, u8 right) {
+    return left < right ? 255u8 - (right - left) + 1u8 : left - right;
+}
+
+/*
+ * u8 product modulo 2^8, using bounded modular additions.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 wrapping_mul(u8 left, u8 right) {
+    mut u8 result = 0u8;
+    mut u8 factor = left;
+    mut u8 remaining = right;
+    while (remaining != 0u8) {
+        if (remaining % 2u8 != 0u8) result = wrapping_add(result, factor);
+        remaining /= 2u8;
+        if (remaining != 0u8) factor = wrapping_add(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular u8 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 wrapping_neg(u8 value) {
+    return wrapping_sub(0u8, value);
+}
+
+/*
+ * u8 power modulo 2^8; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 wrapping_pow(u8 base, u32 exponent) {
+    mut u8 result = 1u8;
+    mut u8 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * u8 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 saturating_add(u8 left, u8 right) {
+    switch (checked_add(left, right)) {
+        case Result<u8,IntegerArithmeticError>.Ok { u8 output = value }: return output; break;
+        default: return 255u8; break;
+    }
+}
+
+/*
+ * Wrapped u8 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u8,bool> overflowing_add(u8 left, u8 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * u8 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 saturating_sub(u8 left, u8 right) {
+    switch (checked_sub(left, right)) {
+        case Result<u8,IntegerArithmeticError>.Ok { u8 output = value }: return output; break;
+        default: return 0u8; break;
+    }
+}
+
+/*
+ * Wrapped u8 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u8,bool> overflowing_sub(u8 left, u8 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * u8 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 saturating_mul(u8 left, u8 right) {
+    switch (checked_mul(left, right)) {
+        case Result<u8,IntegerArithmeticError>.Ok { u8 output = value }: return output; break;
+        default: return 255u8; break;
+    }
+}
+
+/*
+ * Wrapped u8 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u8,bool> overflowing_mul(u8 left, u8 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * u8 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 saturating_pow(u8 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<u8,IntegerArithmeticError>.Ok { u8 output = value }: return output; break;
+        default: return 255u8; break;
+    }
+}
+
+/*
+ * Wrapped u8 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u8,bool> overflowing_pow(u8 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * Test zero for u8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(u8 value) {
+    return value == 0u8;
+}
+
+/*
+ * Test negative for u8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(u8 value) {
+    return false;
+}
+
+/*
+ * Test positive for u8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(u8 value) {
+    return value > 0u8;
+}
+
+/*
+ * Test even for u8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(u8 value) {
+    return value % 2u8 == 0u8;
+}
+
+/*
+ * Test odd for u8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(u8 value) {
+    return value % 2u8 != 0u8;
+}
+
+/*
+ * Test power of two for u8 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(u8 value) {
+    return value > 0u8 && (bits(value) & (bits(value) - 1u8)) == 0u8;
+}
+
+/*
+ * Exact u8 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(u8 left, u8 right) {
+    if (right == 0u8) return left == 0u8;
+    return left % right == 0u8;
+}
+
+/*
+ * Number of set bits in the full 8-bit u8 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(u8 value) {
+    mut u8 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u8) { remaining &= remaining - 1u8; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 8-bit u8 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(u8 value) {
+    return 8u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of u8; zero returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(u8 value) {
+    mut u8 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 8u32 && (remaining & 128u8) == 0u8) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of u8; all ones returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(u8 value) {
+    return leading_zeros(~bits(value));
+}
+
+/*
+ * Count trailing zero bits of u8; zero returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(u8 value) {
+    mut u8 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 8u32 && (remaining & 1u8) == 0u8) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of u8; all ones returns 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(u8 value) {
+    return trailing_zeros(~bits(value));
+}
+
+/*
+ * Bit length of the mathematical u8 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(u8 value) {
+    u8 magnitude = value;
+    return 8u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 8 bits of u8, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 reverse_bits(u8 value) {
+    mut u8 remaining = bits(value);
+    mut u8 output = 0u8;
+    mut u32 position = 0u32;
+    while (position < 8u32) { output = (output << 1u32) | (remaining & 1u8); remaining = remaining >> 1u32; position++; }
+    return output;
+}
+
+/*
+ * Reverse u8 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 swap_bytes(u8 value) {
+    mut u8 remaining = bits(value);
+    mut u8 output = 0u8;
+    mut u32 position = 0u32;
+    while (position < 1u32) { output = (output << 0u32) | (remaining & 255u8); remaining = remaining >> 0u32; position++; }
+    return output;
+}
+
+/*
+ * Rotate u8 bits left; count is reduced modulo 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 rotate_left(u8 value, u32 count) {
+    u32 amount = count % 8u32;
+    if (amount == 0u32) return value;
+    u8 raw = bits(value);
+    return (raw << amount) | (raw >> (8u32 - amount));
+}
+
+/*
+ * Rotate u8 bits right; count is reduced modulo 8.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 rotate_right(u8 value, u32 count) {
+    u32 amount = count % 8u32;
+    if (amount == 0u32) return value;
+    u8 raw = bits(value);
+    return (raw >> amount) | (raw << (8u32 - amount));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of u8, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 highest_one_bit(u8 value) {
+    if (value == 0u8) return 0u8;
+    return 1u8 << (7u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of u8, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 lowest_one_bit(u8 value) {
+    u8 raw = bits(value);
+    return raw == 0u8 ? 0u8 : raw & (~raw + 1u8);
+}
+
+/*
+ * Exact nonnegative difference of u8 values, in u8, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 abs_diff(u8 left, u8 right) {
+    u8 a = left;
+    u8 b = right;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact i16 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i16 MIN_I16 = -32768i16;
+
+/*
+ * The exact i16 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i16 MAX_I16 = 32767i16;
+
+u16 bits(i16 value) { if (value >= 0i16) return represent<u16>(value); return 65535u16 - represent<u16>(-(value + 1i16)); }
+
+i16 signed_bits_i16(u16 value) { if (value <= 32767u16) return represent<i16>(value); return -represent<i16>(65535u16 - value) - 1i16; }
+
+/*
+ * Exact i16 magnitude, including MIN, returned in u16; never negate MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 unsigned_abs(i16 value) {
+    return value < 0i16 ? represent<u16>(-(value + 1i16)) + 1u16 : represent<u16>(value);
+}
+
+/*
+ * Exact checked i16 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_add(i16 left, i16 right) {
+    if ((right > 0i16 && left > 32767i16 - right) || (right < 0i16 && left < -32768i16 - right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked i16 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_sub(i16 left, i16 right) {
+    if ((right > 0i16 && left < -32768i16 + right) || (right < 0i16 && left > 32767i16 + right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked i16 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_mul(i16 left, i16 right) {
+    if (left == 0i16 || right == 0i16) return Result.ok(0i16);
+    bool negative = (left < 0i16) != (right < 0i16);
+    u16 a = unsigned_abs(left);
+    u16 b = unsigned_abs(right);
+    u16 limit = negative ? 32768u16 : 32767u16;
+    if (a > limit / b) return Result.err(IntegerArithmeticError.Overflow);
+    u16 product = a * b;
+    return Result.ok(negative ? -represent<i16>(product - 1u16) - 1i16 : represent<i16>(product));
+}
+
+/*
+ * Checked truncated i16 div; MIN/-1 is Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_div(i16 left, i16 right) {
+    if (right == 0i16) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -32768i16 && right == -1i16) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated i16 rem; MIN%-1 is zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_rem(i16 left, i16 right) {
+    if (right == 0i16) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -32768i16 && right == -1i16) return Result.ok(0i16);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked i16 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_pow(i16 base, u32 exponent) {
+    mut i16 result = 1i16;
+    mut i16 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Checked signed i16 neg; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_neg(i16 value) {
+    if (value == -32768i16) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(-value);
+}
+
+/*
+ * Checked signed i16 abs; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16,IntegerArithmeticError> checked_abs(i16 value) {
+    if (value == -32768i16) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(value < 0i16 ? -value : value);
+}
+
+/*
+ * i16 add modulo 2^16, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 wrapping_add(i16 left, i16 right) {
+    return signed_bits_i16(wrapping_add(bits(left), bits(right)));
+}
+
+/*
+ * i16 sub modulo 2^16, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 wrapping_sub(i16 left, i16 right) {
+    return signed_bits_i16(wrapping_sub(bits(left), bits(right)));
+}
+
+/*
+ * i16 mul modulo 2^16, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 wrapping_mul(i16 left, i16 right) {
+    return signed_bits_i16(wrapping_mul(bits(left), bits(right)));
+}
+
+/*
+ * Modular i16 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 wrapping_neg(i16 value) {
+    return wrapping_sub(0i16, value);
+}
+
+/*
+ * i16 power modulo 2^16; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 wrapping_pow(i16 base, u32 exponent) {
+    mut i16 result = 1i16;
+    mut i16 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular absolute i16 value; signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 wrapping_abs(i16 value) {
+    return value < 0i16 ? wrapping_neg(value) : value;
+}
+
+/*
+ * i16 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 saturating_add(i16 left, i16 right) {
+    switch (checked_add(left, right)) {
+        case Result<i16,IntegerArithmeticError>.Ok { i16 output = value }: return output; break;
+        default: return right < 0i16 ? -32768i16 : 32767i16; break;
+    }
+}
+
+/*
+ * Wrapped i16 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i16,bool> overflowing_add(i16 left, i16 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * i16 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 saturating_sub(i16 left, i16 right) {
+    switch (checked_sub(left, right)) {
+        case Result<i16,IntegerArithmeticError>.Ok { i16 output = value }: return output; break;
+        default: return right > 0i16 ? -32768i16 : 32767i16; break;
+    }
+}
+
+/*
+ * Wrapped i16 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i16,bool> overflowing_sub(i16 left, i16 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * i16 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 saturating_mul(i16 left, i16 right) {
+    switch (checked_mul(left, right)) {
+        case Result<i16,IntegerArithmeticError>.Ok { i16 output = value }: return output; break;
+        default: return (left < 0i16) != (right < 0i16) ? -32768i16 : 32767i16; break;
+    }
+}
+
+/*
+ * Wrapped i16 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i16,bool> overflowing_mul(i16 left, i16 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * i16 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 saturating_pow(i16 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<i16,IntegerArithmeticError>.Ok { i16 output = value }: return output; break;
+        default: return base < 0i16 && exponent % 2u32 != 0u32 ? -32768i16 : 32767i16; break;
+    }
+}
+
+/*
+ * Wrapped i16 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i16,bool> overflowing_pow(i16 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * i16 neg clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 saturating_neg(i16 value) {
+    if (value == -32768i16) return 32767i16;
+    return -value;
+}
+
+/*
+ * Wrapped i16 neg and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i16,bool> overflowing_neg(i16 value) {
+    return Tuple.make(wrapping_neg(value), value == -32768i16);
+}
+
+/*
+ * i16 abs clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 saturating_abs(i16 value) {
+    if (value == -32768i16) return 32767i16;
+    return value < 0i16 ? -value : value;
+}
+
+/*
+ * Wrapped i16 abs and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i16,bool> overflowing_abs(i16 value) {
+    return Tuple.make(wrapping_abs(value), value == -32768i16);
+}
+
+/*
+ * Test zero for i16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(i16 value) {
+    return value == 0i16;
+}
+
+/*
+ * Test negative for i16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(i16 value) {
+    return value < 0i16;
+}
+
+/*
+ * Test positive for i16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(i16 value) {
+    return value > 0i16;
+}
+
+/*
+ * Test even for i16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(i16 value) {
+    return value % 2i16 == 0i16;
+}
+
+/*
+ * Test odd for i16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(i16 value) {
+    return value % 2i16 != 0i16;
+}
+
+/*
+ * Test power of two for i16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(i16 value) {
+    return value > 0i16 && (bits(value) & (bits(value) - 1u16)) == 0u16;
+}
+
+/*
+ * Exact i16 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(i16 left, i16 right) {
+    if (right == 0i16) return left == 0i16;
+    if (left == -32768i16 && right == -1i16) return true;
+    return left % right == 0i16;
+}
+
+/*
+ * Number of set bits in the full 16-bit i16 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(i16 value) {
+    mut u16 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u16) { remaining &= remaining - 1u16; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 16-bit i16 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(i16 value) {
+    return 16u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of i16; zero returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(i16 value) {
+    mut u16 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 16u32 && (remaining & 32768u16) == 0u16) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of i16; all ones returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(i16 value) {
+    return leading_zeros(signed_bits_i16(~bits(value)));
+}
+
+/*
+ * Count trailing zero bits of i16; zero returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(i16 value) {
+    mut u16 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 16u32 && (remaining & 1u16) == 0u16) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of i16; all ones returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(i16 value) {
+    return trailing_zeros(signed_bits_i16(~bits(value)));
+}
+
+/*
+ * Bit length of the mathematical i16 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(i16 value) {
+    u16 magnitude = unsigned_abs(value);
+    return 16u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 16 bits of i16, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 reverse_bits(i16 value) {
+    mut u16 remaining = bits(value);
+    mut u16 output = 0u16;
+    mut u32 position = 0u32;
+    while (position < 16u32) { output = (output << 1u32) | (remaining & 1u16); remaining = remaining >> 1u32; position++; }
+    return signed_bits_i16(output);
+}
+
+/*
+ * Reverse i16 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 swap_bytes(i16 value) {
+    mut u16 remaining = bits(value);
+    mut u16 output = 0u16;
+    mut u32 position = 0u32;
+    while (position < 2u32) { output = (output << 8u32) | (remaining & 255u16); remaining = remaining >> 8u32; position++; }
+    return signed_bits_i16(output);
+}
+
+/*
+ * Rotate i16 bits left; count is reduced modulo 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 rotate_left(i16 value, u32 count) {
+    u32 amount = count % 16u32;
+    if (amount == 0u32) return value;
+    u16 raw = bits(value);
+    return signed_bits_i16((raw << amount) | (raw >> (16u32 - amount)));
+}
+
+/*
+ * Rotate i16 bits right; count is reduced modulo 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 rotate_right(i16 value, u32 count) {
+    u32 amount = count % 16u32;
+    if (amount == 0u32) return value;
+    u16 raw = bits(value);
+    return signed_bits_i16((raw >> amount) | (raw << (16u32 - amount)));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of i16, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 highest_one_bit(i16 value) {
+    if (value == 0i16) return 0u16;
+    return 1u16 << (15u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of i16, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 lowest_one_bit(i16 value) {
+    u16 raw = bits(value);
+    return raw == 0u16 ? 0u16 : raw & (~raw + 1u16);
+}
+
+/*
+ * Exact nonnegative difference of i16 values, in u16, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 abs_diff(i16 left, i16 right) {
+    u16 a = unsigned_abs(left);
+    u16 b = unsigned_abs(right);
+    if ((left < 0i16) != (right < 0i16)) return a + b;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact u16 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u16 MIN_U16 = 0u16;
+
+/*
+ * The exact u16 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u16 MAX_U16 = 65535u16;
+
+u16 bits(u16 value) { return value; }
+
+/*
+ * Exact checked u16 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16,IntegerArithmeticError> checked_add(u16 left, u16 right) {
+    if (left > 65535u16 - right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked u16 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16,IntegerArithmeticError> checked_sub(u16 left, u16 right) {
+    if (left < right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked u16 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16,IntegerArithmeticError> checked_mul(u16 left, u16 right) {
+    if (right != 0u16 && left > 65535u16 / right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left * right);
+}
+
+/*
+ * Checked truncated u16 div; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16,IntegerArithmeticError> checked_div(u16 left, u16 right) {
+    if (right == 0u16) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated u16 rem; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16,IntegerArithmeticError> checked_rem(u16 left, u16 right) {
+    if (right == 0u16) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked u16 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16,IntegerArithmeticError> checked_pow(u16 base, u32 exponent) {
+    mut u16 result = 1u16;
+    mut u16 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * u16 addition modulo 2^16, without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 wrapping_add(u16 left, u16 right) {
+    return left > 65535u16 - right ? left - (65535u16 - right) - 1u16 : left + right;
+}
+
+/*
+ * u16 subtraction modulo 2^16, without underflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 wrapping_sub(u16 left, u16 right) {
+    return left < right ? 65535u16 - (right - left) + 1u16 : left - right;
+}
+
+/*
+ * u16 product modulo 2^16, using bounded modular additions.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 wrapping_mul(u16 left, u16 right) {
+    mut u16 result = 0u16;
+    mut u16 factor = left;
+    mut u16 remaining = right;
+    while (remaining != 0u16) {
+        if (remaining % 2u16 != 0u16) result = wrapping_add(result, factor);
+        remaining /= 2u16;
+        if (remaining != 0u16) factor = wrapping_add(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular u16 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 wrapping_neg(u16 value) {
+    return wrapping_sub(0u16, value);
+}
+
+/*
+ * u16 power modulo 2^16; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 wrapping_pow(u16 base, u32 exponent) {
+    mut u16 result = 1u16;
+    mut u16 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * u16 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 saturating_add(u16 left, u16 right) {
+    switch (checked_add(left, right)) {
+        case Result<u16,IntegerArithmeticError>.Ok { u16 output = value }: return output; break;
+        default: return 65535u16; break;
+    }
+}
+
+/*
+ * Wrapped u16 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u16,bool> overflowing_add(u16 left, u16 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * u16 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 saturating_sub(u16 left, u16 right) {
+    switch (checked_sub(left, right)) {
+        case Result<u16,IntegerArithmeticError>.Ok { u16 output = value }: return output; break;
+        default: return 0u16; break;
+    }
+}
+
+/*
+ * Wrapped u16 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u16,bool> overflowing_sub(u16 left, u16 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * u16 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 saturating_mul(u16 left, u16 right) {
+    switch (checked_mul(left, right)) {
+        case Result<u16,IntegerArithmeticError>.Ok { u16 output = value }: return output; break;
+        default: return 65535u16; break;
+    }
+}
+
+/*
+ * Wrapped u16 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u16,bool> overflowing_mul(u16 left, u16 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * u16 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 saturating_pow(u16 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<u16,IntegerArithmeticError>.Ok { u16 output = value }: return output; break;
+        default: return 65535u16; break;
+    }
+}
+
+/*
+ * Wrapped u16 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u16,bool> overflowing_pow(u16 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * Test zero for u16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(u16 value) {
+    return value == 0u16;
+}
+
+/*
+ * Test negative for u16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(u16 value) {
+    return false;
+}
+
+/*
+ * Test positive for u16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(u16 value) {
+    return value > 0u16;
+}
+
+/*
+ * Test even for u16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(u16 value) {
+    return value % 2u16 == 0u16;
+}
+
+/*
+ * Test odd for u16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(u16 value) {
+    return value % 2u16 != 0u16;
+}
+
+/*
+ * Test power of two for u16 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(u16 value) {
+    return value > 0u16 && (bits(value) & (bits(value) - 1u16)) == 0u16;
+}
+
+/*
+ * Exact u16 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(u16 left, u16 right) {
+    if (right == 0u16) return left == 0u16;
+    return left % right == 0u16;
+}
+
+/*
+ * Number of set bits in the full 16-bit u16 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(u16 value) {
+    mut u16 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u16) { remaining &= remaining - 1u16; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 16-bit u16 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(u16 value) {
+    return 16u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of u16; zero returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(u16 value) {
+    mut u16 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 16u32 && (remaining & 32768u16) == 0u16) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of u16; all ones returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(u16 value) {
+    return leading_zeros(~bits(value));
+}
+
+/*
+ * Count trailing zero bits of u16; zero returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(u16 value) {
+    mut u16 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 16u32 && (remaining & 1u16) == 0u16) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of u16; all ones returns 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(u16 value) {
+    return trailing_zeros(~bits(value));
+}
+
+/*
+ * Bit length of the mathematical u16 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(u16 value) {
+    u16 magnitude = value;
+    return 16u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 16 bits of u16, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 reverse_bits(u16 value) {
+    mut u16 remaining = bits(value);
+    mut u16 output = 0u16;
+    mut u32 position = 0u32;
+    while (position < 16u32) { output = (output << 1u32) | (remaining & 1u16); remaining = remaining >> 1u32; position++; }
+    return output;
+}
+
+/*
+ * Reverse u16 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 swap_bytes(u16 value) {
+    mut u16 remaining = bits(value);
+    mut u16 output = 0u16;
+    mut u32 position = 0u32;
+    while (position < 2u32) { output = (output << 8u32) | (remaining & 255u16); remaining = remaining >> 8u32; position++; }
+    return output;
+}
+
+/*
+ * Rotate u16 bits left; count is reduced modulo 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 rotate_left(u16 value, u32 count) {
+    u32 amount = count % 16u32;
+    if (amount == 0u32) return value;
+    u16 raw = bits(value);
+    return (raw << amount) | (raw >> (16u32 - amount));
+}
+
+/*
+ * Rotate u16 bits right; count is reduced modulo 16.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 rotate_right(u16 value, u32 count) {
+    u32 amount = count % 16u32;
+    if (amount == 0u32) return value;
+    u16 raw = bits(value);
+    return (raw >> amount) | (raw << (16u32 - amount));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of u16, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 highest_one_bit(u16 value) {
+    if (value == 0u16) return 0u16;
+    return 1u16 << (15u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of u16, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 lowest_one_bit(u16 value) {
+    u16 raw = bits(value);
+    return raw == 0u16 ? 0u16 : raw & (~raw + 1u16);
+}
+
+/*
+ * Exact nonnegative difference of u16 values, in u16, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 abs_diff(u16 left, u16 right) {
+    u16 a = left;
+    u16 b = right;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact i32 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i32 MIN_I32 = -2147483648i32;
+
+/*
+ * The exact i32 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i32 MAX_I32 = 2147483647i32;
+
+u32 bits(i32 value) { if (value >= 0i32) return represent<u32>(value); return 4294967295u32 - represent<u32>(-(value + 1i32)); }
+
+i32 signed_bits_i32(u32 value) { if (value <= 2147483647u32) return represent<i32>(value); return -represent<i32>(4294967295u32 - value) - 1i32; }
+
+/*
+ * Exact i32 magnitude, including MIN, returned in u32; never negate MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 unsigned_abs(i32 value) {
+    return value < 0i32 ? represent<u32>(-(value + 1i32)) + 1u32 : represent<u32>(value);
+}
+
+/*
+ * Exact checked i32 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_add(i32 left, i32 right) {
+    if ((right > 0i32 && left > 2147483647i32 - right) || (right < 0i32 && left < -2147483648i32 - right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked i32 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_sub(i32 left, i32 right) {
+    if ((right > 0i32 && left < -2147483648i32 + right) || (right < 0i32 && left > 2147483647i32 + right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked i32 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_mul(i32 left, i32 right) {
+    if (left == 0i32 || right == 0i32) return Result.ok(0i32);
+    bool negative = (left < 0i32) != (right < 0i32);
+    u32 a = unsigned_abs(left);
+    u32 b = unsigned_abs(right);
+    u32 limit = negative ? 2147483648u32 : 2147483647u32;
+    if (a > limit / b) return Result.err(IntegerArithmeticError.Overflow);
+    u32 product = a * b;
+    return Result.ok(negative ? -represent<i32>(product - 1u32) - 1i32 : represent<i32>(product));
+}
+
+/*
+ * Checked truncated i32 div; MIN/-1 is Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_div(i32 left, i32 right) {
+    if (right == 0i32) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -2147483648i32 && right == -1i32) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated i32 rem; MIN%-1 is zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_rem(i32 left, i32 right) {
+    if (right == 0i32) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -2147483648i32 && right == -1i32) return Result.ok(0i32);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked i32 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_pow(i32 base, u32 exponent) {
+    mut i32 result = 1i32;
+    mut i32 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Checked signed i32 neg; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_neg(i32 value) {
+    if (value == -2147483648i32) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(-value);
+}
+
+/*
+ * Checked signed i32 abs; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32,IntegerArithmeticError> checked_abs(i32 value) {
+    if (value == -2147483648i32) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(value < 0i32 ? -value : value);
+}
+
+/*
+ * i32 add modulo 2^32, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 wrapping_add(i32 left, i32 right) {
+    return signed_bits_i32(wrapping_add(bits(left), bits(right)));
+}
+
+/*
+ * i32 sub modulo 2^32, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 wrapping_sub(i32 left, i32 right) {
+    return signed_bits_i32(wrapping_sub(bits(left), bits(right)));
+}
+
+/*
+ * i32 mul modulo 2^32, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 wrapping_mul(i32 left, i32 right) {
+    return signed_bits_i32(wrapping_mul(bits(left), bits(right)));
+}
+
+/*
+ * Modular i32 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 wrapping_neg(i32 value) {
+    return wrapping_sub(0i32, value);
+}
+
+/*
+ * i32 power modulo 2^32; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 wrapping_pow(i32 base, u32 exponent) {
+    mut i32 result = 1i32;
+    mut i32 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular absolute i32 value; signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 wrapping_abs(i32 value) {
+    return value < 0i32 ? wrapping_neg(value) : value;
+}
+
+/*
+ * i32 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 saturating_add(i32 left, i32 right) {
+    switch (checked_add(left, right)) {
+        case Result<i32,IntegerArithmeticError>.Ok { i32 output = value }: return output; break;
+        default: return right < 0i32 ? -2147483648i32 : 2147483647i32; break;
+    }
+}
+
+/*
+ * Wrapped i32 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i32,bool> overflowing_add(i32 left, i32 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * i32 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 saturating_sub(i32 left, i32 right) {
+    switch (checked_sub(left, right)) {
+        case Result<i32,IntegerArithmeticError>.Ok { i32 output = value }: return output; break;
+        default: return right > 0i32 ? -2147483648i32 : 2147483647i32; break;
+    }
+}
+
+/*
+ * Wrapped i32 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i32,bool> overflowing_sub(i32 left, i32 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * i32 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 saturating_mul(i32 left, i32 right) {
+    switch (checked_mul(left, right)) {
+        case Result<i32,IntegerArithmeticError>.Ok { i32 output = value }: return output; break;
+        default: return (left < 0i32) != (right < 0i32) ? -2147483648i32 : 2147483647i32; break;
+    }
+}
+
+/*
+ * Wrapped i32 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i32,bool> overflowing_mul(i32 left, i32 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * i32 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 saturating_pow(i32 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<i32,IntegerArithmeticError>.Ok { i32 output = value }: return output; break;
+        default: return base < 0i32 && exponent % 2u32 != 0u32 ? -2147483648i32 : 2147483647i32; break;
+    }
+}
+
+/*
+ * Wrapped i32 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i32,bool> overflowing_pow(i32 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * i32 neg clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 saturating_neg(i32 value) {
+    if (value == -2147483648i32) return 2147483647i32;
+    return -value;
+}
+
+/*
+ * Wrapped i32 neg and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i32,bool> overflowing_neg(i32 value) {
+    return Tuple.make(wrapping_neg(value), value == -2147483648i32);
+}
+
+/*
+ * i32 abs clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 saturating_abs(i32 value) {
+    if (value == -2147483648i32) return 2147483647i32;
+    return value < 0i32 ? -value : value;
+}
+
+/*
+ * Wrapped i32 abs and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i32,bool> overflowing_abs(i32 value) {
+    return Tuple.make(wrapping_abs(value), value == -2147483648i32);
+}
+
+/*
+ * Test zero for i32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(i32 value) {
+    return value == 0i32;
+}
+
+/*
+ * Test negative for i32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(i32 value) {
+    return value < 0i32;
+}
+
+/*
+ * Test positive for i32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(i32 value) {
+    return value > 0i32;
+}
+
+/*
+ * Test even for i32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(i32 value) {
+    return value % 2i32 == 0i32;
+}
+
+/*
+ * Test odd for i32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(i32 value) {
+    return value % 2i32 != 0i32;
+}
+
+/*
+ * Test power of two for i32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(i32 value) {
+    return value > 0i32 && (bits(value) & (bits(value) - 1u32)) == 0u32;
+}
+
+/*
+ * Exact i32 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(i32 left, i32 right) {
+    if (right == 0i32) return left == 0i32;
+    if (left == -2147483648i32 && right == -1i32) return true;
+    return left % right == 0i32;
+}
+
+/*
+ * Number of set bits in the full 32-bit i32 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(i32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u32) { remaining &= remaining - 1u32; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 32-bit i32 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(i32 value) {
+    return 32u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of i32; zero returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(i32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 32u32 && (remaining & 2147483648u32) == 0u32) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of i32; all ones returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(i32 value) {
+    return leading_zeros(signed_bits_i32(~bits(value)));
+}
+
+/*
+ * Count trailing zero bits of i32; zero returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(i32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 32u32 && (remaining & 1u32) == 0u32) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of i32; all ones returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(i32 value) {
+    return trailing_zeros(signed_bits_i32(~bits(value)));
+}
+
+/*
+ * Bit length of the mathematical i32 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(i32 value) {
+    u32 magnitude = unsigned_abs(value);
+    return 32u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 32 bits of i32, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 reverse_bits(i32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 output = 0u32;
+    mut u32 position = 0u32;
+    while (position < 32u32) { output = (output << 1u32) | (remaining & 1u32); remaining = remaining >> 1u32; position++; }
+    return signed_bits_i32(output);
+}
+
+/*
+ * Reverse i32 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 swap_bytes(i32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 output = 0u32;
+    mut u32 position = 0u32;
+    while (position < 4u32) { output = (output << 8u32) | (remaining & 255u32); remaining = remaining >> 8u32; position++; }
+    return signed_bits_i32(output);
+}
+
+/*
+ * Rotate i32 bits left; count is reduced modulo 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 rotate_left(i32 value, u32 count) {
+    u32 amount = count % 32u32;
+    if (amount == 0u32) return value;
+    u32 raw = bits(value);
+    return signed_bits_i32((raw << amount) | (raw >> (32u32 - amount)));
+}
+
+/*
+ * Rotate i32 bits right; count is reduced modulo 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 rotate_right(i32 value, u32 count) {
+    u32 amount = count % 32u32;
+    if (amount == 0u32) return value;
+    u32 raw = bits(value);
+    return signed_bits_i32((raw >> amount) | (raw << (32u32 - amount)));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of i32, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 highest_one_bit(i32 value) {
+    if (value == 0i32) return 0u32;
+    return 1u32 << (31u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of i32, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 lowest_one_bit(i32 value) {
+    u32 raw = bits(value);
+    return raw == 0u32 ? 0u32 : raw & (~raw + 1u32);
+}
+
+/*
+ * Exact nonnegative difference of i32 values, in u32, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 abs_diff(i32 left, i32 right) {
+    u32 a = unsigned_abs(left);
+    u32 b = unsigned_abs(right);
+    if ((left < 0i32) != (right < 0i32)) return a + b;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact u32 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u32 MIN_U32 = 0u32;
+
+/*
+ * The exact u32 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u32 MAX_U32 = 4294967295u32;
+
+u32 bits(u32 value) { return value; }
+
+/*
+ * Exact checked u32 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32,IntegerArithmeticError> checked_add(u32 left, u32 right) {
+    if (left > 4294967295u32 - right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked u32 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32,IntegerArithmeticError> checked_sub(u32 left, u32 right) {
+    if (left < right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked u32 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32,IntegerArithmeticError> checked_mul(u32 left, u32 right) {
+    if (right != 0u32 && left > 4294967295u32 / right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left * right);
+}
+
+/*
+ * Checked truncated u32 div; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32,IntegerArithmeticError> checked_div(u32 left, u32 right) {
+    if (right == 0u32) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated u32 rem; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32,IntegerArithmeticError> checked_rem(u32 left, u32 right) {
+    if (right == 0u32) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked u32 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32,IntegerArithmeticError> checked_pow(u32 base, u32 exponent) {
+    mut u32 result = 1u32;
+    mut u32 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * u32 addition modulo 2^32, without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 wrapping_add(u32 left, u32 right) {
+    return left > 4294967295u32 - right ? left - (4294967295u32 - right) - 1u32 : left + right;
+}
+
+/*
+ * u32 subtraction modulo 2^32, without underflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 wrapping_sub(u32 left, u32 right) {
+    return left < right ? 4294967295u32 - (right - left) + 1u32 : left - right;
+}
+
+/*
+ * u32 product modulo 2^32, using bounded modular additions.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 wrapping_mul(u32 left, u32 right) {
+    mut u32 result = 0u32;
+    mut u32 factor = left;
+    mut u32 remaining = right;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_add(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_add(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular u32 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 wrapping_neg(u32 value) {
+    return wrapping_sub(0u32, value);
+}
+
+/*
+ * u32 power modulo 2^32; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 wrapping_pow(u32 base, u32 exponent) {
+    mut u32 result = 1u32;
+    mut u32 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * u32 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 saturating_add(u32 left, u32 right) {
+    switch (checked_add(left, right)) {
+        case Result<u32,IntegerArithmeticError>.Ok { u32 output = value }: return output; break;
+        default: return 4294967295u32; break;
+    }
+}
+
+/*
+ * Wrapped u32 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u32,bool> overflowing_add(u32 left, u32 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * u32 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 saturating_sub(u32 left, u32 right) {
+    switch (checked_sub(left, right)) {
+        case Result<u32,IntegerArithmeticError>.Ok { u32 output = value }: return output; break;
+        default: return 0u32; break;
+    }
+}
+
+/*
+ * Wrapped u32 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u32,bool> overflowing_sub(u32 left, u32 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * u32 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 saturating_mul(u32 left, u32 right) {
+    switch (checked_mul(left, right)) {
+        case Result<u32,IntegerArithmeticError>.Ok { u32 output = value }: return output; break;
+        default: return 4294967295u32; break;
+    }
+}
+
+/*
+ * Wrapped u32 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u32,bool> overflowing_mul(u32 left, u32 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * u32 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 saturating_pow(u32 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<u32,IntegerArithmeticError>.Ok { u32 output = value }: return output; break;
+        default: return 4294967295u32; break;
+    }
+}
+
+/*
+ * Wrapped u32 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u32,bool> overflowing_pow(u32 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * Test zero for u32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(u32 value) {
+    return value == 0u32;
+}
+
+/*
+ * Test negative for u32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(u32 value) {
+    return false;
+}
+
+/*
+ * Test positive for u32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(u32 value) {
+    return value > 0u32;
+}
+
+/*
+ * Test even for u32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(u32 value) {
+    return value % 2u32 == 0u32;
+}
+
+/*
+ * Test odd for u32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(u32 value) {
+    return value % 2u32 != 0u32;
+}
+
+/*
+ * Test power of two for u32 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(u32 value) {
+    return value > 0u32 && (bits(value) & (bits(value) - 1u32)) == 0u32;
+}
+
+/*
+ * Exact u32 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(u32 left, u32 right) {
+    if (right == 0u32) return left == 0u32;
+    return left % right == 0u32;
+}
+
+/*
+ * Number of set bits in the full 32-bit u32 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(u32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u32) { remaining &= remaining - 1u32; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 32-bit u32 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(u32 value) {
+    return 32u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of u32; zero returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(u32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 32u32 && (remaining & 2147483648u32) == 0u32) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of u32; all ones returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(u32 value) {
+    return leading_zeros(~bits(value));
+}
+
+/*
+ * Count trailing zero bits of u32; zero returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(u32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 32u32 && (remaining & 1u32) == 0u32) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of u32; all ones returns 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(u32 value) {
+    return trailing_zeros(~bits(value));
+}
+
+/*
+ * Bit length of the mathematical u32 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(u32 value) {
+    u32 magnitude = value;
+    return 32u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 32 bits of u32, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 reverse_bits(u32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 output = 0u32;
+    mut u32 position = 0u32;
+    while (position < 32u32) { output = (output << 1u32) | (remaining & 1u32); remaining = remaining >> 1u32; position++; }
+    return output;
+}
+
+/*
+ * Reverse u32 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 swap_bytes(u32 value) {
+    mut u32 remaining = bits(value);
+    mut u32 output = 0u32;
+    mut u32 position = 0u32;
+    while (position < 4u32) { output = (output << 8u32) | (remaining & 255u32); remaining = remaining >> 8u32; position++; }
+    return output;
+}
+
+/*
+ * Rotate u32 bits left; count is reduced modulo 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 rotate_left(u32 value, u32 count) {
+    u32 amount = count % 32u32;
+    if (amount == 0u32) return value;
+    u32 raw = bits(value);
+    return (raw << amount) | (raw >> (32u32 - amount));
+}
+
+/*
+ * Rotate u32 bits right; count is reduced modulo 32.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 rotate_right(u32 value, u32 count) {
+    u32 amount = count % 32u32;
+    if (amount == 0u32) return value;
+    u32 raw = bits(value);
+    return (raw >> amount) | (raw << (32u32 - amount));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of u32, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 highest_one_bit(u32 value) {
+    if (value == 0u32) return 0u32;
+    return 1u32 << (31u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of u32, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 lowest_one_bit(u32 value) {
+    u32 raw = bits(value);
+    return raw == 0u32 ? 0u32 : raw & (~raw + 1u32);
+}
+
+/*
+ * Exact nonnegative difference of u32 values, in u32, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 abs_diff(u32 left, u32 right) {
+    u32 a = left;
+    u32 b = right;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact i64 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i64 MIN_I64 = -9223372036854775808i64;
+
+/*
+ * The exact i64 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i64 MAX_I64 = 9223372036854775807i64;
+
+u64 bits(i64 value) { if (value >= 0i64) return represent<u64>(value); return 18446744073709551615u64 - represent<u64>(-(value + 1i64)); }
+
+i64 signed_bits_i64(u64 value) { if (value <= 9223372036854775807u64) return represent<i64>(value); return -represent<i64>(18446744073709551615u64 - value) - 1i64; }
+
+/*
+ * Exact i64 magnitude, including MIN, returned in u64; never negate MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 unsigned_abs(i64 value) {
+    return value < 0i64 ? represent<u64>(-(value + 1i64)) + 1u64 : represent<u64>(value);
+}
+
+/*
+ * Exact checked i64 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_add(i64 left, i64 right) {
+    if ((right > 0i64 && left > 9223372036854775807i64 - right) || (right < 0i64 && left < -9223372036854775808i64 - right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked i64 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_sub(i64 left, i64 right) {
+    if ((right > 0i64 && left < -9223372036854775808i64 + right) || (right < 0i64 && left > 9223372036854775807i64 + right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked i64 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_mul(i64 left, i64 right) {
+    if (left == 0i64 || right == 0i64) return Result.ok(0i64);
+    bool negative = (left < 0i64) != (right < 0i64);
+    u64 a = unsigned_abs(left);
+    u64 b = unsigned_abs(right);
+    u64 limit = negative ? 9223372036854775808u64 : 9223372036854775807u64;
+    if (a > limit / b) return Result.err(IntegerArithmeticError.Overflow);
+    u64 product = a * b;
+    return Result.ok(negative ? -represent<i64>(product - 1u64) - 1i64 : represent<i64>(product));
+}
+
+/*
+ * Checked truncated i64 div; MIN/-1 is Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_div(i64 left, i64 right) {
+    if (right == 0i64) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -9223372036854775808i64 && right == -1i64) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated i64 rem; MIN%-1 is zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_rem(i64 left, i64 right) {
+    if (right == 0i64) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -9223372036854775808i64 && right == -1i64) return Result.ok(0i64);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked i64 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_pow(i64 base, u32 exponent) {
+    mut i64 result = 1i64;
+    mut i64 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Checked signed i64 neg; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_neg(i64 value) {
+    if (value == -9223372036854775808i64) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(-value);
+}
+
+/*
+ * Checked signed i64 abs; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64,IntegerArithmeticError> checked_abs(i64 value) {
+    if (value == -9223372036854775808i64) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(value < 0i64 ? -value : value);
+}
+
+/*
+ * i64 add modulo 2^64, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 wrapping_add(i64 left, i64 right) {
+    return signed_bits_i64(wrapping_add(bits(left), bits(right)));
+}
+
+/*
+ * i64 sub modulo 2^64, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 wrapping_sub(i64 left, i64 right) {
+    return signed_bits_i64(wrapping_sub(bits(left), bits(right)));
+}
+
+/*
+ * i64 mul modulo 2^64, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 wrapping_mul(i64 left, i64 right) {
+    return signed_bits_i64(wrapping_mul(bits(left), bits(right)));
+}
+
+/*
+ * Modular i64 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 wrapping_neg(i64 value) {
+    return wrapping_sub(0i64, value);
+}
+
+/*
+ * i64 power modulo 2^64; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 wrapping_pow(i64 base, u32 exponent) {
+    mut i64 result = 1i64;
+    mut i64 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular absolute i64 value; signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 wrapping_abs(i64 value) {
+    return value < 0i64 ? wrapping_neg(value) : value;
+}
+
+/*
+ * i64 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 saturating_add(i64 left, i64 right) {
+    switch (checked_add(left, right)) {
+        case Result<i64,IntegerArithmeticError>.Ok { i64 output = value }: return output; break;
+        default: return right < 0i64 ? -9223372036854775808i64 : 9223372036854775807i64; break;
+    }
+}
+
+/*
+ * Wrapped i64 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i64,bool> overflowing_add(i64 left, i64 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * i64 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 saturating_sub(i64 left, i64 right) {
+    switch (checked_sub(left, right)) {
+        case Result<i64,IntegerArithmeticError>.Ok { i64 output = value }: return output; break;
+        default: return right > 0i64 ? -9223372036854775808i64 : 9223372036854775807i64; break;
+    }
+}
+
+/*
+ * Wrapped i64 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i64,bool> overflowing_sub(i64 left, i64 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * i64 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 saturating_mul(i64 left, i64 right) {
+    switch (checked_mul(left, right)) {
+        case Result<i64,IntegerArithmeticError>.Ok { i64 output = value }: return output; break;
+        default: return (left < 0i64) != (right < 0i64) ? -9223372036854775808i64 : 9223372036854775807i64; break;
+    }
+}
+
+/*
+ * Wrapped i64 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i64,bool> overflowing_mul(i64 left, i64 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * i64 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 saturating_pow(i64 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<i64,IntegerArithmeticError>.Ok { i64 output = value }: return output; break;
+        default: return base < 0i64 && exponent % 2u32 != 0u32 ? -9223372036854775808i64 : 9223372036854775807i64; break;
+    }
+}
+
+/*
+ * Wrapped i64 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i64,bool> overflowing_pow(i64 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * i64 neg clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 saturating_neg(i64 value) {
+    if (value == -9223372036854775808i64) return 9223372036854775807i64;
+    return -value;
+}
+
+/*
+ * Wrapped i64 neg and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i64,bool> overflowing_neg(i64 value) {
+    return Tuple.make(wrapping_neg(value), value == -9223372036854775808i64);
+}
+
+/*
+ * i64 abs clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 saturating_abs(i64 value) {
+    if (value == -9223372036854775808i64) return 9223372036854775807i64;
+    return value < 0i64 ? -value : value;
+}
+
+/*
+ * Wrapped i64 abs and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i64,bool> overflowing_abs(i64 value) {
+    return Tuple.make(wrapping_abs(value), value == -9223372036854775808i64);
+}
+
+/*
+ * Test zero for i64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(i64 value) {
+    return value == 0i64;
+}
+
+/*
+ * Test negative for i64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(i64 value) {
+    return value < 0i64;
+}
+
+/*
+ * Test positive for i64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(i64 value) {
+    return value > 0i64;
+}
+
+/*
+ * Test even for i64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(i64 value) {
+    return value % 2i64 == 0i64;
+}
+
+/*
+ * Test odd for i64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(i64 value) {
+    return value % 2i64 != 0i64;
+}
+
+/*
+ * Test power of two for i64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(i64 value) {
+    return value > 0i64 && (bits(value) & (bits(value) - 1u64)) == 0u64;
+}
+
+/*
+ * Exact i64 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(i64 left, i64 right) {
+    if (right == 0i64) return left == 0i64;
+    if (left == -9223372036854775808i64 && right == -1i64) return true;
+    return left % right == 0i64;
+}
+
+/*
+ * Number of set bits in the full 64-bit i64 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(i64 value) {
+    mut u64 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u64) { remaining &= remaining - 1u64; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 64-bit i64 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(i64 value) {
+    return 64u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of i64; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(i64 value) {
+    mut u64 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 9223372036854775808u64) == 0u64) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of i64; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(i64 value) {
+    return leading_zeros(signed_bits_i64(~bits(value)));
+}
+
+/*
+ * Count trailing zero bits of i64; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(i64 value) {
+    mut u64 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 1u64) == 0u64) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of i64; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(i64 value) {
+    return trailing_zeros(signed_bits_i64(~bits(value)));
+}
+
+/*
+ * Bit length of the mathematical i64 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(i64 value) {
+    u64 magnitude = unsigned_abs(value);
+    return 64u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 64 bits of i64, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 reverse_bits(i64 value) {
+    mut u64 remaining = bits(value);
+    mut u64 output = 0u64;
+    mut u32 position = 0u32;
+    while (position < 64u32) { output = (output << 1u32) | (remaining & 1u64); remaining = remaining >> 1u32; position++; }
+    return signed_bits_i64(output);
+}
+
+/*
+ * Reverse i64 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 swap_bytes(i64 value) {
+    mut u64 remaining = bits(value);
+    mut u64 output = 0u64;
+    mut u32 position = 0u32;
+    while (position < 8u32) { output = (output << 8u32) | (remaining & 255u64); remaining = remaining >> 8u32; position++; }
+    return signed_bits_i64(output);
+}
+
+/*
+ * Rotate i64 bits left; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 rotate_left(i64 value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    u64 raw = bits(value);
+    return signed_bits_i64((raw << amount) | (raw >> (64u32 - amount)));
+}
+
+/*
+ * Rotate i64 bits right; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 rotate_right(i64 value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    u64 raw = bits(value);
+    return signed_bits_i64((raw >> amount) | (raw << (64u32 - amount)));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of i64, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 highest_one_bit(i64 value) {
+    if (value == 0i64) return 0u64;
+    return 1u64 << (63u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of i64, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 lowest_one_bit(i64 value) {
+    u64 raw = bits(value);
+    return raw == 0u64 ? 0u64 : raw & (~raw + 1u64);
+}
+
+/*
+ * Exact nonnegative difference of i64 values, in u64, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 abs_diff(i64 left, i64 right) {
+    u64 a = unsigned_abs(left);
+    u64 b = unsigned_abs(right);
+    if ((left < 0i64) != (right < 0i64)) return a + b;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact u64 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u64 MIN_U64 = 0u64;
+
+/*
+ * The exact u64 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u64 MAX_U64 = 18446744073709551615u64;
+
+u64 bits(u64 value) { return value; }
+
+/*
+ * Exact checked u64 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64,IntegerArithmeticError> checked_add(u64 left, u64 right) {
+    if (left > 18446744073709551615u64 - right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked u64 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64,IntegerArithmeticError> checked_sub(u64 left, u64 right) {
+    if (left < right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked u64 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64,IntegerArithmeticError> checked_mul(u64 left, u64 right) {
+    if (right != 0u64 && left > 18446744073709551615u64 / right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left * right);
+}
+
+/*
+ * Checked truncated u64 div; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64,IntegerArithmeticError> checked_div(u64 left, u64 right) {
+    if (right == 0u64) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated u64 rem; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64,IntegerArithmeticError> checked_rem(u64 left, u64 right) {
+    if (right == 0u64) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked u64 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64,IntegerArithmeticError> checked_pow(u64 base, u32 exponent) {
+    mut u64 result = 1u64;
+    mut u64 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * u64 addition modulo 2^64, without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 wrapping_add(u64 left, u64 right) {
+    return left > 18446744073709551615u64 - right ? left - (18446744073709551615u64 - right) - 1u64 : left + right;
+}
+
+/*
+ * u64 subtraction modulo 2^64, without underflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 wrapping_sub(u64 left, u64 right) {
+    return left < right ? 18446744073709551615u64 - (right - left) + 1u64 : left - right;
+}
+
+/*
+ * u64 product modulo 2^64, using bounded modular additions.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 wrapping_mul(u64 left, u64 right) {
+    mut u64 result = 0u64;
+    mut u64 factor = left;
+    mut u64 remaining = right;
+    while (remaining != 0u64) {
+        if (remaining % 2u64 != 0u64) result = wrapping_add(result, factor);
+        remaining /= 2u64;
+        if (remaining != 0u64) factor = wrapping_add(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular u64 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 wrapping_neg(u64 value) {
+    return wrapping_sub(0u64, value);
+}
+
+/*
+ * u64 power modulo 2^64; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 wrapping_pow(u64 base, u32 exponent) {
+    mut u64 result = 1u64;
+    mut u64 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * u64 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 saturating_add(u64 left, u64 right) {
+    switch (checked_add(left, right)) {
+        case Result<u64,IntegerArithmeticError>.Ok { u64 output = value }: return output; break;
+        default: return 18446744073709551615u64; break;
+    }
+}
+
+/*
+ * Wrapped u64 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u64,bool> overflowing_add(u64 left, u64 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * u64 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 saturating_sub(u64 left, u64 right) {
+    switch (checked_sub(left, right)) {
+        case Result<u64,IntegerArithmeticError>.Ok { u64 output = value }: return output; break;
+        default: return 0u64; break;
+    }
+}
+
+/*
+ * Wrapped u64 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u64,bool> overflowing_sub(u64 left, u64 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * u64 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 saturating_mul(u64 left, u64 right) {
+    switch (checked_mul(left, right)) {
+        case Result<u64,IntegerArithmeticError>.Ok { u64 output = value }: return output; break;
+        default: return 18446744073709551615u64; break;
+    }
+}
+
+/*
+ * Wrapped u64 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u64,bool> overflowing_mul(u64 left, u64 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * u64 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 saturating_pow(u64 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<u64,IntegerArithmeticError>.Ok { u64 output = value }: return output; break;
+        default: return 18446744073709551615u64; break;
+    }
+}
+
+/*
+ * Wrapped u64 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u64,bool> overflowing_pow(u64 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * Test zero for u64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(u64 value) {
+    return value == 0u64;
+}
+
+/*
+ * Test negative for u64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(u64 value) {
+    return false;
+}
+
+/*
+ * Test positive for u64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(u64 value) {
+    return value > 0u64;
+}
+
+/*
+ * Test even for u64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(u64 value) {
+    return value % 2u64 == 0u64;
+}
+
+/*
+ * Test odd for u64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(u64 value) {
+    return value % 2u64 != 0u64;
+}
+
+/*
+ * Test power of two for u64 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(u64 value) {
+    return value > 0u64 && (bits(value) & (bits(value) - 1u64)) == 0u64;
+}
+
+/*
+ * Exact u64 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(u64 left, u64 right) {
+    if (right == 0u64) return left == 0u64;
+    return left % right == 0u64;
+}
+
+/*
+ * Number of set bits in the full 64-bit u64 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(u64 value) {
+    mut u64 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u64) { remaining &= remaining - 1u64; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 64-bit u64 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(u64 value) {
+    return 64u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of u64; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(u64 value) {
+    mut u64 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 9223372036854775808u64) == 0u64) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of u64; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(u64 value) {
+    return leading_zeros(~bits(value));
+}
+
+/*
+ * Count trailing zero bits of u64; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(u64 value) {
+    mut u64 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 1u64) == 0u64) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of u64; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(u64 value) {
+    return trailing_zeros(~bits(value));
+}
+
+/*
+ * Bit length of the mathematical u64 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(u64 value) {
+    u64 magnitude = value;
+    return 64u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 64 bits of u64, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 reverse_bits(u64 value) {
+    mut u64 remaining = bits(value);
+    mut u64 output = 0u64;
+    mut u32 position = 0u32;
+    while (position < 64u32) { output = (output << 1u32) | (remaining & 1u64); remaining = remaining >> 1u32; position++; }
+    return output;
+}
+
+/*
+ * Reverse u64 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 swap_bytes(u64 value) {
+    mut u64 remaining = bits(value);
+    mut u64 output = 0u64;
+    mut u32 position = 0u32;
+    while (position < 8u32) { output = (output << 8u32) | (remaining & 255u64); remaining = remaining >> 8u32; position++; }
+    return output;
+}
+
+/*
+ * Rotate u64 bits left; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 rotate_left(u64 value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    u64 raw = bits(value);
+    return (raw << amount) | (raw >> (64u32 - amount));
+}
+
+/*
+ * Rotate u64 bits right; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 rotate_right(u64 value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    u64 raw = bits(value);
+    return (raw >> amount) | (raw << (64u32 - amount));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of u64, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 highest_one_bit(u64 value) {
+    if (value == 0u64) return 0u64;
+    return 1u64 << (63u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of u64, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 lowest_one_bit(u64 value) {
+    u64 raw = bits(value);
+    return raw == 0u64 ? 0u64 : raw & (~raw + 1u64);
+}
+
+/*
+ * Exact nonnegative difference of u64 values, in u64, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 abs_diff(u64 left, u64 right) {
+    u64 a = left;
+    u64 b = right;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact i128 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i128 MIN_I128 = -170141183460469231731687303715884105728i128;
+
+/*
+ * The exact i128 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const i128 MAX_I128 = 170141183460469231731687303715884105727i128;
+
+u128 bits(i128 value) { if (value >= 0i128) return represent<u128>(value); return 340282366920938463463374607431768211455u128 - represent<u128>(-(value + 1i128)); }
+
+i128 signed_bits_i128(u128 value) { if (value <= 170141183460469231731687303715884105727u128) return represent<i128>(value); return -represent<i128>(340282366920938463463374607431768211455u128 - value) - 1i128; }
+
+/*
+ * Exact i128 magnitude, including MIN, returned in u128; never negate MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 unsigned_abs(i128 value) {
+    return value < 0i128 ? represent<u128>(-(value + 1i128)) + 1u128 : represent<u128>(value);
+}
+
+/*
+ * Exact checked i128 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_add(i128 left, i128 right) {
+    if ((right > 0i128 && left > 170141183460469231731687303715884105727i128 - right) || (right < 0i128 && left < -170141183460469231731687303715884105728i128 - right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked i128 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_sub(i128 left, i128 right) {
+    if ((right > 0i128 && left < -170141183460469231731687303715884105728i128 + right) || (right < 0i128 && left > 170141183460469231731687303715884105727i128 + right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked i128 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_mul(i128 left, i128 right) {
+    if (left == 0i128 || right == 0i128) return Result.ok(0i128);
+    bool negative = (left < 0i128) != (right < 0i128);
+    u128 a = unsigned_abs(left);
+    u128 b = unsigned_abs(right);
+    u128 limit = negative ? 170141183460469231731687303715884105728u128 : 170141183460469231731687303715884105727u128;
+    if (a > limit / b) return Result.err(IntegerArithmeticError.Overflow);
+    u128 product = a * b;
+    return Result.ok(negative ? -represent<i128>(product - 1u128) - 1i128 : represent<i128>(product));
+}
+
+/*
+ * Checked truncated i128 div; MIN/-1 is Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_div(i128 left, i128 right) {
+    if (right == 0i128) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -170141183460469231731687303715884105728i128 && right == -1i128) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated i128 rem; MIN%-1 is zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_rem(i128 left, i128 right) {
+    if (right == 0i128) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -170141183460469231731687303715884105728i128 && right == -1i128) return Result.ok(0i128);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked i128 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_pow(i128 base, u32 exponent) {
+    mut i128 result = 1i128;
+    mut i128 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Checked signed i128 neg; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_neg(i128 value) {
+    if (value == -170141183460469231731687303715884105728i128) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(-value);
+}
+
+/*
+ * Checked signed i128 abs; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128,IntegerArithmeticError> checked_abs(i128 value) {
+    if (value == -170141183460469231731687303715884105728i128) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(value < 0i128 ? -value : value);
+}
+
+/*
+ * i128 add modulo 2^128, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 wrapping_add(i128 left, i128 right) {
+    return signed_bits_i128(wrapping_add(bits(left), bits(right)));
+}
+
+/*
+ * i128 sub modulo 2^128, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 wrapping_sub(i128 left, i128 right) {
+    return signed_bits_i128(wrapping_sub(bits(left), bits(right)));
+}
+
+/*
+ * i128 mul modulo 2^128, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 wrapping_mul(i128 left, i128 right) {
+    return signed_bits_i128(wrapping_mul(bits(left), bits(right)));
+}
+
+/*
+ * Modular i128 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 wrapping_neg(i128 value) {
+    return wrapping_sub(0i128, value);
+}
+
+/*
+ * i128 power modulo 2^128; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 wrapping_pow(i128 base, u32 exponent) {
+    mut i128 result = 1i128;
+    mut i128 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular absolute i128 value; signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 wrapping_abs(i128 value) {
+    return value < 0i128 ? wrapping_neg(value) : value;
+}
+
+/*
+ * i128 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 saturating_add(i128 left, i128 right) {
+    switch (checked_add(left, right)) {
+        case Result<i128,IntegerArithmeticError>.Ok { i128 output = value }: return output; break;
+        default: return right < 0i128 ? -170141183460469231731687303715884105728i128 : 170141183460469231731687303715884105727i128; break;
+    }
+}
+
+/*
+ * Wrapped i128 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i128,bool> overflowing_add(i128 left, i128 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * i128 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 saturating_sub(i128 left, i128 right) {
+    switch (checked_sub(left, right)) {
+        case Result<i128,IntegerArithmeticError>.Ok { i128 output = value }: return output; break;
+        default: return right > 0i128 ? -170141183460469231731687303715884105728i128 : 170141183460469231731687303715884105727i128; break;
+    }
+}
+
+/*
+ * Wrapped i128 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i128,bool> overflowing_sub(i128 left, i128 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * i128 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 saturating_mul(i128 left, i128 right) {
+    switch (checked_mul(left, right)) {
+        case Result<i128,IntegerArithmeticError>.Ok { i128 output = value }: return output; break;
+        default: return (left < 0i128) != (right < 0i128) ? -170141183460469231731687303715884105728i128 : 170141183460469231731687303715884105727i128; break;
+    }
+}
+
+/*
+ * Wrapped i128 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i128,bool> overflowing_mul(i128 left, i128 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * i128 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 saturating_pow(i128 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<i128,IntegerArithmeticError>.Ok { i128 output = value }: return output; break;
+        default: return base < 0i128 && exponent % 2u32 != 0u32 ? -170141183460469231731687303715884105728i128 : 170141183460469231731687303715884105727i128; break;
+    }
+}
+
+/*
+ * Wrapped i128 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i128,bool> overflowing_pow(i128 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * i128 neg clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 saturating_neg(i128 value) {
+    if (value == -170141183460469231731687303715884105728i128) return 170141183460469231731687303715884105727i128;
+    return -value;
+}
+
+/*
+ * Wrapped i128 neg and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i128,bool> overflowing_neg(i128 value) {
+    return Tuple.make(wrapping_neg(value), value == -170141183460469231731687303715884105728i128);
+}
+
+/*
+ * i128 abs clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 saturating_abs(i128 value) {
+    if (value == -170141183460469231731687303715884105728i128) return 170141183460469231731687303715884105727i128;
+    return value < 0i128 ? -value : value;
+}
+
+/*
+ * Wrapped i128 abs and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<i128,bool> overflowing_abs(i128 value) {
+    return Tuple.make(wrapping_abs(value), value == -170141183460469231731687303715884105728i128);
+}
+
+/*
+ * Test zero for i128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(i128 value) {
+    return value == 0i128;
+}
+
+/*
+ * Test negative for i128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(i128 value) {
+    return value < 0i128;
+}
+
+/*
+ * Test positive for i128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(i128 value) {
+    return value > 0i128;
+}
+
+/*
+ * Test even for i128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(i128 value) {
+    return value % 2i128 == 0i128;
+}
+
+/*
+ * Test odd for i128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(i128 value) {
+    return value % 2i128 != 0i128;
+}
+
+/*
+ * Test power of two for i128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(i128 value) {
+    return value > 0i128 && (bits(value) & (bits(value) - 1u128)) == 0u128;
+}
+
+/*
+ * Exact i128 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(i128 left, i128 right) {
+    if (right == 0i128) return left == 0i128;
+    if (left == -170141183460469231731687303715884105728i128 && right == -1i128) return true;
+    return left % right == 0i128;
+}
+
+/*
+ * Number of set bits in the full 128-bit i128 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(i128 value) {
+    mut u128 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u128) { remaining &= remaining - 1u128; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 128-bit i128 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(i128 value) {
+    return 128u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of i128; zero returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(i128 value) {
+    mut u128 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 128u32 && (remaining & 170141183460469231731687303715884105728u128) == 0u128) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of i128; all ones returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(i128 value) {
+    return leading_zeros(signed_bits_i128(~bits(value)));
+}
+
+/*
+ * Count trailing zero bits of i128; zero returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(i128 value) {
+    mut u128 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 128u32 && (remaining & 1u128) == 0u128) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of i128; all ones returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(i128 value) {
+    return trailing_zeros(signed_bits_i128(~bits(value)));
+}
+
+/*
+ * Bit length of the mathematical i128 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(i128 value) {
+    u128 magnitude = unsigned_abs(value);
+    return 128u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 128 bits of i128, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 reverse_bits(i128 value) {
+    mut u128 remaining = bits(value);
+    mut u128 output = 0u128;
+    mut u32 position = 0u32;
+    while (position < 128u32) { output = (output << 1u32) | (remaining & 1u128); remaining = remaining >> 1u32; position++; }
+    return signed_bits_i128(output);
+}
+
+/*
+ * Reverse i128 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 swap_bytes(i128 value) {
+    mut u128 remaining = bits(value);
+    mut u128 output = 0u128;
+    mut u32 position = 0u32;
+    while (position < 16u32) { output = (output << 8u32) | (remaining & 255u128); remaining = remaining >> 8u32; position++; }
+    return signed_bits_i128(output);
+}
+
+/*
+ * Rotate i128 bits left; count is reduced modulo 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 rotate_left(i128 value, u32 count) {
+    u32 amount = count % 128u32;
+    if (amount == 0u32) return value;
+    u128 raw = bits(value);
+    return signed_bits_i128((raw << amount) | (raw >> (128u32 - amount)));
+}
+
+/*
+ * Rotate i128 bits right; count is reduced modulo 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 rotate_right(i128 value, u32 count) {
+    u32 amount = count % 128u32;
+    if (amount == 0u32) return value;
+    u128 raw = bits(value);
+    return signed_bits_i128((raw >> amount) | (raw << (128u32 - amount)));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of i128, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 highest_one_bit(i128 value) {
+    if (value == 0i128) return 0u128;
+    return 1u128 << (127u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of i128, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 lowest_one_bit(i128 value) {
+    u128 raw = bits(value);
+    return raw == 0u128 ? 0u128 : raw & (~raw + 1u128);
+}
+
+/*
+ * Exact nonnegative difference of i128 values, in u128, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 abs_diff(i128 left, i128 right) {
+    u128 a = unsigned_abs(left);
+    u128 b = unsigned_abs(right);
+    if ((left < 0i128) != (right < 0i128)) return a + b;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact u128 minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u128 MIN_U128 = 0u128;
+
+/*
+ * The exact u128 maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const u128 MAX_U128 = 340282366920938463463374607431768211455u128;
+
+u128 bits(u128 value) { return value; }
+
+/*
+ * Exact checked u128 add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128,IntegerArithmeticError> checked_add(u128 left, u128 right) {
+    if (left > 340282366920938463463374607431768211455u128 - right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked u128 sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128,IntegerArithmeticError> checked_sub(u128 left, u128 right) {
+    if (left < right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked u128 multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128,IntegerArithmeticError> checked_mul(u128 left, u128 right) {
+    if (right != 0u128 && left > 340282366920938463463374607431768211455u128 / right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left * right);
+}
+
+/*
+ * Checked truncated u128 div; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128,IntegerArithmeticError> checked_div(u128 left, u128 right) {
+    if (right == 0u128) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated u128 rem; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128,IntegerArithmeticError> checked_rem(u128 left, u128 right) {
+    if (right == 0u128) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked u128 power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128,IntegerArithmeticError> checked_pow(u128 base, u32 exponent) {
+    mut u128 result = 1u128;
+    mut u128 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * u128 addition modulo 2^128, without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 wrapping_add(u128 left, u128 right) {
+    return left > 340282366920938463463374607431768211455u128 - right ? left - (340282366920938463463374607431768211455u128 - right) - 1u128 : left + right;
+}
+
+/*
+ * u128 subtraction modulo 2^128, without underflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 wrapping_sub(u128 left, u128 right) {
+    return left < right ? 340282366920938463463374607431768211455u128 - (right - left) + 1u128 : left - right;
+}
+
+/*
+ * u128 product modulo 2^128, using bounded modular additions.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 wrapping_mul(u128 left, u128 right) {
+    mut u128 result = 0u128;
+    mut u128 factor = left;
+    mut u128 remaining = right;
+    while (remaining != 0u128) {
+        if (remaining % 2u128 != 0u128) result = wrapping_add(result, factor);
+        remaining /= 2u128;
+        if (remaining != 0u128) factor = wrapping_add(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular u128 negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 wrapping_neg(u128 value) {
+    return wrapping_sub(0u128, value);
+}
+
+/*
+ * u128 power modulo 2^128; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 wrapping_pow(u128 base, u32 exponent) {
+    mut u128 result = 1u128;
+    mut u128 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * u128 add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 saturating_add(u128 left, u128 right) {
+    switch (checked_add(left, right)) {
+        case Result<u128,IntegerArithmeticError>.Ok { u128 output = value }: return output; break;
+        default: return 340282366920938463463374607431768211455u128; break;
+    }
+}
+
+/*
+ * Wrapped u128 add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u128,bool> overflowing_add(u128 left, u128 right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * u128 sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 saturating_sub(u128 left, u128 right) {
+    switch (checked_sub(left, right)) {
+        case Result<u128,IntegerArithmeticError>.Ok { u128 output = value }: return output; break;
+        default: return 0u128; break;
+    }
+}
+
+/*
+ * Wrapped u128 sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u128,bool> overflowing_sub(u128 left, u128 right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * u128 mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 saturating_mul(u128 left, u128 right) {
+    switch (checked_mul(left, right)) {
+        case Result<u128,IntegerArithmeticError>.Ok { u128 output = value }: return output; break;
+        default: return 340282366920938463463374607431768211455u128; break;
+    }
+}
+
+/*
+ * Wrapped u128 mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u128,bool> overflowing_mul(u128 left, u128 right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * u128 power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 saturating_pow(u128 base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<u128,IntegerArithmeticError>.Ok { u128 output = value }: return output; break;
+        default: return 340282366920938463463374607431768211455u128; break;
+    }
+}
+
+/*
+ * Wrapped u128 power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<u128,bool> overflowing_pow(u128 base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * Test zero for u128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(u128 value) {
+    return value == 0u128;
+}
+
+/*
+ * Test negative for u128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(u128 value) {
+    return false;
+}
+
+/*
+ * Test positive for u128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(u128 value) {
+    return value > 0u128;
+}
+
+/*
+ * Test even for u128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(u128 value) {
+    return value % 2u128 == 0u128;
+}
+
+/*
+ * Test odd for u128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(u128 value) {
+    return value % 2u128 != 0u128;
+}
+
+/*
+ * Test power of two for u128 without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(u128 value) {
+    return value > 0u128 && (bits(value) & (bits(value) - 1u128)) == 0u128;
+}
+
+/*
+ * Exact u128 divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(u128 left, u128 right) {
+    if (right == 0u128) return left == 0u128;
+    return left % right == 0u128;
+}
+
+/*
+ * Number of set bits in the full 128-bit u128 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(u128 value) {
+    mut u128 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0u128) { remaining &= remaining - 1u128; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 128-bit u128 representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(u128 value) {
+    return 128u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of u128; zero returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(u128 value) {
+    mut u128 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 128u32 && (remaining & 170141183460469231731687303715884105728u128) == 0u128) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of u128; all ones returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(u128 value) {
+    return leading_zeros(~bits(value));
+}
+
+/*
+ * Count trailing zero bits of u128; zero returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(u128 value) {
+    mut u128 remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 128u32 && (remaining & 1u128) == 0u128) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of u128; all ones returns 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(u128 value) {
+    return trailing_zeros(~bits(value));
+}
+
+/*
+ * Bit length of the mathematical u128 magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(u128 value) {
+    u128 magnitude = value;
+    return 128u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 128 bits of u128, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 reverse_bits(u128 value) {
+    mut u128 remaining = bits(value);
+    mut u128 output = 0u128;
+    mut u32 position = 0u32;
+    while (position < 128u32) { output = (output << 1u32) | (remaining & 1u128); remaining = remaining >> 1u32; position++; }
+    return output;
+}
+
+/*
+ * Reverse u128 byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 swap_bytes(u128 value) {
+    mut u128 remaining = bits(value);
+    mut u128 output = 0u128;
+    mut u32 position = 0u32;
+    while (position < 16u32) { output = (output << 8u32) | (remaining & 255u128); remaining = remaining >> 8u32; position++; }
+    return output;
+}
+
+/*
+ * Rotate u128 bits left; count is reduced modulo 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 rotate_left(u128 value, u32 count) {
+    u32 amount = count % 128u32;
+    if (amount == 0u32) return value;
+    u128 raw = bits(value);
+    return (raw << amount) | (raw >> (128u32 - amount));
+}
+
+/*
+ * Rotate u128 bits right; count is reduced modulo 128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 rotate_right(u128 value, u32 count) {
+    u32 amount = count % 128u32;
+    if (amount == 0u32) return value;
+    u128 raw = bits(value);
+    return (raw >> amount) | (raw << (128u32 - amount));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of u128, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 highest_one_bit(u128 value) {
+    if (value == 0u128) return 0u128;
+    return 1u128 << (127u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of u128, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 lowest_one_bit(u128 value) {
+    u128 raw = bits(value);
+    return raw == 0u128 ? 0u128 : raw & (~raw + 1u128);
+}
+
+/*
+ * Exact nonnegative difference of u128 values, in u128, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 abs_diff(u128 left, u128 right) {
+    u128 a = left;
+    u128 b = right;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact isize minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const isize MIN_ISIZE = -9223372036854775808isize;
+
+/*
+ * The exact isize maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const isize MAX_ISIZE = 9223372036854775807isize;
+
+usize bits(isize value) { if (value >= 0isize) return represent<usize>(value); return 18446744073709551615usize - represent<usize>(-(value + 1isize)); }
+
+isize signed_bits_isize(usize value) { if (value <= 9223372036854775807usize) return represent<isize>(value); return -represent<isize>(18446744073709551615usize - value) - 1isize; }
+
+/*
+ * Exact isize magnitude, including MIN, returned in usize; never negate MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize unsigned_abs(isize value) {
+    return value < 0isize ? represent<usize>(-(value + 1isize)) + 1usize : represent<usize>(value);
+}
+
+/*
+ * Exact checked isize add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_add(isize left, isize right) {
+    if ((right > 0isize && left > 9223372036854775807isize - right) || (right < 0isize && left < -9223372036854775808isize - right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked isize sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_sub(isize left, isize right) {
+    if ((right > 0isize && left < -9223372036854775808isize + right) || (right < 0isize && left > 9223372036854775807isize + right)) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked isize multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_mul(isize left, isize right) {
+    if (left == 0isize || right == 0isize) return Result.ok(0isize);
+    bool negative = (left < 0isize) != (right < 0isize);
+    usize a = unsigned_abs(left);
+    usize b = unsigned_abs(right);
+    usize limit = negative ? 9223372036854775808usize : 9223372036854775807usize;
+    if (a > limit / b) return Result.err(IntegerArithmeticError.Overflow);
+    usize product = a * b;
+    return Result.ok(negative ? -represent<isize>(product - 1usize) - 1isize : represent<isize>(product));
+}
+
+/*
+ * Checked truncated isize div; MIN/-1 is Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_div(isize left, isize right) {
+    if (right == 0isize) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -9223372036854775808isize && right == -1isize) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated isize rem; MIN%-1 is zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_rem(isize left, isize right) {
+    if (right == 0isize) return Result.err(IntegerArithmeticError.DivisionByZero);
+    if (left == -9223372036854775808isize && right == -1isize) return Result.ok(0isize);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked isize power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_pow(isize base, u32 exponent) {
+    mut isize result = 1isize;
+    mut isize factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Checked signed isize neg; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_neg(isize value) {
+    if (value == -9223372036854775808isize) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(-value);
+}
+
+/*
+ * Checked signed isize abs; MIN produces Overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize,IntegerArithmeticError> checked_abs(isize value) {
+    if (value == -9223372036854775808isize) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(value < 0isize ? -value : value);
+}
+
+/*
+ * isize add modulo 2^64, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize wrapping_add(isize left, isize right) {
+    return signed_bits_isize(wrapping_add(bits(left), bits(right)));
+}
+
+/*
+ * isize sub modulo 2^64, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize wrapping_sub(isize left, isize right) {
+    return signed_bits_isize(wrapping_sub(bits(left), bits(right)));
+}
+
+/*
+ * isize mul modulo 2^64, reinterpreted without out-of-range casts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize wrapping_mul(isize left, isize right) {
+    return signed_bits_isize(wrapping_mul(bits(left), bits(right)));
+}
+
+/*
+ * Modular isize negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize wrapping_neg(isize value) {
+    return wrapping_sub(0isize, value);
+}
+
+/*
+ * isize power modulo 2^64; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize wrapping_pow(isize base, u32 exponent) {
+    mut isize result = 1isize;
+    mut isize factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular absolute isize value; signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize wrapping_abs(isize value) {
+    return value < 0isize ? wrapping_neg(value) : value;
+}
+
+/*
+ * isize add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize saturating_add(isize left, isize right) {
+    switch (checked_add(left, right)) {
+        case Result<isize,IntegerArithmeticError>.Ok { isize output = value }: return output; break;
+        default: return right < 0isize ? -9223372036854775808isize : 9223372036854775807isize; break;
+    }
+}
+
+/*
+ * Wrapped isize add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<isize,bool> overflowing_add(isize left, isize right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * isize sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize saturating_sub(isize left, isize right) {
+    switch (checked_sub(left, right)) {
+        case Result<isize,IntegerArithmeticError>.Ok { isize output = value }: return output; break;
+        default: return right > 0isize ? -9223372036854775808isize : 9223372036854775807isize; break;
+    }
+}
+
+/*
+ * Wrapped isize sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<isize,bool> overflowing_sub(isize left, isize right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * isize mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize saturating_mul(isize left, isize right) {
+    switch (checked_mul(left, right)) {
+        case Result<isize,IntegerArithmeticError>.Ok { isize output = value }: return output; break;
+        default: return (left < 0isize) != (right < 0isize) ? -9223372036854775808isize : 9223372036854775807isize; break;
+    }
+}
+
+/*
+ * Wrapped isize mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<isize,bool> overflowing_mul(isize left, isize right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * isize power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize saturating_pow(isize base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<isize,IntegerArithmeticError>.Ok { isize output = value }: return output; break;
+        default: return base < 0isize && exponent % 2u32 != 0u32 ? -9223372036854775808isize : 9223372036854775807isize; break;
+    }
+}
+
+/*
+ * Wrapped isize power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<isize,bool> overflowing_pow(isize base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * isize neg clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize saturating_neg(isize value) {
+    if (value == -9223372036854775808isize) return 9223372036854775807isize;
+    return -value;
+}
+
+/*
+ * Wrapped isize neg and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<isize,bool> overflowing_neg(isize value) {
+    return Tuple.make(wrapping_neg(value), value == -9223372036854775808isize);
+}
+
+/*
+ * isize abs clamped at MAX for MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize saturating_abs(isize value) {
+    if (value == -9223372036854775808isize) return 9223372036854775807isize;
+    return value < 0isize ? -value : value;
+}
+
+/*
+ * Wrapped isize abs and MIN overflow flag.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<isize,bool> overflowing_abs(isize value) {
+    return Tuple.make(wrapping_abs(value), value == -9223372036854775808isize);
+}
+
+/*
+ * Test zero for isize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(isize value) {
+    return value == 0isize;
+}
+
+/*
+ * Test negative for isize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(isize value) {
+    return value < 0isize;
+}
+
+/*
+ * Test positive for isize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(isize value) {
+    return value > 0isize;
+}
+
+/*
+ * Test even for isize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(isize value) {
+    return value % 2isize == 0isize;
+}
+
+/*
+ * Test odd for isize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(isize value) {
+    return value % 2isize != 0isize;
+}
+
+/*
+ * Test power of two for isize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(isize value) {
+    return value > 0isize && (bits(value) & (bits(value) - 1usize)) == 0usize;
+}
+
+/*
+ * Exact isize divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(isize left, isize right) {
+    if (right == 0isize) return left == 0isize;
+    if (left == -9223372036854775808isize && right == -1isize) return true;
+    return left % right == 0isize;
+}
+
+/*
+ * Number of set bits in the full 64-bit isize representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(isize value) {
+    mut usize remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0usize) { remaining &= remaining - 1usize; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 64-bit isize representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(isize value) {
+    return 64u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of isize; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(isize value) {
+    mut usize remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 9223372036854775808usize) == 0usize) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of isize; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(isize value) {
+    return leading_zeros(signed_bits_isize(~bits(value)));
+}
+
+/*
+ * Count trailing zero bits of isize; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(isize value) {
+    mut usize remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 1usize) == 0usize) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of isize; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(isize value) {
+    return trailing_zeros(signed_bits_isize(~bits(value)));
+}
+
+/*
+ * Bit length of the mathematical isize magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(isize value) {
+    usize magnitude = unsigned_abs(value);
+    return 64u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 64 bits of isize, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize reverse_bits(isize value) {
+    mut usize remaining = bits(value);
+    mut usize output = 0usize;
+    mut u32 position = 0u32;
+    while (position < 64u32) { output = (output << 1u32) | (remaining & 1usize); remaining = remaining >> 1u32; position++; }
+    return signed_bits_isize(output);
+}
+
+/*
+ * Reverse isize byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize swap_bytes(isize value) {
+    mut usize remaining = bits(value);
+    mut usize output = 0usize;
+    mut u32 position = 0u32;
+    while (position < 8u32) { output = (output << 8u32) | (remaining & 255usize); remaining = remaining >> 8u32; position++; }
+    return signed_bits_isize(output);
+}
+
+/*
+ * Rotate isize bits left; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize rotate_left(isize value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    usize raw = bits(value);
+    return signed_bits_isize((raw << amount) | (raw >> (64u32 - amount)));
+}
+
+/*
+ * Rotate isize bits right; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize rotate_right(isize value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    usize raw = bits(value);
+    return signed_bits_isize((raw >> amount) | (raw << (64u32 - amount)));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of isize, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize highest_one_bit(isize value) {
+    if (value == 0isize) return 0usize;
+    return 1usize << (63u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of isize, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize lowest_one_bit(isize value) {
+    usize raw = bits(value);
+    return raw == 0usize ? 0usize : raw & (~raw + 1usize);
+}
+
+/*
+ * Exact nonnegative difference of isize values, in usize, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize abs_diff(isize left, isize right) {
+    usize a = unsigned_abs(left);
+    usize b = unsigned_abs(right);
+    if ((left < 0isize) != (right < 0isize)) return a + b;
+    return a > b ? a - b : b - a;
+}
+
+/*
+ * The exact usize minimum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const usize MIN_USIZE = 0usize;
+
+/*
+ * The exact usize maximum value.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const usize MAX_USIZE = 18446744073709551615usize;
+
+usize bits(usize value) { return value; }
+
+/*
+ * Exact checked usize add; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize,IntegerArithmeticError> checked_add(usize left, usize right) {
+    if (left > 18446744073709551615usize - right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left + right);
+}
+
+/*
+ * Exact checked usize sub; precheck before ordinary arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize,IntegerArithmeticError> checked_sub(usize left, usize right) {
+    if (left < right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left - right);
+}
+
+/*
+ * Exact checked usize multiplication; division bounds avoid intermediate overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize,IntegerArithmeticError> checked_mul(usize left, usize right) {
+    if (right != 0usize && left > 18446744073709551615usize / right) return Result.err(IntegerArithmeticError.Overflow);
+    return Result.ok(left * right);
+}
+
+/*
+ * Checked truncated usize div; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize,IntegerArithmeticError> checked_div(usize left, usize right) {
+    if (right == 0usize) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left / right);
+}
+
+/*
+ * Checked truncated usize rem; Zero divisor is DivisionByZero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize,IntegerArithmeticError> checked_rem(usize left, usize right) {
+    if (right == 0usize) return Result.err(IntegerArithmeticError.DivisionByZero);
+    return Result.ok(left % right);
+}
+
+/*
+ * Exact checked usize power; zero exponent, including 0^0, returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize,IntegerArithmeticError> checked_pow(usize base, u32 exponent) {
+    mut usize result = 1usize;
+    mut usize factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }
+    return Result.ok(result);
+}
+
+/*
+ * usize addition modulo 2^64, without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize wrapping_add(usize left, usize right) {
+    return left > 18446744073709551615usize - right ? left - (18446744073709551615usize - right) - 1usize : left + right;
+}
+
+/*
+ * usize subtraction modulo 2^64, without underflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize wrapping_sub(usize left, usize right) {
+    return left < right ? 18446744073709551615usize - (right - left) + 1usize : left - right;
+}
+
+/*
+ * usize product modulo 2^64, using bounded modular additions.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize wrapping_mul(usize left, usize right) {
+    mut usize result = 0usize;
+    mut usize factor = left;
+    mut usize remaining = right;
+    while (remaining != 0usize) {
+        if (remaining % 2usize != 0usize) result = wrapping_add(result, factor);
+        remaining /= 2usize;
+        if (remaining != 0usize) factor = wrapping_add(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * Modular usize negation; zero stays zero and signed MIN stays MIN.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize wrapping_neg(usize value) {
+    return wrapping_sub(0usize, value);
+}
+
+/*
+ * usize power modulo 2^64; zero exponent returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize wrapping_pow(usize base, u32 exponent) {
+    mut usize result = 1usize;
+    mut usize factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }
+    return result;
+}
+
+/*
+ * usize add clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize saturating_add(usize left, usize right) {
+    switch (checked_add(left, right)) {
+        case Result<usize,IntegerArithmeticError>.Ok { usize output = value }: return output; break;
+        default: return 18446744073709551615usize; break;
+    }
+}
+
+/*
+ * Wrapped usize add and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<usize,bool> overflowing_add(usize left, usize right) {
+    return Tuple.make(wrapping_add(left, right), has_error(checked_add(left, right)));
+}
+
+/*
+ * usize sub clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize saturating_sub(usize left, usize right) {
+    switch (checked_sub(left, right)) {
+        case Result<usize,IntegerArithmeticError>.Ok { usize output = value }: return output; break;
+        default: return 0usize; break;
+    }
+}
+
+/*
+ * Wrapped usize sub and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<usize,bool> overflowing_sub(usize left, usize right) {
+    return Tuple.make(wrapping_sub(left, right), has_error(checked_sub(left, right)));
+}
+
+/*
+ * usize mul clamped to its exact numeric bounds.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize saturating_mul(usize left, usize right) {
+    switch (checked_mul(left, right)) {
+        case Result<usize,IntegerArithmeticError>.Ok { usize output = value }: return output; break;
+        default: return 18446744073709551615usize; break;
+    }
+}
+
+/*
+ * Wrapped usize mul and true exactly when its mathematical result does not fit.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<usize,bool> overflowing_mul(usize left, usize right) {
+    return Tuple.make(wrapping_mul(left, right), has_error(checked_mul(left, right)));
+}
+
+/*
+ * usize power clamped to its bounds; exponent zero returns one.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize saturating_pow(usize base, u32 exponent) {
+    switch (checked_pow(base, exponent)) {
+        case Result<usize,IntegerArithmeticError>.Ok { usize output = value }: return output; break;
+        default: return 18446744073709551615usize; break;
+    }
+}
+
+/*
+ * Wrapped usize power and exact overflow flag; exponent zero returns one and false.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Tuple<usize,bool> overflowing_pow(usize base, u32 exponent) {
+    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));
+}
+
+/*
+ * Test zero for usize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(usize value) {
+    return value == 0usize;
+}
+
+/*
+ * Test negative for usize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_negative(usize value) {
+    return false;
+}
+
+/*
+ * Test positive for usize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_positive(usize value) {
+    return value > 0usize;
+}
+
+/*
+ * Test even for usize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_even(usize value) {
+    return value % 2usize == 0usize;
+}
+
+/*
+ * Test odd for usize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_odd(usize value) {
+    return value % 2usize != 0usize;
+}
+
+/*
+ * Test power of two for usize without allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_power_of_two(usize value) {
+    return value > 0usize && (bits(value) & (bits(value) - 1usize)) == 0usize;
+}
+
+/*
+ * Exact usize divisibility; only zero is a multiple of zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_multiple_of(usize left, usize right) {
+    if (right == 0usize) return left == 0usize;
+    return left % right == 0usize;
+}
+
+/*
+ * Number of set bits in the full 64-bit usize representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(usize value) {
+    mut usize remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != 0usize) { remaining &= remaining - 1usize; count++; }
+    return count;
+}
+
+/*
+ * Number of zero bits in the full 64-bit usize representation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(usize value) {
+    return 64u32 - count_ones(value);
+}
+
+/*
+ * Count leading zero bits of usize; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(usize value) {
+    mut usize remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 9223372036854775808usize) == 0usize) { remaining = remaining << 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count leading one bits of usize; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(usize value) {
+    return leading_zeros(~bits(value));
+}
+
+/*
+ * Count trailing zero bits of usize; zero returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(usize value) {
+    mut usize remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < 64u32 && (remaining & 1usize) == 0usize) { remaining = remaining >> 1u32; count++; }
+    return count;
+}
+
+/*
+ * Count trailing one bits of usize; all ones returns 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(usize value) {
+    return trailing_zeros(~bits(value));
+}
+
+/*
+ * Bit length of the mathematical usize magnitude; zero returns zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(usize value) {
+    usize magnitude = value;
+    return 64u32 - leading_zeros(magnitude);
+}
+
+/*
+ * Reverse all 64 bits of usize, preserving its numeric type.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize reverse_bits(usize value) {
+    mut usize remaining = bits(value);
+    mut usize output = 0usize;
+    mut u32 position = 0u32;
+    while (position < 64u32) { output = (output << 1u32) | (remaining & 1usize); remaining = remaining >> 1u32; position++; }
+    return output;
+}
+
+/*
+ * Reverse usize byte order; bit order inside each byte is preserved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize swap_bytes(usize value) {
+    mut usize remaining = bits(value);
+    mut usize output = 0usize;
+    mut u32 position = 0u32;
+    while (position < 8u32) { output = (output << 8u32) | (remaining & 255usize); remaining = remaining >> 8u32; position++; }
+    return output;
+}
+
+/*
+ * Rotate usize bits left; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize rotate_left(usize value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    usize raw = bits(value);
+    return (raw << amount) | (raw >> (64u32 - amount));
+}
+
+/*
+ * Rotate usize bits right; count is reduced modulo 64.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize rotate_right(usize value, u32 count) {
+    u32 amount = count % 64u32;
+    if (amount == 0u32) return value;
+    usize raw = bits(value);
+    return (raw >> amount) | (raw << (64u32 - amount));
+}
+
+/*
+ * Unsigned mask of the highest set representation bit of usize, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize highest_one_bit(usize value) {
+    if (value == 0usize) return 0usize;
+    return 1usize << (63u32 - leading_zeros(value));
+}
+
+/*
+ * Unsigned mask of the lowest set representation bit of usize, or zero.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize lowest_one_bit(usize value) {
+    usize raw = bits(value);
+    return raw == 0usize ? 0usize : raw & (~raw + 1usize);
+}
+
+/*
+ * Exact nonnegative difference of usize values, in usize, including both numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize abs_diff(usize left, usize right) {
+    usize a = left;
+    usize b = right;
+    return a > b ? a - b : b - a;
+}

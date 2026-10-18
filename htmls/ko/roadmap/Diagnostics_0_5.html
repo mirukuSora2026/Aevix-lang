@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>0.5의 친절한 진단 — Aevix</title><meta name="description" content="0.5 셀프 호스팅 목표와 함께 소스 발췌, 타입 설명, 대여의 시작 지점, 구조화된 수정안, 편집기 진단을 단계적으로 추가하는 계획이다."><link rel="stylesheet" href="../../css/root.css?v=7"><script src="../../js/docs.js?v=5" defer></script><link rel="icon" type="image/png" href="../../images/aevix-favicon.png"><link rel="alternate" hreflang="en" href="../../roadmap/Diagnostics_0_5.html"><link rel="alternate" hreflang="ko" href="Diagnostics_0_5.html"><script src="../../js/language.js?v=1" defer></script></head>
+<body><a class="skip-link" href="#main-content">본문으로 건너뛰기</a><header class="site-header"><div class="header"><a class="brand" href="../index.html"><span class="brand-mark" aria-hidden="true">A</span><span class="brand-name">Aevix</span><span class="brand-divider" aria-hidden="true">/</span><span class="brand-label">문서</span></a><nav class="header-nav" aria-label="로드맵"><a href="index.html">로드맵</a><a href="Library_Foundation.html">라이브러리 기반</a><a href="Diagnostics_0_5.html" aria-current="page">0.5 진단</a></nav><span class="draft-badge">0.5 계획 · 부트스트랩 목표 유지</span><label class="language-switch" translate="no"><span class="sr-only">문서 언어</span><select id="docs-language" class="language-select"><option value="en" lang="en">English</option><option value="ko" lang="ko" selected>한국어</option></select></label></div></header><main id="main-content" class="page-shell"><header class="doc-intro"><div><p class="eyebrow">컴파일러 사용성</p><h1>0.5의 친절한 진단</h1><p class="doc-subtitle">무엇이 실패했고, 어디에서 비롯되었으며, 올바른 수정으로 무엇이 바뀌는지 보여 준다.</p></div></header><div class="docs-layout"><aside class="table"><details class="toc" open><summary>이 페이지의 내용</summary><ol><li><a href="#status">목표 단계와 현재 범위</a></li><li><a href="#model">구조화된 진단 모델</a></li><li><a href="#rendering">소스 발췌와 위치</a></li><li><a href="#types">타입·오버로드·제약</a></li><li><a href="#ownership">소유권·대여 오류의 원인</a></li><li><a href="#fixes">수정안과 복구</a></li><li><a href="#tools">JSON·편집기 연동</a></li><li><a href="#logging">라이브러리 로깅의 경계</a></li><li><a href="#milestones">버전별 통과 조건</a></li></ol></details></aside><article class="content"><section id="status"><h2>선택한 목표 단계와 현재 범위</h2>
+<p>친절한 컴파일러 진단은 0.5에 추가되는 제공 항목이다. 기존 stage0 → stage1 → stage2 → stage3 셀프 호스팅 목표를 보완하며, 재현 가능한 부트스트랩을 미루거나 대신하지 않는다. 현재 컴파일러는 소스 위치와 오류 텍스트를 보고하고 편집기는 진단을 표시한다. 이 문서의 풍부한 표시, 안정적인 진단 코드, 구조화된 수정안, JSON 스키마, 복구 정책은 향후 작업이며, 공개된 0.2 컴파일러가 이를 구현했다는 뜻은 아니다.</p>
+<p>진단은 컴파일러가 발견한 문제를 설명한다. 런타임 <code>Result</code> 오류·안전 정지· <code>system.log</code>출력과는 구분한다. 메시지는 검사된 소스 사실에 근거해야 한다. 추측으로 생성한 설명으로 실제 타입·소유권·제어 흐름상의 원인을 대신하면 안 된다.</p></section>
+<section id="model"><h2>하나의 구조화된 진단 모델</h2>
+<p>안정적인 진단 코드, 심각도, 짧은 주 메시지, 주 바이트 범위, 필요한 수만큼의 관련 표시, 원인 주석, 선택적인 구조화된 수정안을 담는 내부 레코드를 도입한다. 안정적인 소스 식별자와 바이트 오프셋을 저장하고, 원본 소스 텍스트를 기준으로 줄 번호와 표시 열을 계산한다. C++ stage0과 Aevix로 이식한 컴파일러는 진단 테스트와 의미상 분류를 공유해야 한다.</p>
+<p>사용법: <code>error</code>, <code>warning</code>, <code>note</code>, 및 <code>help</code> 를 의도적으로 구분한다. 주석은 기존 진단을 설명하는 것이며 별도의 치명적 오류인 것처럼 표시하면 안 된다. 안정적인 코드는 영어 문구나 컴파일러 내부 줄 번호가 아닌 의미상의 분류에 부여한다. 기계 측 소비자가 문장 전체를 비교하게 만들지 않는다.</p>
+<p>선언, import, 제네릭 제약, 호출 지점이 서로 다른 모듈에 있을 수 있으므로 관련 표시마다 소스 ID가 필요하다. 편집기 버퍼가 바뀌면 소스 버전을 명시해야 한다. 이전 버전용 수정안을 새 버퍼에 알리지 않고 적용하면 안 된다.</p></section>
+<section id="rendering"><h2>읽기 쉬운 소스 발췌와 위치</h2>
+<p>터미널 출력에는 파일과 줄 번호, 간결한 메시지, 소스 발췌, 주 범위의 밑줄을 보여 준다. 원인을 설명하는 데 도움이 되면 근처의 관련 범위도 표시한다. 범위가 비어 있거나 여러 줄에 걸치거나 EOF에 닿거나 import한 선언을 가리켜도 위치의 의미가 유지되어야 한다. 긴 줄은 제한된 크기만 발췌하고 생략 표시를 명확하게 보여 준다.</p>
+<p>바이트 오프셋을 소스 좌표의 기준으로 유지한다. UTF-8 디코딩은 표시와 문서화된 편집기 좌표 변환에만 사용한다. 탭, 결합 문자, 넓은 문자, CRLF, 잘못된 소스 바이트 때문에 밑줄이 다른 토큰을 가리키면 안 된다. 표시 폭 정책과 탭 폭을 정하고 검사해야 한다. VS Code 위치는 터미널 셀 폭과 별개로 편집기가 요구하는 줄·문자 인코딩을 따른다.</p>
+<p>색상은 선택 사항이며 오류와 주석을 구분하는 유일한 수단이어서는 안 된다. 출력을 리다이렉트하거나 색상을 꺼도 읽을 수 있어야 한다. 소스, 심볼 이름, 경로, OS 메시지의 터미널 제어 문자는 이스케이프한다. 신뢰할 수 없는 소스 줄을 표시하다가 터미널 이스케이프 시퀀스가 실행되면 안 된다.</p>
+<pre class="code-block"><code>error[illustrative move code]: value has already been moved
+  --&gt; sample.avx:6:12
+  |
+4 |     Resource destination = source;
+  |                            ------ ownership moved here
+5 |
+6 |     return source.read();
+  |            ^^^^^^ owner is unavailable here
+  = help: use destination, or change the earlier call to borrow when its contract permits</code></pre>
+<p>이것은 설명을 위한 출력 예시이며 확정된 코드 표기나 현재 컴파일러의 실제 출력 기록이 아니다. 호환되는 대여 API가 있을 때만 대여를 제안한다. clone을 알리지 않고 넣거나 소유권을 바꾸거나 유효하지 않은 이름을 권하면 안 된다.</p></section>
+<section id="types"><h2>타입·오버로드·제약 설명</h2>
+<p>타입이 맞지 않으면 기대 타입, 실제 타입, 기대 타입을 요구한 문맥을 밝힌다.  <code>argument 2 requires &amp;mut Vector&lt;i32&gt;</code> 처럼 구체적으로 설명한다. 단순히 ‘일치하는 오버로드가 없음’이라고만 안내하지 않는다. 여러 오버로드가 실패하면 관련성이 높은 후보를 정해진 수만큼 나열하고, 거부된 매개변수나 제약을 설명한다. 사용할 수 있는 후보가 없는 경우와 똑같이 유효한 후보가 여러 개인 경우를 구분한다.</p>
+<p>제네릭 진단에는 원래 선언, 구체적인 치환, 실패한 <code>where</code> 요구 사항과 길이를 제한한 구체화 경로를 포함한다. 생성된 특수화에서 실패해도 편집 가능한 원본 소스를 가리켜야 한다. 재귀적인 타입 이름이나 거의 같은 후보 주석 수천 개를 제한 없이 출력하면 안 된다.</p>
+<p>import 진단은 전체 모듈 경로, 충돌하는 출처, 허용되는 전체 경로 표기를 밝혀야 한다. 선택한 이름의 부재, private 선언, 대소문자만 틀린 철자, 누락된 모듈 루트는 원인이 다르므로 각각 다른 메시지를 제공해야 한다.</p></section>
+<section id="ownership"><h2>소유권·대여 오류의 원인 표시</h2>
+<p>이동 후 사용 오류에서는 이동 지점과 이후 사용 지점을 표시한다. 살아 있는 대여와 충돌하면 원래 대여, 충돌하는 접근, 대여를 계속 살아 있게 하는 이후 사용을 표시한다. 반환한 뷰가 유효하지 않게 되면 지역 소유자, 뷰 생성 지점, 반환 경계를 보여 준다. 읽기 대여와 독점 대여를 구분하고, 분석으로 알 수 있다면 겹치는 필드나 인덱스 영역도 식별한다.</p>
+<p>설명 <code>Copy</code>, <code>Drop</code>, 캡처 방식, 부분 초기화 정리를 각각의 실제 규칙에 따라 설명해야 한다. Drop 소유자의 일부를 이동한 경우에는 해당 Drop 계약을 짚어 주어야 한다. 클로저가 수명을 벗어나면 캡처한 소유자와 수명을 벗어나는 사용 지점을 표시해야 한다. persist 초기화나 종료 제한은 내부 런타임 가드만 보여 주는 대신 관련 저장소 선언을 가리켜야 한다.</p>
+<p>컴파일러가 타당성을 입증할 수 있을 때만 수정안을 제시한다. 이동한 대상 사용, 대여 범위 단축, 겹치지 않는 스코프 도입, 사용 가능한 대여 오버로드에 읽기 대여 전달, 실패 가능한 API를 통한 명시적 clone 등이 해당한다. clone을 모든 소유권 문제의 해법으로 제시하거나 필요한 정리를 없애면 안 된다.</p></section>
+<section id="fixes"><h2>실행 가능한 수정안과 복구</h2>
+<p>수정안에는 소스 범위, 대체할 바이트, 짧은 설명, 적용 가능 수준을 담는다. 자동 적용할 수 있는 수정안은 같은 소스 버전에서 국소적이고, 해석이 명확하며, 안전해야 한다. 정확히 식별된 키워드 오타나 누락이 명확한 구분자 등이 해당한다. 광범위한 API 재설계는 도움말로 안내한다. 서로 충돌하는 편집은 한꺼번에 적용하지 말고 선택 정책을 정해야 한다.</p>
+<p>파서 복구는 근거가 있는 구분자나 선언 경계에서 재개하고, 유용한 소스 범위를 보존하며, 한 번의 실행에서 독립적인 여러 오류를 보고해야 한다. 누락된 토큰 하나가 연쇄 오류를 만들지 않게 해야 한다. 타입·소유권 검사도 잘못된 임시 정보가 오해를 부르는 후속 오류를 만든다면 그 정보를 더 이상 사용하면 안 된다.</p>
+<p>진단 수, 후보 주석 수, 중첩 원인 수, 소스 발췌 크기, 제네릭 추적 길이에 명시적인 한도를 적용한다. 한도에 도달하면 마지막에 생략 안내를 출력한다. 잘못되거나 악의적으로 구성된 소스를 복구할 때도 반드시 앞으로 진행해야 하며, 무한 반복, 스택 고갈, 입력 크기의 제곱에 비례하는 진단 출력이 발생하면 안 된다.</p></section>
+<section id="tools"><h2>일반 텍스트 출력·JSON·편집기</h2>
+<p>같은 레코드를 사람이 읽는 터미널 출력과 버전이 있는 기계 형식으로 렌더링한다. JSON에는 안정적인 코드, 심각도, 소스 식별자, 기준 바이트 범위, 관련 위치, 주석, 구조화된 편집을 담는다. 스키마는 터미널 색상, 문구, 언어에 의존하지 않아야 한다. 명령행 모드와 최종 필드 이름은 구현 검토에서 정한다.</p>
+<p>VSIX는 기준 위치를 편집기 좌표로 바꾸고, 관련 정보를 표시하며, 타당성이 확인된 빠른 수정만 제공해야 한다. 기존 문서 버전 검사를 유지해 늦게 도착한 컴파일러 응답이 새 진단을 덮어쓰지 못하게 한다. 컴파일 실패나 잘못된 JSON 응답은 명확한 도구 오류 하나로 표시해야 하며, 언어 오류 목록을 지어내면 안 된다.</p>
+<p>진단을 결정적인 순서로 모으려면 소스와 범위에 관한 명시적 규칙 및 같은 입력·설정에 대한 안정적인 동률 처리 기준이 필요하다. 병렬 컴파일에서 작업 완료 순서에 따라 최종 목록이 달라지면 안 된다. 경로는 명시적인 프로젝트 루트 정책에 따라 해석하고, 홈 디렉터리, 환경 값, 자격 증명, 빌드 서버 경로가 공개 진단과 산출물에 노출되지 않게 한다. 관련 OS 오류 코드는 유지하되 무관한 민감한 문맥은 공개하지 않을 수 있다.</p></section>
+<section id="logging"><h2>라이브러리 로그 분리</h2>
+<p>요청한 <code>system.log(level, message, optional code)</code> 는 0.3 CPU 라이브러리 작업에 속한다. 실제 제공 오버로드와 런타임 결과는 구현된 system 모듈과 테스트를 근거로 문서화해야 한다. 라이브러리 로그는 일반적인 프로그램 출력이다. 컴파일러 진단이 아니며 컴파일 상태를 바꾸거나 예외를 만들면 안 된다.</p>
+<p>타입이 있는 로그 수준을 사용하고, 선택적인 코드를 자유 형식 메시지와 구분한다. 기존 출력의 평가·소유권 규칙, 명시적 IO 실패 처리, 호출 단위 직렬화, 명시적 flush를 유지한다. 평가 계약을 별도로 선택하지 않았다면 꺼진 로그의 최적화가 부작용이 있는 인수를 건너뛰면 안 된다. 타임스탬프, 출력 대상, 필터 정책, 구조화된 로그 인코딩은 별도로 명시해 정해야 하는 API 사항이며, 함수 이름만 보고 있다고 가정하면 안 된다.</p>
+<p>컴파일러가 내부 디버깅 로그를 기록하더라도 사용자 진단에는 위의 구조화된 모델을 사용해야 한다. 사용자에게 보여 줄 소스 오류를 일반 printf나 로그 메시지로 처리해 소스 범위, 관련 위치, 기계 판독용 코드를 잃으면 안 된다.</p></section>
+<section id="milestones"><h2>버전별 작업과 통과 조건</h2>
+<div class="table-scroll" role="region" aria-label="진단 기능 단계별 계획"><table><thead><tr><th scope="col">목표 단계</th><th scope="col">제공 항목</th><th scope="col">승인에 필요한 근거</th></tr></thead><tbody>
+<tr><td>0.3 기반</td><td>안정적인 소스 ID와 바이트 범위, 진단 레코드와 결정적인 수집 순서를 마련한다. 라이브러리 오류, 런타임 실패, 컴파일러가 발견한 문제는 분리한다.</td><td>빈 범위, EOF, 여러 줄 범위, import한 소스, 오래된 ID, 제한된 출력에 관한 단위 테스트를 마련한다. 전환하는 동안 기존 텍스트도 계속 제공한다.</td></tr>
+<tr><td>0.4 컴파일러 이식</td><td>두 컴파일러의 lexer/parser, 타입·제네릭 분석, 소유권 분석, 모듈 로딩 전반에서 코드, 주·보조 표시, 문맥 정보를 유지한다.</td><td>공통 승인·거부 테스트에서 의미상 같은 코드와 주 소스 범위가 나와야 한다. 잘못된 입력을 복구할 때 연쇄 오류나 충돌 없이 종료되어야 한다.</td></tr>
+<tr><td>0.5 완성도 개선</td><td>읽기 쉬운 터미널 발췌, 기대 타입과 실제 타입 및 소유권 시작 지점, 검토된 수정안, 버전이 있는 JSON과 VSIX의 관련 위치, 색상 없이도 읽을 수 있는 텍스트 출력을 제공한다.</td><td>기준 결과를 비교하는 테스트는 ASCII, 한국어, 이모지, 결합 문자, 탭, CRLF, 여러 파일의 표시, 긴 줄, EOF를 다룬다. 편집기 테스트는 오래된 수정안을 거부하고, 퍼징으로 진행 여부와 자원 한도를 검사한다. 반복 실행해도 순서가 같은 기계 판독용 레코드가 나와야 한다.</td></tr>
+<tr><td>0.5 부트스트랩 목표 유지</td><td>C++ stage0으로 stage1을, stage1으로 stage2를, stage2로 stage3를 빌드한다. 지원 대상과 런타임 의존성에 관한 공개 사항도 유지한다.</td><td>공통 적합성 검사 모음을 통과하고 정규화한 stage2/stage3 출력을 비교한다. 친절한 진단은 추가 출시 조건이며 셀프 호스팅을 대신하지 않는다.</td></tr>
+</tbody></table></div>
+<p><a href="index.html">버전 로드맵</a> · <a href="../errors/Error_Types.html#CPU-Errors-03">복구 가능한 CPU 라이브러리 오류</a> · <a href="System_IO_0_3.html">시스템 IO 계약</a></p></section>
+</article></div><footer class="page-footer"><span>Aevix · 0.5 컴파일러 계획</span><span>2026-10-18 · 진단 기능 추가 작업; 셀프 호스팅 목표 유지</span></footer></main></body></html>

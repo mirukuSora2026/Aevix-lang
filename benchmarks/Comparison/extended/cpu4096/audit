@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : audit
+#
+# Description :
+#     이미 생성된 IR와 어셈블리에서 공통 시계 구간을 실행 없이 점검한다.
+#     Inspect common-clock envelopes in existing IR and assembly without running workloads.
+#
+# ========================
+import argparse
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import re
+
+ROOT = Path(__file__).resolve().parents[4]
+CLOCK = "aevixbench_clock_ns"
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def save(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes((json.dumps(value, indent=2) + "\n").encode("utf-8"))
+
+
+def rel(path):
+    return path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path)
+
+
+def functions(path):
+    result, active = {}, None
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        match = re.match(r"^define\b.*?@([^ (]+)\(", line)
+        if match:
+            active = []
+            result[match[1]] = active
+        if active is not None:
+            active.append((number, line))
+        if line == "}":
+            active = None
+    return result
+
+
+def stats(lines):
+    text = "\n".join(line for _, line in lines)
+    calls = [name.strip('"') for name in re.findall(r"\b(?:call|invoke)\b[^\n]*?@([^ (]+)\(", text)]
+    return {"direct_calls": dict(sorted(Counter(calls).items())),
+            "overflow_intrinsics": sum(".with.overflow." in name for name in calls),
+            "trap_calls": calls.count("llvm.trap"),
+            "allocas": len(re.findall(r"\balloca\b", text)),
+            "loads": len(re.findall(r"\bload\b", text)),
+            "stores": len(re.findall(r"\bstore\b", text)),
+            "getelementptr": len(re.findall(r"\bgetelementptr\b", text)),
+            "phi": len(re.findall(r"\bphi\b", text)),
+            "vector_typed_lines": [number for number, line in lines if re.search(r"<\d+ x (?:i\d+|float|double)>", line)],
+            "indirect_call_lines": [number for number, line in lines if re.search(r"\b(?:call|invoke)\b[^\n]*?%[^\n(]+\(", line)]}
+
+
+def regions(lines):
+    # 첫 기본 블록에 이름이 생략된 C IR도 명시적 블록과 같이 처리한다.
+    # Treat an unnamed C entry block like explicitly named LLVM basic blocks.
+    blocks, current = {"$entry": []}, "$entry"
+    for number, line in lines[1:-1]:
+        label = re.match(r"^([\w.$-]+):", line)
+        if label:
+            current = label[1]
+            blocks[current] = []
+        blocks[current].append((number, line))
+    clocks = [(name, index, number) for name, body in blocks.items()
+              for index, (number, line) in enumerate(body)
+              if re.search(r"\bcall\b.*@\"?" + CLOCK + r"\"?\(", line)]
+    if not clocks or len(clocks) % 2:
+        raise ValueError("Expected start/stop pairs; found " + str(clocks))
+    records = []
+    for start, stop in zip(clocks[::2], clocks[1::2]):
+        pending, seen, selected = [start[0]], set(), []
+        while pending:
+            name = pending.pop()
+            if name in seen:
+                continue
+            seen.add(name)
+            body = blocks[name]
+            if name == start[0]:
+                body = [(number, line) for number, line in body if number > start[2]]
+            if name == stop[0]:
+                body = [(number, line) for number, line in body if number < stop[2]]
+            selected.extend(body)
+            if name != stop[0]:
+                pending.extend(re.findall(r"label %([\w.$-]+)", "\n".join(line for _, line in body)))
+        if stop[0] not in seen:
+            raise ValueError("Clock stop not reachable from start")
+        records.append({"start_line": start[2], "stop_line": stop[2], "blocks": sorted(seen),
+                        "stats": stats(sorted(selected)), "selected": sorted(selected)})
+    return records
+
+
+def assembly_regions(path):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    clocks = [index for index, line in enumerate(lines)
+              if re.search(r"\bbl\s+_" + CLOCK + r"\b", line)]
+    if not clocks or len(clocks) % 2:
+        raise ValueError("Unexpected assembly clock calls")
+    result = []
+    for start, stop in zip(clocks[::2], clocks[1::2]):
+        instructions = [(i + 1, line.split(";")[0].strip()) for i, line in enumerate(lines[start:stop + 1], start)
+                        if line.startswith("\t") and not line.lstrip().startswith(".")]
+        vectors = [number for number, text in instructions if re.search(r"\bv\d+\b|\.\d+[bhsd]\b|\bq\d+\b", text)]
+        result.append({"start_line": start + 1, "stop_line": stop + 1,
+                       "static_instruction_lines_including_clocks": len(instructions),
+                       "opcodes": dict(sorted(Counter(text.split()[0] for _, text in instructions).items())),
+                       "vector_instruction_lines": vectors,
+                       "store_lines": [number for number, text in instructions if re.match(r"st(?:r|p|1|2|3|4)", text)],
+                       "calls": [text for _, text in instructions if re.match(r"bl(?:r)?\b", text)],
+                       "instructions": instructions})
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prepared", type=Path, required=True)
+    parser.add_argument("--report", type=Path, default=Path("benchmarks/Comparison/extended/cpu4096/static_audit.json"))
+    args = parser.parse_args()
+    prepared_path = ROOT / args.prepared
+    prepared = json.loads(prepared_path.read_text(encoding="utf-8"))
+    base, entries = prepared_path.parent, []
+    artifacts = base / "static-audit"
+    artifacts.mkdir(exist_ok=True)
+    for item in prepared["programs"]:
+        if item["case"] not in {"lcg_1", "lcg_256", "lcg_16384", "prime_search"}:
+            continue
+        name = item["case"] + "-" + item["mode"]
+        row = {"case": item["case"], "mode": item["mode"], "languages": {}}
+        for language, suffix in (("AevixAOT", "aevix"), ("C", "c")):
+            path = base / "ir" / (name + "." + suffix + ".O2.ll")
+            asm = base / "ir" / (name + "." + suffix + ".O2.s")
+            text = path.read_text(encoding="utf-8")
+            funcs = functions(path)
+            timed_name = next(key for key, body in funcs.items()
+                              if any(re.search(r"\bcall\b.*@" + CLOCK + r"\(", line) for _, line in body))
+            selected = regions(funcs[timed_name])
+            assembly = assembly_regions(asm)
+            hot = "aevix.fn.47" if language == "AevixAOT" else next((key for key in funcs if key.startswith("bench_") and key.endswith("_callback")), None)
+            # 의미 있는 구간만 저장하고 출력 서식이나 초기화 SIMD를 분리한다.
+            # Save the actual kernel envelope separately from formatting and initialization SIMD.
+            excerpts = []
+            for index, region in enumerate(selected):
+                excerpts.extend([f"; clock envelope {index}: {region['start_line']}..{region['stop_line']}"])
+                excerpts.extend(f"; source line {number}\n{line}" for number, line in region.pop("selected"))
+            excerpt = artifacts / (name + "." + suffix + ".timed.ll.txt")
+            excerpt.write_bytes(("\n".join(excerpts) + "\n").encode("utf-8"))
+            for region in selected:
+                calls = region["stats"]["direct_calls"]
+                region["nonintrinsic_calls"] = [key for key in calls if not key.startswith("llvm.")]
+                if any(re.search(r"system_|printf|print|input|fgets|fflush|memset", key) for key in calls):
+                    raise ValueError("Unexpected I/O or initialization in clock envelope")
+                if region["stats"]["vector_typed_lines"]:
+                    raise ValueError("Unexpected hot-loop vectorization: review report claims")
+            assembly_excerpt = artifacts / (name + "." + suffix + ".timed.s.txt")
+            assembly_excerpt.write_bytes(("\n".join(f"{n}: {line}" for part in assembly for n, line in part.pop("instructions")) + "\n").encode("utf-8"))
+            for part in assembly:
+                if part["vector_instruction_lines"]:
+                    raise ValueError("Unexpected SIMD in timed assembly: review report claims")
+            record = {"llvm": rel(path), "llvm_sha256": digest(path), "assembly": rel(asm), "assembly_sha256": digest(asm),
+                      "target_triple": re.search(r'^target triple = "([^"]+)"', text, re.M)[1],
+                      "explicit_target_cpu_attributes": sorted(set(re.findall(r'"target-cpu"="([^"]+)"', text))),
+                      "clock_declaration": next(line for line in text.splitlines() if line.startswith("declare ") and "@" + CLOCK + "(" in line),
+                      "timed_function": timed_name, "clock_envelopes": selected, "assembly_clock_envelopes": assembly,
+                      "timed_IR_excerpt": rel(excerpt), "timed_assembly_excerpt": rel(assembly_excerpt),
+                      "worker_function": hot, "worker_stats": stats(funcs[hot]) if hot else None,
+                      "timed_function_total_stats_not_hot_only": stats(funcs[timed_name])}
+            if language == "AevixAOT":
+                raw = base / "ir" / (name + ".aevix.raw.ll")
+                rawfunc = functions(raw)
+                record["raw_llvm"] = rel(raw)
+                record["raw_llvm_sha256"] = digest(raw)
+                record["raw_worker_stats"] = stats(rawfunc[hot])
+                record["raw_clock_envelopes"] = [{key: value for key, value in part.items() if key != "selected"} for part in regions(rawfunc[timed_name])]
+            row["languages"][language] = record
+        entries.append(row)
+    report = {"schema_version": 1, "created_by": "miruku_sora2026", "file_name": args.report.name,
+              "description": "Static common-clock CPU4096 envelope audit; no workload/calibration executed.",
+              "prepared": rel(prepared_path), "prepared_sha256": digest(prepared_path), "audit_tool_sha256": digest(Path(__file__)),
+              "timer": prepared["timer"], "compiler_version": prepared["compiler_version"], "clang_version": prepared["clang_version"],
+              "entries": entries,
+              "findings": [
+                  "C and AOT each call the same separately compiled, noinline, non-LTO CLOCK_MONOTONIC_RAW helper immediately around the kernel. No system I/O, array initialization, checksum, or output function is in the optimized kernel envelope.",
+                  "Every serial kernel has its result load/arithmetic/store loop between start and stop in optimized LLVM and AArch64 assembly. Prime overflow-error paths remain reachable; output/checksum safety checks outside the envelope are not counted as kernel cost.",
+                  "Fresh-parallel envelopes contain the external parallel-for-each call, including thread creation/join and callback overhead inside that runtime. Static caller IR does not measure actual successful thread starts or inspect JIT-generated machine code.",
+                  "Clang duplicates the two-iteration outer loop in tiny C serial and all C parallel entries, producing two lexical start/stop pairs; the Aevix entry retains one lexical pair executed twice. Both source protocols still perform one warmup followed by one sampled kernel.",
+                  "All four actual kernels are scalar in the prepared O2 IR and assembly. The whole entry function has SIMD for input initialization and SIMD-shaped output descriptors outside the clock envelope; those are not kernel SIMD.",
+                  "LCG kernel overflow checks and fixed-array bound checks disappear under matching Clang O2 with proof optimization explicitly off. Prime retains three unsigned overflow intrinsics/trap paths in Aevix; C uses unsigned wrap semantics and has no corresponding traps.",
+                  "C and AOT use explicit arm64-apple-macosx and produce the same arm64-apple-macosx28.0.0 triple. C IR records apple-m1; Aevix raw-to-final IR has no explicit CPU attribute, and the same Clang target defaults to apple-m1. JIT detects host CPU; its supported command has no equal-target override.",
+                  "Clock declarations have no readnone/readonly memory effect. This opaque external call plus runtime seed input and post-clock observable stores are evidence against moving the inspected loop outside the clocks; this is a static envelope check, not an equal-performance guarantee."
+              ],
+              "limits": ["Optimized LLVM and matching Clang assembly were prepared before this audit; no binary was rebuilt or run here.",
+                         "Lexical assembly excerpts do not alone include cold out-of-line trap targets; CFG-reachable LLVM regions include their trap calls.",
+                         "For parallel mode the worker body is separately recorded because an external runtime invokes it indirectly.",
+                         "AOT linked-binary disassembly and JIT generated-code capture are separate evidence; this report does not claim either from standalone .s files."]}
+    save(ROOT / args.report, report)
+    print(json.dumps({"report": rel(ROOT / args.report), "sha256": digest(ROOT / args.report), "programs": len(entries), "executions": 0}))
+
+
+if __name__ == "__main__":
+    main()

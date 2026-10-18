@@ -1,0 +1,331 @@
+/*
+ * Lifecycle of the shape public module.
+ * @module shape
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public import error { ShapeError };
+
+/*
+ * A shape exposes stable nonnegative extents for the lifetime of its immutable descriptor.
+ * Static shape types encode dimensions in their nominal type; runtime descriptors validate their product.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public interface Shape {
+    /*
+     * Version history for the shape.Shape.rank public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self);
+    /*
+     * Version history for the shape.Shape.dim public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis);
+    /*
+     * Version history for the shape.Shape.element_count public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> element_count(&Self self);
+};
+
+/*
+ * Explicitly duplicate a shape owner without requiring Array ownership to become implicitly Copy.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public interface ShapeClone {
+    /*
+     * Produce an independent descriptor, preserving ordinary ownership of inline dimension arrays.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, ShapeError> clone(&Self self);
+};
+
+/*
+ * Compute the checked product. A rank-zero shape has one element; any zero axis gives zero.
+ * Scan for zero before multiplication so a later zero cannot be hidden by an earlier overflowing prefix.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ShapeError> checked_element_count(Slice<usize> dimensions) {
+    for (usize extent : dimensions) if (extent == 0) return Result.ok(0);
+    mut usize product = 1;
+    for (usize extent : dimensions) {
+        if (product > 18446744073709551615usize / extent) return Result.err(ShapeError.ElementCountOverflow);
+        product *= extent;
+    }
+    return Result.ok(product);
+}
+
+/*
+ * Own exactly R runtime extents inline, plus their validated cached product; construction does not allocate.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct DynamicShape<const usize R> implements Shape, ShapeClone {
+    Array<usize, R> dimensions;
+    usize count;
+
+    /*
+     * Validate the checked element count before publishing an immutable descriptor.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, ShapeError> new(Array<usize, R> dimensions) {
+        usize count = checked_element_count(Slice.from_array(&dimensions))?;
+        return Result.ok(Self { dimensions = dimensions, count = count });
+    }
+    /*
+     * Return the statically fixed rank without allocating or copying dimensions.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self) { return R; }
+    /*
+     * Read one extent after checking the axis.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis) {
+        if (axis >= R) return Result.err(ShapeError.InvalidAxis { axis = axis });
+        return Result.ok(self.dimensions[axis]);
+    }
+    /*
+     * Return the product validated by construction.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> element_count(&Self self) { return Result.ok(self.count); }
+    /*
+     * Borrow the immutable inline dimensions; the view cannot outlive this descriptor.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Slice<usize> as_slice(&Self self) { return Slice.from_array(&self.dimensions); }
+    /*
+     * Explicitly copy inline extents into an independent owner while preserving ordinary Array move semantics.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, ShapeError> clone(&Self self) {
+        mut usize copied[R] = [0; R];
+        mut usize axis = 0;
+        while (axis < R) { copied[axis] = self.dimensions[axis]; axis++; }
+        return Self.new(copied);
+    }
+};
+
+/*
+ * A statically typed rank-0 shape; distinct extents are distinct nominal types.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Shape0 implements Copy, Shape, ShapeClone {
+    /*
+     * Construct a zero-allocation static descriptor; product validation remains fallible.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new() { return Self {}; }
+    /*
+     * Return the statically fixed rank.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self) { return 0; }
+    /*
+     * Read an extent after validating the axis.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis) {
+        return Result.err(ShapeError.InvalidAxis { axis = axis });
+    }
+    /*
+     * Check the extent product, including empty-axis annihilation and rank-zero identity.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> element_count(&Self self) { usize dimensions[0] = []; return checked_element_count(Slice.from_array(&dimensions)); }
+    /*
+     * Explicitly duplicate this stateless static descriptor without allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, ShapeError> clone(&Self self) { return Result.ok(*self); }
+
+};
+
+/*
+ * A statically typed rank-1 shape; distinct extents are distinct nominal types.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Shape1<const usize N> implements Copy, Shape, ShapeClone {
+    /*
+     * Construct a zero-allocation static descriptor; product validation remains fallible.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new() { return Self {}; }
+    /*
+     * Return the statically fixed rank.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self) { return 1; }
+    /*
+     * Read an extent after validating the axis.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis) {
+        if (axis == 0) return Result.ok(N);
+        return Result.err(ShapeError.InvalidAxis { axis = axis });
+    }
+    /*
+     * Check the extent product, including empty-axis annihilation and rank-zero identity.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> element_count(&Self self) { usize dimensions[1] = [N]; return checked_element_count(Slice.from_array(&dimensions)); }
+    /*
+     * Explicitly duplicate this stateless static descriptor without allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, ShapeError> clone(&Self self) { return Result.ok(*self); }
+
+};
+
+/*
+ * A statically typed rank-2 shape; distinct extents are distinct nominal types.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Shape2<const usize N, const usize M> implements Copy, Shape, ShapeClone {
+    /*
+     * Construct a zero-allocation static descriptor; product validation remains fallible.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new() { return Self {}; }
+    /*
+     * Return the statically fixed rank.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self) { return 2; }
+    /*
+     * Read an extent after validating the axis.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis) {
+        if (axis == 0) return Result.ok(N);
+        if (axis == 1) return Result.ok(M);
+        return Result.err(ShapeError.InvalidAxis { axis = axis });
+    }
+    /*
+     * Check the extent product, including empty-axis annihilation and rank-zero identity.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> element_count(&Self self) { usize dimensions[2] = [N, M]; return checked_element_count(Slice.from_array(&dimensions)); }
+    /*
+     * Explicitly duplicate this stateless static descriptor without allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, ShapeError> clone(&Self self) { return Result.ok(*self); }
+
+};
+
+/*
+ * A statically typed rank-3 shape; distinct extents are distinct nominal types.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Shape3<const usize N, const usize M, const usize K> implements Copy, Shape, ShapeClone {
+    /*
+     * Construct a zero-allocation static descriptor; product validation remains fallible.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new() { return Self {}; }
+    /*
+     * Return the statically fixed rank.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank(&Self self) { return 3; }
+    /*
+     * Read an extent after validating the axis.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> dim(&Self self, usize axis) {
+        if (axis == 0) return Result.ok(N);
+        if (axis == 1) return Result.ok(M);
+        if (axis == 2) return Result.ok(K);
+        return Result.err(ShapeError.InvalidAxis { axis = axis });
+    }
+    /*
+     * Check the extent product, including empty-axis annihilation and rank-zero identity.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, ShapeError> element_count(&Self self) { usize dimensions[3] = [N, M, K]; return checked_element_count(Slice.from_array(&dimensions)); }
+    /*
+     * Explicitly duplicate this stateless static descriptor without allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, ShapeError> clone(&Self self) { return Result.ok(*self); }
+
+};

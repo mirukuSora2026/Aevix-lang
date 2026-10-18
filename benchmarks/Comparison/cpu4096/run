@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : run
+#
+# Description :
+#     동일한 CPU 입력의 실제 결과를 대조한 뒤 격리된 순서로 다섯 언어의 시간을 수집한다.
+#     Compare exact CPU outputs and collect five-language timings in a serialized run order.
+#
+# ========================
+"""Measured kernel times are local observations, never whole-language rankings."""
+import argparse
+import csv
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import random
+import statistics
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[3]
+HERE = Path(__file__).resolve().parent
+CASES = ('lcg_1', 'lcg_256', 'lcg_16384', 'prime_search')
+MODES = ('serial', 'parallel_fresh')
+LABELS = ('C', 'C++', 'Python', 'JavaScript', 'Aevix AOT', 'Aevix JIT')
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def save(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+
+def relative(path):
+    path = Path(path)
+    try:
+        return path.resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path)
+
+
+def expected_values(case, seed=0):
+    inputs = [(i + seed % 4096) % 4096 for i in range(4096)]
+    if case.startswith('lcg_'):
+        # 항등식을 쓰는 독립 기준값이며 측정 커널의 반복 코드를 복사하지 않는다.
+        # Use a closed-form oracle rather than copying the measured iterative kernel.
+        rounds = int(case.split('_')[1])
+        prime, multiplier = 2147483647, 48271
+        power = pow(multiplier, rounds, prime)
+        increment = (power - 1) * pow(multiplier - 1, -1, prime) % prime
+        return [(power * (value % prime + 1) + increment) % prime for value in inputs]
+    # 측정 코드는 모든 홀수로 나눈다. 기준값은 체로 구한 소수로만 나눈다.
+    # The measured kernel tests every odd divisor; this oracle uses sieve-generated primes.
+    sieve = bytearray(b'\x01') * 33001
+    sieve[0:2] = b'\x00\x00'
+    for p in range(2, math.isqrt(33000) + 1):
+        if sieve[p]:
+            for multiple in range(p * p, 33001, p):
+                sieve[multiple] = 0
+    primes = [n for n, enabled in enumerate(sieve) if enabled]
+    result = []
+    for value in inputs:
+        n = 1000000001 + value % 4096 * 1024
+        while True:
+            if n >= 33000 * 33000:
+                raise ValueError('Prime oracle range exhausted')
+            if all(n % p for p in primes if p * p <= n):
+                result.append(n)
+                break
+            n += 2
+    return result
+
+
+def checksums(values):
+    weighted = 0
+    for i, value in enumerate(values):
+        weighted = (weighted + (i + 1) * value) % 1000000007
+    return sum(values), weighted
+
+
+def parse(stdout, case, mode, expected, samples=5):
+    rows, verification = [], None
+    for line in stdout.splitlines():
+        if line.startswith('SAMPLE '):
+            parts = line.split()
+            if len(parts) != 8 or parts[1:3] != [case, mode]:
+                raise ValueError('Malformed SAMPLE record: ' + line)
+            index, elapsed, total, weighted, workers = map(int, parts[3:])
+            if elapsed <= 0 or not 1 <= workers <= 32:
+                raise ValueError('Invalid clock/worker observation: ' + line)
+            if mode == 'serial' and workers != 1:
+                raise ValueError('Serial run reported more than one participant')
+            if (total, weighted) != checksums(expected):
+                raise ValueError('Checksum differs from the independent oracle')
+            rows.append({'sample': index, 'elapsed_ns': elapsed, 'sum': total,
+                         'weighted': weighted, 'configured_participants': workers})
+        elif line.startswith('VERIFY '):
+            parts = line.split(' ', 3)
+            if len(parts) != 4 or parts[1:3] != [case, mode] or verification is not None:
+                raise ValueError('Malformed/duplicate VERIFY record')
+            verification = [int(value) for value in parts[3].split(',')]
+        elif line.strip():
+            raise ValueError('Unexpected benchmark output: ' + line[:200])
+    if len(rows) != samples or [r['sample'] for r in rows] != list(range(samples)):
+        raise ValueError('Missing/duplicate/reordered timing samples')
+    if verification != expected:
+        mismatch = next((i for i, pair in enumerate(zip(verification or [], expected))
+                         if pair[0] != pair[1]), None)
+        raise ValueError('Full output differs: first differing ordinal=' + str(mismatch))
+    return rows
+
+
+def command(label, case, mode, args):
+    if label == 'C':
+        return [str(args.native / 'c_bench'), case, mode, '5', '1', '0']
+    if label == 'C++':
+        return [str(args.native / 'cpp_bench'), case, mode, '5', '1', '0']
+    if label == 'Python':
+        return [args.python, str(HERE / 'python/run_bench'), case, mode, '5', '1', '0']
+    if label == 'JavaScript':
+        return [args.node, str(HERE / 'javascript/run_bench.js'), case, mode, '5', '1', '0']
+    name = case + '_' + mode
+    if label == 'Aevix AOT':
+        return [str(args.aevix_artifacts / name)]
+    return [str(args.aevixc), '--jit', '-O2', str(HERE / 'aevix' / (name + '.avx'))]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--artifacts', type=Path, default=Path('build/bench-cpu4096/timing-baseline'))
+    parser.add_argument('--native', type=Path, default=Path('build/bench-cpu4096/native'))
+    parser.add_argument('--aevix-artifacts', type=Path, default=Path('build/bench-cpu4096/aevix'))
+    parser.add_argument('--aevixc', type=Path, default=Path('build/bench-cpu4096/baseline-14e539e9/bin/aevixc'))
+    parser.add_argument('--python', default=sys.executable)
+    parser.add_argument('--node', default='node')
+    parser.add_argument('--only', choices=LABELS, action='append')
+    parser.add_argument('--case', choices=CASES, action='append')
+    parser.add_argument('--timeout', type=int, default=300)
+    parser.add_argument('--list', action='store_true')
+    parser.add_argument('--self-test', action='store_true')
+    args = parser.parse_args()
+    for name in ('artifacts', 'native', 'aevix_artifacts', 'aevixc'):
+        value = getattr(args, name)
+        setattr(args, name, value if value.is_absolute() else ROOT / value)
+    if args.self_test:
+        expected = expected_values('lcg_1')
+        assert expected[:2] == [48272, 96543]
+        total, weighted = checksums(expected)
+        sample = ''.join(f'SAMPLE lcg_1 serial {i} 1 {total} {weighted} 1\n' for i in range(5))
+        sample += 'VERIFY lcg_1 serial ' + ','.join(map(str, expected)) + '\n'
+        assert len(parse(sample, 'lcg_1', 'serial', expected)) == 5
+        try:
+            parse(sample.replace('48272,', '48273,', 1), 'lcg_1', 'serial', expected)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('Injected output mismatch was accepted')
+        print('Independent oracle/parser exact-output and mismatch self-checks passed.')
+        return 0
+    labels, cases = args.only or LABELS, args.case or CASES
+    jobs = [(label, case, mode) for case in cases for mode in MODES for label in labels]
+    random.Random(20261018).shuffle(jobs)
+    if args.list:
+        print(json.dumps([{'label': label, 'case': case, 'mode': mode,
+                           'argv': [relative(x) if '/' in str(x) else str(x)
+                                    for x in command(label, case, mode, args)]}
+                          for label, case, mode in jobs], indent=2))
+        return 0
+    if args.artifacts.exists():
+        raise SystemExit('Artifact directory already exists; choose a new path to preserve prior evidence.')
+    args.artifacts.mkdir(parents=True)
+    expected = {case: expected_values(case) for case in cases}
+    save(args.artifacts / 'oracles.json', expected)
+    metadata = {'schema_version': 1, 'created_by': 'miruku_sora2026',
+                'file_name': 'results.json', 'description': 'Serialized exact-output CPU timing observations.',
+                'spec_sha256': digest(HERE / 'spec.json'), 'host': platform.platform(),
+                'architecture': platform.machine(), 'python': sys.version,
+                'logical_cpus_python': os.cpu_count(), 'order_seed': 20261018,
+                'samples_per_job': 5, 'warmups_per_job': 1,
+                'aevix_compiler_sha256': digest(args.aevixc),
+                'timing_boundary': 'Kernel includes fresh worker startup/join; initialization, checksums and output excluded.',
+                'limits': ['One local host; background OS activity and thermal state not controlled.',
+                           'Configured compute participants are not a trace of all OS processes/threads.',
+                           'Python uses processes; JavaScript uses fresh worker isolates; native languages use threads.',
+                           'One warmup does not establish an identical JIT tier in every runtime.',
+                           'Process wall time includes bootstrap, compilation when JIT, and different validation-output paths.'],
+                'jobs': [], 'failures': []}
+    for ordinal, (label, case, mode) in enumerate(jobs):
+        argv = command(label, case, mode, args)
+        stem = f'{ordinal:02d}-' + label.lower().replace('++', 'pp').replace(' ', '-') + '-' + case + '-' + mode
+        started = time.monotonic_ns()
+        try:
+            result = subprocess.run(argv, cwd=ROOT, input=b'0\n' * 6, capture_output=True, timeout=args.timeout)
+            wall = time.monotonic_ns() - started
+            (args.artifacts / (stem + '.stdout')).write_bytes(result.stdout)
+            (args.artifacts / (stem + '.stderr')).write_bytes(result.stderr)
+            row = {'label': label, 'case': case, 'mode': mode,
+                   'argv': [relative(x) if '/' in str(x) else str(x) for x in argv],
+                   'exit_code': result.returncode, 'whole_process_wall_ns': wall,
+                   'stdout': stem + '.stdout', 'stderr': stem + '.stderr',
+                   'stdout_sha256': hashlib.sha256(result.stdout).hexdigest()}
+            if result.returncode:
+                raise ValueError('Program exit status ' + str(result.returncode))
+            row['samples'] = parse(result.stdout.decode('utf-8'), case, mode, expected[case])
+            durations = [r['elapsed_ns'] for r in row['samples']]
+            row['median_ns'] = statistics.median(durations)
+            row['min_ns'], row['max_ns'] = min(durations), max(durations)
+            row['exact_values_compared'] = len(expected[case])
+            metadata['jobs'].append(row)
+            print(f'{label:12} {case:12} {mode:14} median={row["median_ns"] / 1e6:.4f} ms; all4096 outputs match', flush=True)
+        except (ValueError, OSError, subprocess.TimeoutExpired) as error:
+            metadata['failures'].append({'label': label, 'case': case, 'mode': mode,
+                                         'argv': list(map(str, argv)), 'reason': str(error)})
+            print(f'FAILED {label} {case} {mode}: {error}', flush=True)
+        save(args.artifacts / 'results.json', metadata)
+    with (args.artifacts / 'results.csv').open('w', newline='', encoding='utf-8') as handle:
+        writer = csv.writer(handle)
+        writer.writerow(['language', 'case', 'mode', 'sample', 'elapsed_ns', 'configured_participants'])
+        for job in metadata['jobs']:
+            for sample in job['samples']:
+                writer.writerow([job['label'], job['case'], job['mode'], sample['sample'],
+                                 sample['elapsed_ns'], sample['configured_participants']])
+    print(json.dumps({'jobs_passed': len(metadata['jobs']), 'jobs_failed': len(metadata['failures']),
+                      'artifact_directory': relative(args.artifacts)}))
+    return int(bool(metadata['failures']))
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

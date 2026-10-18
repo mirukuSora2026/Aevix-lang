@@ -78,7 +78,7 @@ file(WRITE "${TEST_DIR}/modules/src/main.avx" "import one { abs }; import two { 
 run_case(c_abi_repeated_declaration 42 "" --run "${TEST_DIR}/modules/src/main.avx")
 
 file(WRITE "${TEST_DIR}/overlay.avx" "i32 main() { return 9; }\n")
-file(WRITE "${TEST_DIR}/buffer.txt" "i32 main() { return false; }\n")
+file(WRITE "${TEST_DIR}/buffer.txt" "i32 main() { return 1.5; }\n")
 execute_process(COMMAND "${AEVIXC}" --check --stdin "${TEST_DIR}/overlay.avx"
     INPUT_FILE "${TEST_DIR}/buffer.txt" RESULT_VARIABLE overlay_code
     OUTPUT_VARIABLE overlay_output ERROR_VARIABLE overlay_error TIMEOUT 20)

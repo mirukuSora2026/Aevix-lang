@@ -1,0 +1,58 @@
+import unicode;
+import encoding;
+T success<T,E>(Result<T,E> input){switch(move input){case Result<T,E>.Ok {T value=value}:return value;break;default:Never.unreachable();break;}}
+unicode.UnicodeError failed<T>(Result<T,unicode.UnicodeError> input){switch(move input){case Result<T,unicode.UnicodeError>.Err {unicode.UnicodeError value=error}:return value;break;default:Never.unreachable();break;}}
+bool bad8(Slice<byte> input,usize expected){
+    unicode.UnicodeError reason=failed(unicode.from_utf8(input));
+    switch(reason){case unicode.UnicodeError.Encoding {encoding.EncodingError nested=reason}:switch(nested){case encoding.EncodingError.InvalidUtf8 {usize position=offset}:return position==expected;break;default:return false;break;}break;default:return false;break;}
+}
+bool short8(Slice<byte> input,usize expected){
+    unicode.UnicodeError reason=failed(unicode.from_utf8(input));
+    switch(reason){case unicode.UnicodeError.IncompleteUtf8 {usize position=offset,usize width=expected,usize count=available}:return position==0usize&&width==expected&&count==Slice.len(input);break;default:return false;break;}
+}
+bool bad16(Slice<u16> input,usize expected){
+    unicode.UnicodeError reason=failed(unicode.from_utf16(input));
+    switch(reason){case unicode.UnicodeError.Encoding {encoding.EncodingError nested=reason}:switch(nested){case encoding.EncodingError.InvalidUtf16 {usize position=offset}:return position==expected;break;default:return false;break;}break;default:return false;break;}
+}
+bool syntax(Result<char,unicode.UnicodeError> result,usize expected){
+    unicode.UnicodeError reason=failed(result);
+    switch(reason){case unicode.UnicodeError.InvalidSyntax {usize position=offset}:return position==expected;break;default:return false;break;}
+}
+bool trailing(Result<char,unicode.UnicodeError> result,usize expected){
+    unicode.UnicodeError reason=failed(result);
+    switch(reason){case unicode.UnicodeError.TrailingInput {usize position=offset}:return position==expected;break;default:return false;break;}
+}
+i32 main(){
+    byte lone[1]=[Byte.from_u8(128u8)];if(!bad8(Slice.from_array(&lone),0usize))return 1;
+    byte over2[2]=[Byte.from_u8(192u8),Byte.from_u8(128u8)];if(!bad8(Slice.from_array(&over2),0usize))return 2;
+    byte incomplete2[1]=[Byte.from_u8(194u8)];if(!short8(Slice.from_array(&incomplete2),2usize))return 3;
+    byte invalid2[2]=[Byte.from_u8(194u8),Byte.from_u8(65u8)];if(!bad8(Slice.from_array(&invalid2),1usize))return 4;
+    byte over3[3]=[Byte.from_u8(224u8),Byte.from_u8(159u8),Byte.from_u8(128u8)];if(!bad8(Slice.from_array(&over3),1usize))return 5;
+    byte surrogate[3]=[Byte.from_u8(237u8),Byte.from_u8(160u8),Byte.from_u8(128u8)];if(!bad8(Slice.from_array(&surrogate),1usize))return 6;
+    byte over4[4]=[Byte.from_u8(240u8),Byte.from_u8(143u8),Byte.from_u8(191u8),Byte.from_u8(191u8)];if(!bad8(Slice.from_array(&over4),1usize))return 7;
+    byte too_high[4]=[Byte.from_u8(244u8),Byte.from_u8(144u8),Byte.from_u8(128u8),Byte.from_u8(128u8)];if(!bad8(Slice.from_array(&too_high),1usize))return 8;
+    byte invalid_lead[4]=[Byte.from_u8(245u8),Byte.from_u8(128u8),Byte.from_u8(128u8),Byte.from_u8(128u8)];if(!bad8(Slice.from_array(&invalid_lead),0usize))return 9;
+    byte invalid_third[3]=[Byte.from_u8(225u8),Byte.from_u8(128u8),Byte.from_u8(65u8)];if(!bad8(Slice.from_array(&invalid_third),2usize))return 10;
+    byte incomplete3[2]=[Byte.from_u8(225u8),Byte.from_u8(128u8)];if(!short8(Slice.from_array(&incomplete3),3usize))return 11;
+    byte incomplete4[3]=[Byte.from_u8(240u8),Byte.from_u8(159u8),Byte.from_u8(152u8)];if(!short8(Slice.from_array(&incomplete4),4usize))return 12;
+    byte known_invalid[2]=[Byte.from_u8(224u8),Byte.from_u8(65u8)];if(!bad8(Slice.from_array(&known_invalid),1usize))return 13;
+    byte suffix[2]=[Byte.from_u8(65u8),Byte.from_u8(255u8)];if(success(unicode.validate_utf8_prefix(Slice.from_array(&suffix)))!=1usize||!trailing(unicode.from_utf8(Slice.from_array(&suffix)),1usize))return 14;
+    u16 lone_low[1]=[56320u16];if(!bad16(Slice.from_array(&lone_low),0usize))return 15;
+    u16 wrong_pair[2]=[55296u16,65u16];if(!bad16(Slice.from_array(&wrong_pair),1usize))return 16;
+    u16 double_high[2]=[55296u16,55296u16];if(!bad16(Slice.from_array(&double_high),1usize))return 17;
+    if(success(unicode.parse_escape("\\\\"))!='\\'||success(unicode.parse_escape("\\\""))!='"'||success(unicode.parse_escape("\\'"))!='\'')return 18;
+    if(success(unicode.parse_escape("\\n"))!='\n'||success(unicode.parse_escape("\\r"))!='\r'||success(unicode.parse_escape("\\t"))!='\t')return 19;
+    if(success(unicode.parse_escape("\\u{10ffff}"))!='\u{10ffff}'||success(unicode.parse_uplus("U+000000"))!='\0')return 20;
+    if(!syntax(unicode.parse_uplus("U+0000000"),8usize)||!syntax(unicode.parse_uplus("U+"),2usize)||!syntax(unicode.parse_uplus("u+41"),0usize)||!syntax(unicode.parse_uplus("U+0041 "),6usize))return 21;
+    if(!trailing(unicode.parse_escape("\\nX"),2usize)||!trailing(unicode.parse_escape("\\u{41}X"),6usize))return 22;
+    if(!syntax(unicode.parse_escape("\n"),0usize)||!syntax(unicode.parse_escape("\\u{41"),5usize)||!syntax(unicode.parse_escape("\\u{}"),3usize)||!syntax(unicode.parse_escape("\\b"),1usize))return 23;
+    mut u32 high=128u32;
+    while(high<=255u32){
+        u8 word=success(Integer.convert<u8>(high));
+        unicode.UnicodeError first=failed(unicode.ascii_from_u8(word));unicode.UnicodeError second=failed(unicode.ascii_decode(Byte.from_u8(word)));
+        switch(first){case unicode.UnicodeError.InvalidAscii {u32 original=value}:if(original!=high)return 24;break;default:return 25;break;}
+        switch(second){case unicode.UnicodeError.InvalidAscii {u32 original=value}:if(original!=high)return 26;break;default:return 27;break;}
+        high++;
+    }
+    return 0;
+}

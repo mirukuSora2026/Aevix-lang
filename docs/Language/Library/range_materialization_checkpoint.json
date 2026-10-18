@@ -1,0 +1,242 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "range_materialization_checkpoint.json",
+  "description": {
+    "en": "Separate source-only Range materialization evidence; preserves the stage1 Range checkpoint and historical canonical audit.",
+    "ko": "1단계 Range 체크포인트와 기존 정식 API 감사는 보존하고 구체화 보조 함수의 소스 검증을 별도로 기록한다."
+  },
+  "status": "active_source_integrated_registered_full_suite_passed_cpu_catalog_incomplete",
+  "base": {
+    "source_sha256": "19478df2776a91671759c50e5016672a1aedb5743963338145caab31bdb7693b",
+    "generator_sha256": "300f65781a5406b44cbc7ec425ef4fb68144ec0fa97d9deee57e3848fab7c32d",
+    "schema_sha256": "b5f008324e7aeaa026364c3d22fe24fe5268ea28d7c9da5b12d2328cb820b5f5",
+    "stage1_noncomment_token_prefix_preserved": true,
+    "stage1_checkpoint": "docs/Language/Library/range_source_checkpoint.json",
+    "stage1_checkpoint_preserved": true
+  },
+  "candidate": {
+    "source": "library/Collections/range.avx",
+    "source_sha256": "7d35b81522e05c347247656c7baca44af7b33b2aa8e9c96b375d227965da04e5",
+    "generator": "tools/library/generate_range",
+    "generator_sha256": "64ce22e5a5701d95d7ef26767e8993f779f2c3fddc4a47b1e104c4ada13648ab",
+    "schema": "docs/Language/Library/range_source_schema.json",
+    "schema_sha256": "7f3cc2b358d6ea9f792b1ff9684590d8eff75b91537453ff5a87ea643774c5b9",
+    "total_public_overloads": 29,
+    "total_public_function_names": 18,
+    "total_public_methods": 8,
+    "total_public_lifecycle_declarations": 51,
+    "new_lifecycle_declarations": 9,
+    "new_since": "0.3.0",
+    "deprecated_at": "none",
+    "removed_at": "none"
+  },
+  "exact_contracts": {
+    "collect_vector": {
+      "signature": "Result<Vector<T>, CollectionError> collect_vector<T>(Range<T> descriptor) where T implements Copy",
+      "return_carrier_matches_catalog": true,
+      "count_overflow_mapping": "Core RangeError.CountOverflow -> Core CollectionError.SizeOverflow",
+      "reserve_failure_mapping": "Vector.reserve propagates Core CollectionError AllocationFailure/SizeOverflow unchanged.",
+      "byte_limit": "Vector.reserve checks count <= INT64_MAX / sizeof(T) before malloc, starting from an empty owner.",
+      "allocation_cost": "One explicit reserve prepares capacity. Vector.push retains its ordinary per-element capacity checks; exactly one output-buffer allocation occurs for a successful nonempty result. Empty output does not allocate.",
+      "ownership": "The Copy Range descriptor remains usable. A failed Result exposes no partial Vector; owned output storage is cleaned by ordinary ownership rules."
+    },
+    "to_array": {
+      "signature": "Result<Array<T,N>, RangeArrayError> to_array<const usize N, T>(Range<T> descriptor) where T implements Copy",
+      "call": "range.to_array<3>(descriptor)",
+      "type_argument_inference": "N is explicit first const argument; T is inferred from the Range.",
+      "nominal_carrier_difference": "range.RangeArrayError is distinct from canonical RangeError, which is unchanged.",
+      "validation": "Exact cardinality is checked before explicit [zero; N] construction and cursor copying. Array/Result target layouts are checked at compile time.",
+      "array_repeat_copy_rule": "Repeated array elements must implement Copy, including zero-length repeats. No implicit clone.",
+      "heap_allocation": false,
+      "abi_limit": "The current aggregate Result ABI still reserves, zero-initializes and copies O(N) storage even on an error. Mismatch avoids the explicit ArrayRepeat loop, not all O(N) work. No C++ optimization is included.",
+      "stack_boundary": "Static target-layout representability is checked. Available stack headroom is not predicted or proven."
+    }
+  },
+  "error_carrier": {
+    "name": "range.RangeArrayError",
+    "implements": [
+      "Copy",
+      "Error"
+    ],
+    "since": "0.3.0",
+    "deprecated_at": "none",
+    "removed_at": "none",
+    "variants": {
+      "CountOverflow": {
+        "code": "range.array_count_overflow",
+        "message": "The range cardinality cannot be represented by usize.",
+        "fields": {}
+      },
+      "LengthMismatch": {
+        "code": "range.array_length_mismatch",
+        "message": "The range cardinality differs from the fixed array extent.",
+        "fields": {
+          "expected": "usize",
+          "actual": "usize"
+        }
+      }
+    }
+  },
+  "executed_compiler": {
+    "sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+    "host": "macOS ARM64",
+    "original_bundle": "A copied historical compiler and its original bundled providers were used for the standalone prototype.",
+    "candidate_bundle": "A second copy changes only share/aevix/library/Collections/range.avx to the candidate source, preserving the original prototype snapshot.",
+    "candidate_provider_sha256": "7d35b81522e05c347247656c7baca44af7b33b2aa8e9c96b375d227965da04e5",
+    "no_cpp_or_runtime_changes": true
+  },
+  "standalone_prototype_gate": {
+    "source_sha256": "f8c4d39b68c3c97ed6353c2fbb435c57b2f2e21caee1caa20e5fcefb71e57c3b",
+    "positive_points": 60,
+    "checks": 12,
+    "aot_jit_execution_points": 48,
+    "modes": [
+      "check",
+      "AOT O0",
+      "AOT O2",
+      "JIT O0",
+      "JIT O2"
+    ],
+    "boundary": "Historical standalone materialize.* provider, preceding the packaged range.* name binding."
+  },
+  "packaged_gate": {
+    "script": "tests/v03_range_materialization_cli_tests.cmake",
+    "script_sha256": "612ea69ea15efcc419dcee2cf54fad18ea57b1670adf88a14d51dc2c1f69527f",
+    "exit_code": 0,
+    "source_provider_sha256": "7d35b81522e05c347247656c7baca44af7b33b2aa8e9c96b375d227965da04e5",
+    "positive_points": 60,
+    "negative_points": 4,
+    "native_observer_executables": 10,
+    "native_observer_entry_invocations": 36,
+    "native_probe_levels": [
+      0,
+      2
+    ],
+    "address_sanitizer_enabled": true,
+    "runtime_archive_sha256": "cbc590283756d76f84cc8c5442d7c86a04fb19ab7f25e937bf7c5708f121b567",
+    "log_sha256": "2648e8b177c89bc1f315a3e6ce67ae38f127709eaf7db6ee55f990766e66cd8e"
+  },
+  "independent_oracle": {
+    "path": "tests/generate_range_materialization_golden.py",
+    "sha256": "f5f7dae67dd086b7db80827b4a04e8c16e998986d60e59040acd31c99e61133a",
+    "method": "Python range/list construction and direct literal comparisons; implementation rank/span helpers are not imported.",
+    "types": [
+      "i8",
+      "u8",
+      "i16",
+      "u16",
+      "i32",
+      "u32",
+      "i64",
+      "u64",
+      "i128",
+      "u128",
+      "isize",
+      "usize"
+    ],
+    "sequence_cases": 194,
+    "expected_elements_per_container": 992,
+    "checks": "Each expected sequence is compared to both the Vector and fixed Array; original descriptors and mismatch expected/actual payloads are also checked.",
+    "count_boundaries": "Full-domain 64/128-bit ranges return overflow errors without allocation."
+  },
+  "native_observers": {
+    "seam": "Only generated LLVM malloc/free names or the explicit ArrayRepeat element-store are redirected; original IR is retained. Runtime and harness allocations are not redirected. This is controlled allocator substitution, not process-wide tracing.",
+    "allocation_modes": "For 12 element types, success plus each of 12 fail positions plus fail-all: exact byte size, one preallocation, no remaining output buffers.",
+    "zero_allocation_cases": "Empty Vector, cardinality overflow, byte-size overflow, fixed-array success and mismatch across all 12 types.",
+    "byte_boundary": "For 64/128/native-width types, exact INT64_MAX/element-size is accepted with exact byte count and controlled OOM; threshold+1 is rejected with zero allocation attempts. No huge physical allocation is attempted.",
+    "array_initialization": "A 4096-element match performs 4096 explicit ArrayRepeat stores; mismatch performs zero explicit ArrayRepeat stores at O0/O2. Result ABI zero-initialization remains unchanged."
+  },
+  "direct_error_code_message_supplement": {
+    "positive_points": 5,
+    "modes": [
+      "check",
+      "AOT O0",
+      "AOT O2",
+      "JIT O0",
+      "JIT O2"
+    ],
+    "verified": [
+      "LengthMismatch code/message and expected/actual payload",
+      "CountOverflow code/message"
+    ],
+    "fixture_sha256": "a3a7f1b418961aed88087631b5bf70ccfc9ba0a59319dc0be2f240bfcbfae5c2"
+  },
+  "negative_controls": {
+    "runtime_extent.avx": "build/range-materialize-preview/fixtures/negative/runtime_extent.avx:2:94: error: Name 'width' does not denote a type.\n",
+    "negative_extent.avx": "build/range-materialize-preview/fixtures/negative/negative_extent.avx:2:54: error: Cannot infer a complete, consistent generic type argument list.\nbuild/range-materialize-preview/fixtures/negative/negative_extent.avx:2:54: error: Cannot infer a complete, consistent generic type argument list.\n",
+    "layout_overflow.avx": "<aevix-core>:270:5: error: Fixed array storage size overflows the 64-bit target address space.\nbuild/range-materialize-preview/modules/materialize.avx:54:5: error: Fixed array storage size overflows the 64-bit target address space.\n",
+    "noncopy_repeat.avx": "build/range-materialize-preview/fixtures/negative/noncopy_repeat.avx:2:28: error: Repeated array elements must implement Copy; no implicit clone is performed.\n"
+  },
+  "cross_objects": {
+    "source_scope": "Standalone prototype array mismatch fixture; object generation only, not target runtime link or execution.",
+    "targets": [
+      {
+        "target": "aarch64-unknown-linux-gnu",
+        "sha256": "593c43234859a383a9017b1729ed0dfaac27efcaf7f26504d7cb750ad0f7903a"
+      },
+      {
+        "target": "x86_64-pc-windows-msvc",
+        "sha256": "453fe3f30f5ee7bea47fed38a957a513430667d3acb9d3ab1aff9a02f245c4e5"
+      },
+      {
+        "target": "x86_64-unknown-linux-gnu",
+        "sha256": "067456d042a0b3dbff1e646fe50f9b9886ec80ce1de251e0cc62ee98cdb6194c"
+      }
+    ]
+  },
+  "reproducibility": {
+    "byte_exact_regeneration": true,
+    "verify_preserves_bytes_and_mtimes": true,
+    "mismatch_nonmutation": true,
+    "missing_parent_not_created": true,
+    "module_sha256": "7d35b81522e05c347247656c7baca44af7b33b2aa8e9c96b375d227965da04e5",
+    "schema_sha256": "7f3cc2b358d6ea9f792b1ff9684590d8eff75b91537453ff5a87ea643774c5b9",
+    "generator_sha256": "64ce22e5a5701d95d7ef26767e8993f779f2c3fddc4a47b1e104c4ada13648ab",
+    "generated_avx_fixtures_byte_identical": 21,
+    "metadata_byte_identical": true,
+    "all_outputs_explicit_utf8_lf": true,
+    "lf_crlf_ir_instrumentation_byte_identical": true
+  },
+  "integration_boundary": {
+    "active_apply": true,
+    "new_root_compiler_gate": "passed in the integrated154-test suite; optional observer sanitizers remained OFF in this active gate, private ASan evidence is separate.",
+    "canonical_namespace": "No canonical Range.* forwarding or Core RangeError expansion.",
+    "historical_untouched_list": "Preserved in historical_private_integration_boundary; it describes the private package before root promotion."
+  },
+  "historical_status_before_integrated_suite": "private_package_verified_not_active_applied",
+  "historical_private_integration_boundary": {
+    "active_apply": false,
+    "new_root_compiler_gate": "pending after controlled merge",
+    "canonical_namespace": "No canonical Range.* forwarding or Core RangeError expansion.",
+    "untouched": [
+      "docs/Language/Library/range_source_checkpoint.json",
+      "docs/Language/Library/range_contract_audit.json",
+      "docs/Language/Library/remaining_work.json",
+      "C++ compiler/runtime sources",
+      "CMakeLists.txt",
+      ".gitignore",
+      "HTML/KO/i18n"
+    ]
+  },
+  "active_integration": {
+    "source_applied": true,
+    "source_matches_candidate": true,
+    "full_suite": {
+      "compiler_sha256": "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc",
+      "ctest_passed": 154,
+      "ctest_total": 154,
+      "elapsed_seconds": 1209.0799842919987,
+      "source_inputs_unchanged_during_run": true,
+      "selected_source_input_files": 345,
+      "result": "build/checkpoints/proof-b87fb39d/result.json",
+      "result_sha256": "33df676b3d8381ee39eb0b5d239b2222b422033d71d2c1c4e964dda88d2df480",
+      "log": "build/checkpoints/proof-b87fb39d/LastTest.log",
+      "log_sha256": "75461ad7f3ea553e8c39f41f78455376096e0a7ed14cffec21ee4acc0d451362",
+      "boundary": "Registered local macOS ARM64 suite, including dedicated Ready/Box/Range materialization/proof gates; not every CPU catalog API or cross-target execution."
+    },
+    "registered_gate": "v03_range_materialization_cli",
+    "registered_gate_seconds": 303.55,
+    "active_observer_sanitizers": false
+  }
+}

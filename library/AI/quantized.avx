@@ -1,0 +1,423 @@
+/*
+ * Lifecycle of the quantized public module.
+ * @module quantized
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import shape { Shape };
+import numeric { Floating };
+import vector;
+public import error { QuantizationError, ShapeError };
+
+/*
+ * Explicit scalar rounding after value/scale and before adding the integer zero point.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum RoundingMode implements Copy { /*
+ * Version history for the quantized.RoundingMode.TiesEven public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+TiesEven; /*
+ * Version history for the quantized.RoundingMode.TiesAway public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+TiesAway; /*
+ * Version history for the quantized.RoundingMode.TowardZero public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+TowardZero; /*
+ * Version history for the quantized.RoundingMode.Floor public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Floor; /*
+ * Version history for the quantized.RoundingMode.Ceil public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Ceil; };
+
+/*
+ * Construction failure returns both original metadata vectors; no hidden clone or lost owner occurs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum QuantizationInputError<T> { /*
+ * Version history for the quantized.QuantizationInputError.Failed public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Failed { /*
+ * Version history for the quantized.QuantizationInputError.Failed.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public QuantizationError error; /*
+ * Version history for the quantized.QuantizationInputError.Failed.input public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T input; }; };
+
+f64 widen<F>(F value) where F implements Floating {
+    Result<f64, FloatError> converted = Float.convert<f64>(value);
+    switch (converted) {
+        case Result<f64, FloatError>.Ok { f64 exact = value }: return exact; break;
+        case Result<f64, FloatError>.Err: Never.unreachable(); break;
+    }
+}
+f64 integer_real(i32 value) {
+    Result<f64, FloatError> converted = Float.convert<f64>(value);
+    switch (converted) {
+        case Result<f64, FloatError>.Ok { f64 exact = value }: return exact; break;
+        case Result<f64, FloatError>.Err: Never.unreachable(); break;
+    }
+}
+i32 integer_code<I>(I value) where I implements Copy {
+    Result<i32, IntegerError> converted = Integer.convert<i32>(value);
+    switch (converted) {
+        case Result<i32, IntegerError>.Ok { i32 exact = value }: return exact; break;
+        case Result<i32, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+Result<i32, QuantizationError> rounded_code(f64 ratio, i32 zero, i32 lower, i32 upper, RoundingMode mode, bool saturating) {
+    if (ratio != ratio) return Result.err(QuantizationError.NonFinite);
+    if (ratio < -512.0) {
+        if (saturating) return Result.ok(lower);
+        return Result.err(QuantizationError.OutOfRange);
+    }
+    if (ratio > 512.0) {
+        if (saturating) return Result.ok(upper);
+        return Result.err(QuantizationError.OutOfRange);
+    }
+    mut i32 low = -512;
+    mut i32 high = 512;
+    while (low + 1 < high) {
+        i32 middle = low + (high - low) / 2;
+        if (integer_real(middle) <= ratio) low = middle;
+        else high = middle;
+    }
+    f64 fraction = ratio - integer_real(low);
+    mut i32 rounded = low;
+    switch (mode) {
+        case RoundingMode.Floor: break;
+        case RoundingMode.Ceil: if (fraction != 0.0) rounded++; break;
+        case RoundingMode.TowardZero: if (ratio < 0.0 && fraction != 0.0) rounded++; break;
+        case RoundingMode.TiesAway:
+            if (fraction > 0.5 || (fraction == 0.5 && ratio >= 0.0)) rounded++;
+            break;
+        case RoundingMode.TiesEven:
+            if (fraction > 0.5 || (fraction == 0.5 && low % 2 != 0)) rounded++;
+            break;
+    }
+    i32 code = rounded + zero;
+    if (code < lower) {
+        if (saturating) return Result.ok(lower);
+        return Result.err(QuantizationError.OutOfRange);
+    }
+    if (code > upper) {
+        if (saturating) return Result.ok(upper);
+        return Result.err(QuantizationError.OutOfRange);
+    }
+    return Result.ok(code);
+}
+
+/*
+ * Validated scalar affine metadata. The CPU foundation supports signed i8 and unsigned u8 storage.
+ * Other integer widths return Unsupported; noninteger storage cannot instantiate the integer conversions.
+ * F is one of the compiler's sealed floating formats. Metadata is immutable and Copy.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Affine<I, F = f64> implements Copy where I implements Copy, F implements Floating, F implements Copy {
+    F scale_value;
+    I zero_value;
+
+    /*
+     * Validate finite positive scale and supported integer storage. A typed zero point is already representable in I.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, QuantizationError> new(F scale, I zero_point) {
+        Result<I, IntegerError> wider = Integer.convert<I>(256i32);
+        if (Result.is_ok(&wider)) return Result.err(QuantizationError.Unsupported);
+        if (scale <= 0.0 || scale - scale != 0.0) return Result.err(QuantizationError.InvalidScale);
+        return Result.ok(Self { scale_value = scale, zero_value = zero_point });
+    }
+    /*
+     * Copy the validated scalar scale without changing the scheme.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public F scale(&Self self) { return self.scale_value; }
+    /*
+     * Copy the representable integer zero point.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public I zero_point(&Self self) { return self.zero_value; }
+    /*
+     * Construct independent validated metadata with an explicitly replaced scale; no payload is recoded.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, QuantizationError> with_scale(&Self self, F scale) { return Self.new(scale, self.zero_value); }
+    /*
+     * Construct independent metadata with a typed replacement zero point; no payload is recoded.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, QuantizationError> with_zero_point(&Self self, I zero_point) { return Self.new(self.scale_value, zero_point); }
+
+    private Result<I, QuantizationError> quantize(&Self self, F value, RoundingMode rounding, bool saturating) {
+        if (value - value != 0.0) return Result.err(QuantizationError.NonFinite);
+        F normalized = value / self.scale_value;
+        mut i32 lower = 0;
+        mut i32 upper = 255;
+        Result<I, IntegerError> signed_minimum = Integer.convert<I>(-128i32);
+        if (Result.is_ok(&signed_minimum)) { lower = -128; upper = 127; }
+        // Widening an already evaluated F ratio to f64 is exact, including bf16/f16 integer-boundary cases.
+        // Checked Float conversion rejects infinity, so route finite-input normalization overflow directly to range policy.
+        f64 ratio = normalized - normalized != 0.0 ? (value < 0.0 ? -513.0 : 513.0) : widen(normalized);
+        i32 code = rounded_code(ratio, integer_code(self.zero_value), lower, upper, rounding, saturating)?;
+        Result<I, IntegerError> encoded = Integer.convert<I>(code);
+        switch (encoded) {
+            case Result<I, IntegerError>.Ok { I output = value }: return Result.ok(output); break;
+            case Result<I, IntegerError>.Err: return Result.err(QuantizationError.OutOfRange); break;
+        }
+    }
+    /*
+     * Quantize a finite value with named rounding; out-of-range integer codes return an error.
+     * Normalization occurs in F, then rounding, then exact integer zero-point addition.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<I, QuantizationError> quantize_checked(&Self self, F value, RoundingMode rounding) {
+        return self.quantize(value, rounding, false);
+    }
+    /*
+     * Quantize finite input with explicit clamping to the storage range after named rounding.
+     * Nonfinite input is rejected; an overflowing finite normalization clamps by its sign.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<I, QuantizationError> quantize_saturating(&Self self, F value, RoundingMode rounding) {
+        return self.quantize(value, rounding, true);
+    }
+    /*
+     * Subtract codes exactly in i32, convert the difference to F, and multiply by scale in F.
+     * The final floating multiplication may produce infinity; this method does not clamp reconstruction.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public F dequantize(&Self self, I code) {
+        i32 difference = integer_code(code) - integer_code(self.zero_value);
+        Result<F, FloatError> converted = Float.convert<F>(difference);
+        switch (converted) {
+            case Result<F, FloatError>.Ok { F exact = value }: return exact * self.scale_value; break;
+            case Result<F, FloatError>.Err: Never.unreachable(); break;
+        }
+    }
+    /*
+     * Reconstruct in F and require a finite result instead of silently clamping floating overflow.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<F, QuantizationError> checked_dequantize(&Self self, I code) {
+        F decoded = self.dequantize(code);
+        if (decoded - decoded != 0.0) return Result.err(QuantizationError.OutOfRange);
+        return Result.ok(decoded);
+    }
+    /*
+     * Copy the exact supported storage endpoints as an owning pair; no allocation occurs.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Tuple<I, I> code_range(&Self self) {
+        Result<I, IntegerError> minimum = Integer.convert<I>(-128i32);
+        switch (minimum) {
+            case Result<I, IntegerError>.Ok { I lower = value }:
+                Result<I, IntegerError> maximum = Integer.convert<I>(127i32);
+                switch (maximum) {
+                    case Result<I, IntegerError>.Ok { I upper = value }: return Tuple.make(lower, upper); break;
+                    default: Never.unreachable(); break;
+                }
+                break;
+            case Result<I, IntegerError>.Err:
+                Result<I, IntegerError> zero = Integer.convert<I>(0i32);
+                Result<I, IntegerError> maximum = Integer.convert<I>(255i32);
+                switch (zero) {
+                    case Result<I, IntegerError>.Ok { I lower = value }:
+                        switch (maximum) {
+                            case Result<I, IntegerError>.Ok { I upper = value }: return Tuple.make(lower, upper); break;
+                            default: Never.unreachable(); break;
+                        }
+                        break;
+                    default: Never.unreachable(); break;
+                }
+                break;
+        }
+    }
+    /*
+     * Reconstruct the minimum storage code in F, rejecting a nonfinite result.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<F, QuantizationError> min_real(&Self self) {
+        Tuple<I, I> endpoints = self.code_range();
+        return self.checked_dequantize(*Tuple.get<0>(&endpoints));
+    }
+    /*
+     * Reconstruct the maximum storage code in F, rejecting a nonfinite result.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<F, QuantizationError> max_real(&Self self) {
+        Tuple<I, I> endpoints = self.code_range();
+        return self.checked_dequantize(*Tuple.get<1>(&endpoints));
+    }
+};
+
+/*
+ * Own validated per-axis scales and zero points. Failure returns both original vectors in a typed carrier.
+ * The scheme describes CPU metadata only; it does not claim packed tensor kernels or GPU transfers.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct PerAxis<I, F = f64> where I implements Copy, F implements Floating, F implements Copy {
+    usize axis_index;
+    Vector<F> parameter_scales;
+    Vector<I> parameter_zeros;
+
+    /*
+     * Validate axis, exact metadata length, supported storage, and every finite positive scale before publishing.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, QuantizationInputError<Tuple<Vector<F>, Vector<I>>>> new<S>(
+        usize axis, Vector<F> scales, Vector<I> zeros, &S dimensions) where S implements Shape {
+        if (axis >= dimensions.rank()) return Result.err(QuantizationInputError<Tuple<Vector<F>, Vector<I>>>.Failed {
+            error = QuantizationError.InvalidAxis { axis = axis }, input = Tuple.make(scales, zeros) });
+        Result<usize, ShapeError> checked = dimensions.dim(axis);
+        mut usize extent = 0;
+        switch (checked) {
+            case Result<usize, ShapeError>.Ok { usize count = value }: extent = count; break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }:
+                return Result.err(QuantizationInputError<Tuple<Vector<F>, Vector<I>>>.Failed {
+                    error = QuantizationError.Shape { error = cause }, input = Tuple.make(scales, zeros) });
+                break;
+        }
+        if (Vector.len(&scales) != extent || Vector.len(&zeros) != extent)
+            return Result.err(QuantizationInputError<Tuple<Vector<F>, Vector<I>>>.Failed {
+                error = QuantizationError.MetadataMismatch, input = Tuple.make(scales, zeros) });
+        Result<I, IntegerError> wider = Integer.convert<I>(256i32);
+        if (Result.is_ok(&wider)) return Result.err(QuantizationInputError<Tuple<Vector<F>, Vector<I>>>.Failed {
+            error = QuantizationError.Unsupported, input = Tuple.make(scales, zeros) });
+        mut usize channel = 0;
+        while (channel < extent) {
+            F scale = scales[channel];
+            if (scale <= 0.0 || scale - scale != 0.0) return Result.err(QuantizationInputError<Tuple<Vector<F>, Vector<I>>>.Failed {
+                error = QuantizationError.InvalidScale, input = Tuple.make(scales, zeros) });
+            channel++;
+        }
+        return Result.ok(Self { axis_index = axis, parameter_scales = scales, parameter_zeros = zeros });
+    }
+    /*
+     * Return the validated logical parameter axis without copying metadata.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize axis(&Self self) { return self.axis_index; }
+    /*
+     * Borrow scales for the lifetime of this immutable scheme; no copy or allocation occurs.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Slice<F> scales(&Self self) { return Slice.from_vector(&self.parameter_scales); }
+    /*
+     * Borrow zero points for the lifetime of this immutable scheme.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Slice<I> zero_points(&Self self) { return Slice.from_vector(&self.parameter_zeros); }
+    /*
+     * Read the validated metadata length without borrowing or cloning either vector.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize channel_count(&Self self) { return Vector.len(&self.parameter_scales); }
+    /*
+     * Check this immutable metadata against another logical shape without changing or copying it.
+     * Matching rank alone is insufficient: the selected extent must equal the metadata length.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, QuantizationError> validate_shape<S>(&Self self, &S dimensions) where S implements Shape {
+        if (self.axis_index >= dimensions.rank()) return Result.err(QuantizationError.InvalidAxis { axis = self.axis_index });
+        Result<usize, ShapeError> selected = dimensions.dim(self.axis_index);
+        switch (selected) {
+            case Result<usize, ShapeError>.Ok { usize extent = value }:
+                if (extent != Vector.len(&self.parameter_scales)) return Result.err(QuantizationError.MetadataMismatch);
+                return Result.ok(Unit.value());
+                break;
+            case Result<usize, ShapeError>.Err { ShapeError cause = error }: return Result.err(QuantizationError.Shape { error = cause }); break;
+        }
+    }
+    /*
+     * Explicitly allocate independent scale and zero-point vectors. The source remains borrowed and unchanged.
+     * Collection allocation failures remain typed; no payload tensor is copied by this metadata operation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, CollectionError> clone(&Self self) {
+        Vector<F> scales = vector.copy_from_slice(self.scales())?;
+        Vector<I> zeros = vector.copy_from_slice(self.zero_points())?;
+        return Result.ok(Self { axis_index = self.axis_index, parameter_scales = scales, parameter_zeros = zeros });
+    }
+    /*
+     * Copy one validated affine channel scheme after checking its index.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Affine<I, F>, QuantizationError> channel_scheme(&Self self, usize channel) {
+        if (channel >= Vector.len(&self.parameter_scales)) return Result.err(QuantizationError.OutOfRange);
+        return Affine<I, F>.new(self.parameter_scales[channel], self.parameter_zeros[channel]);
+    }
+};

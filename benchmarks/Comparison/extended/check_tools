@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : check_tools
+#
+# Description :
+#     합성 입력으로 분석기의 0시간·누락·순서 검증과 부분 그래프 경계를 회귀 검사한다.
+#     Regress zero-duration, missing/pair identity, and subset plotting boundaries using synthetic inputs.
+#
+# ========================
+"""These synthetic records are tool tests, never benchmark observations."""
+import argparse
+import copy
+import hashlib
+import itertools
+import json
+from pathlib import Path
+import runpy
+import tempfile
+from types import SimpleNamespace
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--plots', action='store_true')
+    args = parser.parse_args()
+    runner = runpy.run_path(str(HERE / 'run'), run_name='synthetic_runner')
+    analyzer = runpy.run_path(str(HERE / 'analyze'), run_name='synthetic_analyzer')
+    jobs = runner['schedule'](['synthetic_zero/serial'], 42, 1)
+    rows = [dict(job, elapsed_ns=0, whole_process_wall_ns=0, passed=True, timeout=False,
+                 status=0, configured_participants=1, exact_values_compared=1,
+                 reaped_children_user_seconds_delta=0, reaped_children_system_seconds_delta=0,
+                 reaped_children_voluntary_switches_delta=0, reaped_children_involuntary_switches_delta=0,
+                 previous_global_variant=None, synthetic_not_measured=True) for job in jobs]
+    receipt = {'status': 'passed', 'fingerprints_stable': True, 'blocks': 42,
+               'selected_cases': ['synthetic_zero/serial'], 'order_seed': 1,
+               'prepared_sha256': 'synthetic_not_measured', 'limits': ['Synthetic records only'],
+               'states': [], 'synthetic_not_measured': True}
+    assert analyzer['validate'](rows, receipt, jobs)['observations'] == 126
+    changed_rows, changed_jobs = copy.deepcopy(rows), copy.deepcopy(jobs)
+    changed_rows[0]['round'] = changed_jobs[0]['round'] = 42
+    try:
+        analyzer['validate'](changed_rows, receipt, changed_jobs)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('Out-of-range round accepted despite matching schedule')
+    changed_rows, changed_jobs = copy.deepcopy(rows), copy.deepcopy(jobs)
+    changed_rows[0]['round'] = changed_jobs[0]['round'] = 1
+    try:
+        analyzer['validate'](changed_rows, receipt, changed_jobs)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('Missing/duplicate temporal pair accepted')
+    base = ROOT / 'build/bench-cpu4096'
+    base.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='synthetic-tool-tests-', dir=base) as directory:
+        source = Path(directory) / 'input'
+        source.mkdir()
+        records = ''.join(json.dumps(row) + '\n' for row in rows).encode()
+        receipt['observations_sha256'] = hashlib.sha256(records).hexdigest()
+        (source / 'observations.jsonl').write_bytes(records)
+        (source / 'run.json').write_text(json.dumps(receipt))
+        (source / 'schedule.json').write_text(json.dumps(jobs))
+        output = Path(directory) / 'without_plots'
+        analyzer['analyze'](SimpleNamespace(run=source, output=output, no_plots=True))
+        assert '.png)' not in (output / 'RESULTS.md').read_text()
+        result = json.loads((output / 'summary.json').read_text())
+        for variant in runner['VARIANTS']:
+            group = result['groups']['synthetic_zero/serial'][variant]
+            assert group['kernel']['cv_percent'] is None
+            assert group['position_median_max_over_min'] is None
+            if variant != 'C':
+                assert group['paired_vs_C']['status'] == 'unavailable'
+        if args.plots:
+            output = Path(directory) / 'with_plots'
+            analyzer['analyze'](SimpleNamespace(run=source, output=output, no_plots=False))
+            assert (output / 'distributions.png').is_file()
+            assert (output / 'order_effects.png').is_file()
+            assert not (output / 'chronology.png').exists()
+            assert 'chronology.png' not in (output / 'RESULTS.md').read_text()
+    print('PASS synthetic zero-duration end-to-end export, no-plots links, exact round coverage, and optional non-LCG subset plots; no benchmark processes launched.')
+
+
+if __name__ == '__main__':
+    main()

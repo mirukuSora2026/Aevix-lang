@@ -1,0 +1,2330 @@
+
+/*
+ * Exact primitive integer mathematics. Explicit overloads preserve the input width and perform no allocation.
+ * isize and usize follow Aevix's currently supported 64-bit target ABIs.
+ * @module math
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import error { Error };
+/*
+ * Re-export the canonical classification type shared with pure floating utilities.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public import numeric { FloatClass };
+
+/*
+ * Explicit source-math failures; these do not add variants to the compiler's IntegerError.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum IntegerMathError implements Copy, Error {
+/*
+ * The exact arithmetic result is outside the declared output integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    Overflow;
+/*
+ * The inclusive lower clamp bound is greater than the upper bound.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    InvalidBounds;
+/*
+ * Return a stable nonallocating diagnostic code.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public string_view code(&IntegerMathError self) {
+        switch (*self) {
+            case IntegerMathError.Overflow: return "math.integer_overflow"; break;
+            case IntegerMathError.InvalidBounds: return "math.invalid_bounds"; break;
+        }
+    }
+
+/*
+ * Return a stable nonallocating summary.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public string_view message(&IntegerMathError self) {
+        switch (*self) {
+            case IntegerMathError.Overflow: return "The exact result does not fit its output integer type."; break;
+            case IntegerMathError.InvalidBounds: return "The lower clamp bound exceeds the upper bound."; break;
+        }
+    }
+};
+
+/*
+ * Return the lesser i8 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 min(i8 left, i8 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater i8 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 max(i8 left, i8 right) { return left > right ? left : right; }
+
+/*
+ * Clamp i8 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8, IntegerMathError> clamp(i8 value, i8 lower, i8 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact i8 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 midpoint(i8 left, i8 right) {
+    i8 halves = left / 2 + right / 2;
+    i8 remainders = left % 2 + right % 2;
+    i8 result = halves + remainders / 2;
+    if (remainders % 2 != 0) {
+        if (result > 0 && remainders < 0) return result - 1;
+        if (result < 0 && remainders > 0) return result + 1;
+    }
+    return result;
+}
+
+/*
+ * Return -1, 0, or 1 in i8 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i8 signum(i8 value) { return value < 0 ? -1 : (value == 0 ? 0 : 1); }
+
+/*
+ * Return the lesser i16 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 min(i16 left, i16 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater i16 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 max(i16 left, i16 right) { return left > right ? left : right; }
+
+/*
+ * Clamp i16 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16, IntegerMathError> clamp(i16 value, i16 lower, i16 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact i16 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 midpoint(i16 left, i16 right) {
+    i16 halves = left / 2 + right / 2;
+    i16 remainders = left % 2 + right % 2;
+    i16 result = halves + remainders / 2;
+    if (remainders % 2 != 0) {
+        if (result > 0 && remainders < 0) return result - 1;
+        if (result < 0 && remainders > 0) return result + 1;
+    }
+    return result;
+}
+
+/*
+ * Return -1, 0, or 1 in i16 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i16 signum(i16 value) { return value < 0 ? -1 : (value == 0 ? 0 : 1); }
+
+/*
+ * Return the lesser i32 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 min(i32 left, i32 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater i32 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 max(i32 left, i32 right) { return left > right ? left : right; }
+
+/*
+ * Clamp i32 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32, IntegerMathError> clamp(i32 value, i32 lower, i32 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact i32 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 midpoint(i32 left, i32 right) {
+    i32 halves = left / 2 + right / 2;
+    i32 remainders = left % 2 + right % 2;
+    i32 result = halves + remainders / 2;
+    if (remainders % 2 != 0) {
+        if (result > 0 && remainders < 0) return result - 1;
+        if (result < 0 && remainders > 0) return result + 1;
+    }
+    return result;
+}
+
+/*
+ * Return -1, 0, or 1 in i32 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 signum(i32 value) { return value < 0 ? -1 : (value == 0 ? 0 : 1); }
+
+/*
+ * Return the lesser i64 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 min(i64 left, i64 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater i64 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 max(i64 left, i64 right) { return left > right ? left : right; }
+
+/*
+ * Clamp i64 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64, IntegerMathError> clamp(i64 value, i64 lower, i64 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact i64 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 midpoint(i64 left, i64 right) {
+    i64 halves = left / 2 + right / 2;
+    i64 remainders = left % 2 + right % 2;
+    i64 result = halves + remainders / 2;
+    if (remainders % 2 != 0) {
+        if (result > 0 && remainders < 0) return result - 1;
+        if (result < 0 && remainders > 0) return result + 1;
+    }
+    return result;
+}
+
+/*
+ * Return -1, 0, or 1 in i64 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i64 signum(i64 value) { return value < 0 ? -1 : (value == 0 ? 0 : 1); }
+
+/*
+ * Return the lesser i128 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 min(i128 left, i128 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater i128 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 max(i128 left, i128 right) { return left > right ? left : right; }
+
+/*
+ * Clamp i128 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128, IntegerMathError> clamp(i128 value, i128 lower, i128 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact i128 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 midpoint(i128 left, i128 right) {
+    i128 halves = left / 2 + right / 2;
+    i128 remainders = left % 2 + right % 2;
+    i128 result = halves + remainders / 2;
+    if (remainders % 2 != 0) {
+        if (result > 0 && remainders < 0) return result - 1;
+        if (result < 0 && remainders > 0) return result + 1;
+    }
+    return result;
+}
+
+/*
+ * Return -1, 0, or 1 in i128 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i128 signum(i128 value) { return value < 0 ? -1 : (value == 0 ? 0 : 1); }
+
+/*
+ * Return the lesser isize value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize min(isize left, isize right) { return left < right ? left : right; }
+
+/*
+ * Return the greater isize value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize max(isize left, isize right) { return left > right ? left : right; }
+
+/*
+ * Clamp isize to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize, IntegerMathError> clamp(isize value, isize lower, isize upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact isize average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize midpoint(isize left, isize right) {
+    isize halves = left / 2 + right / 2;
+    isize remainders = left % 2 + right % 2;
+    isize result = halves + remainders / 2;
+    if (remainders % 2 != 0) {
+        if (result > 0 && remainders < 0) return result - 1;
+        if (result < 0 && remainders > 0) return result + 1;
+    }
+    return result;
+}
+
+/*
+ * Return -1, 0, or 1 in isize without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public isize signum(isize value) { return value < 0 ? -1 : (value == 0 ? 0 : 1); }
+
+/*
+ * Return the lesser u8 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 min(u8 left, u8 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater u8 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 max(u8 left, u8 right) { return left > right ? left : right; }
+
+/*
+ * Clamp u8 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8, IntegerMathError> clamp(u8 value, u8 lower, u8 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact u8 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 midpoint(u8 left, u8 right) {
+    u8 halves = left / 2 + right / 2;
+    u8 remainders = left % 2 + right % 2;
+    return halves + remainders / 2;
+}
+
+/*
+ * Return 0 or 1 in u8 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 signum(u8 value) { return value == 0 ? 0 : 1; }
+
+/*
+ * Return the lesser u16 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 min(u16 left, u16 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater u16 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 max(u16 left, u16 right) { return left > right ? left : right; }
+
+/*
+ * Clamp u16 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16, IntegerMathError> clamp(u16 value, u16 lower, u16 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact u16 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 midpoint(u16 left, u16 right) {
+    u16 halves = left / 2 + right / 2;
+    u16 remainders = left % 2 + right % 2;
+    return halves + remainders / 2;
+}
+
+/*
+ * Return 0 or 1 in u16 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 signum(u16 value) { return value == 0 ? 0 : 1; }
+
+/*
+ * Return the lesser u32 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 min(u32 left, u32 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater u32 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 max(u32 left, u32 right) { return left > right ? left : right; }
+
+/*
+ * Clamp u32 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32, IntegerMathError> clamp(u32 value, u32 lower, u32 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact u32 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 midpoint(u32 left, u32 right) {
+    u32 halves = left / 2 + right / 2;
+    u32 remainders = left % 2 + right % 2;
+    return halves + remainders / 2;
+}
+
+/*
+ * Return 0 or 1 in u32 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 signum(u32 value) { return value == 0 ? 0 : 1; }
+
+/*
+ * Return the lesser u64 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 min(u64 left, u64 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater u64 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 max(u64 left, u64 right) { return left > right ? left : right; }
+
+/*
+ * Clamp u64 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64, IntegerMathError> clamp(u64 value, u64 lower, u64 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact u64 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 midpoint(u64 left, u64 right) {
+    u64 halves = left / 2 + right / 2;
+    u64 remainders = left % 2 + right % 2;
+    return halves + remainders / 2;
+}
+
+/*
+ * Return 0 or 1 in u64 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 signum(u64 value) { return value == 0 ? 0 : 1; }
+
+/*
+ * Return the lesser u128 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 min(u128 left, u128 right) { return left < right ? left : right; }
+
+/*
+ * Return the greater u128 value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 max(u128 left, u128 right) { return left > right ? left : right; }
+
+/*
+ * Clamp u128 to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128, IntegerMathError> clamp(u128 value, u128 lower, u128 upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact u128 average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 midpoint(u128 left, u128 right) {
+    u128 halves = left / 2 + right / 2;
+    u128 remainders = left % 2 + right % 2;
+    return halves + remainders / 2;
+}
+
+/*
+ * Return 0 or 1 in u128 without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 signum(u128 value) { return value == 0 ? 0 : 1; }
+
+/*
+ * Return the lesser usize value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize min(usize left, usize right) { return left < right ? left : right; }
+
+/*
+ * Return the greater usize value without conversion or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize max(usize left, usize right) { return left > right ? left : right; }
+
+/*
+ * Clamp usize to inclusive bounds, returning InvalidBounds before any clamp if lower exceeds upper.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, IntegerMathError> clamp(usize value, usize lower, usize upper) {
+    if (lower > upper) return Result.err(IntegerMathError.InvalidBounds);
+    return Result.ok(value < lower ? lower : (value > upper ? upper : value));
+}
+
+/*
+ * Return the exact usize average rounded toward zero, without overflowing the sum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize midpoint(usize left, usize right) {
+    usize halves = left / 2 + right / 2;
+    usize remainders = left % 2 + right % 2;
+    return halves + remainders / 2;
+}
+
+/*
+ * Return 0 or 1 in usize without changing its integer type.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize signum(usize value) { return value == 0 ? 0 : 1; }
+
+/*
+ * Compute the exact nonnegative u8 greatest common divisor; gcd(0, 0) is zero. Euclidean remainder steps allocate nothing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 gcd(u8 left, u8 right) {
+    mut u8 a = left;
+    mut u8 b = right;
+    while (b != 0) { u8 remainder = a % b; a = b; b = remainder; }
+    return a;
+}
+
+/*
+ * Compute the nonnegative u8 least common multiple after dividing by gcd; zero inputs return zero and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8, IntegerMathError> lcm(u8 left, u8 right) {
+    if (left == 0 || right == 0) return Result.ok(0);
+    u8 reduced = left / gcd(left, right);
+    if (reduced > 255u8 / right) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(reduced * right);
+}
+
+/*
+ * Compute exact u8 exponentiation with checked products and at most 32 exponent steps; 0^0 is 1.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8, IntegerMathError> checked_pow(u8 base, u32 exponent) {
+    mut u8 result = 1;
+    mut u8 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) {
+            if (factor != 0 && result > 255u8 / factor) return Result.err(IntegerMathError.Overflow);
+            result *= factor;
+        }
+        remaining /= 2u32;
+        if (remaining != 0u32) {
+            if (factor != 0 && factor > 255u8 / factor) return Result.err(IntegerMathError.Overflow);
+            factor *= factor;
+        }
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Compute the exact nonnegative u16 greatest common divisor; gcd(0, 0) is zero. Euclidean remainder steps allocate nothing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 gcd(u16 left, u16 right) {
+    mut u16 a = left;
+    mut u16 b = right;
+    while (b != 0) { u16 remainder = a % b; a = b; b = remainder; }
+    return a;
+}
+
+/*
+ * Compute the nonnegative u16 least common multiple after dividing by gcd; zero inputs return zero and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16, IntegerMathError> lcm(u16 left, u16 right) {
+    if (left == 0 || right == 0) return Result.ok(0);
+    u16 reduced = left / gcd(left, right);
+    if (reduced > 65535u16 / right) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(reduced * right);
+}
+
+/*
+ * Compute exact u16 exponentiation with checked products and at most 32 exponent steps; 0^0 is 1.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16, IntegerMathError> checked_pow(u16 base, u32 exponent) {
+    mut u16 result = 1;
+    mut u16 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) {
+            if (factor != 0 && result > 65535u16 / factor) return Result.err(IntegerMathError.Overflow);
+            result *= factor;
+        }
+        remaining /= 2u32;
+        if (remaining != 0u32) {
+            if (factor != 0 && factor > 65535u16 / factor) return Result.err(IntegerMathError.Overflow);
+            factor *= factor;
+        }
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Compute the exact nonnegative u32 greatest common divisor; gcd(0, 0) is zero. Euclidean remainder steps allocate nothing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 gcd(u32 left, u32 right) {
+    mut u32 a = left;
+    mut u32 b = right;
+    while (b != 0) { u32 remainder = a % b; a = b; b = remainder; }
+    return a;
+}
+
+/*
+ * Compute the nonnegative u32 least common multiple after dividing by gcd; zero inputs return zero and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32, IntegerMathError> lcm(u32 left, u32 right) {
+    if (left == 0 || right == 0) return Result.ok(0);
+    u32 reduced = left / gcd(left, right);
+    if (reduced > 4294967295u32 / right) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(reduced * right);
+}
+
+/*
+ * Compute exact u32 exponentiation with checked products and at most 32 exponent steps; 0^0 is 1.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32, IntegerMathError> checked_pow(u32 base, u32 exponent) {
+    mut u32 result = 1;
+    mut u32 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) {
+            if (factor != 0 && result > 4294967295u32 / factor) return Result.err(IntegerMathError.Overflow);
+            result *= factor;
+        }
+        remaining /= 2u32;
+        if (remaining != 0u32) {
+            if (factor != 0 && factor > 4294967295u32 / factor) return Result.err(IntegerMathError.Overflow);
+            factor *= factor;
+        }
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Compute the exact nonnegative u64 greatest common divisor; gcd(0, 0) is zero. Euclidean remainder steps allocate nothing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 gcd(u64 left, u64 right) {
+    mut u64 a = left;
+    mut u64 b = right;
+    while (b != 0) { u64 remainder = a % b; a = b; b = remainder; }
+    return a;
+}
+
+/*
+ * Compute the nonnegative u64 least common multiple after dividing by gcd; zero inputs return zero and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64, IntegerMathError> lcm(u64 left, u64 right) {
+    if (left == 0 || right == 0) return Result.ok(0);
+    u64 reduced = left / gcd(left, right);
+    if (reduced > 18446744073709551615u64 / right) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(reduced * right);
+}
+
+/*
+ * Compute exact u64 exponentiation with checked products and at most 32 exponent steps; 0^0 is 1.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64, IntegerMathError> checked_pow(u64 base, u32 exponent) {
+    mut u64 result = 1;
+    mut u64 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) {
+            if (factor != 0 && result > 18446744073709551615u64 / factor) return Result.err(IntegerMathError.Overflow);
+            result *= factor;
+        }
+        remaining /= 2u32;
+        if (remaining != 0u32) {
+            if (factor != 0 && factor > 18446744073709551615u64 / factor) return Result.err(IntegerMathError.Overflow);
+            factor *= factor;
+        }
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Compute the exact nonnegative u128 greatest common divisor; gcd(0, 0) is zero. Euclidean remainder steps allocate nothing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 gcd(u128 left, u128 right) {
+    mut u128 a = left;
+    mut u128 b = right;
+    while (b != 0) { u128 remainder = a % b; a = b; b = remainder; }
+    return a;
+}
+
+/*
+ * Compute the nonnegative u128 least common multiple after dividing by gcd; zero inputs return zero and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128, IntegerMathError> lcm(u128 left, u128 right) {
+    if (left == 0 || right == 0) return Result.ok(0);
+    u128 reduced = left / gcd(left, right);
+    if (reduced > 340282366920938463463374607431768211455u128 / right) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(reduced * right);
+}
+
+/*
+ * Compute exact u128 exponentiation with checked products and at most 32 exponent steps; 0^0 is 1.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128, IntegerMathError> checked_pow(u128 base, u32 exponent) {
+    mut u128 result = 1;
+    mut u128 factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) {
+            if (factor != 0 && result > 340282366920938463463374607431768211455u128 / factor) return Result.err(IntegerMathError.Overflow);
+            result *= factor;
+        }
+        remaining /= 2u32;
+        if (remaining != 0u32) {
+            if (factor != 0 && factor > 340282366920938463463374607431768211455u128 / factor) return Result.err(IntegerMathError.Overflow);
+            factor *= factor;
+        }
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Compute the exact nonnegative usize greatest common divisor; gcd(0, 0) is zero. Euclidean remainder steps allocate nothing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize gcd(usize left, usize right) {
+    mut usize a = left;
+    mut usize b = right;
+    while (b != 0) { usize remainder = a % b; a = b; b = remainder; }
+    return a;
+}
+
+/*
+ * Compute the nonnegative usize least common multiple after dividing by gcd; zero inputs return zero and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, IntegerMathError> lcm(usize left, usize right) {
+    if (left == 0 || right == 0) return Result.ok(0);
+    usize reduced = left / gcd(left, right);
+    if (reduced > 18446744073709551615usize / right) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(reduced * right);
+}
+
+/*
+ * Compute exact usize exponentiation with checked products and at most 32 exponent steps; 0^0 is 1.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, IntegerMathError> checked_pow(usize base, u32 exponent) {
+    mut usize result = 1;
+    mut usize factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {
+        if (remaining % 2u32 != 0u32) {
+            if (factor != 0 && result > 18446744073709551615usize / factor) return Result.err(IntegerMathError.Overflow);
+            result *= factor;
+        }
+        remaining /= 2u32;
+        if (remaining != 0u32) {
+            if (factor != 0 && factor > 18446744073709551615usize / factor) return Result.err(IntegerMathError.Overflow);
+            factor *= factor;
+        }
+    }
+    return Result.ok(result);
+}
+
+/*
+ * Return the exact u8 magnitude of i8, including its signed minimum. Never negate MIN directly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 unsigned_abs(i8 value) {
+    i8 nonnegative = value < 0 ? -(value + 1) : value;
+    Result<u8, IntegerError> converted = Integer.convert<u8>(nonnegative);
+    switch (converted) {
+        case Result<u8, IntegerError>.Ok { u8 magnitude = value }: return value < 0 ? magnitude + 1 : magnitude; break;
+        default: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Return the i8 absolute value, reporting Overflow for its unrepresentable signed minimum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8, IntegerMathError> checked_abs(i8 value) {
+    if (value == -128i8) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(value < 0 ? -value : value);
+}
+
+/*
+ * Compute gcd of i8 magnitudes in u8, preserving the signed-minimum magnitude; gcd(0, 0) is zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u8 gcd(i8 left, i8 right) { return gcd(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute lcm of i8 magnitudes in u8 with explicit overflow and no signed-minimum negation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8, IntegerMathError> lcm(i8 left, i8 right) { return lcm(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute exact i8 powers through u8 magnitudes; 0^0 is 1, a representable negative minimum is preserved, and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8, IntegerMathError> checked_pow(i8 base, u32 exponent) {
+    u8 magnitude = checked_pow(unsigned_abs(base), exponent)?;
+    if (base < 0 && exponent % 2u32 != 0u32) {
+        Result<i8, IntegerError> converted = Integer.convert<i8>(magnitude - 1);
+        switch (converted) {
+            case Result<i8, IntegerError>.Ok { i8 predecessor = value }: return Result.ok(-predecessor - 1); break;
+            default: return Result.err(IntegerMathError.Overflow); break;
+        }
+    }
+    Result<i8, IntegerError> converted = Integer.convert<i8>(magnitude);
+    switch (converted) {
+        case Result<i8, IntegerError>.Ok { i8 output = value }: return Result.ok(output); break;
+        default: return Result.err(IntegerMathError.Overflow); break;
+    }
+}
+
+/*
+ * Return the exact u16 magnitude of i16, including its signed minimum. Never negate MIN directly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 unsigned_abs(i16 value) {
+    i16 nonnegative = value < 0 ? -(value + 1) : value;
+    Result<u16, IntegerError> converted = Integer.convert<u16>(nonnegative);
+    switch (converted) {
+        case Result<u16, IntegerError>.Ok { u16 magnitude = value }: return value < 0 ? magnitude + 1 : magnitude; break;
+        default: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Return the i16 absolute value, reporting Overflow for its unrepresentable signed minimum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16, IntegerMathError> checked_abs(i16 value) {
+    if (value == -32768i16) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(value < 0 ? -value : value);
+}
+
+/*
+ * Compute gcd of i16 magnitudes in u16, preserving the signed-minimum magnitude; gcd(0, 0) is zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u16 gcd(i16 left, i16 right) { return gcd(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute lcm of i16 magnitudes in u16 with explicit overflow and no signed-minimum negation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16, IntegerMathError> lcm(i16 left, i16 right) { return lcm(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute exact i16 powers through u16 magnitudes; 0^0 is 1, a representable negative minimum is preserved, and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16, IntegerMathError> checked_pow(i16 base, u32 exponent) {
+    u16 magnitude = checked_pow(unsigned_abs(base), exponent)?;
+    if (base < 0 && exponent % 2u32 != 0u32) {
+        Result<i16, IntegerError> converted = Integer.convert<i16>(magnitude - 1);
+        switch (converted) {
+            case Result<i16, IntegerError>.Ok { i16 predecessor = value }: return Result.ok(-predecessor - 1); break;
+            default: return Result.err(IntegerMathError.Overflow); break;
+        }
+    }
+    Result<i16, IntegerError> converted = Integer.convert<i16>(magnitude);
+    switch (converted) {
+        case Result<i16, IntegerError>.Ok { i16 output = value }: return Result.ok(output); break;
+        default: return Result.err(IntegerMathError.Overflow); break;
+    }
+}
+
+/*
+ * Return the exact u32 magnitude of i32, including its signed minimum. Never negate MIN directly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 unsigned_abs(i32 value) {
+    i32 nonnegative = value < 0 ? -(value + 1) : value;
+    Result<u32, IntegerError> converted = Integer.convert<u32>(nonnegative);
+    switch (converted) {
+        case Result<u32, IntegerError>.Ok { u32 magnitude = value }: return value < 0 ? magnitude + 1 : magnitude; break;
+        default: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Return the i32 absolute value, reporting Overflow for its unrepresentable signed minimum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32, IntegerMathError> checked_abs(i32 value) {
+    if (value == -2147483648i32) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(value < 0 ? -value : value);
+}
+
+/*
+ * Compute gcd of i32 magnitudes in u32, preserving the signed-minimum magnitude; gcd(0, 0) is zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 gcd(i32 left, i32 right) { return gcd(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute lcm of i32 magnitudes in u32 with explicit overflow and no signed-minimum negation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32, IntegerMathError> lcm(i32 left, i32 right) { return lcm(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute exact i32 powers through u32 magnitudes; 0^0 is 1, a representable negative minimum is preserved, and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32, IntegerMathError> checked_pow(i32 base, u32 exponent) {
+    u32 magnitude = checked_pow(unsigned_abs(base), exponent)?;
+    if (base < 0 && exponent % 2u32 != 0u32) {
+        Result<i32, IntegerError> converted = Integer.convert<i32>(magnitude - 1);
+        switch (converted) {
+            case Result<i32, IntegerError>.Ok { i32 predecessor = value }: return Result.ok(-predecessor - 1); break;
+            default: return Result.err(IntegerMathError.Overflow); break;
+        }
+    }
+    Result<i32, IntegerError> converted = Integer.convert<i32>(magnitude);
+    switch (converted) {
+        case Result<i32, IntegerError>.Ok { i32 output = value }: return Result.ok(output); break;
+        default: return Result.err(IntegerMathError.Overflow); break;
+    }
+}
+
+/*
+ * Return the exact u64 magnitude of i64, including its signed minimum. Never negate MIN directly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 unsigned_abs(i64 value) {
+    i64 nonnegative = value < 0 ? -(value + 1) : value;
+    Result<u64, IntegerError> converted = Integer.convert<u64>(nonnegative);
+    switch (converted) {
+        case Result<u64, IntegerError>.Ok { u64 magnitude = value }: return value < 0 ? magnitude + 1 : magnitude; break;
+        default: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Return the i64 absolute value, reporting Overflow for its unrepresentable signed minimum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64, IntegerMathError> checked_abs(i64 value) {
+    if (value == -9223372036854775808i64) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(value < 0 ? -value : value);
+}
+
+/*
+ * Compute gcd of i64 magnitudes in u64, preserving the signed-minimum magnitude; gcd(0, 0) is zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 gcd(i64 left, i64 right) { return gcd(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute lcm of i64 magnitudes in u64 with explicit overflow and no signed-minimum negation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64, IntegerMathError> lcm(i64 left, i64 right) { return lcm(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute exact i64 powers through u64 magnitudes; 0^0 is 1, a representable negative minimum is preserved, and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64, IntegerMathError> checked_pow(i64 base, u32 exponent) {
+    u64 magnitude = checked_pow(unsigned_abs(base), exponent)?;
+    if (base < 0 && exponent % 2u32 != 0u32) {
+        Result<i64, IntegerError> converted = Integer.convert<i64>(magnitude - 1);
+        switch (converted) {
+            case Result<i64, IntegerError>.Ok { i64 predecessor = value }: return Result.ok(-predecessor - 1); break;
+            default: return Result.err(IntegerMathError.Overflow); break;
+        }
+    }
+    Result<i64, IntegerError> converted = Integer.convert<i64>(magnitude);
+    switch (converted) {
+        case Result<i64, IntegerError>.Ok { i64 output = value }: return Result.ok(output); break;
+        default: return Result.err(IntegerMathError.Overflow); break;
+    }
+}
+
+/*
+ * Return the exact u128 magnitude of i128, including its signed minimum. Never negate MIN directly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 unsigned_abs(i128 value) {
+    i128 nonnegative = value < 0 ? -(value + 1) : value;
+    Result<u128, IntegerError> converted = Integer.convert<u128>(nonnegative);
+    switch (converted) {
+        case Result<u128, IntegerError>.Ok { u128 magnitude = value }: return value < 0 ? magnitude + 1 : magnitude; break;
+        default: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Return the i128 absolute value, reporting Overflow for its unrepresentable signed minimum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128, IntegerMathError> checked_abs(i128 value) {
+    if (value == -170141183460469231731687303715884105728i128) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(value < 0 ? -value : value);
+}
+
+/*
+ * Compute gcd of i128 magnitudes in u128, preserving the signed-minimum magnitude; gcd(0, 0) is zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u128 gcd(i128 left, i128 right) { return gcd(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute lcm of i128 magnitudes in u128 with explicit overflow and no signed-minimum negation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128, IntegerMathError> lcm(i128 left, i128 right) { return lcm(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute exact i128 powers through u128 magnitudes; 0^0 is 1, a representable negative minimum is preserved, and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128, IntegerMathError> checked_pow(i128 base, u32 exponent) {
+    u128 magnitude = checked_pow(unsigned_abs(base), exponent)?;
+    if (base < 0 && exponent % 2u32 != 0u32) {
+        Result<i128, IntegerError> converted = Integer.convert<i128>(magnitude - 1);
+        switch (converted) {
+            case Result<i128, IntegerError>.Ok { i128 predecessor = value }: return Result.ok(-predecessor - 1); break;
+            default: return Result.err(IntegerMathError.Overflow); break;
+        }
+    }
+    Result<i128, IntegerError> converted = Integer.convert<i128>(magnitude);
+    switch (converted) {
+        case Result<i128, IntegerError>.Ok { i128 output = value }: return Result.ok(output); break;
+        default: return Result.err(IntegerMathError.Overflow); break;
+    }
+}
+
+/*
+ * Return the exact usize magnitude of isize, including its signed minimum. Never negate MIN directly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize unsigned_abs(isize value) {
+    isize nonnegative = value < 0 ? -(value + 1) : value;
+    Result<usize, IntegerError> converted = Integer.convert<usize>(nonnegative);
+    switch (converted) {
+        case Result<usize, IntegerError>.Ok { usize magnitude = value }: return value < 0 ? magnitude + 1 : magnitude; break;
+        default: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Return the isize absolute value, reporting Overflow for its unrepresentable signed minimum.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize, IntegerMathError> checked_abs(isize value) {
+    if (value == -9223372036854775808isize) return Result.err(IntegerMathError.Overflow);
+    return Result.ok(value < 0 ? -value : value);
+}
+
+/*
+ * Compute gcd of isize magnitudes in usize, preserving the signed-minimum magnitude; gcd(0, 0) is zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize gcd(isize left, isize right) { return gcd(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute lcm of isize magnitudes in usize with explicit overflow and no signed-minimum negation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, IntegerMathError> lcm(isize left, isize right) { return lcm(unsigned_abs(left), unsigned_abs(right)); }
+
+/*
+ * Compute exact isize powers through usize magnitudes; 0^0 is 1, a representable negative minimum is preserved, and overflow is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<isize, IntegerMathError> checked_pow(isize base, u32 exponent) {
+    usize magnitude = checked_pow(unsigned_abs(base), exponent)?;
+    if (base < 0 && exponent % 2u32 != 0u32) {
+        Result<isize, IntegerError> converted = Integer.convert<isize>(magnitude - 1);
+        switch (converted) {
+            case Result<isize, IntegerError>.Ok { isize predecessor = value }: return Result.ok(-predecessor - 1); break;
+            default: return Result.err(IntegerMathError.Overflow); break;
+        }
+    }
+    Result<isize, IntegerError> converted = Integer.convert<isize>(magnitude);
+    switch (converted) {
+        case Result<isize, IntegerError>.Ok { isize output = value }: return Result.ok(output); break;
+        default: return Result.err(IntegerMathError.Overflow); break;
+    }
+}
+
+// Native scalar floating-point mathematics.
+/*
+ * Scalar f32/f64 functions use the host C math library without allocation.
+ * NaN, infinity, signed zero and the current floating-point environment follow that library.
+ * Transcendental results may differ in their last bits between target math libraries.
+ * errno and floating-point status flags are not translated into Aevix errors by these calls.
+ * Reference: https://eel.is/c++draft/c.math
+ */
+/*
+ * Checked floating-point domain, finite-input, result-overflow and clamp-bound failures.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum FloatMathError implements Copy, Error {
+    /*
+     * Version history for the math.FloatMathError.Domain public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Domain;
+    /*
+     * Version history for the math.FloatMathError.NonFinite public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NonFinite;
+    /*
+     * Version history for the math.FloatMathError.Overflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Overflow;
+    /*
+     * Version history for the math.FloatMathError.InvalidBounds public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidBounds;
+    /*
+     * Version history for the math.FloatMathError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&FloatMathError self) {
+        switch (*self) {
+            case FloatMathError.Domain: return "math.float_domain"; break;
+            case FloatMathError.NonFinite: return "math.non_finite"; break;
+            case FloatMathError.Overflow: return "math.float_overflow"; break;
+            case FloatMathError.InvalidBounds: return "math.invalid_float_bounds"; break;
+        }
+    }
+    /*
+     * Version history for the math.FloatMathError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&FloatMathError self) {
+        switch (*self) {
+            case FloatMathError.Domain: return "The finite arguments are outside the function domain."; break;
+            case FloatMathError.NonFinite: return "The checked operation requires finite arguments."; break;
+            case FloatMathError.Overflow: return "The floating-point result is not finite."; break;
+            case FloatMathError.InvalidBounds: return "Clamp bounds are NaN or in descending order."; break;
+        }
+    }
+};
+
+/*
+ * Nearest f32 representation of PI.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 PI_F32 = 3.14159265358979323846264338327950288;
+/*
+ * Nearest f32 representation of TAU.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 TAU_F32 = 6.28318530717958647692528676655900576;
+/*
+ * Nearest f32 representation of E.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 E_F32 = 2.71828182845904523536028747135266250;
+/*
+ * Nearest f32 representation of LN2.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 LN2_F32 = 0.693147180559945309417232121458176568;
+/*
+ * Nearest f32 representation of LN10.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 LN10_F32 = 2.30258509299404568401799145468436421;
+/*
+ * Nearest f32 representation of SQRT2.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 SQRT2_F32 = 1.41421356237309504880168872420969808;
+/*
+ * Nearest f64 representation of PI.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 PI = 3.14159265358979323846264338327950288;
+/*
+ * Nearest f64 representation of TAU.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 TAU = 6.28318530717958647692528676655900576;
+/*
+ * Nearest f64 representation of E.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 E = 2.71828182845904523536028747135266250;
+/*
+ * Nearest f64 representation of LN2.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 LN2 = 0.693147180559945309417232121458176568;
+/*
+ * Nearest f64 representation of LN10.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 LN10 = 2.30258509299404568401799145468436421;
+/*
+ * Nearest f64 representation of SQRT2.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 SQRT2 = 1.41421356237309504880168872420969808;
+/*
+ * Native sin; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 sin(f64 value);
+extern "C" f32 sinf(f32 value);
+/*
+ * Native sin; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 sin(f32 value) { return sinf(value); }
+/*
+ * Native cos; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 cos(f64 value);
+extern "C" f32 cosf(f32 value);
+/*
+ * Native cos; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 cos(f32 value) { return cosf(value); }
+/*
+ * Native tan; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 tan(f64 value);
+extern "C" f32 tanf(f32 value);
+/*
+ * Native tan; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 tan(f32 value) { return tanf(value); }
+/*
+ * Native asin; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 asin(f64 value);
+extern "C" f32 asinf(f32 value);
+/*
+ * Native asin; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 asin(f32 value) { return asinf(value); }
+/*
+ * Native acos; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 acos(f64 value);
+extern "C" f32 acosf(f32 value);
+/*
+ * Native acos; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 acos(f32 value) { return acosf(value); }
+/*
+ * Native atan; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 atan(f64 value);
+extern "C" f32 atanf(f32 value);
+/*
+ * Native atan; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 atan(f32 value) { return atanf(value); }
+/*
+ * Native sinh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 sinh(f64 value);
+extern "C" f32 sinhf(f32 value);
+/*
+ * Native sinh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 sinh(f32 value) { return sinhf(value); }
+/*
+ * Native cosh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 cosh(f64 value);
+extern "C" f32 coshf(f32 value);
+/*
+ * Native cosh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 cosh(f32 value) { return coshf(value); }
+/*
+ * Native tanh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 tanh(f64 value);
+extern "C" f32 tanhf(f32 value);
+/*
+ * Native tanh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 tanh(f32 value) { return tanhf(value); }
+/*
+ * Native asinh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 asinh(f64 value);
+extern "C" f32 asinhf(f32 value);
+/*
+ * Native asinh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 asinh(f32 value) { return asinhf(value); }
+/*
+ * Native acosh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 acosh(f64 value);
+extern "C" f32 acoshf(f32 value);
+/*
+ * Native acosh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 acosh(f32 value) { return acoshf(value); }
+/*
+ * Native atanh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 atanh(f64 value);
+extern "C" f32 atanhf(f32 value);
+/*
+ * Native atanh; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 atanh(f32 value) { return atanhf(value); }
+/*
+ * Native exp; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 exp(f64 value);
+extern "C" f32 expf(f32 value);
+/*
+ * Native exp; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 exp(f32 value) { return expf(value); }
+/*
+ * Native exp2; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 exp2(f64 value);
+extern "C" f32 exp2f(f32 value);
+/*
+ * Native exp2; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 exp2(f32 value) { return exp2f(value); }
+/*
+ * Native expm1; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 expm1(f64 value);
+extern "C" f32 expm1f(f32 value);
+/*
+ * Native expm1; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 expm1(f32 value) { return expm1f(value); }
+/*
+ * Native log; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 log(f64 value);
+extern "C" f32 logf(f32 value);
+/*
+ * Native log; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 log(f32 value) { return logf(value); }
+/*
+ * Native log2; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 log2(f64 value);
+extern "C" f32 log2f(f32 value);
+/*
+ * Native log2; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 log2(f32 value) { return log2f(value); }
+/*
+ * Native log10; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 log10(f64 value);
+extern "C" f32 log10f(f32 value);
+/*
+ * Native log10; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 log10(f32 value) { return log10f(value); }
+/*
+ * Native log1p; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 log1p(f64 value);
+extern "C" f32 log1pf(f32 value);
+/*
+ * Native log1p; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 log1p(f32 value) { return log1pf(value); }
+/*
+ * Native sqrt; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 sqrt(f64 value);
+extern "C" f32 sqrtf(f32 value);
+/*
+ * Native sqrt; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 sqrt(f32 value) { return sqrtf(value); }
+/*
+ * Native cbrt; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 cbrt(f64 value);
+extern "C" f32 cbrtf(f32 value);
+/*
+ * Native cbrt; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 cbrt(f32 value) { return cbrtf(value); }
+/*
+ * Native floor; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 floor(f64 value);
+extern "C" f32 floorf(f32 value);
+/*
+ * Native floor; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 floor(f32 value) { return floorf(value); }
+/*
+ * Native ceil; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 ceil(f64 value);
+extern "C" f32 ceilf(f32 value);
+/*
+ * Native ceil; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 ceil(f32 value) { return ceilf(value); }
+/*
+ * Native trunc; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 trunc(f64 value);
+extern "C" f32 truncf(f32 value);
+/*
+ * Native trunc; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 trunc(f32 value) { return truncf(value); }
+/*
+ * Round halfway cases away from zero, independent of the current rounding direction.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 round(f64 value);
+extern "C" f32 roundf(f32 value);
+/*
+ * Round halfway cases away from zero, independent of the current rounding direction.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 round(f32 value) { return roundf(value); }
+/*
+ * Round to an integral value using the current native rounding direction.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 nearbyint(f64 value);
+extern "C" f32 nearbyintf(f32 value);
+/*
+ * Round to an integral value using the current native rounding direction.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 nearbyint(f32 value) { return nearbyintf(value); }
+/*
+ * Round to an integral value using the current native rounding direction.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 rint(f64 value);
+extern "C" f32 rintf(f32 value);
+/*
+ * Round to an integral value using the current native rounding direction.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 rint(f32 value) { return rintf(value); }
+/*
+ * Native erf; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 erf(f64 value);
+extern "C" f32 erff(f32 value);
+/*
+ * Native erf; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 erf(f32 value) { return erff(value); }
+/*
+ * Native erfc; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 erfc(f64 value);
+extern "C" f32 erfcf(f32 value);
+/*
+ * Native erfc; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 erfc(f32 value) { return erfcf(value); }
+/*
+ * Native tgamma; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 tgamma(f64 value);
+extern "C" f32 tgammaf(f32 value);
+/*
+ * Native tgamma; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 tgamma(f32 value) { return tgammaf(value); }
+/*
+ * Native atan2; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 atan2(f64 left, f64 right);
+extern "C" f32 atan2f(f32 left, f32 right);
+/*
+ * Native atan2; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 atan2(f32 left, f32 right) { return atan2f(left, right); }
+/*
+ * Native pow; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 pow(f64 left, f64 right);
+extern "C" f32 powf(f32 left, f32 right);
+/*
+ * Native pow; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 pow(f32 left, f32 right) { return powf(left, right); }
+/*
+ * Native hypot; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 hypot(f64 left, f64 right);
+extern "C" f32 hypotf(f32 left, f32 right);
+/*
+ * Native hypot; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 hypot(f32 left, f32 right) { return hypotf(left, right); }
+/*
+ * Remainder using a quotient truncated toward zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 fmod(f64 left, f64 right);
+extern "C" f32 fmodf(f32 left, f32 right);
+/*
+ * Remainder using a quotient truncated toward zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 fmod(f32 left, f32 right) { return fmodf(left, right); }
+/*
+ * IEEE remainder using the nearest integral quotient, with ties to even.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 remainder(f64 left, f64 right);
+extern "C" f32 remainderf(f32 left, f32 right);
+/*
+ * IEEE remainder using the nearest integral quotient, with ties to even.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 remainder(f32 left, f32 right) { return remainderf(left, right); }
+/*
+ * Native copysign; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 copysign(f64 left, f64 right);
+extern "C" f32 copysignf(f32 left, f32 right);
+/*
+ * Native copysign; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 copysign(f32 left, f32 right) { return copysignf(left, right); }
+/*
+ * Native nextafter; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 nextafter(f64 left, f64 right);
+extern "C" f32 nextafterf(f32 left, f32 right);
+/*
+ * Native nextafter; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 nextafter(f32 left, f32 right) { return nextafterf(left, right); }
+/*
+ * Native fdim; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 fdim(f64 left, f64 right);
+extern "C" f32 fdimf(f32 left, f32 right);
+/*
+ * Native fdim; host C math domain and rounding behavior, with no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 fdim(f32 left, f32 right) { return fdimf(left, right); }
+/*
+ * Compute left * right + addend with one final floating-point rounding.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public extern "C" f64 fma(f64 left, f64 right, f64 addend);
+extern "C" f32 fmaf(f32 left, f32 right, f32 addend);
+/*
+ * Compute left * right + addend with one final floating-point rounding.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 fma(f32 left, f32 right, f32 addend) { return fmaf(left, right, addend); }
+extern "C" f32 fabsf(f32 value);
+extern "C" f32 fminf(f32 left, f32 right);
+extern "C" f32 fmaxf(f32 left, f32 right);
+/*
+ * Absolute value, including positive zero for either signed zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 abs(f32 value) { return fabsf(value); }
+/*
+ * Return the numeric argument when exactly one input is NaN; equal signed-zero choice follows host C math.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 min(f32 left, f32 right) { return fminf(left, right); }
+/*
+ * Return the numeric argument when exactly one input is NaN; equal signed-zero choice follows host C math.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 max(f32 left, f32 right) { return fmaxf(left, right); }
+/*
+ * Test whether the value is NaN without allocating.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_nan(f32 value) { return value != value; }
+/*
+ * Test either infinity; NaN returns false.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_infinite(f32 value) { return value > 3.4028234663852886e38 || value < -3.4028234663852886e38; }
+/*
+ * Test finite normal, subnormal and zero values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_finite(f32 value) { return value == value && value <= 3.4028234663852886e38 && value >= -3.4028234663852886e38; }
+/*
+ * Inspect the sign, including negative zero and signed NaN.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_negative(f32 value) { return copysign(1.0, value) < 0.0; }
+/*
+ * Test finite values with a normal exponent.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_normal(f32 value) { return is_finite(value) && abs(value) >= 1.1754943508222875e-38; }
+/*
+ * Test finite nonzero values below the smallest normal magnitude.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_subnormal(f32 value) { return is_finite(value) && value != 0.0 && abs(value) < 1.1754943508222875e-38; }
+/*
+ * Classify the scalar without interpreting its NaN payload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public FloatClass classify(f32 value) { if (is_nan(value)) return FloatClass.Nan; if (is_infinite(value)) return FloatClass.Infinite; if (value == 0.0) return FloatClass.Zero; if (is_subnormal(value)) return FloatClass.Subnormal; return FloatClass.Normal; }
+/*
+ * Return signed one for nonzero non-NaN values; preserve signed zero and a NaN value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 signum(f32 value) { if (is_nan(value) || value == 0.0) return value; return copysign(1.0, value); }
+/*
+ * Clamp to inclusive non-NaN ascending bounds; a NaN input remains NaN.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, FloatMathError> clamp(f32 value, f32 lower, f32 upper) { if (is_nan(lower) || is_nan(upper) || lower > upper) return Result.err(FloatMathError.InvalidBounds); return Result.ok(value < lower ? lower : value > upper ? upper : value); }
+/*
+ * Require a finite nonnegative input and return its square root.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, FloatMathError> checked_sqrt(f32 value) { if (!is_finite(value)) return Result.err(FloatMathError.NonFinite); if (value < 0.0) return Result.err(FloatMathError.Domain); return Result.ok(sqrt(value)); }
+/*
+ * Require a finite positive input and return its natural logarithm.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, FloatMathError> checked_log(f32 value) { if (!is_finite(value)) return Result.err(FloatMathError.NonFinite); if (value <= 0.0) return Result.err(FloatMathError.Domain); return Result.ok(log(value)); }
+/*
+ * Reject nonfinite input or an overflowing exponential; finite underflow to zero is retained.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, FloatMathError> checked_exp(f32 value) { if (!is_finite(value)) return Result.err(FloatMathError.NonFinite); f32 computed = exp(value); if (!is_finite(computed)) return Result.err(FloatMathError.Overflow); return Result.ok(computed); }
+/*
+ * Check finite inputs, real-domain validity and finite result; zero to zero is one.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, FloatMathError> checked_pow(f32 base, f32 exponent) { if (!is_finite(base) || !is_finite(exponent)) return Result.err(FloatMathError.NonFinite); if (base == 0.0 && exponent < 0.0) return Result.err(FloatMathError.Domain); f32 computed = pow(base, exponent); if (is_nan(computed)) return Result.err(FloatMathError.Domain); if (!is_finite(computed)) return Result.err(FloatMathError.Overflow); return Result.ok(computed); }
+/*
+ * Check finite inputs and finite hypotenuse output without a naive squared intermediate.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, FloatMathError> checked_hypot(f32 left, f32 right) { if (!is_finite(left) || !is_finite(right)) return Result.err(FloatMathError.NonFinite); f32 computed = hypot(left, right); if (!is_finite(computed)) return Result.err(FloatMathError.Overflow); return Result.ok(computed); }
+extern "C" f64 fabs(f64 value);
+extern "C" f64 fmin(f64 left, f64 right);
+extern "C" f64 fmax(f64 left, f64 right);
+/*
+ * Absolute value, including positive zero for either signed zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 abs(f64 value) { return fabs(value); }
+/*
+ * Return the numeric argument when exactly one input is NaN; equal signed-zero choice follows host C math.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 min(f64 left, f64 right) { return fmin(left, right); }
+/*
+ * Return the numeric argument when exactly one input is NaN; equal signed-zero choice follows host C math.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 max(f64 left, f64 right) { return fmax(left, right); }
+/*
+ * Test whether the value is NaN without allocating.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_nan(f64 value) { return value != value; }
+/*
+ * Test either infinity; NaN returns false.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_infinite(f64 value) { return value > 1.7976931348623157e308 || value < -1.7976931348623157e308; }
+/*
+ * Test finite normal, subnormal and zero values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_finite(f64 value) { return value == value && value <= 1.7976931348623157e308 && value >= -1.7976931348623157e308; }
+/*
+ * Inspect the sign, including negative zero and signed NaN.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_negative(f64 value) { return copysign(1.0, value) < 0.0; }
+/*
+ * Test finite values with a normal exponent.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_normal(f64 value) { return is_finite(value) && abs(value) >= 2.2250738585072014e-308; }
+/*
+ * Test finite nonzero values below the smallest normal magnitude.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_subnormal(f64 value) { return is_finite(value) && value != 0.0 && abs(value) < 2.2250738585072014e-308; }
+/*
+ * Classify the scalar without interpreting its NaN payload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public FloatClass classify(f64 value) { if (is_nan(value)) return FloatClass.Nan; if (is_infinite(value)) return FloatClass.Infinite; if (value == 0.0) return FloatClass.Zero; if (is_subnormal(value)) return FloatClass.Subnormal; return FloatClass.Normal; }
+/*
+ * Return signed one for nonzero non-NaN values; preserve signed zero and a NaN value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 signum(f64 value) { if (is_nan(value) || value == 0.0) return value; return copysign(1.0, value); }
+/*
+ * Clamp to inclusive non-NaN ascending bounds; a NaN input remains NaN.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, FloatMathError> clamp(f64 value, f64 lower, f64 upper) { if (is_nan(lower) || is_nan(upper) || lower > upper) return Result.err(FloatMathError.InvalidBounds); return Result.ok(value < lower ? lower : value > upper ? upper : value); }
+/*
+ * Require a finite nonnegative input and return its square root.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, FloatMathError> checked_sqrt(f64 value) { if (!is_finite(value)) return Result.err(FloatMathError.NonFinite); if (value < 0.0) return Result.err(FloatMathError.Domain); return Result.ok(sqrt(value)); }
+/*
+ * Require a finite positive input and return its natural logarithm.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, FloatMathError> checked_log(f64 value) { if (!is_finite(value)) return Result.err(FloatMathError.NonFinite); if (value <= 0.0) return Result.err(FloatMathError.Domain); return Result.ok(log(value)); }
+/*
+ * Reject nonfinite input or an overflowing exponential; finite underflow to zero is retained.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, FloatMathError> checked_exp(f64 value) { if (!is_finite(value)) return Result.err(FloatMathError.NonFinite); f64 computed = exp(value); if (!is_finite(computed)) return Result.err(FloatMathError.Overflow); return Result.ok(computed); }
+/*
+ * Check finite inputs, real-domain validity and finite result; zero to zero is one.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, FloatMathError> checked_pow(f64 base, f64 exponent) { if (!is_finite(base) || !is_finite(exponent)) return Result.err(FloatMathError.NonFinite); if (base == 0.0 && exponent < 0.0) return Result.err(FloatMathError.Domain); f64 computed = pow(base, exponent); if (is_nan(computed)) return Result.err(FloatMathError.Domain); if (!is_finite(computed)) return Result.err(FloatMathError.Overflow); return Result.ok(computed); }
+/*
+ * Check finite inputs and finite hypotenuse output without a naive squared intermediate.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, FloatMathError> checked_hypot(f64 left, f64 right) { if (!is_finite(left) || !is_finite(right)) return Result.err(FloatMathError.NonFinite); f64 computed = hypot(left, right); if (!is_finite(computed)) return Result.err(FloatMathError.Overflow); return Result.ok(computed); }

@@ -1,0 +1,140 @@
+/* Owning byte buffer mutation and checked borrowed subrange contracts. */
+import bytes;
+T success<T,E>(Result<T,E> input) {
+    switch (move input) { case Result<T,E>.Ok { T value = value }: return value; break; default: Never.unreachable(); break; }
+}
+T present<T>(Optional<T> input) {
+    switch (move input) { case Optional<T>.Some { T value = value }: return value; break; default: Never.unreachable(); break; }
+}
+bool bounds<T>(Result<T,bytes.ByteError> input, usize offset, usize width, usize length) {
+    switch (move input) {
+        case Result<T,bytes.ByteError>.Err { bytes.ByteError reason = error }:
+            switch (reason) {
+                case bytes.ByteError.OutOfBounds { usize actual_offset = offset, usize actual_width = width, usize actual_length = length }: return actual_offset == offset && actual_width == width && actual_length == length; break;
+                default: return false; break;
+            }
+            break;
+        default: return false; break;
+    }
+}
+bool same(Slice<byte> first, Slice<byte> second) {
+    if (Slice.len(first) != Slice.len(second)) return false;
+    mut usize index = 0;
+    while (index < Slice.len(first)) { if (!bytes.equal(first[index], second[index])) return false; index++; }
+    return true;
+}
+i32 constructors() {
+    Vector<byte> empty = success(bytes.with_capacity(0));
+    if (Vector.len(&empty) != 0 || bytes.capacity(&empty) != 0) return 1;
+    Vector<byte> reserved = success(bytes.with_capacity(9));
+    if (Vector.len(&reserved) != 0 || bytes.capacity(&reserved) < 9) return 2;
+    Vector<byte> initialized = success(bytes.allocate(7));
+    if (Vector.len(&initialized) != 7) return 3;
+    mut usize index = 0;
+    while (index < 7) { if (Byte.to_u8(initialized[index]) != 0u8) return 4; index++; }
+    byte original[3] = [Byte.from_u8(1u8), Byte.from_u8(2u8), Byte.from_u8(3u8)];
+    mut Vector<byte> copied = success(bytes.from_slice(Slice.from_array(&original)));
+    copied[0] = Byte.from_u8(9u8);
+    if (Vector.len(&copied) != 3 || Byte.to_u8(copied[0]) != 9u8 || Byte.to_u8(original[0]) != 1u8) return 5;
+    byte nothing[0] = [];
+    Vector<byte> zero_copy = success(bytes.from_slice(Slice.from_array(&nothing)));
+    if (Vector.len(&zero_copy) != 0 || bytes.capacity(&zero_copy) != 0) return 6;
+    return 0;
+}
+i32 mutations() {
+    mut Vector<byte> buffer = success(bytes.allocate(0));
+    Optional<byte> missing = bytes.pop(&mut buffer);
+    if (!Optional.is_none(&missing)) return 1;
+    success(bytes.push(&mut buffer, Byte.from_u8(1u8)));
+    success(bytes.insert(&mut buffer, 0, Byte.from_u8(0u8)));
+    success(bytes.insert(&mut buffer, 2, Byte.from_u8(2u8)));
+    if (Vector.len(&buffer) != 3 || Byte.to_u8(buffer[0]) != 0u8 || Byte.to_u8(buffer[2]) != 2u8) return 2;
+    if (Byte.to_u8(success(bytes.remove(&mut buffer, 1))) != 1u8 || Vector.len(&buffer) != 2 || Byte.to_u8(buffer[1]) != 2u8) return 3;
+    if (!bounds(bytes.insert(&mut buffer, 3, Byte.from_u8(4u8)), 3, 0, 2) || !bounds(bytes.remove(&mut buffer, 2), 2, 1, 2)) return 4;
+    if (!bounds(bytes.truncate(&mut buffer, 3), 3, 0, 2) || Vector.len(&buffer) != 2) return 5;
+    success(bytes.reserve(&mut buffer, 12));
+    if (bytes.capacity(&buffer) < 14 || Vector.len(&buffer) != 2) return 6;
+    usize capacity = bytes.capacity(&buffer);
+    success(bytes.resize(&mut buffer, 5, Byte.from_u8(7u8)));
+    if (Vector.len(&buffer) != 5 || Byte.to_u8(buffer[0]) != 0u8 || Byte.to_u8(buffer[1]) != 2u8 || Byte.to_u8(buffer[4]) != 7u8) return 7;
+    success(bytes.resize(&mut buffer, 3, Byte.from_u8(9u8)));
+    if (Vector.len(&buffer) != 3 || Byte.to_u8(present(bytes.pop(&mut buffer))) != 7u8 || Vector.len(&buffer) != 2) return 8;
+    success(bytes.truncate(&mut buffer, 1));
+    if (Vector.len(&buffer) != 1 || bytes.capacity(&buffer) != capacity) return 9;
+    bytes.clear(&mut buffer);
+    if (Vector.len(&buffer) != 0 || bytes.capacity(&buffer) != capacity) return 10;
+    return 0;
+}
+i32 transfers() {
+    byte original[3] = [Byte.from_u8(1u8), Byte.from_u8(2u8), Byte.from_u8(3u8)];
+    mut Vector<byte> first = success(bytes.from_slice(Slice.from_array(&original)));
+    success(bytes.extend(&mut first, Slice.from_array(&original)));
+    if (Vector.len(&first) != 6 || Byte.to_u8(first[3]) != 1u8 || Byte.to_u8(first[5]) != 3u8) return 1;
+    mut Vector<byte> second = success(bytes.from_slice(Slice.from_array(&original)));
+    usize old_capacity = bytes.capacity(&second);
+    success(bytes.append(&mut first, &mut second));
+    if (Vector.len(&first) != 9 || Vector.len(&second) != 0 || bytes.capacity(&second) != old_capacity || Byte.to_u8(first[8]) != 3u8) return 2;
+    Vector<byte> tail = success(bytes.split_off(&mut first, 4));
+    if (Vector.len(&first) != 4 || Vector.len(&tail) != 5 || Byte.to_u8(tail[0]) != 2u8 || Byte.to_u8(tail[4]) != 3u8) return 3;
+    if (!bounds(bytes.split_off(&mut first, 5), 5, 0, 4) || Vector.len(&first) != 4) return 4;
+    Vector<byte> empty_tail = success(bytes.split_off(&mut first, 4));
+    if (Vector.len(&first) != 4 || Vector.len(&empty_tail) != 0 || bytes.capacity(&empty_tail) != 0) return 5;
+    Vector<byte> whole = success(bytes.split_off(&mut first, 0));
+    if (Vector.len(&first) != 0 || Vector.len(&whole) != 4) return 6;
+    return 0;
+}
+i32 copies() {
+    byte original[3] = [Byte.from_u8(1u8), Byte.from_u8(2u8), Byte.from_u8(3u8)];
+    mut byte output[3] = [Byte.from_u8(9u8), Byte.from_u8(9u8), Byte.from_u8(9u8)];
+    byte short[2] = [Byte.from_u8(4u8), Byte.from_u8(5u8)];
+    Result<unit,bytes.ByteError> mismatch = bytes.copy_from(Slice.from_array_mut(&mut output), Slice.from_array(&short));
+    switch (move mismatch) {
+        case Result<unit,bytes.ByteError>.Err { bytes.ByteError reason = error }:
+            switch (reason) {
+                case bytes.ByteError.LengthMismatch { usize expected = expected, usize actual = actual }:
+                    if (expected != 3 || actual != 2 || !string.equals(reason.code(), "bytes.length_mismatch")) return 1;
+                    break;
+                default: return 2; break;
+            }
+            break;
+        default: return 3; break;
+    }
+    if (Byte.to_u8(output[0]) != 9u8 || Byte.to_u8(output[2]) != 9u8) return 4;
+    success(bytes.copy_from(Slice.from_array_mut(&mut output), Slice.from_array(&original)));
+    if (!same(Slice.from_array(&output), Slice.from_array(&original))) return 5;
+    mut byte empty[0] = [];
+    byte empty_source[0] = [];
+    success(bytes.copy_from(Slice.from_array_mut(&mut empty), Slice.from_array(&empty_source)));
+    return 0;
+}
+Result<Slice<byte>,bytes.ByteError> read_tail(Slice<byte> input) { return bytes.slice(input, Range.new(1usize, Slice.len(input))); }
+Result<MutSlice<byte>,bytes.ByteError> write_head(MutSlice<byte> input) { return bytes.slice_mut(input, Range.closed(0usize, 1usize)); }
+i32 subranges() {
+    mut byte output[4] = [Byte.from_u8(1u8), Byte.from_u8(2u8), Byte.from_u8(3u8), Byte.from_u8(4u8)];
+    {
+        Slice<byte> tail = success(read_tail(Slice.from_array(&output)));
+        if (Slice.len(tail) != 3 || Byte.to_u8(tail[0]) != 2u8) return 1;
+        Slice<byte> empty = success(bytes.slice(Slice.from_array(&output), Range.new(4usize, 4usize)));
+        if (Slice.len(empty) != 0) return 2;
+        Slice<byte> one = success(bytes.slice(Slice.from_array(&output), Range.closed(3usize, 3usize)));
+        if (Slice.len(one) != 1 || Byte.to_u8(one[0]) != 4u8) return 3;
+    }
+    {
+        mut MutSlice<byte> head = success(write_head(Slice.from_array_mut(&mut output)));
+        if (Slice.len(&head) != 2) return 4;
+        head[0] = Byte.from_u8(8u8);
+        head[1] = Byte.from_u8(9u8);
+    }
+    if (Byte.to_u8(output[0]) != 8u8 || Byte.to_u8(output[1]) != 9u8 || Byte.to_u8(output[3]) != 4u8) return 5;
+    if (!bounds(bytes.slice(Slice.from_array(&output), Range.closed(0usize, 18446744073709551615usize)), 18446744073709551615usize, 1, 4)) return 6;
+    if (!bounds(bytes.slice_mut(Slice.from_array_mut(&mut output), Range.new(0usize, 5usize)), 0, 5, 4)) return 7;
+    return 0;
+}
+i32 main() {
+    if (constructors() != 0) return 1;
+    if (mutations() != 0) return 2;
+    if (transfers() != 0) return 3;
+    if (copies() != 0) return 4;
+    if (subranges() != 0) return 5;
+    return 0;
+}

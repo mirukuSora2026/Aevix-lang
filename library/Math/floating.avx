@@ -1,0 +1,1095 @@
+/*
+ * Exact-bit utilities for f16, bf16, f32 and f64. Every operation is O(1), performs no
+ * allocation, and calls no native/C math routine. Classification and sign operations
+ * never quiet a signaling NaN. Unary representation-preserving operations keep NaN
+ * payloads unless their documented sign operation changes that sign bit.
+ * Total comparison distinguishes signed zeros and NaN representations; it is not
+ * the same relation as ordinary floating equality or approximate equality.
+ * @module floating
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public import numeric { FloatClass };
+public import ordering { Ordering };
+
+/*
+ * f16 Spacing between one and the next greater representable value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f16 EPSILON_F16 = 0.0009765625f16;
+
+/*
+ * f16 Smallest strictly positive normal value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f16 MIN_POSITIVE_NORMAL_F16 = 6.103515625e-05f16;
+
+/*
+ * f16 Smallest strictly positive nonzero value, including subnormals.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f16 MIN_POSITIVE_SUBNORMAL_F16 = 5.960464477539063e-08f16;
+
+/*
+ * f16 Greatest finite value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f16 MAX_VALUE_F16 = 65504.0f16;
+
+/*
+ * f16 Least finite value, the negative of MAX_VALUE.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f16 MIN_VALUE_F16 = -65504.0f16;
+
+/*
+ * f16 Positive zero with an unset sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f16 POSITIVE_ZERO_F16 = 0.0f16;
+
+/*
+ * f16 Negative zero with a set sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f16 NEGATIVE_ZERO_F16 = -0.0f16;
+
+/*
+ * Return positive infinity in f16; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 infinity_f16() { return Float.from_bits<f16>(31744u16); }
+
+/*
+ * Return negative infinity in f16; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 neg_infinity_f16() { return Float.from_bits<f16>(64512u16); }
+
+/*
+ * Return a canonical positive quiet NaN with zero trailing payload in f16; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 nan_f16() { return Float.from_bits<f16>(32256u16); }
+
+/*
+ * Classify every f16 encoding without floating arithmetic; preserve the input representation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public FloatClass classify(f16 value) {
+    u16 raw = Float.to_bits(value);
+    u16 exponent = raw & 31744u16;
+    u16 fraction = raw & 1023u16;
+    if (exponent == 31744u16) return fraction == 0u16 ? FloatClass.Infinite : FloatClass.Nan;
+    if (exponent == 0u16) return fraction == 0u16 ? FloatClass.Zero : FloatClass.Subnormal;
+    return FloatClass.Normal;
+}
+
+/*
+ * f16: True for every quiet or signaling NaN, regardless of sign or payload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_nan(f16 value) {
+    return (Float.to_bits(value) & 32767u16) > 31744u16;
+}
+
+/*
+ * f16: True for either signed infinity.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_infinite(f16 value) {
+    return (Float.to_bits(value) & 32767u16) == 31744u16;
+}
+
+/*
+ * f16: True for signed zeros, subnormals and normal finite values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_finite(f16 value) {
+    return (Float.to_bits(value) & 32767u16) < 31744u16;
+}
+
+/*
+ * f16: True for finite nonzero normalized values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_normal(f16 value) {
+    return (Float.to_bits(value) & 31744u16) != 0u16 && (Float.to_bits(value) & 31744u16) != 31744u16;
+}
+
+/*
+ * f16: True for nonzero finite values below the normal threshold.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_subnormal(f16 value) {
+    return (Float.to_bits(value) & 31744u16) == 0u16 && (Float.to_bits(value) & 1023u16) != 0u16;
+}
+
+/*
+ * f16: True for either signed zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(f16 value) {
+    return (Float.to_bits(value) & 32767u16) == 0u16;
+}
+
+/*
+ * f16: Inspect the sign bit, including negative zero and negative NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_negative(f16 value) {
+    return (Float.to_bits(value) & 32768u16) != 0u16;
+}
+
+/*
+ * f16: Inspect an unset sign bit, including positive zero and positive NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_positive(f16 value) {
+    return (Float.to_bits(value) & 32768u16) == 0u16;
+}
+
+/*
+ * Invert only the f16 sign bit, preserving every magnitude and NaN payload bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 neg(f16 value) {
+    return Float.from_bits<f16>(Float.to_bits(value) ^ 32768u16);
+}
+
+/*
+ * Clear only the f16 sign bit; NaN payload and signaling state are preserved.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 abs(f16 value) {
+    return Float.from_bits<f16>(Float.to_bits(value) & 32767u16);
+}
+
+/*
+ * Keep f16 magnitude/payload from value and copy only the sign bit from sign.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 copy_sign(f16 value, f16 sign) {
+    return Float.from_bits<f16>((Float.to_bits(value) & 32767u16) | (Float.to_bits(sign) & 32768u16));
+}
+
+/*
+ * Return signed one for nonzero non-NaN f16; preserve signed zero and every NaN bit unchanged.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 signum(f16 value) {
+    if (is_nan(value) || is_zero(value)) return value;
+    return Float.from_bits<f16>((Float.to_bits(value) & 32768u16) | 15360u16);
+}
+
+/*
+ * Next numerically greater f16; preserve NaN bits and positive infinity. Either zero steps to the minimum positive subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 next_up(f16 value) {
+    if (is_nan(value)) return value;
+    u16 raw = Float.to_bits(value);
+    if (raw == 31744u16) return value;
+    if ((raw & 32767u16) == 0u16) return Float.from_bits<f16>(1u16);
+    return Float.from_bits<f16>((raw & 32768u16) != 0u16 ? raw - 1u16 : raw + 1u16);
+}
+
+/*
+ * Next numerically smaller f16; preserve NaN bits and negative infinity. Either zero steps to the minimum negative subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f16 next_down(f16 value) {
+    if (is_nan(value)) return value;
+    u16 raw = Float.to_bits(value);
+    if (raw == 64512u16) return value;
+    if ((raw & 32767u16) == 0u16) return Float.from_bits<f16>(32769u16);
+    return Float.from_bits<f16>((raw & 32768u16) != 0u16 ? raw + 1u16 : raw - 1u16);
+}
+
+/*
+ * IEEE total order for f16 encodings: negative NaNs, negative infinity, negative finite values, -0, +0, positive finite values, positive infinity, positive NaNs. Negative NaN quietness/payload order is reversed; identical encodings compare Equal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_cmp(f16 left, f16 right) {
+    u16 left_bits = Float.to_bits(left);
+    u16 right_bits = Float.to_bits(right);
+    u16 left_key = (left_bits & 32768u16) != 0u16 ? ~left_bits : left_bits | 32768u16;
+    u16 right_key = (right_bits & 32768u16) != 0u16 ? ~right_bits : right_bits | 32768u16;
+    if (left_key < right_key) return Ordering.Less;
+    if (left_key > right_key) return Ordering.Greater;
+    return Ordering.Equal;
+}
+
+/*
+ * Catalog-spelled alias of total_cmp for f16; preserves the same signed-zero and NaN distinctions.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_compare(f16 left, f16 right) {
+    return total_cmp(left, right);
+}
+
+/*
+ * bf16 Spacing between one and the next greater representable value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const bf16 EPSILON_BF16 = 0.0078125bf16;
+
+/*
+ * bf16 Smallest strictly positive normal value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const bf16 MIN_POSITIVE_NORMAL_BF16 = 1.1754943508222875e-38bf16;
+
+/*
+ * bf16 Smallest strictly positive nonzero value, including subnormals.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const bf16 MIN_POSITIVE_SUBNORMAL_BF16 = 9.183549615799121e-41bf16;
+
+/*
+ * bf16 Greatest finite value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const bf16 MAX_VALUE_BF16 = 3.3895313892515355e+38bf16;
+
+/*
+ * bf16 Least finite value, the negative of MAX_VALUE.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const bf16 MIN_VALUE_BF16 = -3.3895313892515355e+38bf16;
+
+/*
+ * bf16 Positive zero with an unset sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const bf16 POSITIVE_ZERO_BF16 = 0.0bf16;
+
+/*
+ * bf16 Negative zero with a set sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const bf16 NEGATIVE_ZERO_BF16 = -0.0bf16;
+
+/*
+ * Return positive infinity in bf16; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 infinity_bf16() { return Float.from_bits<bf16>(32640u16); }
+
+/*
+ * Return negative infinity in bf16; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 neg_infinity_bf16() { return Float.from_bits<bf16>(65408u16); }
+
+/*
+ * Return a canonical positive quiet NaN with zero trailing payload in bf16; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 nan_bf16() { return Float.from_bits<bf16>(32704u16); }
+
+/*
+ * Classify every bf16 encoding without floating arithmetic; preserve the input representation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public FloatClass classify(bf16 value) {
+    u16 raw = Float.to_bits(value);
+    u16 exponent = raw & 32640u16;
+    u16 fraction = raw & 127u16;
+    if (exponent == 32640u16) return fraction == 0u16 ? FloatClass.Infinite : FloatClass.Nan;
+    if (exponent == 0u16) return fraction == 0u16 ? FloatClass.Zero : FloatClass.Subnormal;
+    return FloatClass.Normal;
+}
+
+/*
+ * bf16: True for every quiet or signaling NaN, regardless of sign or payload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_nan(bf16 value) {
+    return (Float.to_bits(value) & 32767u16) > 32640u16;
+}
+
+/*
+ * bf16: True for either signed infinity.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_infinite(bf16 value) {
+    return (Float.to_bits(value) & 32767u16) == 32640u16;
+}
+
+/*
+ * bf16: True for signed zeros, subnormals and normal finite values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_finite(bf16 value) {
+    return (Float.to_bits(value) & 32767u16) < 32640u16;
+}
+
+/*
+ * bf16: True for finite nonzero normalized values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_normal(bf16 value) {
+    return (Float.to_bits(value) & 32640u16) != 0u16 && (Float.to_bits(value) & 32640u16) != 32640u16;
+}
+
+/*
+ * bf16: True for nonzero finite values below the normal threshold.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_subnormal(bf16 value) {
+    return (Float.to_bits(value) & 32640u16) == 0u16 && (Float.to_bits(value) & 127u16) != 0u16;
+}
+
+/*
+ * bf16: True for either signed zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(bf16 value) {
+    return (Float.to_bits(value) & 32767u16) == 0u16;
+}
+
+/*
+ * bf16: Inspect the sign bit, including negative zero and negative NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_negative(bf16 value) {
+    return (Float.to_bits(value) & 32768u16) != 0u16;
+}
+
+/*
+ * bf16: Inspect an unset sign bit, including positive zero and positive NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_positive(bf16 value) {
+    return (Float.to_bits(value) & 32768u16) == 0u16;
+}
+
+/*
+ * Invert only the bf16 sign bit, preserving every magnitude and NaN payload bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 neg(bf16 value) {
+    return Float.from_bits<bf16>(Float.to_bits(value) ^ 32768u16);
+}
+
+/*
+ * Clear only the bf16 sign bit; NaN payload and signaling state are preserved.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 abs(bf16 value) {
+    return Float.from_bits<bf16>(Float.to_bits(value) & 32767u16);
+}
+
+/*
+ * Keep bf16 magnitude/payload from value and copy only the sign bit from sign.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 copy_sign(bf16 value, bf16 sign) {
+    return Float.from_bits<bf16>((Float.to_bits(value) & 32767u16) | (Float.to_bits(sign) & 32768u16));
+}
+
+/*
+ * Return signed one for nonzero non-NaN bf16; preserve signed zero and every NaN bit unchanged.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 signum(bf16 value) {
+    if (is_nan(value) || is_zero(value)) return value;
+    return Float.from_bits<bf16>((Float.to_bits(value) & 32768u16) | 16256u16);
+}
+
+/*
+ * Next numerically greater bf16; preserve NaN bits and positive infinity. Either zero steps to the minimum positive subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 next_up(bf16 value) {
+    if (is_nan(value)) return value;
+    u16 raw = Float.to_bits(value);
+    if (raw == 32640u16) return value;
+    if ((raw & 32767u16) == 0u16) return Float.from_bits<bf16>(1u16);
+    return Float.from_bits<bf16>((raw & 32768u16) != 0u16 ? raw - 1u16 : raw + 1u16);
+}
+
+/*
+ * Next numerically smaller bf16; preserve NaN bits and negative infinity. Either zero steps to the minimum negative subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bf16 next_down(bf16 value) {
+    if (is_nan(value)) return value;
+    u16 raw = Float.to_bits(value);
+    if (raw == 65408u16) return value;
+    if ((raw & 32767u16) == 0u16) return Float.from_bits<bf16>(32769u16);
+    return Float.from_bits<bf16>((raw & 32768u16) != 0u16 ? raw + 1u16 : raw - 1u16);
+}
+
+/*
+ * IEEE total order for bf16 encodings: negative NaNs, negative infinity, negative finite values, -0, +0, positive finite values, positive infinity, positive NaNs. Negative NaN quietness/payload order is reversed; identical encodings compare Equal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_cmp(bf16 left, bf16 right) {
+    u16 left_bits = Float.to_bits(left);
+    u16 right_bits = Float.to_bits(right);
+    u16 left_key = (left_bits & 32768u16) != 0u16 ? ~left_bits : left_bits | 32768u16;
+    u16 right_key = (right_bits & 32768u16) != 0u16 ? ~right_bits : right_bits | 32768u16;
+    if (left_key < right_key) return Ordering.Less;
+    if (left_key > right_key) return Ordering.Greater;
+    return Ordering.Equal;
+}
+
+/*
+ * Catalog-spelled alias of total_cmp for bf16; preserves the same signed-zero and NaN distinctions.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_compare(bf16 left, bf16 right) {
+    return total_cmp(left, right);
+}
+
+/*
+ * f32 Spacing between one and the next greater representable value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 EPSILON_F32 = 1.1920928955078125e-07f32;
+
+/*
+ * f32 Smallest strictly positive normal value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 MIN_POSITIVE_NORMAL_F32 = 1.1754943508222875e-38f32;
+
+/*
+ * f32 Smallest strictly positive nonzero value, including subnormals.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 MIN_POSITIVE_SUBNORMAL_F32 = 1.401298464324817e-45f32;
+
+/*
+ * f32 Greatest finite value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 MAX_VALUE_F32 = 3.4028234663852886e+38f32;
+
+/*
+ * f32 Least finite value, the negative of MAX_VALUE.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 MIN_VALUE_F32 = -3.4028234663852886e+38f32;
+
+/*
+ * f32 Positive zero with an unset sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 POSITIVE_ZERO_F32 = 0.0f32;
+
+/*
+ * f32 Negative zero with a set sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f32 NEGATIVE_ZERO_F32 = -0.0f32;
+
+/*
+ * Return positive infinity in f32; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 infinity_f32() { return Float.from_bits<f32>(2139095040u32); }
+
+/*
+ * Return negative infinity in f32; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 neg_infinity_f32() { return Float.from_bits<f32>(4286578688u32); }
+
+/*
+ * Return a canonical positive quiet NaN with zero trailing payload in f32; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 nan_f32() { return Float.from_bits<f32>(2143289344u32); }
+
+/*
+ * Classify every f32 encoding without floating arithmetic; preserve the input representation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public FloatClass classify(f32 value) {
+    u32 raw = Float.to_bits(value);
+    u32 exponent = raw & 2139095040u32;
+    u32 fraction = raw & 8388607u32;
+    if (exponent == 2139095040u32) return fraction == 0u32 ? FloatClass.Infinite : FloatClass.Nan;
+    if (exponent == 0u32) return fraction == 0u32 ? FloatClass.Zero : FloatClass.Subnormal;
+    return FloatClass.Normal;
+}
+
+/*
+ * f32: True for every quiet or signaling NaN, regardless of sign or payload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_nan(f32 value) {
+    return (Float.to_bits(value) & 2147483647u32) > 2139095040u32;
+}
+
+/*
+ * f32: True for either signed infinity.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_infinite(f32 value) {
+    return (Float.to_bits(value) & 2147483647u32) == 2139095040u32;
+}
+
+/*
+ * f32: True for signed zeros, subnormals and normal finite values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_finite(f32 value) {
+    return (Float.to_bits(value) & 2147483647u32) < 2139095040u32;
+}
+
+/*
+ * f32: True for finite nonzero normalized values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_normal(f32 value) {
+    return (Float.to_bits(value) & 2139095040u32) != 0u32 && (Float.to_bits(value) & 2139095040u32) != 2139095040u32;
+}
+
+/*
+ * f32: True for nonzero finite values below the normal threshold.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_subnormal(f32 value) {
+    return (Float.to_bits(value) & 2139095040u32) == 0u32 && (Float.to_bits(value) & 8388607u32) != 0u32;
+}
+
+/*
+ * f32: True for either signed zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(f32 value) {
+    return (Float.to_bits(value) & 2147483647u32) == 0u32;
+}
+
+/*
+ * f32: Inspect the sign bit, including negative zero and negative NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_negative(f32 value) {
+    return (Float.to_bits(value) & 2147483648u32) != 0u32;
+}
+
+/*
+ * f32: Inspect an unset sign bit, including positive zero and positive NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_positive(f32 value) {
+    return (Float.to_bits(value) & 2147483648u32) == 0u32;
+}
+
+/*
+ * Invert only the f32 sign bit, preserving every magnitude and NaN payload bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 neg(f32 value) {
+    return Float.from_bits<f32>(Float.to_bits(value) ^ 2147483648u32);
+}
+
+/*
+ * Clear only the f32 sign bit; NaN payload and signaling state are preserved.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 abs(f32 value) {
+    return Float.from_bits<f32>(Float.to_bits(value) & 2147483647u32);
+}
+
+/*
+ * Keep f32 magnitude/payload from value and copy only the sign bit from sign.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 copy_sign(f32 value, f32 sign) {
+    return Float.from_bits<f32>((Float.to_bits(value) & 2147483647u32) | (Float.to_bits(sign) & 2147483648u32));
+}
+
+/*
+ * Return signed one for nonzero non-NaN f32; preserve signed zero and every NaN bit unchanged.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 signum(f32 value) {
+    if (is_nan(value) || is_zero(value)) return value;
+    return Float.from_bits<f32>((Float.to_bits(value) & 2147483648u32) | 1065353216u32);
+}
+
+/*
+ * Next numerically greater f32; preserve NaN bits and positive infinity. Either zero steps to the minimum positive subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 next_up(f32 value) {
+    if (is_nan(value)) return value;
+    u32 raw = Float.to_bits(value);
+    if (raw == 2139095040u32) return value;
+    if ((raw & 2147483647u32) == 0u32) return Float.from_bits<f32>(1u32);
+    return Float.from_bits<f32>((raw & 2147483648u32) != 0u32 ? raw - 1u32 : raw + 1u32);
+}
+
+/*
+ * Next numerically smaller f32; preserve NaN bits and negative infinity. Either zero steps to the minimum negative subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f32 next_down(f32 value) {
+    if (is_nan(value)) return value;
+    u32 raw = Float.to_bits(value);
+    if (raw == 4286578688u32) return value;
+    if ((raw & 2147483647u32) == 0u32) return Float.from_bits<f32>(2147483649u32);
+    return Float.from_bits<f32>((raw & 2147483648u32) != 0u32 ? raw + 1u32 : raw - 1u32);
+}
+
+/*
+ * IEEE total order for f32 encodings: negative NaNs, negative infinity, negative finite values, -0, +0, positive finite values, positive infinity, positive NaNs. Negative NaN quietness/payload order is reversed; identical encodings compare Equal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_cmp(f32 left, f32 right) {
+    u32 left_bits = Float.to_bits(left);
+    u32 right_bits = Float.to_bits(right);
+    u32 left_key = (left_bits & 2147483648u32) != 0u32 ? ~left_bits : left_bits | 2147483648u32;
+    u32 right_key = (right_bits & 2147483648u32) != 0u32 ? ~right_bits : right_bits | 2147483648u32;
+    if (left_key < right_key) return Ordering.Less;
+    if (left_key > right_key) return Ordering.Greater;
+    return Ordering.Equal;
+}
+
+/*
+ * Catalog-spelled alias of total_cmp for f32; preserves the same signed-zero and NaN distinctions.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_compare(f32 left, f32 right) {
+    return total_cmp(left, right);
+}
+
+/*
+ * f64 Spacing between one and the next greater representable value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 EPSILON_F64 = 2.220446049250313e-16f64;
+
+/*
+ * f64 Smallest strictly positive normal value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 MIN_POSITIVE_NORMAL_F64 = 2.2250738585072014e-308f64;
+
+/*
+ * f64 Smallest strictly positive nonzero value, including subnormals.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 MIN_POSITIVE_SUBNORMAL_F64 = 5e-324f64;
+
+/*
+ * f64 Greatest finite value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 MAX_VALUE_F64 = 1.7976931348623157e+308f64;
+
+/*
+ * f64 Least finite value, the negative of MAX_VALUE.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 MIN_VALUE_F64 = -1.7976931348623157e+308f64;
+
+/*
+ * f64 Positive zero with an unset sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 POSITIVE_ZERO_F64 = 0.0f64;
+
+/*
+ * f64 Negative zero with a set sign bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const f64 NEGATIVE_ZERO_F64 = -0.0f64;
+
+/*
+ * Return positive infinity in f64; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 infinity_f64() { return Float.from_bits<f64>(9218868437227405312u64); }
+
+/*
+ * Return negative infinity in f64; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 neg_infinity_f64() { return Float.from_bits<f64>(18442240474082181120u64); }
+
+/*
+ * Return a canonical positive quiet NaN with zero trailing payload in f64; constructed directly from its exact bit word.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 nan_f64() { return Float.from_bits<f64>(9221120237041090560u64); }
+
+/*
+ * Classify every f64 encoding without floating arithmetic; preserve the input representation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public FloatClass classify(f64 value) {
+    u64 raw = Float.to_bits(value);
+    u64 exponent = raw & 9218868437227405312u64;
+    u64 fraction = raw & 4503599627370495u64;
+    if (exponent == 9218868437227405312u64) return fraction == 0u64 ? FloatClass.Infinite : FloatClass.Nan;
+    if (exponent == 0u64) return fraction == 0u64 ? FloatClass.Zero : FloatClass.Subnormal;
+    return FloatClass.Normal;
+}
+
+/*
+ * f64: True for every quiet or signaling NaN, regardless of sign or payload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_nan(f64 value) {
+    return (Float.to_bits(value) & 9223372036854775807u64) > 9218868437227405312u64;
+}
+
+/*
+ * f64: True for either signed infinity.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_infinite(f64 value) {
+    return (Float.to_bits(value) & 9223372036854775807u64) == 9218868437227405312u64;
+}
+
+/*
+ * f64: True for signed zeros, subnormals and normal finite values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_finite(f64 value) {
+    return (Float.to_bits(value) & 9223372036854775807u64) < 9218868437227405312u64;
+}
+
+/*
+ * f64: True for finite nonzero normalized values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_normal(f64 value) {
+    return (Float.to_bits(value) & 9218868437227405312u64) != 0u64 && (Float.to_bits(value) & 9218868437227405312u64) != 9218868437227405312u64;
+}
+
+/*
+ * f64: True for nonzero finite values below the normal threshold.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_subnormal(f64 value) {
+    return (Float.to_bits(value) & 9218868437227405312u64) == 0u64 && (Float.to_bits(value) & 4503599627370495u64) != 0u64;
+}
+
+/*
+ * f64: True for either signed zero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(f64 value) {
+    return (Float.to_bits(value) & 9223372036854775807u64) == 0u64;
+}
+
+/*
+ * f64: Inspect the sign bit, including negative zero and negative NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_negative(f64 value) {
+    return (Float.to_bits(value) & 9223372036854775808u64) != 0u64;
+}
+
+/*
+ * f64: Inspect an unset sign bit, including positive zero and positive NaNs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sign_positive(f64 value) {
+    return (Float.to_bits(value) & 9223372036854775808u64) == 0u64;
+}
+
+/*
+ * Invert only the f64 sign bit, preserving every magnitude and NaN payload bit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 neg(f64 value) {
+    return Float.from_bits<f64>(Float.to_bits(value) ^ 9223372036854775808u64);
+}
+
+/*
+ * Clear only the f64 sign bit; NaN payload and signaling state are preserved.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 abs(f64 value) {
+    return Float.from_bits<f64>(Float.to_bits(value) & 9223372036854775807u64);
+}
+
+/*
+ * Keep f64 magnitude/payload from value and copy only the sign bit from sign.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 copy_sign(f64 value, f64 sign) {
+    return Float.from_bits<f64>((Float.to_bits(value) & 9223372036854775807u64) | (Float.to_bits(sign) & 9223372036854775808u64));
+}
+
+/*
+ * Return signed one for nonzero non-NaN f64; preserve signed zero and every NaN bit unchanged.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 signum(f64 value) {
+    if (is_nan(value) || is_zero(value)) return value;
+    return Float.from_bits<f64>((Float.to_bits(value) & 9223372036854775808u64) | 4607182418800017408u64);
+}
+
+/*
+ * Next numerically greater f64; preserve NaN bits and positive infinity. Either zero steps to the minimum positive subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 next_up(f64 value) {
+    if (is_nan(value)) return value;
+    u64 raw = Float.to_bits(value);
+    if (raw == 9218868437227405312u64) return value;
+    if ((raw & 9223372036854775807u64) == 0u64) return Float.from_bits<f64>(1u64);
+    return Float.from_bits<f64>((raw & 9223372036854775808u64) != 0u64 ? raw - 1u64 : raw + 1u64);
+}
+
+/*
+ * Next numerically smaller f64; preserve NaN bits and negative infinity. Either zero steps to the minimum negative subnormal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public f64 next_down(f64 value) {
+    if (is_nan(value)) return value;
+    u64 raw = Float.to_bits(value);
+    if (raw == 18442240474082181120u64) return value;
+    if ((raw & 9223372036854775807u64) == 0u64) return Float.from_bits<f64>(9223372036854775809u64);
+    return Float.from_bits<f64>((raw & 9223372036854775808u64) != 0u64 ? raw + 1u64 : raw - 1u64);
+}
+
+/*
+ * IEEE total order for f64 encodings: negative NaNs, negative infinity, negative finite values, -0, +0, positive finite values, positive infinity, positive NaNs. Negative NaN quietness/payload order is reversed; identical encodings compare Equal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_cmp(f64 left, f64 right) {
+    u64 left_bits = Float.to_bits(left);
+    u64 right_bits = Float.to_bits(right);
+    u64 left_key = (left_bits & 9223372036854775808u64) != 0u64 ? ~left_bits : left_bits | 9223372036854775808u64;
+    u64 right_key = (right_bits & 9223372036854775808u64) != 0u64 ? ~right_bits : right_bits | 9223372036854775808u64;
+    if (left_key < right_key) return Ordering.Less;
+    if (left_key > right_key) return Ordering.Greater;
+    return Ordering.Equal;
+}
+
+/*
+ * Catalog-spelled alias of total_cmp for f64; preserves the same signed-zero and NaN distinctions.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering total_compare(f64 left, f64 right) {
+    return total_cmp(left, right);
+}
+

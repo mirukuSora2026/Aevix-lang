@@ -1,0 +1,347 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : fuzz
+#
+# Description :
+#     작은 반복문·분기 코퍼스를 안전 검사 유지/제거와 AOT/JIT에서 정확히 비교한다.
+#     Compare small loop/CFG programs exactly across retained/elided checks and AOT/JIT modes.
+#
+# ========================
+"""Bounded loop/CFG differential corpus, independent of the integer fuzz runner.
+
+python3 benchmarks/Comparison/cpu4096/proof/fuzz self-test
+python3 benchmarks/Comparison/cpu4096/proof/fuzz run --compiler build/aevixc
+
+Default: ten seeded templates, 30 successful --check/raw-IR preflights, then
+80 executions across AOT/JIT O0/O2 and proof off/on (112 subprocesses including
+help/version). Every source is saved verbatim. No performance conclusion follows.
+POSIX process groups, CPU timeout, file-size limits and disabled core dumps bound
+runaway compiler/child behavior. Failed preflight sources are never executed.
+"""
+import argparse
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import random
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[4]
+
+
+def digest(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2)+'\n', encoding='utf-8', newline='\n')
+
+
+def templates(seed):
+    randomizer = random.Random(seed)
+    n, step = randomizer.randint(12, 32), randomizer.randint(2, 7)
+    near = randomizer.randint(1, 9)
+    minimum, maximum = -(1 << 31), (1 << 31)-1
+    cases = []
+
+    def add(name, source, kind='exit', oracle=None):
+        cases.append(dict(name=name, source=source.strip()+'\n', expected=kind,
+                          oracle=oracle, expected_exit=0 if kind=='exit' else None,
+                          expected_stdout='', expected_stderr=''))
+
+    add('ascending_fixed_array', f'''
+i32 main() {{
+    mut i32 values[{n}] = [0; {n}];
+    for (mut usize i = 0; i < {n}; ++i) {{ values[i] = {step}; }}
+    mut i32 total = 0;
+    for (mut usize j = 0; j < {n}; ++j) {{ total += values[j]; }}
+    return total == {n*step} ? 0 : 11;
+}}
+''', oracle={'elements': n, 'sum': n*step})
+    add('descending_fixed_array', f'''
+i32 main() {{
+    mut i32 values[{n}] = [0; {n}];
+    for (mut i32 i = {n-1}; i >= 0; --i) {{ values[i] = {step}; }}
+    mut i32 total = 0;
+    for (mut usize j = 0; j < {n}; ++j) {{ total += values[j]; }}
+    return total == {n*step} ? 0 : 12;
+}}
+''', oracle={'indices': list(range(n-1, -1, -1)), 'sum': n*step})
+    add('zero_trip', f'''
+i32 main() {{
+    mut i32 values[{n}] = [4; {n}];
+    for (mut usize i = {n}; i < 0usize; ++i) {{ values[i] = 77; }}
+    return values[0] == 4 && values[{n-1}] == 4 ? 0 : 13;
+}}
+''', oracle={'iterations': 0, 'unchanged': 4})
+    stop = 3*(n//6)+2
+    visited, counter = [], 0
+    while counter < n:
+        visited.append(counter)
+        if counter == stop:
+            break
+        counter += 2 if counter % 3 == 0 else 1
+    add('multiple_backedges_continue_break', f'''
+i32 main() {{
+    mut i32 values[{n}] = [0; {n}];
+    mut usize i = 0;
+    while (i < {n}) {{
+        values[i] = 7;
+        if (i == {stop}) break;
+        if (i % 3usize == 0usize) {{ i += 2usize; continue; }}
+        i += 1usize;
+    }}
+    mut i32 total = 0;
+    for (mut usize j = 0; j < {n}; ++j) {{ total += values[j]; }}
+    return total == {len(visited)*7} ? 0 : 14;
+}}
+''', oracle={'visited_indices': visited, 'sum': len(visited)*7, 'step_sizes': [1, 2]})
+    start = randomizer.randint(240, 253)
+    add('u8_max_overflow_loop', f'''
+i32 main() {{
+    mut u8 counter = {start}u8;
+    while (counter <= 255u8) {{ counter += 1u8; }}
+    return 0;
+}}
+''', kind='trap', oracle={'safe_increments': 255-start, 'trapping_operation': '255u8 + 1u8'})
+    add('dynamic_bad_index', f'''
+usize next_index(usize input) {{ return input + 1usize; }}
+i32 main() {{
+    i32 values[{n}] = [1; {n}];
+    usize computed = next_index({n-1}usize);
+    return values[computed];
+}}
+''', kind='trap', oracle={'extent': n, 'computed_index': n})
+    add('signed_near_min_guard', f'''
+i32 decrement(i32 input) {{
+    if (input > {minimum}i32) return input - 1;
+    return input;
+}}
+i32 main() {{
+    i32 edge = decrement({minimum}i32);
+    i32 inside = decrement({minimum+near}i32);
+    return edge == {minimum}i32 && inside == {minimum+near-1}i32 ? 0 : 15;
+}}
+''', oracle={'minimum': minimum, 'guarded_result': minimum+near-1})
+    add('signed_near_max_guard', f'''
+i32 increment(i32 input) {{
+    if (input < {maximum}i32) return input + 1;
+    return input;
+}}
+i32 main() {{
+    i32 edge = increment({maximum}i32);
+    i32 inside = increment({maximum-near}i32);
+    return edge == {maximum}i32 && inside == {maximum-near+1}i32 ? 0 : 16;
+}}
+''', oracle={'maximum': maximum, 'guarded_result': maximum-near+1})
+    add('unknown_call_borrowed_local_trap', f'''
+void change(&mut i32 input) {{ *input = {maximum}i32; return; }}
+i32 main() {{
+    mut i32 current = {step};
+    i32 old = current;
+    change(&mut current);
+    if (old < 10) return current + 1;
+    return 0;
+}}
+''', kind='trap', oracle={'old_snapshot': step, 'current_after_call': maximum,
+                            'trapping_operation': 'i32.MAX + 1 after borrowed mutation'})
+    add('immutable_snapshot_after_call', f'''
+void change(&mut i32 input) {{ *input = {maximum}i32; return; }}
+i32 main() {{
+    mut i32 current = {step};
+    i32 snapshot = current;
+    if (snapshot >= 0 && snapshot < 10) {{
+        change(&mut current);
+        return snapshot + 1 == {step+1} && current == {maximum}i32 ? 0 : 17;
+    }}
+    return 18;
+}}
+''', oracle={'snapshot': step, 'result': step+1, 'current_after_call': maximum})
+    return cases
+
+
+def fingerprint(observation):
+    return observation['status'], observation['timeout'], observation['_stdout'], observation['_stderr']
+
+
+def public(observation):
+    return {k: v for k, v in observation.items() if not k.startswith('_')}
+
+
+def expected(case, observation):
+    status = observation['status']
+    exit_ok = status == 0 if case['expected']=='exit' else status in (132, 133)
+    return exit_ok and not observation['timeout'] and observation['_stdout']==b'' and observation['_stderr']==b''
+
+
+class Runner:
+    def __init__(self, args, folder):
+        self.args, self.folder, self.executions = args, folder, []
+
+    def capture(self, label, command):
+        if len(self.executions) >= self.args.max_subprocesses:
+            raise RuntimeError('subprocess budget exhausted; not a complete result')
+        import resource
+        logs = self.folder/'logs'
+        logs.mkdir(exist_ok=True)
+        stem = f'{len(self.executions)+1:03d}-{label}'
+        out_path, err_path = logs/(stem+'.stdout'), logs/(stem+'.stderr')
+        timeout = False
+
+        def limits():
+            resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+            cpu = max(1, math.ceil(self.args.timeout))
+            resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu+1))
+            resource.setrlimit(resource.RLIMIT_FSIZE, (16*1024*1024, 16*1024*1024))
+
+        with out_path.open('wb') as output, err_path.open('wb') as error:
+            process = subprocess.Popen([str(v) for v in command], stdin=subprocess.DEVNULL,
+                stdout=output, stderr=error, start_new_session=True, preexec_fn=limits)
+            try:
+                status = process.wait(timeout=self.args.timeout)
+            except subprocess.TimeoutExpired:
+                timeout = True
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+                status = None
+        out, err = out_path.read_bytes(), err_path.read_bytes()
+        result = dict(label=label, command=[str(v) for v in command], status=status, timeout=timeout,
+                      stdout_file=out_path.relative_to(self.folder).as_posix(),
+                      stderr_file=err_path.relative_to(self.folder).as_posix(),
+                      stdout_sha256=digest(out), stderr_sha256=digest(err), _stdout=out, _stderr=err)
+        self.executions.append(public(result))
+        write_json(self.folder/'executions.json', self.executions)
+        return result
+
+
+def self_test():
+    source = templates(0xc0f64096)
+    assert source == templates(0xc0f64096)
+    assert source != templates(1)
+    assert len(source)==10 and sum(v['expected']=='trap' for v in source)==3
+    assert all('import ' not in v['source'] for v in source)
+    base = dict(status=0, timeout=False, _stdout=b'', _stderr=b'')
+    assert expected(source[0], base)
+    assert fingerprint(base)!=fingerprint(dict(base,status=1))
+    assert fingerprint(base)!=fingerprint(dict(base,_stdout=b'injected'))
+    assert fingerprint(base)!=fingerprint(dict(base,_stderr=b'injected'))
+    assert fingerprint(base)!=fingerprint(dict(base,timeout=True))
+    assert expected(source[4],dict(base,status=132)) and expected(source[4],dict(base,status=133))
+    assert not expected(source[4],dict(base,status=1))
+    assert fingerprint(dict(base,status=132))!=fingerprint(dict(base,status=133))
+    for seed in range(64):
+        cases=templates(seed);loop=cases[3]['oracle'];visits=loop['visited_indices']
+        assert len(visits)==len(set(visits)) and loop['sum']==len(visits)*7
+    print('Self-test passed: 10 deterministic templates, 3 bounded traps, Python loop oracles, injected byte/status/timeout differences; trap encodings remain distinct.')
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('command',choices=['self-test','run'])
+    parser.add_argument('--compiler',type=Path,default=ROOT/'build/aevixc')
+    parser.add_argument('--artifacts',type=Path,default=ROOT/'build/bench-cpu4096/proof/fuzz')
+    parser.add_argument('--seed',type=lambda x:int(x,0),default=0xc0f64096)
+    parser.add_argument('--max-subprocesses',type=int,default=140)
+    parser.add_argument('--timeout',type=float,default=15)
+    parser.add_argument('--max-findings',type=int,default=2)
+    args=parser.parse_args()
+    if args.command=='self-test': self_test();return 0
+    if os.name!='posix': parser.error('This bounded runner requires POSIX process-group/CPU-limit isolation; no cases were executed.')
+    if args.max_subprocesses<2 or args.timeout<=0 or args.max_findings<1:parser.error('Invalid bounded budget')
+    args.compiler=args.compiler.resolve()
+    folder=args.artifacts.resolve()/f'{args.seed:016x}-{time.time_ns()}'
+    folder.mkdir(parents=True,exist_ok=False)
+    runner=Runner(args,folder)
+    cases=templates(args.seed)
+    for case in cases:
+        source=case.pop('source')
+        path=folder/'inputs'/(case['name']+'.avx');path.parent.mkdir(exist_ok=True)
+        path.write_text(source,encoding='utf-8',newline='\n')
+        case.update(source=path.relative_to(folder).as_posix(),source_sha256=digest(source.encode()))
+    manifest=dict(schema_version=1,seed=args.seed,cases=cases,runner_sha256=digest(Path(__file__).read_bytes()),
+        compiler_sha256=digest(args.compiler.read_bytes()),host=dict(system=platform.system(),machine=platform.machine()),
+        limits=dict(timeout_seconds=args.timeout,max_subprocesses=args.max_subprocesses,max_findings=args.max_findings,
+                    process_group_kill=True,cpu_limit_seconds=math.ceil(args.timeout),file_size_bytes=16*1024*1024,core_dumps=False),
+        scope='Loop/CFG correctness supplement; no timing, performance, exhaustive or cross-target conclusion.')
+    write_json(folder/'manifest.json',manifest)
+    report=dict(status='running',preflight=[],cases=[],findings=[],skipped=[],modes=[])
+    try:
+        help_result=runner.capture('help',[args.compiler,'--help'])
+        version=runner.capture('version',[args.compiler,'--version'])
+        help_text=help_result['_stdout'].decode('utf-8','replace')
+        manifest['compiler_version']=version['_stdout'].decode('utf-8','replace').strip()
+        required=['--proof-opt','--no-proof-opt','--emit-llvm','--check','--run','-O0','-O2']
+        missing=[flag for flag in required if flag not in help_text]
+        if missing or help_result['status']!=0 or version['status']!=0:
+            raise RuntimeError('Required advertised features unavailable: '+repr(missing))
+        backends=['aot']
+        if 'ORC JIT enabled' in manifest['compiler_version'] and '--jit' in help_text:backends.append('jit')
+        else:report['skipped'].append('JIT is not advertised enabled; only available AOT modes can run.')
+        modes=[(backend,level,proof) for backend in backends for level in (0,2) for proof in (False,True)]
+        report['modes']=[f"{b}-O{o}-proof-{'on' if p else 'off'}" for b,o,p in modes]
+        write_json(folder/'manifest.json',manifest)
+        for case in cases:
+            source=folder/case['source']
+            checked=runner.capture(case['name']+'-check',[args.compiler,'--check',source])
+            raw=[]
+            for proof in (False,True):
+                option='--proof-opt' if proof else '--no-proof-opt'
+                emitted=runner.capture(case['name']+'-IR-'+str(proof),[args.compiler,'--emit-llvm',option,source])
+                raw.append(emitted)
+                if emitted['status']==0 and not emitted['timeout']:
+                    ir=folder/'ir'/(case['name']+('-on.ll' if proof else '-off.ll'))
+                    ir.parent.mkdir(exist_ok=True);ir.write_bytes(emitted['_stdout'])
+            passed=checked['status']==0 and not checked['timeout'] and all(v['status']==0 and not v['timeout'] for v in raw)
+            report['preflight'].append(dict(case=case['name'],passed=passed))
+            observations=[]
+            if passed:
+                for backend,level,proof in modes:
+                    option='--proof-opt' if proof else '--no-proof-opt'
+                    result=runner.capture(case['name']+f'-{backend}-O{level}-{proof}',[args.compiler,'--run' if backend=='aot' else '--jit',f'-O{level}',option,source])
+                    observations.append(result)
+            issues=[]
+            if not passed:issues.append('preflight rejected; source was not executed')
+            elif any(not expected(case,result) for result in observations):issues.append('Python oracle/known safe-stop expectation failed; compile errors are not accepted traps')
+            if observations and any(fingerprint(v)!=fingerprint(observations[0]) for v in observations[1:]):
+                if case['expected']=='trap' and all(expected(case,v) for v in observations):
+                    issues.append('exact known-trap encoding difference; review platform behavior before claiming wrong code')
+                else:issues.append('exact status/stdout/stderr difference across optimization/backend/proof modes')
+            if digest(source.read_bytes())!=case['source_sha256']:issues.append('source changed during comparison; evidence invalid')
+            report['cases'].append(dict(case=case['name'],expected=case['expected'],executions=len(observations),passed=not issues))
+            if issues:
+                finding=folder/'findings'/case['name'];finding.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(source,finding/'original.avx')
+                for suffix in ('off','on'):
+                    path=folder/'ir'/(case['name']+'-'+suffix+'.ll')
+                    if path.exists():shutil.copyfile(path,finding/(suffix+'.ll'))
+                details=dict(seed=args.seed,case=case,issues=issues,observations=[public(v) for v in observations],
+                             preflight=[public(checked),*[public(v) for v in raw]],
+                             minimality='The complete seeded template is the repro; no shrinking or minimality claim.')
+                write_json(finding/'finding.json',details)
+                report['findings'].append(dict(case=case['name'],issues=issues,path=finding.relative_to(folder).as_posix()))
+            write_json(folder/'report.json',report)
+            if len(report['findings'])>=args.max_findings:break
+    except (OSError,RuntimeError) as error:report['incomplete_reason']=str(error)
+    report['compiler_unchanged']=digest(args.compiler.read_bytes())==manifest['compiler_sha256']
+    complete=len(report['cases'])==len(cases) and all(v['passed'] for v in report['cases'])
+    report['status']='passed' if complete and report['compiler_unchanged'] and not report['findings'] and 'incomplete_reason' not in report else 'failed_or_incomplete'
+    report['subprocesses']=len(runner.executions)
+    report['positive_or_known_trap_executions']=sum(v['executions'] for v in report['cases'])
+    report['performance_conclusions']='none'
+    write_json(folder/'report.json',report)
+    print(json.dumps(dict(report=str(folder/'report.json'),status=report['status'],cases=len(report['cases']),executions=report['positive_or_known_trap_executions'],subprocesses=report['subprocesses'],findings=len(report['findings']))))
+    return 0 if report['status']=='passed' else 1
+
+if __name__=='__main__':
+    try:sys.exit(main())
+    except (OSError,ValueError,AssertionError) as error:print('proof-fuzz: '+str(error),file=sys.stderr);sys.exit(2)

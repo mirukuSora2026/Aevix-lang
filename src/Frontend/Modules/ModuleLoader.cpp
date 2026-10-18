@@ -15,6 +15,11 @@
 #include "aevix/Frontend/Lexer/Lexer.hpp"
 #include "aevix/Frontend/Parser/Parser.hpp"
 #include "aevix/Support/Process.hpp"
+#include "aevix/Native/OsOperation.hpp"
+#include "aevix/Native/TaskOperation.hpp"
+#include "aevix/Frontend/Modules/AtomicModuleSource.hpp"
+#include "aevix/Frontend/Modules/SyncModuleSource.hpp"
+#include "aevix/Frontend/Modules/TaskModuleSource.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -26,7 +31,7 @@
 #include <utility>
 
 #ifndef AEVIX_INSTALL_LANGUAGE_DIR
-#define AEVIX_INSTALL_LANGUAGE_DIR "share/aevix/library/Math"
+#define AEVIX_INSTALL_LANGUAGE_DIR "share/aevix/library"
 #endif
 
 namespace aevix
@@ -219,13 +224,37 @@ namespace aevix
                             { diagnose(child->range, "Ambiguous module path 'memory': project module and builtin standard module."); continue; }
                             target = registerMemoryModule();
                         }
+                        else if (child->value == "sync")
+                        {
+                            if (byName_.contains("sync"))
+                            { diagnose(child->range, "Ambiguous module path 'sync': project module and builtin standard module."); continue; }
+                            target = registerSyncModule();
+                        }
+                        else if (child->value == "task")
+                        {
+                            if (byName_.contains("task"))
+                            { diagnose(child->range, "Ambiguous module path 'task': project module and builtin standard module."); continue; }
+                            target = registerTaskModule();
+                        }
+                        else if (child->value == "atomic")
+                        {
+                            if (byName_.contains("atomic"))
+                            { diagnose(child->range, "Ambiguous module path 'atomic': project module and builtin standard module."); continue; }
+                            target = registerAtomicModule();
+                        }
                         else if (child->value == "parallel" || child->value == "simd")
                         {
                             if (byName_.contains(child->value))
                             { diagnose(child->range, "Ambiguous module path '" + child->value + "': project module and builtin standard module."); continue; }
                             target = registerCpuModule(child->value);
                         }
-                        else if (child->value == "numeric" || child->value == "complex")
+                        else if (child->value == "system")
+                        {
+                            if (byName_.contains(child->value))
+                            { diagnose(child->range, "Ambiguous module path 'system': project module and builtin standard module."); continue; }
+                            target = registerSystemModule();
+                        }
+                        else if (libraryDirectory(child->value))
                         {
                             if (byName_.contains(child->value))
                             { diagnose(child->range, "Ambiguous module path '" + child->value + "': project module and builtin standard module."); continue; }
@@ -261,6 +290,21 @@ namespace aevix
             std::map<fs::path, ModuleId> byFile_;
             std::vector<Dependency> edges_;
             ModuleGraph graph_;
+
+            static const char* libraryDirectory(const std::string& name)
+            {
+                if (name == "numeric" || name == "complex" || name == "math" || name == "floating" || name == "integer") return "Math";
+                if (name == "shape" || name == "tensor" || name == "quantized") return "AI";
+                if (name == "error" || name == "optional" || name == "result" || name == "text" || name == "ascii" || name == "encoding"
+                    || name == "bytes" || name == "ordering" || name == "unicode" || name == "boolean") return "Core";
+                if (name == "algorithm" || name == "vector" || name == "array" || name == "slice"
+                    || name == "hash" || name == "map" || name == "set"
+                    || name == "ordered_map" || name == "ordered_set"
+                    || name == "map_entry" || name == "range") return "Collections";
+                if (name == "io" || name == "path" || name == "fs") return "IO";
+                if (name == "env" || name == "time" || name == "process") return "System";
+                return nullptr;
+            }
 
             void diagnose(SourceRange range, std::string message)
             {
@@ -352,14 +396,17 @@ namespace aevix
                             }
                             continue;
                         }
-                        const bool file = current->is_regular_file(error);
+                        // 소스 후보만 검사해 관련 없는 데이터 심볼릭 링크의 대상을 따라가지 않는다.
+                        // Inspect only source candidates so unrelated data symlinks are not followed.
+                        const bool source = path.extension() == ".avx";
+                        const bool file = source && current->is_regular_file(error);
                         if (error)
                         {
                             diagnose(anchor_, "Cannot inspect module path: " + utf8Path(path)
                                 + " (" + error.message() + ")");
                             error.clear();
                         }
-                        if (file && path.extension() == ".avx")
+                        if (file)
                         {
                             const auto relative = relativeName(path.lexically_relative(root.directory));
                             if (relative)
@@ -442,12 +489,14 @@ namespace aevix
                 const auto executable = currentExecutable(executableError);
                 if (executable.empty())
                 { diagnose(range, "Cannot locate standard library relative to aevixc: " + executableError); return InvalidModuleId; }
-                const auto development = fs::path("share") / "aevix" / "library" / "Math" / (name + ".avx");
+                const auto directory = libraryDirectory(name);
+                if (!directory) { diagnose(range, "Unknown standard library module: " + name); return InvalidModuleId; }
+                const auto development = fs::path("share") / "aevix" / "library" / directory / (name + ".avx");
                 auto path = executable.parent_path() / development;
                 std::error_code error;
                 if (!fs::is_regular_file(path, error))
                 {
-                    path = executable.parent_path().parent_path() / AEVIX_INSTALL_LANGUAGE_DIR / (name + ".avx");
+                    path = executable.parent_path().parent_path() / AEVIX_INSTALL_LANGUAGE_DIR / directory / (name + ".avx");
                     if (!fs::is_regular_file(path, error))
                         path = executable.parent_path().parent_path() / development;
                 }
@@ -457,6 +506,16 @@ namespace aevix
                 auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
                 auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
                 if (!ast) return InvalidModuleId;
+                if (name == "io" || name == "env" || name == "time" || name == "process" || name == "path" || name == "fs")
+                    for (auto& declaration : ast->children)
+                        if (declaration->kind == "Function" && declaration->value.starts_with("__")
+                            && osOperation(std::string_view(declaration->value).substr(2))
+                            && osOperation(std::string_view(declaration->value).substr(2))->module == name)
+                            for (const auto& kind : {"CompilerOs", "CompilerIntrinsic"})
+                            {
+                                auto marker = makeNode(kind, declaration->value.substr(2), declaration->range);
+                                declaration->children.push_back(std::move(marker));
+                            }
                 if (name == "numeric")
                     for (auto& declaration : ast->children)
                         if (declaration->kind == "Interface" && declaration->value == "Floating")
@@ -483,12 +542,179 @@ namespace aevix
                 return id;
             }
 
+            ModuleId registerSystemModule()
+            {
+                if (const auto found = loaded_.find("system"); found != loaded_.end()) return found->second;
+                const auto source = sources_.add("<aevix-system>", R"AEVIXDOC(/*
+ * Lifecycle of the system public module.
+ * @module system
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+public import error { IoError, ReadError, FormatError };
+/*
+ * Version history for the system.LogLevel public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum LogLevel implements Copy { /*
+ * Version history for the system.LogLevel.info public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+info; /*
+ * Version history for the system.LogLevel.warn public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+warn; /*
+ * Version history for the system.LogLevel.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+error; };
+/*
+ * Version history for the system.info public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const LogLevel info = LogLevel.info;
+/*
+ * Version history for the system.warn public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const LogLevel warn = LogLevel.warn;
+/*
+ * Version history for the system.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public const LogLevel error = LogLevel.error;
+/*
+ * Version history for the system.print public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, IoError> print<T>(T value) {}
+/*
+ * Version history for the system.println public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, IoError> println<T>(T value) {}
+/*
+ * Version history for the system.printf public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, IoError> printf<T>(string_view format, T values[]) {}
+/*
+ * Version history for the system.flush public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, IoError> flush() {}
+/*
+ * Version history for the system.log public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, IoError> log(LogLevel level, string_view message, string_view code = "") {}
+/*
+ * Version history for the system.input public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<T>, ReadError> input<T = string>() {}
+)AEVIXDOC");
+                auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
+                auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
+                if (!ast) return InvalidModuleId;
+                for (auto& declaration : ast->children)
+                {
+                    if (declaration->kind == "Function")
+                        for (const auto& kind : {"CompilerSystem", "CompilerIntrinsic"})
+                        {
+                            auto marker = std::make_unique<Node>(); marker->kind = kind;
+                            marker->value = declaration->value; marker->range = declaration->range;
+                            declaration->children.push_back(std::move(marker));
+                        }
+                    if (declaration->kind == "Variable")
+                        for (const auto& kind : {"CompilerSystemLevel", "CompilerIntrinsic"})
+                        {
+                            auto marker = std::make_unique<Node>(); marker->kind = kind;
+                            marker->value = declaration->value; marker->range = declaration->range;
+                            declaration->children.push_back(std::move(marker));
+                        }
+                }
+                const auto id = graph_.modules.size();
+                auto module = std::make_unique<SourceModule>();
+                module->name = "system"; module->package = "$system"; module->path = "<aevix-system>";
+                module->source = source; module->ast = std::move(ast);
+                graph_.modules.push_back(std::move(module)); loaded_["system"] = id;
+                return id;
+            }
+
             ModuleId registerCpuModule(const std::string& name)
             {
                 if (const auto found = loaded_.find(name); found != loaded_.end()) return found->second;
                 const auto source = sources_.add("<aevix-" + name + ">", name == "simd"
-                    ? "public struct Simd {}; public struct SimdMask {};"
-                    : "public void for_each() {} public usize worker_count() { return 0; }");
+                    ? R"AEVIXDOC(/*
+ * Lifecycle of the simd public module.
+ * @module simd
+ * @since 0.2
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * Version history for the simd.Simd public API.
+ * @since 0.2
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Simd {}; /*
+ * Version history for the simd.SimdMask public API.
+ * @since 0.2
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct SimdMask {};)AEVIXDOC"
+                    : R"AEVIXDOC(/*
+ * Lifecycle of the parallel public module.
+ * @module parallel
+ * @since 0.2
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * Version history for the parallel.for_each public API.
+ * @since 0.2
+ * @deprecated_at none
+ * @removed_at none
+ */
+public void for_each() {} /*
+ * Version history for the parallel.worker_count public API.
+ * @since 0.2
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize worker_count() { return 0; })AEVIXDOC");
                 auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
                 auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
                 if (!ast) return InvalidModuleId;
@@ -512,18 +738,356 @@ namespace aevix
                 return id;
             }
 
+            ModuleId registerSyncModule()
+            {
+                if (const auto found = loaded_.find("sync"); found != loaded_.end()) return found->second;
+                const auto source = sources_.add("<aevix-sync>", std::string(SyncModuleSource));
+                auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
+                auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
+                if (!ast) return InvalidModuleId;
+                const auto mark = [](Node& target, std::string kind)
+                { auto marker = std::make_unique<Node>(); marker->kind = std::move(kind); marker->range = target.range; target.children.push_back(std::move(marker)); };
+                for (auto& declaration : ast->children)
+                    if (declaration->kind == "Struct")
+                    {
+                        const auto& name = declaration->value;
+                        const auto marker = name == "Mutex" ? "CompilerMutex" : name == "RwLock" ? "CompilerRwLock"
+                            : name == "MutexGuard" ? "CompilerMutexGuard" : name == "RwLockReadGuard" ? "CompilerReadGuard"
+                            : name == "RwLockWriteGuard" ? "CompilerWriteGuard" : "";
+                        if (name == "Poisoned")
+                        {
+                            mark(*declaration, "CompilerPoisoned");
+                            for (auto& method : declaration->children)
+                                if (method->kind == "Function" && method->value == "into_inner") mark(*method, "CompilerIntrinsic");
+                            continue;
+                        }
+                        if (!*marker) continue;
+                        mark(*declaration, marker);
+                        for (auto& method : declaration->children) if (method->kind == "Function") mark(*method, "CompilerIntrinsic");
+                    }
+                const auto id = graph_.modules.size(); auto module = std::make_unique<SourceModule>();
+                module->name = "sync"; module->package = "$sync"; module->path = "<aevix-sync>"; module->source = source; module->ast = std::move(ast);
+                graph_.modules.push_back(std::move(module)); loaded_["sync"] = id; return id;
+            }
+
+            ModuleId registerTaskModule()
+            {
+                if (const auto found = loaded_.find("task"); found != loaded_.end()) return found->second;
+                const auto source = sources_.add("<aevix-task>", std::string(TaskModuleSource));
+                auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
+                auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
+                if (!ast) return InvalidModuleId;
+                const auto mark = [](Node& target, std::string kind, std::string value = {})
+                { auto marker = std::make_unique<Node>(); marker->kind = std::move(kind); marker->value = std::move(value); marker->range = target.range; target.children.push_back(std::move(marker)); };
+                for (auto& declaration : ast->children)
+                {
+                    if (declaration->kind != "Struct") continue;
+                    const auto owner = declaration->value;
+                    if (owner == "CancellationSource") mark(*declaration, "CompilerCancellationSource");
+                    else if (owner == "CancellationToken") mark(*declaration, "CompilerCancellationToken");
+                    else if (owner == "TaskScope") { mark(*declaration,"CompilerTaskScope"); continue; }
+                    else if (owner == "TaskId") { mark(*declaration,"CompilerTaskId"); continue; }
+                    else if (owner == "Task") mark(*declaration,"CompilerTask");
+                    else continue;
+                    for (auto& method : declaration->children)
+                    {
+                        if (method->kind != "Function") continue;
+                        std::string operation;
+                        if (owner == "CancellationSource")
+                            operation = method->value == "new" ? "source_new" : method->value == "clone" ? "source_clone"
+                                : method->value == "token" ? "token_from_source" : method->value == "request" ? "source_request" : "";
+                        else if (owner == "CancellationToken") operation = method->value == "clone" ? "token_clone" : method->value == "requested" ? "token_requested" : "";
+                        else operation = method->value == "cancel_source" ? "source_new" : method->value == "cancel_token" ? "token_from_source"
+                            : method->value == "cancel_clone" ? "token_clone" : method->value == "cancel_request" ? "source_request" : method->value == "cancel_requested" ? "token_requested" : "";
+                        if (!operation.empty()) { mark(*method, "CompilerCancellation", operation); mark(*method, "CompilerIntrinsic"); }
+                        else if (owner == "Task")
+                        {
+                            if (method->value == "deadline_after")
+                            {
+                                mark(*method,"CompilerTaskSourceAlias","deadline_after"); mark(*method,"CompilerIntrinsic");
+                                continue;
+                            }
+                            const auto action = method->value == "open_scope" ? "scope_open" : method->value == "close_scope" ? "scope_close" : method->value;
+                            if (taskOperation(action)) { mark(*method,"CompilerTaskOperation",action); mark(*method,"CompilerIntrinsic"); }
+                        }
+                    }
+                }
+                const auto id = graph_.modules.size(); auto module = std::make_unique<SourceModule>();
+                module->name = "task"; module->package = "$task"; module->path = "<aevix-task>"; module->source = source; module->ast = std::move(ast);
+                graph_.modules.push_back(std::move(module)); loaded_["task"] = id; return id;
+            }
+
+            ModuleId registerAtomicModule()
+            {
+                if (const auto found = loaded_.find("atomic"); found != loaded_.end()) return found->second;
+                const auto source = sources_.add("<aevix-atomic>", std::string(AtomicModuleSource));
+                auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
+                auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
+                if (!ast) return InvalidModuleId;
+                const auto mark = [](Node& target, std::string kind)
+                { auto marker = std::make_unique<Node>(); marker->kind = std::move(kind); marker->range = target.range; target.children.push_back(std::move(marker)); };
+                for (auto& declaration : ast->children)
+                    if (declaration->kind == "Struct" && declaration->value == "Atomic")
+                    {
+                        mark(*declaration, "CompilerAtomic");
+                        for (auto& method : declaration->children) if (method->kind == "Function") mark(*method, "CompilerIntrinsic");
+                    }
+                const auto id = graph_.modules.size(); auto module = std::make_unique<SourceModule>();
+                module->name = "atomic"; module->package = "$atomic"; module->path = "<aevix-atomic>"; module->source = source; module->ast = std::move(ast);
+                graph_.modules.push_back(std::move(module)); loaded_["atomic"] = id; return id;
+            }
+
             ModuleId registerMemoryModule()
             {
                 if (const auto found = loaded_.find("memory"); found != loaded_.end()) return found->second;
-                const auto source = sources_.add("<aevix-memory>", R"(
+                const auto source = sources_.add("<aevix-memory>", R"AEVIXDOC(/*
+ * Lifecycle of the memory public module.
+ * @module memory
+ * @since 0.1
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+/*
+ * Version history for the memory.Box public API.
+ * @since 0.1
+ * @deprecated_at none
+ * @removed_at none
+ */
 public struct Box<T> {
     T payload;
+    /*
+     * Version history for the memory.Box.new public API.
+     * @since 0.1
+     * @deprecated_at none
+     * @removed_at none
+     */
     public void new(T value) {}
+    /*
+     * Consume one concrete Box and move its payload out, releasing only the outer allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public void into_inner(Self owner) {}
+    /*
+     * Version history for the memory.Box.into_dyn public API.
+     * @since 0.1
+     * @deprecated_at none
+     * @removed_at none
+     */
     public void into_dyn(T value) {}
+    /*
+     * Version history for the memory.Box.as_ref public API.
+     * @since 0.1
+     * @deprecated_at none
+     * @removed_at none
+     */
     public void as_ref(&Self owner) {}
+    /*
+     * Version history for the memory.Box.as_mut public API.
+     * @since 0.1
+     * @deprecated_at none
+     * @removed_at none
+     */
     public void as_mut(&mut Self owner) {}
 };
-)");
+/*
+ * Moves a replacement into initialized storage and returns its previous value without dropping either.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T replace<T>(&mut T target, T replacement) { return replacement; }
+/*
+ * Exchanges initialized exclusive values without copying, allocating, or invoking Drop.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit swap<T>(&mut T left, &mut T right) { return Unit.value(); }
+
+/*
+ * Checked reference-count growth failure; count arithmetic never wraps.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum RefCountError implements Copy {
+
+/*
+ * The requested additional ownership count would overflow.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    CountOverflow;
+};
+
+/*
+ * Strong shared payload owner; construction and count clones are explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Shared<T> {
+    private T value;
+
+/*
+ * Compiler-managed Shared.new; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void new(T value) {}
+
+/*
+ * Compiler-managed Shared.clone; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void clone(&Shared<T> owner) {}
+
+/*
+ * Compiler-managed Shared.as_ref; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void as_ref(&Shared<T> owner) {}
+
+/*
+ * Compiler-managed Shared.downgrade; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void downgrade(&Shared<T> owner) {}
+
+/*
+ * Compiler-managed Shared.get_mut; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void get_mut(&mut Shared<T> owner) {}
+
+/*
+ * Compiler-managed Shared.try_unwrap; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void try_unwrap(Shared<T> owner) {}
+
+/*
+ * Compiler-managed Shared.strong_count; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void strong_count(&Shared<T> owner) {}
+
+/*
+ * Compiler-managed Shared.weak_count; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void weak_count(&Shared<T> owner) {}
+
+/*
+ * Compiler-managed Shared.ptr_equal; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void ptr_equal(&Shared<T> left, &Shared<T> right) {}
+};
+
+/*
+ * Weak allocation identity; retaining metadata never resurrects a destroyed payload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Weak<T> {
+    private T value;
+
+/*
+ * Compiler-managed Weak.new; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void new() {}
+
+/*
+ * Compiler-managed Weak.clone; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void clone(&Weak<T> owner) {}
+
+/*
+ * Compiler-managed Weak.upgrade; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void upgrade(&Weak<T> owner) {}
+
+/*
+ * Compiler-managed Weak.strong_count; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void strong_count(&Weak<T> owner) {}
+
+/*
+ * Compiler-managed Weak.weak_count; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void weak_count(&Weak<T> owner) {}
+
+/*
+ * Compiler-managed Weak.ptr_equal; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void ptr_equal(&Weak<T> left, &Weak<T> right) {}
+
+/*
+ * Compiler-managed Weak.is_empty; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void is_empty(&Weak<T> owner) {}
+
+/*
+ * Compiler-managed Weak.is_expired; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void is_expired(&Weak<T> owner) {}
+
+/*
+ * Compiler-managed Weak.clear; lifetime and ownership effects are checked before execution.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public void clear(&mut Weak<T> owner) {}
+};
+)AEVIXDOC");
                 auto tokens = Lexer(sources_.get(source), diagnostics_).tokenize();
                 auto ast = Parser(std::move(tokens), diagnostics_).parseModule();
                 if (!ast) return InvalidModuleId;
@@ -534,11 +1098,20 @@ public struct Box<T> {
                 { auto item = std::make_unique<Node>(); item->kind = kind; item->value = value; item->range = ast->range; reexport->children.push_back(std::move(item)); }
                 ast->children.push_back(std::move(reexport));
                 for (auto& declaration : ast->children)
+                {
                     if (declaration->kind == "Struct" && declaration->value == "Box")
                     {
                         mark(*declaration, "CompilerBox");
                         for (auto& method : declaration->children) if (method->kind == "Function") mark(*method, "CompilerIntrinsic");
                     }
+                    if (declaration->kind == "Struct" && (declaration->value == "Shared" || declaration->value == "Weak"))
+                    {
+                        mark(*declaration, declaration->value == "Shared" ? "CompilerShared" : "CompilerWeak");
+                        for (auto& method : declaration->children) if (method->kind == "Function") mark(*method, "CompilerIntrinsic");
+                    }
+                    if (declaration->kind == "Function" && (declaration->value == "replace" || declaration->value == "swap"))
+                    { mark(*declaration, "CompilerMemory"); mark(*declaration, "CompilerIntrinsic"); }
+                }
                 const auto id = graph_.modules.size();
                 auto module = std::make_unique<SourceModule>();
                 module->name = "memory"; module->package = "$memory"; module->path = "<aevix-memory>"; module->source = source; module->ast = std::move(ast);

@@ -1,0 +1,392 @@
+/*
+ * Lifecycle of the io public module.
+ * @module io
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public import error { IoError, FileError };
+import memory;
+
+/*
+ * File tokens are registry identities, never OS addresses or descriptors, and remain private.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct File implements Drop {
+    u64 token;
+
+    /*
+     * Version history for the io.File.open public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<File, FileError> open(string_view path, u32 options) {
+        Tuple<i32, u64, i32, i32> outcome = __file_open(path, options);
+        i32 status = *Tuple.get<0>(&outcome);
+        if (status == 0) {
+            u64 identity = *Tuple.get<1>(&outcome);
+            return Result.ok(File { token = identity });
+        }
+        i32 native = *Tuple.get<2>(&outcome);
+        i32 kind = *Tuple.get<3>(&outcome);
+        if (status == 6) return Result.err(FileError.InvalidHandle);
+        if (status == 7) return Result.err(FileError.Unsupported);
+        if (kind == 1) return Result.err(FileError.NotFound { os_code = native });
+        if (kind == 2) return Result.err(FileError.AlreadyExists { os_code = native });
+        if (kind == 3) return Result.err(FileError.PermissionDenied { os_code = native });
+        Tuple<i32, usize, i32, i32> failed = Tuple.make(status, 0, native, kind);
+        IoError problem = io_error(failed, 0);
+        return Result.err(FileError.Io { error = problem });
+    }
+
+    /*
+     * Version history for the io.File.open_read public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<File, FileError> open_read(string_view path) {
+        return File.open(path, 1);
+    }
+    /*
+     * Version history for the io.File.open_read_write public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<File, FileError> open_read_write(string_view path) {
+        return File.open(path, 3);
+    }
+    /*
+     * Version history for the io.File.create public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<File, FileError> create(string_view path) {
+        return File.open(path, 14);
+    }
+    /*
+     * Version history for the io.File.create_new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<File, FileError> create_new(string_view path) {
+        return File.open(path, 38);
+    }
+    /*
+     * Version history for the io.File.append public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<File, FileError> append(string_view path) {
+        return File.open(path, 22);
+    }
+    /*
+     * Version history for the io.File.is_open public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_open(&File self) {
+        return self.token != 0;
+    }
+    /*
+     * Version history for the io.File.read public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, IoError> read(&mut File self, MutSlice<byte> output) {
+        mut MutSlice<byte> destination = output;
+        Tuple<i32, usize, i32, i32> outcome = __file_read(self.token, &mut destination);
+        return byte_progress(outcome, 0);
+    }
+    /*
+     * Version history for the io.File.write public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, IoError> write(&mut File self, Slice<byte> input) {
+        Tuple<i32, usize, i32, i32> outcome = __file_write(self.token, input);
+        return byte_progress(outcome, 1);
+    }
+    /*
+     * Version history for the io.File.flush public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, IoError> flush(&mut File self) {
+        Tuple<i32, usize, i32, i32> outcome = __file_flush(self.token);
+        if (*Tuple.get<0>(&outcome) == 0) return Result.ok(Unit.value());
+        return Result.err(io_error(outcome, 2));
+    }
+    /*
+     * Version history for the io.File.sync public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, IoError> sync(&mut File self) {
+        return self.flush();
+    }
+    /*
+     * Version history for the io.File.seek public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, IoError> seek(&mut File self, i64 offset, u32 origin = 0) {
+        Tuple<i32, usize, i32, i32> outcome = __file_seek(self.token, offset, origin);
+        return byte_progress(outcome, 0);
+    }
+    /*
+     * Version history for the io.File.position public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, IoError> position(&mut File self) {
+        return self.seek(0, 1);
+    }
+    /*
+     * Version history for the io.File.length public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<usize, IoError> length(&File self) {
+        Tuple<i32, usize, i32, i32> outcome = __file_size(self.token);
+        return byte_progress(outcome, 0);
+    }
+    /*
+     * Version history for the io.File.set_len public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, IoError> set_len(&mut File self, usize length) {
+        Tuple<i32, usize, i32, i32> outcome = __file_set_len(self.token, length);
+        if (*Tuple.get<0>(&outcome) == 0) return Result.ok(Unit.value());
+        return Result.err(io_error(outcome, 1));
+    }
+    /*
+     * Version history for the io.File.close public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, IoError> close(&mut File self) {
+        if (self.token == 0) return Result.ok(Unit.value());
+        u64 identity = memory.replace(&mut self.token, 0);
+        Tuple<i32, usize, i32, i32> outcome = __file_close(identity);
+        if (*Tuple.get<0>(&outcome) == 0) return Result.ok(Unit.value());
+        return Result.err(io_error(outcome, 2));
+    }
+    /*
+     * Version history for the io.File.write_all public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, IoError> write_all(&mut File self, Slice<byte> input) {
+        mut usize total = 0;
+        usize length = Slice.len(input);
+        while (total < length) {
+            Result<Slice<byte>, BoundsError> sliced = Slice.slice(input, total, length);
+            Slice<byte> remaining;
+            switch (move sliced) {
+                case Result<Slice<byte>, BoundsError>.Ok { Slice<byte> view = value }: remaining = view; break;
+                case Result<Slice<byte>, BoundsError>.Err: return Result.err(IoError.SizeOverflow); break;
+            }
+            Result<usize, IoError> written = self.write(remaining);
+            switch (written) {
+                case Result<usize, IoError>.Ok { usize count = value }:
+                    if (count == 0) return Result.err(IoError.WriteFailed { os_code = 0, progress = total });
+                    total += count;
+                    break;
+                case Result<usize, IoError>.Err { IoError problem = error }:
+                    return Result.err(add_progress(problem, total));
+                    break;
+            }
+        }
+        return Result.ok(Unit.value());
+    }
+    /*
+     * Version history for the io.File.read_exact public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, IoError> read_exact(&mut File self, MutSlice<byte> output) {
+        mut MutSlice<byte> remaining = output;
+        mut usize total = 0;
+        while (Slice.len(&remaining) > 0) {
+            Tuple<i32, usize, i32, i32> outcome = __file_read(self.token, &mut remaining);
+            if (*Tuple.get<0>(&outcome) != 0) return Result.err(add_progress(io_error(outcome, 0), total));
+            usize count = *Tuple.get<1>(&outcome);
+            if (count == 0) return Result.err(IoError.ReadFailed { os_code = 0, progress = total });
+            total += count;
+            usize end = Slice.len(&remaining);
+            Result<MutSlice<byte>, BoundsError> sliced = Slice.slice_mut(remaining, count, end);
+            switch (move sliced) {
+                case Result<MutSlice<byte>, BoundsError>.Ok { MutSlice<byte> view = value }: remaining = view; break;
+                case Result<MutSlice<byte>, BoundsError>.Err: return Result.err(IoError.SizeOverflow); break;
+            }
+        }
+        return Result.ok(Unit.value());
+    }
+    /*
+     * Version history for the io.File.write_text public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, IoError> write_text(&mut File self, string_view text) {
+        return self.write_all(string.as_bytes(text));
+    }
+    /*
+     * Read the remaining stream into a newly allocated byte vector.
+     * max_bytes bounds the returned data. One extra byte may be consumed to distinguish
+     * an exact-length stream from an oversized stream. On failure the partial vector is dropped.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Vector<byte>, IoError> read_to_end(&mut File self, usize max_bytes = 9223372036854775807usize) {
+        mut Vector<byte> output;
+        Result<Vector<byte>, CollectionError> created = [];
+        switch (move created) {
+            case Result<Vector<byte>, CollectionError>.Ok { Vector<byte> empty = value }: output = empty; break;
+            case Result<Vector<byte>, CollectionError>.Err { CollectionError cause = error }:
+                return Result.err(collection_error(cause));
+                break;
+        }
+        mut byte buffer[4096] = [Byte.from_u8(0u8); 4096];
+        while (true) {
+            usize previous = Vector.len(&output);
+            usize remaining = max_bytes - previous;
+            usize wanted = remaining < 4096 ? remaining + 1 : 4096;
+            Result<MutSlice<byte>, BoundsError> selected = Slice.slice_mut(Slice.from_array_mut(&mut buffer), 0, wanted);
+            Result<usize, IoError> progress;
+            switch (move selected) {
+                case Result<MutSlice<byte>, BoundsError>.Ok { MutSlice<byte> window = value }:
+                    progress = self.read(window);
+                    break;
+                case Result<MutSlice<byte>, BoundsError>.Err: Never.unreachable(); break;
+            }
+            usize received;
+            switch (move progress) {
+                case Result<usize, IoError>.Ok { usize amount = value }: received = amount; break;
+                case Result<usize, IoError>.Err { IoError cause = error }:
+                    return Result.err(add_progress(cause, previous));
+                    break;
+            }
+            if (received == 0) return Result.ok(output);
+            if (received > remaining) return Result.err(IoError.InputTooLong);
+            mut usize index = 0;
+            while (index < received) {
+                Result<unit, InputError<byte>> appended = Vector.push(&mut output, buffer[index]);
+                switch (move appended) {
+                    case Result<unit, InputError<byte>>.Ok: break;
+                    case Result<unit, InputError<byte>>.Err { InputError<byte> cause = error }:
+                        switch (move cause) {
+                            case InputError<byte>.AllocationFailure: return Result.err(IoError.AllocationFailure); break;
+                            case InputError<byte>.SizeOverflow: return Result.err(IoError.SizeOverflow); break;
+                            default: Never.unreachable(); break;
+                        }
+                        break;
+                }
+                index++;
+            }
+        }
+    }
+    /*
+     * Read remaining bytes and explicitly copy them into a validated UTF-8 string.
+     * The byte limit and one-byte over-limit probe are the same as read_to_end.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<string, IoError> read_to_string(&mut File self, usize max_bytes = 9223372036854775807usize) {
+        Vector<byte> bytes = self.read_to_end(max_bytes)?;
+        Result<string, TextError> decoded = string.from_utf8(Slice.from_vector(&bytes));
+        switch (move decoded) {
+            case Result<string, TextError>.Ok { string text = value }: return Result.ok(text); break;
+            case Result<string, TextError>.Err { TextError cause = error }:
+                switch (cause) {
+                    case TextError.AllocationFailure: return Result.err(IoError.AllocationFailure); break;
+                    case TextError.SizeOverflow: return Result.err(IoError.SizeOverflow); break;
+                    case TextError.InvalidUtf8: return Result.err(IoError.InvalidUtf8); break;
+                    case TextError.InvalidBoundary: Never.unreachable(); break;
+                }
+                break;
+        }
+    }
+    /*
+     * Version history for the io.File.drop public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public void drop(&mut File self) {
+        __file_cleanup(self.token);
+        return;
+    }
+};
+
+IoError collection_error(CollectionError problem) {
+    switch (problem) {
+        case CollectionError.AllocationFailure: return IoError.AllocationFailure; break;
+        case CollectionError.SizeOverflow: return IoError.SizeOverflow; break;
+    }
+}
+
+IoError io_error(Tuple<i32, usize, i32, i32> outcome, u32 operation) {
+    i32 status = *Tuple.get<0>(&outcome);
+    usize progress = *Tuple.get<1>(&outcome);
+    i32 native = *Tuple.get<2>(&outcome);
+    i32 kind = *Tuple.get<3>(&outcome);
+    if (status == 4) return IoError.AllocationFailure;
+    if (status == 5) return IoError.SizeOverflow;
+    if (status == 6) return IoError.Closed;
+    if (status == 3) return IoError.InvalidUtf8;
+    if (status == 2 || status == 7) return IoError.Unsupported;
+    if (kind == 4) return IoError.Interrupted;
+    if (kind == 5) return IoError.WouldBlock;
+    if (operation == 2) return IoError.FlushFailed { os_code = native };
+    if (operation == 1) return IoError.WriteFailed { os_code = native, progress = progress };
+    return IoError.ReadFailed { os_code = native, progress = progress };
+}
+Result<usize, IoError> byte_progress(Tuple<i32, usize, i32, i32> outcome, u32 operation) {
+    if (*Tuple.get<0>(&outcome) == 0) return Result.ok(*Tuple.get<1>(&outcome));
+    return Result.err(io_error(outcome, operation));
+}
+IoError add_progress(IoError problem, usize previous) {
+    switch (problem) {
+        case IoError.ReadFailed { i32 native = os_code, usize count = progress }:
+            return IoError.ReadFailed { os_code = native, progress = previous + count };
+            break;
+        case IoError.WriteFailed { i32 native = os_code, usize count = progress }:
+            return IoError.WriteFailed { os_code = native, progress = previous + count };
+            break;
+        default: return problem; break;
+    }
+}
+
+Tuple<i32, u64, i32, i32> __file_open(string_view path, u32 options) {}
+Tuple<i32, usize, i32, i32> __file_read(u64 token, &mut MutSlice<byte> output) {}
+Tuple<i32, usize, i32, i32> __file_write(u64 token, Slice<byte> input) {}
+Tuple<i32, usize, i32, i32> __file_seek(u64 token, i64 offset, u32 origin) {}
+Tuple<i32, usize, i32, i32> __file_flush(u64 token) {}
+Tuple<i32, usize, i32, i32> __file_close(u64 token) {}
+Tuple<i32, usize, i32, i32> __file_size(u64 token) {}
+Tuple<i32, usize, i32, i32> __file_set_len(u64 token, usize length) {}
+unit __file_cleanup(u64 token) {}

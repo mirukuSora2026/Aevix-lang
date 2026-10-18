@@ -1,0 +1,106 @@
+/* Synchronous byte bounds, strict hex, lookup and error inspection regressions. */
+import bytes;
+import error { AnyError };
+
+T success<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T value = value }: return value; break;
+        case Result<T, E>.Err: Never.unreachable(); break;
+    }
+}
+T present<T>(Optional<T> input) {
+    switch (move input) {
+        case Optional<T>.Some { T value = value }: return value; break;
+        case Optional<T>.None: Never.unreachable(); break;
+    }
+}
+bool absent<T>(Optional<T> input) { return Optional.is_none(&input); }
+bool bounds<T>(Result<T, bytes.ByteError> input, usize offset, usize width, usize length) {
+    switch (move input) {
+        case Result<T, bytes.ByteError>.Err { bytes.ByteError reason = error }:
+            switch (reason) {
+                case bytes.ByteError.OutOfBounds { usize actual_offset = offset, usize actual_width = width, usize actual_length = length }:
+                    return actual_offset == offset && actual_width == width && actual_length == length;
+                    break;
+                default: return false; break;
+            }
+            break;
+        default: return false; break;
+    }
+}
+bool invalid_digit<T>(Result<T, bytes.ByteError> input, usize offset) {
+    switch (move input) {
+        case Result<T, bytes.ByteError>.Err { bytes.ByteError reason = error }:
+            switch (reason) {
+                case bytes.ByteError.InvalidHexDigit { usize actual = offset }: return actual == offset; break;
+                default: return false; break;
+            }
+            break;
+        default: return false; break;
+    }
+}
+bool invalid_length<T>(Result<T, bytes.ByteError> input, usize length) {
+    switch (move input) {
+        case Result<T, bytes.ByteError>.Err { bytes.ByteError reason = error }:
+            switch (reason) {
+                case bytes.ByteError.InvalidHexLength { usize actual = length }: return actual == length; break;
+                default: return false; break;
+            }
+            break;
+        default: return false; break;
+    }
+}
+i32 main() {
+    mut byte output[9] = [Byte.from_u8(170u8), Byte.from_u8(170u8), Byte.from_u8(170u8), Byte.from_u8(170u8), Byte.from_u8(170u8), Byte.from_u8(170u8), Byte.from_u8(170u8), Byte.from_u8(170u8), Byte.from_u8(170u8)];
+    if (success(bytes.write_u64_le(Slice.from_array_mut(&mut output), 1, 81985529216486895u64)) != 8) return 1;
+    if (Byte.to_u8(output[0]) != 170u8 || Byte.to_u8(output[1]) != 239u8 || Byte.to_u8(output[8]) != 1u8) return 2;
+    if (success(bytes.read_u64_le(Slice.from_array(&output), 1)) != 81985529216486895u64) return 3;
+    if (success(bytes.read_u64_be(Slice.from_array(&output), 1)) != 17279655951921914625u64) return 4;
+    if (!bounds(bytes.write_u64_be(Slice.from_array_mut(&mut output), 2, 0u64), 2, 8, 9)) return 5;
+    if (Byte.to_u8(output[1]) != 239u8 || Byte.to_u8(output[8]) != 1u8) return 6;
+    if (!bounds(bytes.write_u32_le(Slice.from_array_mut(&mut output), 18446744073709551615usize, 0u32), 18446744073709551615usize, 4, 9)) return 7;
+    if (!bounds(bytes.read_u64_le(Slice.from_array(&output), 18446744073709551615usize), 18446744073709551615usize, 8, 9)) return 8;
+    if (!bounds(bytes.read_u8(Slice.from_array(&output), 9), 9, 1, 9)) return 9;
+    success(bytes.set(Slice.from_array_mut(&mut output), 0, Byte.from_u8(255u8)));
+    if (Byte.to_u8(present(bytes.get(Slice.from_array(&output), 0))) != 255u8 || !absent(bytes.get(Slice.from_array(&output), 9))) return 10;
+    if (!bounds(bytes.set(Slice.from_array_mut(&mut output), 9, Byte.from_u8(0u8)), 9, 1, 9)) return 11;
+    if (bytes.len(Slice.from_array(&output)) != 9 || bytes.is_empty(Slice.from_array(&output))) return 12;
+    bytes.fill(Slice.from_array_mut(&mut output), Byte.from_u8(17u8));
+    mut usize offset = 0;
+    while (offset < 9) { if (Byte.to_u8(output[offset]) != 17u8) return 13; offset++; }
+    byte empty[0] = [];
+    if (!bytes.is_empty(Slice.from_array(&empty)) || bytes.len(Slice.from_array(&empty)) != 0) return 14;
+    if (!absent(bytes.get(Slice.from_array(&empty), 0))) return 15;
+    if (present(bytes.find_subsequence(Slice.from_array(&empty), Slice.from_array(&empty))) != 0) return 16;
+    if (!bytes.starts_with(Slice.from_array(&output), Slice.from_array(&empty)) || !bytes.ends_with(Slice.from_array(&output), Slice.from_array(&empty))) return 17;
+    byte haystack[6] = [Byte.from_u8(97u8), Byte.from_u8(97u8), Byte.from_u8(97u8), Byte.from_u8(97u8), Byte.from_u8(97u8), Byte.from_u8(98u8)];
+    byte needle[4] = [Byte.from_u8(97u8), Byte.from_u8(97u8), Byte.from_u8(97u8), Byte.from_u8(98u8)];
+    if (present(bytes.find_subsequence(Slice.from_array(&haystack), Slice.from_array(&needle))) != 2) return 18;
+    if (present(bytes.find(Slice.from_array(&haystack), Byte.from_u8(98u8))) != 5 || !absent(bytes.find(Slice.from_array(&haystack), Byte.from_u8(0u8)))) return 19;
+    if (bytes.starts_with(Slice.from_array(&haystack), Slice.from_array(&needle)) || !bytes.ends_with(Slice.from_array(&haystack), Slice.from_array(&needle))) return 20;
+    if (!absent(bytes.find_subsequence(Slice.from_array(&needle), Slice.from_array(&haystack)))) return 21;
+    Vector<byte> decoded = success(bytes.decode_hex("0aFf80"));
+    if (Vector.len(&decoded) != 3 || Byte.to_u8(decoded[0]) != 10u8 || Byte.to_u8(decoded[1]) != 255u8 || Byte.to_u8(decoded[2]) != 128u8) return 22;
+    string lower = success(bytes.encode_hex(Slice.from_vector(&decoded), false));
+    string upper = success(bytes.encode_hex(Slice.from_vector(&decoded), true));
+    if (!string.equals(string.view(&lower), "0aff80") || !string.equals(string.view(&upper), "0AFF80")) return 23;
+    if (Byte.to_u8(success(bytes.parse_hex("fF"))) != 255u8) return 24;
+    string single = success(bytes.format_hex(Byte.from_u8(10u8), true));
+    if (!string.equals(string.view(&single), "0A")) return 25;
+    mut byte short_output[1] = [Byte.from_u8(127u8)];
+    if (!bounds(bytes.format_hex_into(Byte.from_u8(255u8), Slice.from_array_mut(&mut short_output), false), 0, 2, 1) || Byte.to_u8(short_output[0]) != 127u8) return 26;
+    mut byte formatted[3] = [Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(127u8)];
+    if (success(bytes.format_hex_into(Byte.from_u8(171u8), Slice.from_array_mut(&mut formatted), false)) != 2) return 27;
+    if (Byte.to_u8(formatted[0]) != 97u8 || Byte.to_u8(formatted[1]) != 98u8 || Byte.to_u8(formatted[2]) != 127u8) return 28;
+    if (!invalid_digit(bytes.parse_hex("0x"), 1) || !invalid_digit(bytes.parse_hex("+0"), 0) || !invalid_digit(bytes.parse_hex("0 "), 1)) return 29;
+    if (!invalid_digit(bytes.decode_hex("00g0"), 2) || !invalid_digit(bytes.decode_hex("é"), 0)) return 30;
+    if (!invalid_length(bytes.decode_hex("0xz"), 3) || !invalid_length(bytes.parse_hex(""), 0) || !invalid_length(bytes.parse_hex("0000"), 4)) return 31;
+    Vector<byte> empty_decoded = success(bytes.decode_hex(""));
+    string empty_encoded = success(bytes.encode_hex(Slice.from_array(&empty), false));
+    if (Vector.len(&empty_decoded) != 0 || !string.equals(string.view(&empty_encoded), "")) return 32;
+    bytes.ByteError problem = bytes.ByteError.OutOfBounds { offset = 2, width = 8, length = 9 };
+    if (!string.equals(problem.code(), "bytes.out_of_bounds") || string.is_empty(problem.message())) return 33;
+    AnyError erased = success(AnyError.pack(problem));
+    if (!string.equals(erased.code(), "bytes.out_of_bounds")) return 34;
+    return 0;
+}

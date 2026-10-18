@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : jit_phase_prepare
+#
+# Description :
+#     기존 ORC 아카이브와 공통 시계로 독립 단계 관찰기를 준비하고 입력 및 명령 해시를 보존한다.
+#     Prepare a standalone phase observer with existing ORC archives and the shared clock, retaining inputs, commands and hashes.
+#
+# ========================
+"""Build only; prints phase_program and phase_functional argument vectors as JSON."""
+import argparse
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import subprocess
+
+ROOT = Path(__file__).resolve().parents[4]
+HERE = Path(__file__).resolve().parent
+sha = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--compiler', type=Path, default=ROOT/'build/aevixc')
+    parser.add_argument('--timer', type=Path, required=True)
+    parser.add_argument('--artifacts', type=Path, required=True)
+    parser.add_argument('--clang', type=Path, default=Path('/opt/homebrew/opt/llvm/bin/clang++'))
+    parser.add_argument('--llvm', type=Path, default=Path('/opt/homebrew/opt/llvm/lib/libLLVM.dylib'))
+    args = parser.parse_args()
+    compiler, timer, clang, llvm = (path.resolve() for path in (args.compiler,args.timer,args.clang,args.llvm))
+    artifacts = args.artifacts.resolve()
+    artifacts.mkdir(parents=True, exist_ok=False)
+    logs = artifacts/'logs'; logs.mkdir()
+    archive_paths = [ROOT/'build'/name for name in ('libaevix_jit.a','libaevix_runtime.a','libaevix_support.a')]
+    tracked = [compiler,timer,clang,llvm,*archive_paths,HERE/'phase.avx',HERE/'jit_phases.cpp',
+               ROOT/'benchmarks/Comparison/extended/shared_timer.h',HERE/'jit_phase_prepare']
+    for path in tracked:
+        if not path.is_file():
+            raise ValueError('Required input is absent: ' + str(path))
+    before = {str(path):sha(path) for path in tracked}
+    records = []
+    def capture(label, command):
+        process = subprocess.run([str(value) for value in command], stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90,
+            env=dict(os.environ,LC_ALL='C',LANG='C'))
+        (logs/(label+'.stdout')).write_bytes(process.stdout)
+        (logs/(label+'.stderr')).write_bytes(process.stderr)
+        records.append({'label':label,'command':[str(value) for value in command],
+            'status':process.returncode,'stdout_base64':base64.b64encode(process.stdout).decode(),
+            'stderr_base64':base64.b64encode(process.stderr).decode()})
+        (artifacts/'commands.json').write_text(json.dumps(records,indent=2)+'\n')
+        if process.returncode:
+            raise RuntimeError(label+' failed; full diagnostics retained under '+str(logs))
+        return process.stdout
+    version = capture('compiler-version',[compiler,'--version']).decode()
+    if 'ORC JIT enabled' not in version:
+        raise ValueError('Selected compiler does not advertise enabled ORC JIT')
+    clang_version = capture('clang-version',[clang,'--version']).decode()
+    if 'clang version 22.' not in clang_version:
+        raise ValueError('This preparation requires the specified LLVM22 toolchain')
+    # Python integers and an independent affine-composition oracle agree before compilation.
+    seed,modulus,multiplier,rounds = 3,2147483647,48271,65536
+    initial = seed%modulus+1
+    expected = initial
+    for unused in range(rounds):
+        expected = (expected*multiplier+1)%modulus
+    factor,offset,base_factor,base_offset,count = 1,0,multiplier,1,rounds
+    while count:
+        if count&1:
+            factor,offset = factor*base_factor%modulus,(offset*base_factor+base_offset)%modulus
+        base_factor,base_offset = base_factor*base_factor%modulus,(base_offset*base_factor+base_offset)%modulus
+        count >>= 1
+    assert expected == (factor*initial+offset)%modulus == 1919892339
+    source = artifacts/'phase.avx'
+    shutil.copyfile(HERE/'phase.avx',source)
+    capture('source-check',[compiler,'--check',source])
+    raw = artifacts/'phase.raw.ll'
+    raw.write_bytes(capture('emit-raw-ir',[compiler,'--emit-llvm','--no-proof-opt',source]))
+    if not re.search(rb'(?m)^declare i64 @"?aevixbench_seed"?\(\)\s*$', raw.read_bytes()):
+        raise ValueError('Expected opaque seed declaration is missing from emitted IR')
+    program = artifacts/'jit_phases'
+    command = [clang,'--driver-mode=g++','-std=c++20','-O2','-fno-lto','-pthread',
+        '-I'+str(ROOT/'include'),'-I'+str(ROOT/'benchmarks/Comparison/extended'),
+        '-DAEVIXBENCH_EXPECTED_STATE='+str(expected),HERE/'jit_phases.cpp',*archive_paths,
+        llvm,timer,'-Wl,-rpath,'+str(llvm.parent),'-o',program]
+    capture('build-harness',command)
+    if {str(path):sha(path) for path in tracked} != before:
+        raise ValueError('A compiler, runtime, timer or source input changed during preparation')
+    result = {'created_by':'miruku_sora2026','file_name':'phase_program.json',
+        'description':'Fixed-O2 standalone ORC public-phase harness preparation; no phase measurements executed.',
+        'phase_program':[str(program),str(raw)],
+        'phase_functional':[str(program),str(raw),'--functional-only'],
+        'compiler_version':version.strip(),'clang_version':clang_version.strip(),
+        'source_file':str(source),'raw_ir':str(raw),
+        'input_sha256':before,'program_sha256':sha(program),'raw_ir_sha256':sha(raw),
+        'fixed_optimization':2,'proof_opt':False,'tiering':False,
+        'clock':'Shared aevixbench_clock_ns from the exact supplied timer library; CLOCK_MONOTONIC_RAW',
+        'oracle':{'seed':seed,'initial':initial,'rounds':rounds,'multiplier':multiplier,
+            'increment':1,'modulus':modulus,'expected':expected,
+            'independent_checks':['Python arbitrary-precision recurrence','Binary affine-composition modulo oracle']},
+        'program_calls_per_session':{'first':1,'warm':40},'measurement_executions':0,
+        'boundaries':['add_module combines parse/verify/O2 pipeline/registration',
+            'first_invoke combines initialization/lookup/materialization and native execution',
+            'warm invokes include public API bookkeeping and cached dispatch',
+            'Native opaque seed symbol definition and raw-IR file read are outside phase timers',
+            'No hotness counter, tier upgrade or on-stack replacement is implemented or simulated',
+            'Preparation subprocess timeouts do not provide process-tree containment; no workload execution occurs here']}
+    output=artifacts/'phase_program.json'
+    output.write_text(json.dumps(result,indent=2)+'\n')
+    print(json.dumps({'metadata':str(output),'phase_program':result['phase_program'],
+                     'phase_functional':result['phase_functional']},indent=2))
+
+
+if __name__=='__main__':
+    try:
+        main()
+    except (ValueError,RuntimeError,OSError,subprocess.TimeoutExpired) as failure:
+        raise SystemExit(str(failure))

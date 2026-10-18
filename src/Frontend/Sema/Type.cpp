@@ -142,6 +142,41 @@ namespace aevix
         return id;
     }
 
+    TypeId TypeContext::shared(SymbolId declaration, std::string name, TypeId element, bool weak)
+    {
+        const auto id = nominal(declaration, std::move(name));
+        if (id != error()) { types_[id].kind = weak ? TypeKind::Weak : TypeKind::Shared; types_[id].element = element; }
+        return id;
+    }
+
+    TypeId TypeContext::atomic(SymbolId declaration, std::string name, TypeId element)
+    {
+        const auto id = nominal(declaration, std::move(name));
+        if (id != error()) { types_[id].kind = TypeKind::Atomic; types_[id].element = element; }
+        return id;
+    }
+
+    TypeId TypeContext::sync(TypeKind kind, SymbolId declaration, std::string name, TypeId element)
+    {
+        const auto id = nominal(declaration, std::move(name));
+        if (id != error()) { types_[id].kind = kind; types_[id].element = element; }
+        return id;
+    }
+
+    TypeId TypeContext::cancellation(SymbolId declaration, std::string name, bool observer)
+    {
+        const auto id = nominal(declaration, std::move(name));
+        if (id != error()) types_[id].kind = observer ? TypeKind::CancellationToken : TypeKind::CancellationSource;
+        return id;
+    }
+
+    TypeId TypeContext::taskOwner(TypeKind kind, SymbolId declaration, std::string name, TypeId element)
+    {
+        const auto id = nominal(declaration, std::move(name));
+        if (id != error()) { types_[id].kind = kind; types_[id].element = element; }
+        return id;
+    }
+
     TypeId TypeContext::dynamic(SymbolId declaration, std::string name)
     {
         const auto id = nominal(declaration, std::move(name));

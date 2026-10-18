@@ -18,7 +18,18 @@ Aevix is a statically typed language with ownership and borrow checking. It comp
 
 **[Download 0.2V preview](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0)** · [Installation guide](packaging/INSTALL.txt) · [0.2 implementation profile](htmls/releases/0_2.html)
 
-0.2V is a prerelease. Compiler installer filenames retain `0.2.0-dev`; these are the packages distributed by the `v0.2.0` preview. [0.1V](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0) remains the latest stable release. The implementation profile describes supported compiler behavior; the broader [language reference](htmls/index.html) also includes design proposals and APIs that are not implemented.
+The download and installation instructions below describe the 0.2 preview packages, whose compiler installer filenames retain `0.2.0-dev`. The [0.1V release](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0) is also available. The broader [language reference](htmls/index.html) includes design proposals and APIs that are not implemented.
+
+## 0.3 source snapshot
+
+The current source identifies as **0.3.0**. This source commit does not publish new installers, a VSIX package, or a GitHub Release.
+
+- Add console IO through `import system`, typed parsing, structured logging, and the common Result-based error model.
+- Extend resource cleanup with `Drop`, typed native handles and borrowed buffers. Add imported CPU modules for collections, text and Unicode, numeric operations, filesystem and process access, shared ownership, synchronization and threaded Tasks.
+- Refine raw literals, closure consumption, generic inference, resource lifetimes and parallel worker checks. Include an experimental, opt-in range-proof pass; unproved arithmetic and accesses retain their runtime checks.
+- Include reproducible native benchmark controls, exact-output oracles and differential/metamorphic test tools. Performance reports distinguish timed code from setup, actual generated instructions from source abstractions, and measured features from planned ones.
+
+The [source API inventory](htmls/releases/api/Library_Status.html) describes the provided surface. **The full CPU catalog is not complete.** Async/coroutines and GPU execution remain deferred, while reusable worker pools and adaptive JIT tiering are not implemented. A generated-program ASan discrepancy for zero-sized `Box<unit>` at O0 remains under investigation; see the [recorded issue](benchmarks/Comparison/cpu4096/reports/proof_zero_size_issue.json). This source snapshot does not establish fresh Linux or Windows execution results.
 
 ## Install
 
@@ -67,7 +78,7 @@ aevixc --with-starter main.avx
 
 The first command compiles and runs, then removes temporary output. `--check` checks types and ownership. `--jit` requires a JIT-enabled compiler and runs on the host architecture. `--with-starter` keeps an executable beside the source and a `.sh` launcher on macOS/Linux; Windows uses an `.exe`. Existing output files are not overwritten.
 
-This example prints nothing and returns zero on success. The planned `system.print`, `println`, `printf` and `input` APIs are not part of 0.2.
+This example prints nothing and returns zero on success. Console IO through `system.print`, `println`, `printf` and `input` is available in the 0.3 source and is outside the downloadable 0.2 profile.
 
 ## Implemented in 0.2
 
@@ -147,15 +158,18 @@ Save the file and trust the workspace before using **Aevix: Check Current File**
 
 ## Next versions
 
-These are future milestones, not features of the 0.2 preview. See the [roadmap to 0.5](htmls/roadmap/index.html) for prerequisites and exit gates.
+These milestones build on the 0.3 source snapshot. See the [roadmap to 0.5](htmls/roadmap/index.html) for the broader language and self-hosting plan. Correctness checks apply to every optimization release.
 
 | Version | Planned work |
 | --- | --- |
-| 0.3 | Native resource cleanup and FFI boundaries; collections, text, IO, paths and process libraries; [console IO through `import system`](htmls/roadmap/System_IO_0_3.html), including `print`, `println`, `printf` and `input` |
-| 0.4 | Port the compiler to Aevix while retaining C++ as stage0; add `do-while` and review the [`try`/error-scope design](htmls/roadmap/Syntax_0_4.html) |
+| 0.3.1 | Extend range proofs and examine checked-arithmetic elimination and vectorization in matrix and struct loops |
+| 0.3.2 | Measure and optimize ORC JIT phases, target alignment and cache invalidation |
+| 0.3.3 | Add a reusable worker-pool path and compare it with the retained fresh-thread baseline |
+| 0.3.4 | Expand differential fuzzing, sanitizer coverage, input ranges and ownership/concurrency regression cases |
+| 0.4 | Port the compiler to Aevix while retaining C++ as stage0; add async/coroutine foundations and `do-while`, and review the [`try`/error-scope design](htmls/roadmap/Syntax_0_4.html) |
 | 0.5 | Bootstrap the Aevix-written compiler through stage1, stage2 and stage3, compare outputs, and run the regression suite to establish self-hosting |
 
-The formatting-call contract and `try` error model still need review. `try` does not imply an approved `throw`/`catch` unwinding model. The external roadmap review is incomplete; performance-changing optimization remains on hold pending its final review.
+The `try` error model still needs review and does not imply an approved `throw`/`catch` unwinding model. Existing correctness failures are investigated when found; the 0.3.4 milestone does not postpone safety checks for earlier releases.
 
 ## Project
 

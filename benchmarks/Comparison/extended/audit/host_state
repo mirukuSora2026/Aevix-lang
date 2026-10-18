@@ -1,0 +1,235 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : host_state
+#
+# Description :
+#     측정 프로세스 사이에서 공개 macOS API와 제한된 읽기 명령으로 전원 및 열 상태를 기록한다.
+#     Observe power and thermal state between measured processes using public macOS APIs and whitelisted read-only commands.
+#
+# ========================
+"""Import snapshot(label=None); never call it inside a measured kernel."""
+import argparse
+import ctypes
+import datetime
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import subprocess
+import time
+
+THERM_KEYS = ('CPU_Scheduler_Limit', 'CPU_Available_CPUs', 'CPU_Speed_Limit',
+              'Thermal_Level', 'Performance_Level')
+CUSTOM_KEYS = ('lowpowermode', 'highpowermode', 'powermode', 'sleep', 'displaysleep',
+               'disksleep', 'powernap', 'standby', 'autopoweroff', 'hibernatemode',
+               'tcpkeepalive', 'lessbright', 'halfdim', 'womp', 'ttyskeepawake',
+               'gpuswitch', 'networkoversleep', 'acwake', 'lidwake')
+SYSCTL_KEYS = ('kern.loadavg', 'hw.logicalcpu', 'hw.physicalcpu', 'hw.cpufrequency',
+               'hw.cpufrequency_min', 'hw.cpufrequency_max')
+
+
+def unknown(reason):
+    return {'status': 'unknown', 'value': None, 'reason': reason}
+
+
+def known(value, source):
+    return {'status': 'known', 'value': value, 'source': source}
+
+
+def _read(command):
+    """Keep raw text transient; no raw command output or environment is returned."""
+    if platform.system() != 'Darwin':
+        return '', {'status': 'not_applicable', 'exit_code': None}
+    try:
+        result = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, timeout=1.5,
+                                env=dict(os.environ, LC_ALL='C', LANG='C'))
+        return result.stdout.decode('utf-8', 'replace'), {
+            'status': 'returned' if result.returncode == 0 else 'nonzero_exit',
+            'exit_code': result.returncode}
+    except subprocess.TimeoutExpired:
+        return '', {'status': 'timeout', 'exit_code': None}
+    except OSError:
+        return '', {'status': 'unavailable_or_denied', 'exit_code': None}
+
+
+def parse_therm(text):
+    fields = {key: unknown('No recognized numeric thermal field') for key in THERM_KEYS}
+    for key in THERM_KEYS:
+        match = re.search(r'(?m)^\s*' + re.escape(key) + r'\s*[:=]\s*(\d+)\s*$', text)
+        if match:
+            fields[key] = known(int(match[1]), 'pmset -g therm')
+    return fields
+
+
+def parse_batt(text):
+    result = {'power_source': unknown('Recognized power source unavailable'),
+              'charge_percent': unknown('Battery percentage unavailable'),
+              'charging_state': unknown('Recognized battery state unavailable')}
+    source = re.search(r"Now drawing from ['\"]?(AC Power|Battery Power|UPS Power)['\"]?", text)
+    if source:
+        result['power_source'] = known(source[1], 'pmset -g batt')
+    # Device names, battery IDs and any surrounding text are deliberately discarded.
+    percent = re.search(r'(?:^|\s)(\d{1,3})%;', text)
+    if percent and 0 <= int(percent[1]) <= 100:
+        result['charge_percent'] = known(int(percent[1]), 'pmset -g batt')
+    state = re.search(r';\s*(discharging|charging|charged|finishing charge|not charging|AC attached)\s*;', text)
+    if state:
+        result['charging_state'] = known(state[1], 'pmset -g batt')
+    return result
+
+
+def parse_custom(text):
+    profiles = {}
+    selected = None
+    for line in text.splitlines():
+        section = re.fullmatch(r'\s*(Battery Power|AC Power|UPS Power):\s*', line)
+        if section:
+            selected = section[1]
+            profiles.setdefault(selected, {})
+            continue
+        match = re.fullmatch(r'\s*([a-z]+)\s+(-?\d+)\s*', line)
+        if selected and match and match[1] in CUSTOM_KEYS:
+            profiles[selected][match[1]] = int(match[2])
+    return known(profiles, 'pmset -g custom; whitelisted numeric keys only') if any(profiles.values()) else unknown('No recognized numeric power profile fields')
+
+
+def parse_sysctl(key, text):
+    if key == 'kern.loadavg':
+        match = re.fullmatch(r'\s*\{\s*(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s*\}\s*', text)
+        return known([float(value) for value in match.groups()], 'sysctl kern.loadavg; 1/5/15-minute aggregate load') if match else unknown('Aggregate load unavailable')
+    if re.fullmatch(r'\s*\d+\s*', text):
+        value = int(text)
+        if value > 0:
+            return known(value, 'sysctl ' + key)
+    return unknown('Positive numeric field unavailable')
+
+
+def foundation_state():
+    result = {'thermal_state': unknown('Public Foundation API unavailable'),
+              'low_power_mode': unknown('Public Foundation API unavailable')}
+    if platform.system() != 'Darwin':
+        return result
+    try:
+        ctypes.CDLL('/System/Library/Frameworks/Foundation.framework/Foundation')
+        objc = ctypes.CDLL('/usr/lib/libobjc.A.dylib')
+        objc.objc_getClass.argtypes = [ctypes.c_char_p]
+        objc.objc_getClass.restype = ctypes.c_void_p
+        objc.sel_registerName.argtypes = [ctypes.c_char_p]
+        objc.sel_registerName.restype = ctypes.c_void_p
+        address = ctypes.cast(objc.objc_msgSend, ctypes.c_void_p).value
+        send_object = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(address)
+        send_integer = ctypes.CFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p)(address)
+        send_bool = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(address)
+        responds = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(address)
+        selector = lambda name: objc.sel_registerName(name.encode('ascii'))
+        pool = send_object(objc.objc_getClass(b'NSAutoreleasePool'), selector('new'))
+        try:
+            info = send_object(objc.objc_getClass(b'NSProcessInfo'), selector('processInfo'))
+            if info and responds(info, selector('respondsToSelector:'), selector('thermalState')):
+                value = send_integer(info, selector('thermalState'))
+                names = {0: 'nominal', 1: 'fair', 2: 'serious', 3: 'critical'}
+                if value in names:
+                    result['thermal_state'] = known(names[value], 'Public NSProcessInfo.thermalState; categorical, not degrees Celsius')
+            if info and responds(info, selector('respondsToSelector:'), selector('isLowPowerModeEnabled')):
+                result['low_power_mode'] = known(bool(send_bool(info, selector('isLowPowerModeEnabled'))), 'Public NSProcessInfo.isLowPowerModeEnabled')
+        finally:
+            if pool:
+                send_object(pool, selector('drain'))
+    except (OSError, AttributeError, TypeError, ValueError):
+        pass
+    return result
+
+
+def own_scheduling_context():
+    result = {'nice': unknown('Observer process priority unavailable'),
+              'thread_qos': unknown('Observer thread QoS unavailable'),
+              'benchmark_core_placement': unknown('No benchmark thread or core tracing is performed')}
+    try:
+        result['nice'] = known(os.getpriority(os.PRIO_PROCESS, 0), 'getpriority for observer itself; not measured worker threads')
+    except (AttributeError, OSError):
+        pass
+    if platform.system() == 'Darwin':
+        try:
+            library = ctypes.CDLL('/usr/lib/libSystem.B.dylib')
+            library.qos_class_self.argtypes = []
+            library.qos_class_self.restype = ctypes.c_uint
+            qos = library.qos_class_self()
+            names = {0: 'unspecified', 9: 'background', 17: 'utility', 21: 'default',
+                     25: 'user_initiated', 33: 'user_interactive'}
+            if qos in names:
+                result['thread_qos'] = known(names[qos], 'qos_class_self for observer thread only; no priority override trace')
+        except (OSError, AttributeError):
+            pass
+    return result
+
+
+def snapshot(label=None):
+    """Call between complete benchmark processes, not concurrently with a timed kernel."""
+    if label is not None and not re.fullmatch(r'[A-Za-z0-9_.-]{1,64}', label):
+        raise ValueError('Label must be a short non-identifying token, such as before or after')
+    started = time.monotonic_ns()
+    result = {'schema_version': 1, 'label': label,
+              'observed_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'platform': {'system': platform.system(), 'machine': platform.machine()},
+              'observations_are_not_atomic': True, 'probe_results': {},
+              'exact_cpu_temperature_celsius': unknown('No supported temperature sensor is queried'),
+              'instantaneous_cpu_frequency_hz': unknown('Nominal sysctl frequency is not an instantaneous frequency measurement'),
+              'power_watts': unknown('No power sampler or hardware meter is used')}
+    pmset = {}
+    for kind in ('therm', 'batt', 'custom'):
+        text, status = _read(['/usr/bin/pmset', '-g', kind])
+        result['probe_results']['pmset_' + kind] = status
+        pmset[kind] = {'therm': parse_therm, 'batt': parse_batt, 'custom': parse_custom}[kind](text)
+    result['pmset'] = pmset
+    result['sysctl'] = {}
+    for key in SYSCTL_KEYS:
+        text, status = _read(['/usr/sbin/sysctl', '-n', key])
+        result['probe_results']['sysctl_' + key] = status
+        result['sysctl'][key] = parse_sysctl(key, text) if status['status'] == 'returned' else unknown('Query unavailable, denied, or timed out')
+    result['frequency_fields_are_nominal_not_instantaneous'] = True
+    result['foundation'] = foundation_state()
+    result['observer_scheduling_context'] = own_scheduling_context()
+    result['powermetrics'] = {'installed': Path('/usr/bin/powermetrics').is_file(),
+        'executed': False, 'privileged_sampling': 'unverified; requires elevated privileges; no prompt or bypass attempted',
+        'sampling_frequency_temperature_power': 'unknown'}
+    result['privacy'] = {'raw_command_output_stored': False,
+        'excluded': ['serial numbers', 'host name', 'user/account names', 'other process IDs or process lists', 'battery identifiers']}
+    result['observer_duration_ns'] = time.monotonic_ns() - started
+    result['measurement_limits'] = ['Before/after samples cannot establish the state throughout a timed interval.',
+        'Categorical thermal nominal does not prove absence of transient throttling.',
+        'Aggregate load does not identify competing applications, CPU placement or scheduler events.',
+        'This observer changes no settings, priorities, power modes, CPU affinity or fan controls.',
+        'Observer work perturbs the host slightly; keep it outside measured kernels and record that boundary.']
+    return result
+
+
+def self_test():
+    therm = parse_therm('Error: No CPU power status with error code 0xe00002bc\n')
+    assert all(value['status'] == 'unknown' for value in therm.values())
+    assert parse_therm(' CPU_Speed_Limit = 75\n')['CPU_Speed_Limit']['value'] == 75
+    battery = parse_batt("Now drawing from 'AC Power'\n -SecretBatteryName (id=987654) 73%; charging; 0:20 remaining\n")
+    assert battery['power_source']['value'] == 'AC Power' and battery['charge_percent']['value'] == 73
+    assert '987654' not in json.dumps(battery) and 'Secret' not in json.dumps(battery)
+    assert parse_batt('id=987654; sensitive')['charge_percent']['status'] == 'unknown'
+    profiles = parse_custom('AC Power:\n lowpowermode 1\n username 123\n sleep 1 (sleep prevented by SecretApp)\nBattery Power:\n sleep 5\n')
+    assert profiles['value'] == {'AC Power': {'lowpowermode': 1}, 'Battery Power': {'sleep': 5}}
+    assert parse_sysctl('kern.loadavg', '{ 1.25 2.5 3.0 }')['value'] == [1.25, 2.5, 3.0]
+    assert parse_sysctl('hw.cpufrequency', 'Operation not permitted')['status'] == 'unknown'
+    assert parse_sysctl('hw.logicalcpu', '10\n')['value'] == 10
+    print('Parser/privacy checks passed; no host queries performed.')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--label', default=None)
+    parser.add_argument('--self-test', action='store_true')
+    args = parser.parse_args()
+    if args.self_test:
+        self_test()
+    else:
+        print(json.dumps(snapshot(args.label), indent=2))

@@ -129,7 +129,7 @@ namespace aevix
                 if (coreEnabled_)
                     for (ModuleId module = 0; module < graph_.modules.size(); ++module)
                         if (graph_.modules[module]->name == "$core")
-                            for (const auto* name : {"Optional", "Result", "CollectionError", "InputError", "RangeError", "TextError", "IntegerError", "FloatError", "BoundsError"})
+                            for (const auto* name : {"Optional", "Result", "CollectionError", "InputError", "RangeError", "TextError", "IntegerError", "FloatError", "BoundsError", "ParseError", "CharError"})
                                 if (modules_[module].direct.contains(name)) prelude_[name] = modules_[module].direct.at(name);
                 linkReexports();
                 linkImports();
@@ -184,7 +184,7 @@ namespace aevix
                     "isize", "usize", "f16", "bf16", "f32", "f64", "int", "float",
                     "bool", "char", "byte", "unit", "never", "void", "string",
                     "string_view", "Array", "Vector", "Slice", "MutSlice", "Tuple",
-                    "Range", "Optional", "Result", "Copy", "Fn", "FnMut", "FnOnce"
+                    "Range", "Optional", "Result", "Copy", "Drop", "Fn", "FnMut", "FnOnce"
                 })
                 {
                     if (coreEnabled_ && (std::string_view(name) == "Result" || std::string_view(name) == "Optional")) continue;
@@ -253,7 +253,7 @@ namespace aevix
                     ? !hasModifier(node, "private") : hasModifier(node, "public");
                 const SymbolId id = addSymbol(&node, module, node.value, kind, visible);
                 if (owner) owners_[&node] = owner;
-                if (!owner && (prelude_.contains(node.value) || (coreEnabled_ && graph_.modules[module]->name != "$core" && (node.value == "Result" || node.value == "Optional" || node.value == "CollectionError" || node.value == "InputError" || node.value == "RangeError" || node.value == "TextError" || node.value == "IntegerError" || node.value == "FloatError" || node.value == "BoundsError"))))
+                if (node.value == "Drop" || (!owner && (prelude_.contains(node.value) || (coreEnabled_ && graph_.modules[module]->name != "$core" && (node.value == "Result" || node.value == "Optional" || node.value == "CollectionError" || node.value == "InputError" || node.value == "RangeError" || node.value == "TextError" || node.value == "IntegerError" || node.value == "FloatError" || node.value == "BoundsError" || node.value == "ParseError" || node.value == "CharError")))))
                     error(node, "Cannot redeclare prelude name '" + node.value + "'.");
 
                 auto& existing = table[node.value];
@@ -577,6 +577,8 @@ namespace aevix
 
             void bind(const Node& node, Context& context, SymbolKind kind)
             {
+                if (node.value == "Drop")
+                    error(node, "Cannot redeclare or shadow lifecycle marker 'Drop'.");
                 auto visible = lookup(node.value, context);
                 bool conflict = false;
                 for (auto id : visible)
@@ -700,6 +702,25 @@ namespace aevix
                 if (node.kind == "ReferenceType" || node.kind == "DynamicType")
                 {
                     for (const auto& child : node.children) walkType(*child, context);
+                    if (node.kind == "DynamicType" && node.children.size() == 1)
+                    {
+                        const Node* target = node.children[0].get();
+                        std::set<const Node*> visited;
+                        while (target && visited.insert(target).second)
+                        {
+                            const auto reference = result_.references.find(target);
+                            if (reference == result_.references.end() || reference->second.size() != 1) break;
+                            const auto& symbol = result_.symbols[reference->second[0]];
+                            if (!symbol.declaration && symbol.name == "Drop")
+                            {
+                                error(node, "Drop is a lifecycle marker and cannot form dyn Drop or Box<dyn Drop>.");
+                                break;
+                            }
+                            if (!symbol.declaration || symbol.declaration->kind != "TypeAlias" || symbol.declaration->children.empty()) break;
+                            resolveAlias(*symbol.declaration, context);
+                            target = symbol.declaration->children[0].get();
+                        }
+                    }
                     return;
                 }
                 if (node.kind == "Type" && node.value == "Self")
@@ -975,7 +996,7 @@ namespace aevix
                     {"Float", {"bit_width", "byte_width", "decimal_digits", "exponent_bits", "fraction_bits", "precision_bits", "max_digits10",
                                "max_exact_integer", "min_exponent", "max_exponent", "min_exponent10", "max_exponent10", "min_value", "max_value",
                                "min_positive_normal", "min_positive_subnormal", "supports_infinity", "supports_nan", "supports_subnormal", "radix",
-                               "pi", "tau", "e", "epsilon", "nan", "infinity", "neg_infinity", "positive_zero", "negative_zero", "from_bits",
+                               "pi", "tau", "e", "epsilon", "nan", "infinity", "neg_infinity", "positive_zero", "negative_zero",
                                "from_integer", "from_integer_exact", "from_be_bytes", "from_le_bytes", "from_ne_bytes", "read_be", "read_le",
                                "parse", "parse_exact", "parse_hex", "parse_with", "sum", "sum_compensated", "sum_precise", "mean", "product", "dot"}},
                     {"Array", {"alignment", "element_size", "max_len", "empty", "default", "from_copy", "from_clone", "from_fn",
@@ -1011,8 +1032,22 @@ namespace aevix
                 }
                 if (node.kind == "CompilerArrayResult") { for (const auto& value : node.children) walkType(*value, context); return; }
                 if (node.kind == "Literal" || node.kind == "ConstantTypeArgument") return;
-                if (node.kind == "CompilerBoxExpression" || node.kind == "CompilerNumericExpression"
-                    || node.kind == "CompilerTextExpression" || node.kind == "CompilerSliceExpression")
+                if (node.kind == "CompilerTaskExpression")
+                {
+                    for (std::size_t i = 0; i < node.children.size(); ++i)
+                        if (i < 3) walkType(*node.children[i],context); else walkExpression(*node.children[i],context,false);
+                    return;
+                }
+                if (node.kind == "CompilerTaskInvoke")
+                { for (const auto& target : node.children) walkExpression(*target,context,false); return; }
+                if (node.kind == "CompilerAtomicExpression" || node.kind == "CompilerSyncExpression")
+                {
+                    for (std::size_t i = 0; i < node.children.size(); ++i)
+                        if (i < 2) walkType(*node.children[i], context); else walkExpression(*node.children[i], context, false);
+                    return;
+                }
+                if (node.kind == "CompilerBoxExpression" || node.kind == "CompilerSharedExpression" || node.kind == "CompilerCharScalarExpression" || node.kind == "CompilerFloatBitsExpression" || node.kind == "CompilerRangeInspectExpression" || node.kind == "CompilerNumericExpression"
+                    || node.kind == "CompilerTextExpression" || node.kind == "CompilerSliceExpression" || node.kind == "CompilerMemoryExpression")
                 {
                     if (!node.children.empty()) walkType(*node.children[0], context);
                     for (std::size_t i = 1; i < node.children.size(); ++i)

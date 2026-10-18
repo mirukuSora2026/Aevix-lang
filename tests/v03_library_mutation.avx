@@ -1,0 +1,89 @@
+import optional;
+import result;
+
+struct Tracked implements Drop {
+    public &mut i32 drops;
+    public i32 id;
+    public void drop(&mut Tracked self) { *self.drops += 1; return; }
+};
+
+i32 main() {
+    mut Optional<i32> value = Optional.some(5);
+    Optional<i32> first = optional.take(&mut value);
+    if (optional.unwrap_or(first, -1) != 5 || !Optional.is_none(&value)) return 1;
+    Optional<i32> empty = optional.replace(&mut value, 7);
+    if (!Optional.is_none(&empty)) return 2;
+    Optional<i32> previous = optional.replace(&mut value, 9);
+    if (optional.unwrap_or(previous, -1) != 7) return 3;
+    {
+        &mut i32 installed = optional.insert(&mut value, 11);
+        *installed += 1;
+    }
+    {
+        &mut i32 existing = optional.get_or_insert(&mut value, 20);
+        if (*existing != 12) return 4;
+    }
+    mut i32 calls = 0;
+    {
+        &mut i32 existing = optional.get_or_insert_with(&mut value,
+            [&mut calls]() -> i32 { calls++; return 21; });
+        if (*existing != 12) return 5;
+    }
+    if (calls != 0) return 6;
+    Optional<i32> rejected = optional.take_if(&mut value,
+        [](&mut i32 item) -> bool { *item += 1; return false; });
+    if (!Optional.is_none(&rejected)) return 7;
+    Optional<i32> accepted = optional.take_if(&mut value,
+        [](&mut i32 item) -> bool { return *item == 13; });
+    if (optional.unwrap_or(accepted, -1) != 13 || !Optional.is_none(&value)) return 8;
+    {
+        &mut i32 installed = optional.get_or_insert_with(&mut value,
+            [&mut calls]() -> i32 { calls++; return 21; });
+        if (*installed != 21) return 9;
+    }
+    if (calls != 1) return 10;
+    mut Optional<i32> missing = Optional.none();
+    Optional<i32> absent = optional.take_if(&mut missing,
+        [&mut calls](&mut i32 item) -> bool { calls++; return true; });
+    if (!Optional.is_none(&absent) || calls != 1) return 11;
+    { &mut i32 inserted = optional.get_or_insert(&mut missing, 22); if (*inserted != 22) return 12; }
+
+    mut Result<i32, i32> ok = Result.ok(3);
+    mut Result<i32, i32> error = Result.err(4);
+    {
+        Optional<&mut i32> borrowed = result.get_ok_mut(&mut ok);
+        switch (move borrowed) {
+            case Optional<&mut i32>.Some { &mut i32 item = value }: *item = 30; break;
+            case Optional<&mut i32>.None: return 13; break;
+        }
+    }
+    {
+        Optional<&mut i32> borrowed = result.get_err_mut(&mut error);
+        switch (move borrowed) {
+            case Optional<&mut i32>.Some { &mut i32 item = value }: *item = 40; break;
+            case Optional<&mut i32>.None: return 14; break;
+        }
+    }
+    { Optional<&mut i32> wrong = result.get_err_mut(&mut ok); if (!Optional.is_none(&wrong)) return 15; }
+    { Optional<&mut i32> wrong = result.get_ok_mut(&mut error); if (!Optional.is_none(&wrong)) return 16; }
+    if (result.unwrap_or(ok, -1) != 30 || optional.unwrap_or(result.err_optional(error), -1) != 40) return 17;
+
+    mut i32 old_drops = 0;
+    mut i32 new_drops = 0;
+    {
+        mut Optional<Tracked> owner = Optional.some(Tracked { drops = &mut old_drops, id = 1 });
+        {
+            &mut Tracked installed = optional.insert(&mut owner, Tracked { drops = &mut new_drops, id = 2 });
+            if (installed.id != 2) return 18;
+        }
+    }
+    if (old_drops != 1 || new_drops != 1) return 19;
+    mut i32 extracted_drops = 0;
+    {
+        mut Optional<Tracked> owner = Optional.some(Tracked { drops = &mut extracted_drops, id = 3 });
+        Optional<Tracked> extracted = optional.take(&mut owner);
+        if (!Optional.is_none(&owner) || !Optional.is_some(&extracted)) return 20;
+    }
+    if (extracted_drops != 1) return 21;
+    return 0;
+}

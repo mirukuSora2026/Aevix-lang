@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : error_api_tests
+#
+# Description :
+#     오류 항목과 실제 검사 문자열의 변경, 위임 및 문서 범위를 검사한다.
+#     Check error variant and inspection-string drift, delegation, and documentation boundaries.
+#
+# ========================
+
+import contextlib
+import importlib.machinery
+import importlib.util
+import io
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[2]
+loader = importlib.machinery.SourceFileLoader("aevix_error_api_tests", str(ROOT / "tools/docs/error_api"))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+error_api = importlib.util.module_from_spec(spec)
+loader.exec_module(error_api)
+
+
+def annotated(source, module="sample", since="0.2"):
+    return error_api.api.annotate(source, module, since)
+
+
+class InspectionTests(unittest.TestCase):
+    def test_nested_cases_and_literal_delimiters(self):
+        body = '''switch (*self) {
+case Self.Inner { InnerError error = reason }:
+switch (error) { case InnerError.Bad: return "/* } case Fake: */"; break; }
+break;
+case Self.Other: /* return "fake"; */ return "real"; break;
+}'''
+        rows = error_api.inspection_returns(body, "OuterError")
+        self.assertEqual([row["value"] for row in rows], ["/* } case Fake: */", "real"])
+        self.assertEqual(rows[0]["case_path"], ["OuterError.Inner", "InnerError.Bad"])
+        self.assertEqual(rows[1]["case_path"], ["OuterError.Other"])
+
+    def test_delegation_is_not_a_fabricated_literal(self):
+        rows = error_api.inspection_returns('switch(*self){case Self.Inner{&NestedError nested=reason}:return nested.code();break;}', "OuterError")
+        self.assertEqual(rows[0]["kind"], "delegated")
+        self.assertIsNone(rows[0]["value"])
+        self.assertEqual(rows[0]["expression"], "nested.code()")
+        self.assertEqual(rows[0]["bindings"], {"nested": "NestedError"})
+
+    def test_curated_rule_requires_actual_payload_type(self):
+        row = {"case_path": ["OuterError.Inner"], "kind": "delegated", "value": None,
+               "expression": "nested.code()", "bindings": {"nested": "NewError"}}
+        record = {"canonical_name": "sample.OuterError", "inspection": {"code": [row]}}
+        policy = {"curated_code_rules": {"sample.OuterError": [{"case": "Inner", "code_or_rule": "contained OldError.code()"}]}}
+        self.assertEqual(error_api.mapping_rows(record, "code", policy)[0]["code_or_rule"], "delegates to nested.code()")
+        row["bindings"]["nested"] = "OldError"
+        self.assertEqual(error_api.mapping_rows(record, "code", policy)[0]["code_or_rule"], "contained OldError.code()")
+
+    def test_raw_and_escaped_inspection_literals(self):
+        self.assertEqual(error_api.literal(['r#"/* raw } */"#']), "/* raw } */")
+        self.assertEqual(error_api.literal(['r"raw"']), "raw")
+        self.assertEqual(error_api.literal(['"line\\nquote\\\""']), 'line\nquote"')
+
+    def test_constraint_is_not_an_error_implementation(self):
+        self.assertFalse(error_api.implements_error("public enum Wrapper<T> where T implements Error"))
+        self.assertTrue(error_api.implements_error("public enum Wrapper<T> implements Error where T implements Copy"))
+
+    def test_nested_closure_return_is_not_a_method_code_literal(self):
+        with self.assertRaisesRegex(ValueError, "Nested closure inspection"):
+            error_api.inspection_returns('rsn f=[]()->string_view{return "not the method result";};return f();', "SampleError")
+
+    def test_struct_fields_and_per_variant_lifecycle(self):
+        source = annotated('''public enum SampleError implements Copy, Error {
+Bad { public usize offset; };
+public string_view code(&Self self){switch(*self){case Self.Bad:return "sample.bad";break;}}
+public string_view message(&Self self){return "Rejected input.";}
+};''')
+        items = error_api.api.declarations(source, "sample")
+        record = error_api.declaration_record({"body": source, "source": "library/Core/sample.avx", "source_line": 1}, items[0], items)
+        self.assertEqual(record["lifecycle"]["since"], "0.2")
+        self.assertEqual(record["variant_details"][0]["fields"][0]["declaration"], "usize offset")
+        self.assertEqual(record["variant_details"][0]["fields"][0]["lifecycle"]["since"], "0.2")
+
+    def test_missing_variant_inspection_is_rejected(self):
+        source = annotated('''public enum SampleError implements Error {
+Bad; New;
+public string_view code(&Self self){switch(*self){case Self.Bad:return "bad";break;}}
+public string_view message(&Self self){return "description";}
+};''')
+        items = error_api.api.declarations(source, "sample")
+        with self.assertRaisesRegex(ValueError, "omits variants: New"):
+            error_api.declaration_record({"body": source, "source": "sample.avx", "source_line": 1}, items[0], items)
+
+    def test_error_implementation_requires_both_methods(self):
+        source = annotated('public enum SampleError implements Error { Bad; public string_view code(&Self self){return "bad";} };')
+        items = error_api.api.declarations(source, "sample")
+        with self.assertRaisesRegex(ValueError, "missing code/message"):
+            error_api.declaration_record({"body": source, "source": "sample.avx", "source_line": 1}, items[0], items)
+
+
+class InventoryTests(unittest.TestCase):
+    def project(self, root):
+        (root / "docs/Language/Library").mkdir(parents=True)
+        (root / "library/Core").mkdir(parents=True)
+        policy = {"curated_types": [], "core_module_supplements": [], "compiler_supplements": {}, "curated_code_rules": {}}
+        (root / error_api.POLICY).write_text(json.dumps(policy))
+        source = annotated('''public enum SampleError implements Copy, Error {
+Bad {public usize offset;};
+public string_view code(&Self self){switch(*self){case Self.Bad:return "sample.bad";break;}}
+public string_view message(&Self self){return "Rejected input.";}
+};
+public enum OwnedError<T> {Failed {public T input;};};''')
+        (root / "library/Core/sample.avx").write_text(source)
+        page = root / error_api.PAGE
+        page.parent.mkdir(parents=True)
+        page.write_text('<html>unchanged before<section id="CPU-Library-Errors-03">old<section>nested</section></section>unchanged after</html>')
+        return page
+
+    def call(self, *arguments):
+        output, errors = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            result = error_api.main(list(arguments))
+        return result, output.getvalue(), errors.getvalue()
+
+    def test_inventory_render_check_and_exact_code_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page = self.project(root)
+            self.assertEqual(self.call("inventory", "--root", str(root))[0], 0)
+            self.assertEqual(self.call("render", "--root", str(root))[0], 0)
+            self.assertEqual(self.call("check", "--root", str(root))[0], 0)
+            before = page.read_text()
+            self.assertTrue(before.startswith("<html>unchanged before<section"))
+            self.assertTrue(before.endswith("</section>unchanged after</html>"))
+            source = root / "library/Core/sample.avx"
+            source.write_text(source.read_text().replace('"sample.bad"', '"sample.changed"'))
+            code, output, errors = self.call("check", "--root", str(root))
+            self.assertEqual(code, 1)
+            self.assertIn("drifted from source", errors)
+            self.assertEqual(page.read_text(), before)
+
+    def test_no_error_implementation_is_explicit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.project(root)
+            record = next(item for item in error_api.inventory(root)["types"] if item["name"] == "sample.OwnedError<T>")
+            self.assertEqual(record["code_mappings"][0]["kind"], "absent")
+            self.assertEqual(record["code_mappings"][0]["code_or_rule"], "no code() method")
+            self.assertEqual(record["lifecycle"]["since"], "0.2")
+
+    def test_disappearing_curated_type_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.project(root)
+            p = root / error_api.POLICY
+            policy = json.loads(p.read_text()); policy["curated_types"] = ["sample.MissingError"]
+            p.write_text(json.dumps(policy))
+            with self.assertRaisesRegex(ValueError, "disappeared: sample.MissingError"):
+                error_api.inventory(root)
+
+    def test_contradicted_curated_code_is_reported_and_never_fabricated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.project(root)
+            p = root / error_api.POLICY
+            policy = json.loads(p.read_text())
+            policy["curated_code_rules"] = {"sample.SampleError": [{"case": "Bad", "code_or_rule": "sample.old"}]}
+            p.write_text(json.dumps(policy))
+            data = error_api.inventory(root)
+            self.assertEqual(data["curated_rule_audit"][0]["status"], "not_present_in_current_source_review_required")
+            record = next(item for item in data["types"] if item["name"] == "sample.SampleError")
+            self.assertEqual(record["code_mappings"][0]["code_or_rule"], "sample.bad")
+            self.assertNotIn("sample.old", error_api.render(data))
+
+    def test_variant_and_message_drift_changes_inventory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.project(root)
+            before = error_api.inventory(root)
+            source = root / "library/Core/sample.avx"
+            source.write_text(source.read_text().replace('"Rejected input."', '"New exact message."').replace('usize offset', 'u32 offset'))
+            after = error_api.inventory(root)
+            self.assertNotEqual(before, after)
+            record = next(item for item in after["types"] if item["name"] == "sample.SampleError")
+            self.assertIn("u32 offset", record["variants_or_fields"][0])
+            self.assertEqual(record["message_mappings"][0]["message_or_rule"], "New exact message.")
+
+    def test_compiler_carrier_uses_verified_adapter_without_direct_methods(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.project(root)
+            p = root / error_api.POLICY
+            policy = json.loads(p.read_text())
+            policy["curated_types"] = ["error.CoreError"]
+            policy["compiler_supplements"] = {"$core.CharError": {
+                "public_name": "CharError", "adapter_type": "error.CoreError", "adapter_variant": "Char",
+                "explanation": "No direct Error implementation; use the named adapter."}}
+            p.write_text(json.dumps(policy))
+            core = annotated('public enum CharError implements Copy { InvalidScalar { public u32 value; }; };', "$core", "0.3")
+            adapter = annotated('''public enum CoreError implements Error {
+Char {public CharError error;};
+public string_view code(&Self self){switch(*self){case Self.Char {CharError e=error}:switch(e){case CharError.InvalidScalar:return "char.invalid_scalar";break;}break;}}
+public string_view message(&Self self){switch(*self){case Self.Char {CharError e=error}:switch(e){case CharError.InvalidScalar:return "Invalid scalar.";break;}break;}}
+};''', "error", "0.3")
+            units = [{"module": "$core", "source": "src/Frontend/Sema/CoreErrorTypes.cpp", "body": core, "source_line": 1},
+                     {"module": "error", "source": "library/Core/error.avx", "body": adapter, "source_line": 1}]
+            with mock.patch.object(error_api, "source_units", return_value=units):
+                record = next(item for item in error_api.inventory(root)["types"] if item["name"] == "CharError")
+            self.assertNotIn("code", record["inspection"])
+            self.assertEqual(record["code_mappings"][0]["kind"], "adapter_literal")
+            self.assertEqual(record["code_mappings"][0]["code_or_rule"], "char.invalid_scalar")
+            self.assertNotIn("implements Error", record["declaration"])
+            units[1]["body"] = adapter.replace("Char {", "Other {", 1).replace("Self.Char", "Self.Other")
+            with mock.patch.object(error_api, "source_units", return_value=units):
+                with self.assertRaisesRegex(ValueError, "Missing compiler supplement adapter branch"):
+                    error_api.inventory(root)
+
+
+if __name__ == "__main__":
+    unittest.main()

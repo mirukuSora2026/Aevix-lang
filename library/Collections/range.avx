@@ -1,0 +1,722 @@
+/*
+ * Explicit-import finite integer range utilities. The canonical Range namespace is unchanged.
+ * Signed ranks map MIN to zero and MAX to 2^width-1; all spans use u128.
+ * Last ordinal is stored instead of count, so closed full-domain ranges stay representable.
+ * Descriptor and cursor helpers do not allocate; collect_vector explicitly allocates output storage.
+ * Materialization reports size/allocation errors; fixed-array Result storage is proportional to N.
+ * No descriptor mutation, signed endpoint subtraction, or max-end increment is used.
+ */
+/*
+ * Lifecycle of the range public module.
+ * @module range
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import error { Error };
+import integer;
+
+/*
+ * The stored ascending or descending direction, independent of whether the sequence is empty.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum RangeDirection implements Copy { /*
+ * Values advance toward larger integers by a positive unsigned magnitude.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+Ascending; /*
+ * Values advance toward smaller integers by a positive unsigned magnitude.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+Descending; };
+/*
+ * Failures of source-only ordinal and step helpers; distinct from canonical RangeError.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum RangeOperationError implements Copy, Error {
+    /*
+     * The requested ordinal is outside the sequence, or a split index exceeds its cardinality.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    OutOfBounds { /*
+ * The original usize ordinal supplied by the caller.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize index; };
+    /*
+     * A zero multiplicative step factor is invalid, including for empty descriptors.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidStep;
+    /*
+     * The product of the current magnitude and factor does not fit the element unsigned magnitude type.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    StepOverflow;
+    /*
+     * Return a stable allocation-free code for this source error carrier.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) {
+        switch(*self) {
+            case Self.OutOfBounds:return "range.ordinal_out_of_bounds";break;
+            case Self.InvalidStep:return "range.invalid_step_factor";break;
+            case Self.StepOverflow:return "range.step_overflow";break;
+        }
+    }
+    /*
+     * Return an allocation-free English description for this source error carrier.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) {
+        switch(*self) {
+            case Self.OutOfBounds:return "The ordinal is outside the finite range sequence.";break;
+            case Self.InvalidStep:return "The step factor must be positive.";break;
+            case Self.StepOverflow:return "The scaled step does not fit its unsigned magnitude type.";break;
+        }
+    }
+};
+T success<T,E>(Result<T,E> input) {
+    switch(move input){case Result<T,E>.Ok{T value=value}:return value;break;default:Never.unreachable();break;}
+}
+u128 widen<T>(T value) where T implements Copy {
+    Result<u128,IntegerError> converted=Integer.convert<u128>(value);
+    u128 output=success<u128,IntegerError>(converted);
+    return output;
+}
+struct RankedRange implements Copy {
+    public u128 first;
+    public u128 limit;
+    public u128 magnitude;
+    public bool descending;
+    public bool inclusive;
+    public bool empty;
+};
+
+u128 rank(i8 value) {
+    if(value<0i8){u128 magnitude=widen(integer.unsigned_abs(value));return 128u128-magnitude;}
+    u128 nonnegative=widen(value);return 128u128+nonnegative;
+}
+i8 unrank(i8 witness,u128 value) {
+    if(value<128u128){u128 magnitude=128u128-value;i8 predecessor=success(Integer.convert<i8>(magnitude-1u128));return -predecessor-1i8;}
+    u128 nonnegative=value-128u128;return success(Integer.convert<i8>(nonnegative));
+}
+u128 rank(u8 value){return widen(value);}
+u8 unrank(u8 witness,u128 value){return success(Integer.convert<u8>(value));}
+u128 rank(i16 value) {
+    if(value<0i16){u128 magnitude=widen(integer.unsigned_abs(value));return 32768u128-magnitude;}
+    u128 nonnegative=widen(value);return 32768u128+nonnegative;
+}
+i16 unrank(i16 witness,u128 value) {
+    if(value<32768u128){u128 magnitude=32768u128-value;i16 predecessor=success(Integer.convert<i16>(magnitude-1u128));return -predecessor-1i16;}
+    u128 nonnegative=value-32768u128;return success(Integer.convert<i16>(nonnegative));
+}
+u128 rank(u16 value){return widen(value);}
+u16 unrank(u16 witness,u128 value){return success(Integer.convert<u16>(value));}
+u128 rank(i32 value) {
+    if(value<0i32){u128 magnitude=widen(integer.unsigned_abs(value));return 2147483648u128-magnitude;}
+    u128 nonnegative=widen(value);return 2147483648u128+nonnegative;
+}
+i32 unrank(i32 witness,u128 value) {
+    if(value<2147483648u128){u128 magnitude=2147483648u128-value;i32 predecessor=success(Integer.convert<i32>(magnitude-1u128));return -predecessor-1i32;}
+    u128 nonnegative=value-2147483648u128;return success(Integer.convert<i32>(nonnegative));
+}
+u128 rank(u32 value){return widen(value);}
+u32 unrank(u32 witness,u128 value){return success(Integer.convert<u32>(value));}
+u128 rank(i64 value) {
+    if(value<0i64){u128 magnitude=widen(integer.unsigned_abs(value));return 9223372036854775808u128-magnitude;}
+    u128 nonnegative=widen(value);return 9223372036854775808u128+nonnegative;
+}
+i64 unrank(i64 witness,u128 value) {
+    if(value<9223372036854775808u128){u128 magnitude=9223372036854775808u128-value;i64 predecessor=success(Integer.convert<i64>(magnitude-1u128));return -predecessor-1i64;}
+    u128 nonnegative=value-9223372036854775808u128;return success(Integer.convert<i64>(nonnegative));
+}
+u128 rank(u64 value){return widen(value);}
+u64 unrank(u64 witness,u128 value){return success(Integer.convert<u64>(value));}
+u128 rank(i128 value) {
+    if(value<0i128){u128 magnitude=widen(integer.unsigned_abs(value));return 170141183460469231731687303715884105728u128-magnitude;}
+    u128 nonnegative=widen(value);return 170141183460469231731687303715884105728u128+nonnegative;
+}
+i128 unrank(i128 witness,u128 value) {
+    if(value<170141183460469231731687303715884105728u128){u128 magnitude=170141183460469231731687303715884105728u128-value;i128 predecessor=success(Integer.convert<i128>(magnitude-1u128));return -predecessor-1i128;}
+    u128 nonnegative=value-170141183460469231731687303715884105728u128;return success(Integer.convert<i128>(nonnegative));
+}
+u128 rank(u128 value){return widen(value);}
+u128 unrank(u128 witness,u128 value){return success(Integer.convert<u128>(value));}
+u128 rank(isize value) {
+    if(value<0isize){u128 magnitude=widen(integer.unsigned_abs(value));return 9223372036854775808u128-magnitude;}
+    u128 nonnegative=widen(value);return 9223372036854775808u128+nonnegative;
+}
+isize unrank(isize witness,u128 value) {
+    if(value<9223372036854775808u128){u128 magnitude=9223372036854775808u128-value;isize predecessor=success(Integer.convert<isize>(magnitude-1u128));return -predecessor-1isize;}
+    u128 nonnegative=value-9223372036854775808u128;return success(Integer.convert<isize>(nonnegative));
+}
+u128 rank(usize value){return widen(value);}
+usize unrank(usize witness,u128 value){return success(Integer.convert<usize>(value));}
+
+RankedRange ranked<T>(&Range<T> descriptor) where T implements Copy {
+    T begin=Range.start(descriptor);
+    T end=Range.end(descriptor);
+    u128 first=rank(begin);
+    u128 limit=rank(end);
+    u128 magnitude=widen(Range.step_magnitude(descriptor));
+    return RankedRange{first=first,limit=limit,magnitude=magnitude,descending=Range.is_descending(descriptor),inclusive=Range.is_inclusive(descriptor),empty=Range.is_empty(descriptor)};
+}
+u128 last_ordinal(&RankedRange descriptor) {
+    u128 distance=descriptor.descending?descriptor.first-descriptor.limit:descriptor.limit-descriptor.first;
+    u128 eligible=descriptor.inclusive?distance:distance-1u128;
+    return eligible/descriptor.magnitude;
+}
+u128 ordinal_rank(&RankedRange descriptor,u128 ordinal) {
+    u128 distance=ordinal*descriptor.magnitude;
+    return descriptor.descending?descriptor.first-distance:descriptor.first+distance;
+}
+Optional<u128> lookup(&RankedRange descriptor,u128 ordinal) {
+    if(descriptor.empty)return Optional.none();
+    u128 final=last_ordinal(descriptor);
+    if(ordinal>final)return Optional.none();
+    return Optional.some(ordinal_rank(descriptor,ordinal));
+}
+Range<T> same_step<T>(Range<T> output,&Range<T> original) where T implements Copy {
+    return success(Range.with_step(output,Range.step_magnitude(original)));
+}
+Range<T> closed_segment<T>(T first,T last,&Range<T> original) where T implements Copy {
+    Range<T> output=Range.is_descending(original)?Range.descending_closed(first,last):Range.closed(first,last);
+    return same_step(output,original);
+}
+Range<T> suffix<T>(T first,&Range<T> original) where T implements Copy {
+    T end=Range.end(original);
+    bool descending=Range.is_descending(original);
+    bool inclusive=Range.is_inclusive(original);
+    Range<T> output=descending?(inclusive?Range.descending_closed(first,end):Range.descending(first,end)):(inclusive?Range.closed(first,end):Range.new(first,end));
+    return same_step(output,original);
+}
+
+/*
+ * Return the canonical ascending half-open zero-to-zero descriptor for an integer T.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Range<T> empty<T>() where T implements Copy {
+    T zero=success(Integer.convert<T>(0u8));
+    return Range.new(zero,zero);
+}
+/*
+ * Inspect the stored direction without enumerating values; emptiness does not erase the direction.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public RangeDirection direction<T>(&Range<T> descriptor) where T implements Copy {
+    return Range.is_descending(descriptor)?RangeDirection.Descending:RangeDirection.Ascending;
+}
+/*
+ * Check directional bounds and step divisibility in O(1), including signed numeric extremes.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains<T>(&Range<T> descriptor,T value) where T implements Copy {
+    RankedRange state=ranked(descriptor);
+    if(state.empty)return false;
+    u128 candidate=rank(value);
+    if(state.descending?candidate>state.first:candidate<state.first)return false;
+    u128 distance=state.descending?state.first-candidate:candidate-state.first;
+    u128 extent=state.descending?state.first-state.limit:state.limit-state.first;
+    if(state.inclusive?distance>extent:distance>=extent)return false;
+    return distance%state.magnitude==0u128;
+}
+/*
+ * Compare bounds, inclusion, unsigned magnitude and direction; descriptors can differ while yielding equal sequences.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal<T>(&Range<T> left,&Range<T> right) where T implements Copy {
+    RankedRange a=ranked(left);RankedRange b=ranked(right);
+    return a.first==b.first&&a.limit==b.limit&&a.magnitude==b.magnitude&&a.descending==b.descending&&a.inclusive==b.inclusive;
+}
+/*
+ * Return the first yielded integer, or None when the finite descriptor is empty.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> first<T>(&Range<T> descriptor) where T implements Copy {
+    if(Range.is_empty(descriptor))return Optional.none();
+    T value=Range.start(descriptor);return Optional.some(value);
+}
+/*
+ * Return the integer at a zero-based usize ordinal, or None; validate the ordinal before multiplication.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> get<T>(&Range<T> descriptor,usize index) where T implements Copy {
+    RankedRange state=ranked(descriptor);
+    u128 ordinal=widen(index);
+    switch(move lookup(&state,ordinal)){
+        case Optional<u128>.Some{u128 raw=value}:T witness=Range.start(descriptor);T output=unrank(witness,raw);return Optional.some(output);break;
+        case Optional<u128>.None:return Optional.none();break;
+    }
+}
+/*
+ * Return the last reachable integer in O(1), without forming a cardinality that can overflow u128.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> last<T>(&Range<T> descriptor) where T implements Copy {
+    RankedRange state=ranked(descriptor);
+    if(state.empty)return Optional.none();
+    u128 ordinal=last_ordinal(&state);
+    u128 raw=ordinal_rank(&state,ordinal);
+    T witness=Range.start(descriptor);T value=unrank(witness,raw);return Optional.some(value);
+}
+/*
+ * Return an ordinal value or RangeOperationError.OutOfBounds containing the unchanged caller index.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T,RangeOperationError> at<T>(&Range<T> descriptor,usize index) where T implements Copy {
+    switch(move get(descriptor,index)){
+        case Optional<T>.Some{T value=value}:return Result.ok(value);break;
+        case Optional<T>.None:return Result.err(RangeOperationError.OutOfBounds{index=index});break;
+    }
+}
+/*
+ * Reverse the finite sequence using closed actual reached endpoints and the opposite direction; never negate a step.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Range<T> reverse<T>(Range<T> descriptor) where T implements Copy {
+    RankedRange state=ranked(&descriptor);
+    if(state.empty)return empty<T>();
+    u128 ordinal=last_ordinal(&state);u128 final_rank=ordinal_rank(&state,ordinal);
+    T begin=Range.start(&descriptor);T last=unrank(begin,final_rank);
+    Range<T> output=state.descending?Range.closed(last,begin):Range.descending_closed(last,begin);
+    return same_step(output,&descriptor);
+}
+/*
+ * Keep at most count leading values in O(1); zero yields canonical empty and finite cuts use a reached closed endpoint.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Range<T> take<T>(Range<T> descriptor,usize count) where T implements Copy {
+    if(count==0usize)return empty<T>();
+    RankedRange state=ranked(&descriptor);
+    if(state.empty)return descriptor;
+    u128 amount=widen(count);u128 final=last_ordinal(&state);
+    if(amount>final)return descriptor;
+    u128 last_rank=ordinal_rank(&state,amount-1u128);
+    T begin=Range.start(&descriptor);T end=unrank(begin,last_rank);
+    return closed_segment(begin,end,&descriptor);
+}
+/*
+ * Remove up to count leading values in O(1); cuts use actual reached closed endpoints and never form MAX+1.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Range<T> skip<T>(Range<T> descriptor,usize count) where T implements Copy {
+    if(count==0usize)return descriptor;
+    RankedRange state=ranked(&descriptor);
+    if(state.empty)return descriptor;
+    u128 amount=widen(count);u128 final=last_ordinal(&state);
+    if(amount>final)return empty<T>();
+    u128 first_rank=ordinal_rank(&state,amount);
+    u128 last_rank=ordinal_rank(&state,final);
+    T witness=Range.start(&descriptor);T begin=unrank(witness,first_rank);T end=unrank(witness,last_rank);
+    return closed_segment(begin,end,&descriptor);
+}
+/*
+ * Return prefix and suffix descriptors when index is no greater than cardinality, without enumeration or count overflow.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Tuple<Range<T>,Range<T>>,RangeOperationError> split_at<T>(Range<T> descriptor,usize index) where T implements Copy {
+    RankedRange state=ranked(&descriptor);u128 ordinal=widen(index);
+    if(state.empty){if(index!=0usize)return Result.err(RangeOperationError.OutOfBounds{index=index});}
+    else if(index!=0usize){u128 final=last_ordinal(&state);if(ordinal>final&&ordinal-1u128!=final)return Result.err(RangeOperationError.OutOfBounds{index=index});}
+    Range<T> prefix=take(descriptor,index);Range<T> tail=skip(descriptor,index);
+    return Result.ok(Tuple.make(prefix,tail));
+}
+/*
+ * Compare yielded sequences in O(1); all empty sequences compare equal and singleton step/direction differences are ignored.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool sequence_equal<T>(&Range<T> left,&Range<T> right) where T implements Copy {
+    RankedRange a=ranked(left);RankedRange b=ranked(right);
+    if(a.empty||b.empty)return a.empty==b.empty;
+    if(a.first!=b.first)return false;
+    u128 a_last=last_ordinal(&a);u128 b_last=last_ordinal(&b);
+    if(a_last!=b_last)return false;
+    return a_last==0u128||(a.magnitude==b.magnitude&&a.descending==b.descending);
+}
+Result<u128,RangeOperationError> scale_step(u128 old,u128 factor,u128 maximum) {
+    if(factor==0u128)return Result.err(RangeOperationError.InvalidStep);
+    if(old>maximum/factor)return Result.err(RangeOperationError.StepOverflow);
+    return Result.ok(old*factor);
+}
+/*
+ * An independent, copyable, allocation-free, double-ended fused cursor over a finite integer sequence.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Cursor<T> implements Copy where T implements Copy {
+    T witness;
+    u128 current;
+    u128 final;
+    u128 magnitude;
+    bool descending;
+    bool active;
+    /*
+     * Own a private cursor state initialized from a Copy descriptor; the caller can continue using its original descriptor.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new(Range<T> descriptor){
+        RankedRange state=ranked(&descriptor);
+        u128 final=state.empty?state.first:ordinal_rank(&state,last_ordinal(&state));
+        T witness=Range.start(&descriptor);
+        return Self{witness=witness,current=state.first,final=final,magnitude=state.magnitude,descending=state.descending,active=!state.empty};
+    }
+    /*
+     * Report whether all values were consumed; exhaustion remains true after later next or next_back calls.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_exhausted(&Self self){return !self.active;}
+    /*
+     * Yield from the front and advance only when another value remains; return None permanently after exhaustion.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<T> next(&mut Self self){
+        if(!self.active)return Optional.none();
+        u128 raw=self.current;
+        if(raw==self.final)self.active=false;
+        else self.current=self.descending?self.current-self.magnitude:self.current+self.magnitude;
+        T output=unrank(self.witness,raw);return Optional.some(output);
+    }
+    /*
+     * Yield from the back, sharing remaining bounds with next; never advance beyond the final remaining value.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<T> next_back(&mut Self self){
+        if(!self.active)return Optional.none();
+        u128 raw=self.final;
+        if(raw==self.current)self.active=false;
+        else self.final=self.descending?self.final+self.magnitude:self.final-self.magnitude;
+        T output=unrank(self.witness,raw);return Optional.some(output);
+    }
+};
+/*
+ * Create an independent forward cursor without borrowing or changing the original descriptor.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Cursor<T> iter<T>(Range<T> descriptor) where T implements Copy {return Cursor<T>.new(descriptor);}
+/*
+ * Create an independent cursor over the reversed finite sequence without enumerating or allocating.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Cursor<T> rev_iter<T>(Range<T> descriptor) where T implements Copy {Range<T> reversed=reverse(descriptor);return Cursor<T>.new(reversed);}
+
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<i8>,RangeOperationError> step_by(Range<i8> descriptor,u8 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,255u128)?;
+    u8 narrowed=success(Integer.convert<u8>(product));
+    Range<i8> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<u8>,RangeOperationError> step_by(Range<u8> descriptor,u8 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,255u128)?;
+    u8 narrowed=success(Integer.convert<u8>(product));
+    Range<u8> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<i16>,RangeOperationError> step_by(Range<i16> descriptor,u16 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,65535u128)?;
+    u16 narrowed=success(Integer.convert<u16>(product));
+    Range<i16> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<u16>,RangeOperationError> step_by(Range<u16> descriptor,u16 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,65535u128)?;
+    u16 narrowed=success(Integer.convert<u16>(product));
+    Range<u16> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<i32>,RangeOperationError> step_by(Range<i32> descriptor,u32 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,4294967295u128)?;
+    u32 narrowed=success(Integer.convert<u32>(product));
+    Range<i32> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<u32>,RangeOperationError> step_by(Range<u32> descriptor,u32 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,4294967295u128)?;
+    u32 narrowed=success(Integer.convert<u32>(product));
+    Range<u32> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<i64>,RangeOperationError> step_by(Range<i64> descriptor,u64 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,18446744073709551615u128)?;
+    u64 narrowed=success(Integer.convert<u64>(product));
+    Range<i64> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<u64>,RangeOperationError> step_by(Range<u64> descriptor,u64 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,18446744073709551615u128)?;
+    u64 narrowed=success(Integer.convert<u64>(product));
+    Range<u64> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<i128>,RangeOperationError> step_by(Range<i128> descriptor,u128 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,340282366920938463463374607431768211455u128)?;
+    u128 narrowed=success(Integer.convert<u128>(product));
+    Range<i128> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<u128>,RangeOperationError> step_by(Range<u128> descriptor,u128 factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,340282366920938463463374607431768211455u128)?;
+    u128 narrowed=success(Integer.convert<u128>(product));
+    Range<u128> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<isize>,RangeOperationError> step_by(Range<isize> descriptor,usize factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,18446744073709551615u128)?;
+    usize narrowed=success(Integer.convert<usize>(product));
+    Range<isize> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+/*
+ * Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Range<usize>,RangeOperationError> step_by(Range<usize> descriptor,usize factor){
+    u128 magnitude=widen(Range.step_magnitude(&descriptor));u128 multiplier=widen(factor);
+    u128 product=scale_step(magnitude,multiplier,18446744073709551615u128)?;
+    usize narrowed=success(Integer.convert<usize>(product));
+    Range<usize> output=success(Range.with_step(descriptor,narrowed));return Result.ok(output);
+}
+
+/*
+ * Failures of fixed-array materialization; distinct from canonical RangeError, which is unchanged.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum RangeArrayError implements Copy, Error {
+    /*
+     * The finite range cardinality cannot be represented as usize, before any explicit output initialization.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    CountOverflow;
+    /*
+     * The representable range cardinality differs from the requested compile-time array extent.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    LengthMismatch { /*
+ * The compile-time usize array extent supplied as the first generic argument.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize expected; /*
+ * The exact representable usize cardinality of the input sequence.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize actual; };
+    /*
+     * Return the stable allocation-free code of this source array-materialization error.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) {
+        switch(*self){case Self.CountOverflow:return "range.array_count_overflow";break;case Self.LengthMismatch:return "range.array_length_mismatch";break;}
+    }
+    /*
+     * Return an allocation-free English description of this source array-materialization error.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) {
+        switch(*self){case Self.CountOverflow:return "The range cardinality cannot be represented by usize.";break;case Self.LengthMismatch:return "The range cardinality differs from the fixed array extent.";break;}
+    }
+};
+
+T integer_zero<T>() where T implements Copy {
+    switch(move Integer.convert<T>(0u8)){
+        case Result<T,IntegerError>.Ok{T value=value}:return value;break;
+        default:Never.unreachable();break;
+    }
+}
+/*
+ * Materialize integer Copy values after exact cardinality and byte-size checks. Map count overflow to CollectionError.SizeOverflow; reserve output once, preserve the input descriptor and release owned output on failure. Empty output performs no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<T>,CollectionError> collect_vector<T>(Range<T> descriptor) where T implements Copy {
+    mut usize count=0usize;
+    switch(move Range.len(&descriptor)) {
+        case Result<usize,RangeError>.Ok{usize length=value}:count=length;break;
+        case Result<usize,RangeError>.Err{RangeError reason=error}:
+            switch(move reason){case RangeError.CountOverflow:return Result.err(CollectionError.SizeOverflow);break;case RangeError.InvalidStep:Never.unreachable();break;}break;
+    }
+    mut Vector<T> output=[]?;
+    Vector.reserve(&mut output,count)?;
+    mut Cursor<T> cursor=iter(descriptor);
+    while(!cursor.is_exhausted()) {
+        switch(move cursor.next()) {
+            case Optional<T>.Some{T value=value}:
+                Result<unit,InputError<T>> appended=Vector.push(&mut output,value);
+                switch(move appended){
+                    case Result<unit,InputError<T>>.Ok:break;
+                    case Result<unit,InputError<T>>.Err{InputError<T> reason=error}:
+                        switch(move reason){case InputError<T>.AllocationFailure:return Result.err(CollectionError.AllocationFailure);break;case InputError<T>.SizeOverflow:return Result.err(CollectionError.SizeOverflow);break;case InputError<T>.OutOfBounds:Never.unreachable();break;}break;
+                }break;
+            case Optional<T>.None:Never.unreachable();break;
+        }
+    }
+    return Result.ok(output);
+}
+/*
+ * Materialize exactly N integer Copy values into inline storage; N is the first const generic argument and T is inferred. Validate count before explicit repeated-array initialization. Return source RangeArrayError on count overflow or length mismatch. The current aggregate Result ABI still reserves/copies/zero-initializes O(N) storage even on an error; no heap buffer is allocated.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Array<T,N>,RangeArrayError> to_array<const usize N,T>(Range<T> descriptor) where T implements Copy {
+    mut usize count=0usize;
+    switch(move Range.len(&descriptor)) {
+        case Result<usize,RangeError>.Ok{usize length=value}:count=length;break;
+        case Result<usize,RangeError>.Err{RangeError reason=error}:
+            switch(move reason){case RangeError.CountOverflow:return Result.err(RangeArrayError.CountOverflow);break;case RangeError.InvalidStep:Never.unreachable();break;}break;
+    }
+    if(count!=N)return Result.err(RangeArrayError.LengthMismatch{expected=N,actual=count});
+    T zero=integer_zero<T>();
+    mut Array<T,N> output=[zero;N];
+    mut usize index=0usize;
+    mut Cursor<T> cursor=iter(descriptor);
+    while(index<N) {
+        switch(move cursor.next()) {
+            case Optional<T>.Some{T value=value}:output[index]=value;break;
+            case Optional<T>.None:Never.unreachable();break;
+        }
+        index++;
+    }
+    return Result.ok(output);
+}

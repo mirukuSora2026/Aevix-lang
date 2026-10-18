@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : generate_integer
+#
+# Description :
+#     정수 소스 모듈과 API 스키마를 재현하고 읽기 전용 검사를 제공한다.
+#     Reproduce the source integer module and API schema, with a read-only verification mode.
+#
+# ========================
+from pathlib import Path
+import argparse
+import hashlib
+import json
+
+parser = argparse.ArgumentParser(description='Reproduce the source integer utilities and API schema.')
+parser.add_argument('--output', type=Path, required=True, help='Aevix module destination or file to verify')
+parser.add_argument('--schema', type=Path, required=True, help='API schema destination or file to verify')
+parser.add_argument('--check', '--verify', dest='verify', action='store_true', help='Compare existing bytes without writing or creating files')
+generator_options = parser.parse_args()
+TYPES = [(f'{p}{w}',w,p=='i') for w in (8,16,32,64,128) for p in ('i','u')]
+TYPES += [('isize',64,True),('usize',64,False)]
+OUTPUT=[]
+SCHEMA=[]
+
+def doc(text):
+    return '/*\n * '+text+'\n * @since 0.3.0\n * @deprecated_at none\n * @removed_at none\n */\n'
+
+def emit(name,ret,args,body,text):
+    OUTPUT.append(doc(text)+f'public {ret} {name}({args}) {{\n{body}\n}}\n')
+    SCHEMA.append({'name':name,'returns':ret,'parameters':args,'contract':text})
+
+def lit(n,t):
+    return str(n)+t
+
+OUTPUT.append(doc('Explicit-import integer arithmetic and bit utilities. No hidden allocation. IntegerArithmeticError is distinct from compiler IntegerError and math.IntegerMathError. Native-sized types follow the supported 64-bit targets.'))
+OUTPUT[0] = OUTPUT[0].replace(' * @since', ' * @module integer\n * @since', 1)
+OUTPUT.append('import error { Error };\n')
+OUTPUT.append(doc('Failures of explicitly imported arithmetic helpers; the canonical IntegerError is unchanged.')+'''public enum IntegerArithmeticError implements Copy, Error {
+'''+doc('The exact arithmetic result cannot be represented by the requested output type.')+'''    Overflow;
+'''+doc('The divisor is zero.')+'''    DivisionByZero;
+'''+doc('Return a stable, allocation-free error code.')+'''    public string_view code(&Self self) {
+        switch (*self) {
+            case IntegerArithmeticError.Overflow: return "integer.overflow"; break;
+            case IntegerArithmeticError.DivisionByZero: return "integer.division_by_zero"; break;
+        }
+    }
+'''+doc('Return a stable, allocation-free error description.')+'''    public string_view message(&Self self) {
+        switch (*self) {
+            case IntegerArithmeticError.Overflow: return "The exact result does not fit its integer type."; break;
+            case IntegerArithmeticError.DivisionByZero: return "Integer division requires a nonzero divisor."; break;
+        }
+    }
+};
+T represent<T,U>(U value) {
+    switch (Integer.convert<T>(value)) {
+        case Result<T,IntegerError>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+bool has_error<T>(Result<T,IntegerArithmeticError> outcome) {
+    switch (move outcome) { case Result<T,IntegerArithmeticError>.Err: return true; break; default: return false; break; }
+}
+''')
+
+for t,w,signed in TYPES:
+    u='usize' if t=='isize' else ('u'+str(w) if signed else t)
+    maximum=(1<<(w-1))-1 if signed else (1<<w)-1
+    minimum=-(1<<(w-1)) if signed else 0
+    umax=(1<<w)-1
+    z,o,mi,ma,um=lit(0,t),lit(1,t),lit(minimum,t),lit(maximum,t),lit(umax,u)
+    bitzero,bitone=lit(0,u),lit(1,u)
+    constname=t.upper()
+    for cname,n in [('MIN',minimum),('MAX',maximum)]:
+        OUTPUT.append(doc(f'The exact {t} {cname.lower()}imum value.')+f'public const {t} {cname}_{constname} = {lit(n,t)};\n')
+    if signed:
+        OUTPUT.append(f'{u} bits({t} value) {{ if (value >= {z}) return represent<{u}>(value); return {um} - represent<{u}>(-(value + {o})); }}\n')
+        OUTPUT.append(f'{t} signed_bits_{t}({u} value) {{ if (value <= {lit(maximum,u)}) return represent<{t}>(value); return -represent<{t}>({um} - value) - {o}; }}\n')
+        back=lambda x: f'signed_bits_{t}({x})'
+        emit('unsigned_abs',u,f'{t} value',f'    return value < {z} ? represent<{u}>(-(value + {o})) + {bitone} : represent<{u}>(value);',f'Exact {t} magnitude, including MIN, returned in {u}; never negate MIN.')
+    else:
+        OUTPUT.append(f'{u} bits({t} value) {{ return value; }}\n')
+        back=lambda x:x
+    mag=lambda x:f'unsigned_abs({x})' if signed else x
+    result=f'Result<{t},IntegerArithmeticError>'
+    args=f'{t} left, {t} right'
+    checks={
+      'add':f'(right > {z} && left > {ma} - right) || (right < {z} && left < {mi} - right)' if signed else f'left > {ma} - right',
+      'sub':f'(right > {z} && left < {mi} + right) || (right < {z} && left > {ma} + right)' if signed else 'left < right',
+    }
+    for name,op in [('add','+'),('sub','-')]:
+        emit('checked_'+name,result,args,f'    if ({checks[name]}) return Result.err(IntegerArithmeticError.Overflow);\n    return Result.ok(left {op} right);',f'Exact checked {t} {name}; precheck before ordinary arithmetic.')
+    if signed:
+        body=f'''    if (left == {z} || right == {z}) return Result.ok({z});
+    bool negative = (left < {z}) != (right < {z});
+    {u} a = unsigned_abs(left);
+    {u} b = unsigned_abs(right);
+    {u} limit = negative ? {lit(1<<(w-1),u)} : {lit(maximum,u)};
+    if (a > limit / b) return Result.err(IntegerArithmeticError.Overflow);
+    {u} product = a * b;
+    return Result.ok(negative ? -represent<{t}>(product - {bitone}) - {o} : represent<{t}>(product));'''
+    else:
+        body=f'    if (right != {z} && left > {ma} / right) return Result.err(IntegerArithmeticError.Overflow);\n    return Result.ok(left * right);'
+    emit('checked_mul',result,args,body,f'Exact checked {t} multiplication; division bounds avoid intermediate overflow.')
+    for name,op in [('div','/'),('rem','%')]:
+        body=f'    if (right == {z}) return Result.err(IntegerArithmeticError.DivisionByZero);\n'
+        if signed:
+            body+=f'    if (left == {mi} && right == -{o}) return '+('Result.err(IntegerArithmeticError.Overflow);\n' if name=='div' else f'Result.ok({z});\n')
+        body+=f'    return Result.ok(left {op} right);'
+        emit('checked_'+name,result,args,body,f'Checked truncated {t} {name}; '+('MIN/-1 is Overflow.' if signed and name=='div' else ('MIN%-1 is zero.' if signed else 'Zero divisor is DivisionByZero.')))
+    emit('checked_pow',result,f'{t} base, u32 exponent',f'''    mut {t} result = {o};
+    mut {t} factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {{
+        if (remaining % 2u32 != 0u32) result = checked_mul(result, factor)?;
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = checked_mul(factor, factor)?;
+    }}
+    return Result.ok(result);''',f'Exact checked {t} power; zero exponent, including 0^0, returns one.')
+    if signed:
+        for name in ('neg','abs'):
+            emit('checked_'+name,result,f'{t} value',f'    if (value == {mi}) return Result.err(IntegerArithmeticError.Overflow);\n    return Result.ok('+('-value' if name=='neg' else f'value < {z} ? -value : value')+');',f'Checked signed {t} {name}; MIN produces Overflow.')
+    # Modular unsigned primitives are bounded explicitly; no overflowing safe operator is used.
+    if not signed:
+        emit('wrapping_add',t,args,f'    return left > {ma} - right ? left - ({ma} - right) - {o} : left + right;',f'{t} addition modulo 2^{w}, without overflowing an intermediate.')
+        emit('wrapping_sub',t,args,f'    return left < right ? {ma} - (right - left) + {o} : left - right;',f'{t} subtraction modulo 2^{w}, without underflowing an intermediate.')
+        emit('wrapping_mul',t,args,f'''    mut {t} result = {z};
+    mut {t} factor = left;
+    mut {t} remaining = right;
+    while (remaining != {z}) {{
+        if (remaining % {lit(2,t)} != {z}) result = wrapping_add(result, factor);
+        remaining /= {lit(2,t)};
+        if (remaining != {z}) factor = wrapping_add(factor, factor);
+    }}
+    return result;''',f'{t} product modulo 2^{w}, using bounded modular additions.')
+    else:
+        for name in ('add','sub','mul'):
+            emit('wrapping_'+name,t,args,f'    return {back(f"wrapping_{name}(bits(left), bits(right))")};',f'{t} {name} modulo 2^{w}, reinterpreted without out-of-range casts.')
+    emit('wrapping_neg',t,f'{t} value',f'    return wrapping_sub({z}, value);',f'Modular {t} negation; zero stays zero and signed MIN stays MIN.')
+    emit('wrapping_pow',t,f'{t} base, u32 exponent',f'''    mut {t} result = {o};
+    mut {t} factor = base;
+    mut u32 remaining = exponent;
+    while (remaining != 0u32) {{
+        if (remaining % 2u32 != 0u32) result = wrapping_mul(result, factor);
+        remaining /= 2u32;
+        if (remaining != 0u32) factor = wrapping_mul(factor, factor);
+    }}
+    return result;''',f'{t} power modulo 2^{w}; zero exponent returns one.')
+    if signed:
+        emit('wrapping_abs',t,f'{t} value',f'    return value < {z} ? wrapping_neg(value) : value;',f'Modular absolute {t} value; signed MIN stays MIN.')
+    for name in ('add','sub','mul'):
+        saturation={'add':f'right < {z} ? {mi} : {ma}' if signed else ma,
+                    'sub':f'right > {z} ? {mi} : {ma}' if signed else z,
+                    'mul':f'(left < {z}) != (right < {z}) ? {mi} : {ma}' if signed else ma}[name]
+        emit('saturating_'+name,t,args,f'''    switch (checked_{name}(left, right)) {{
+        case {result}.Ok {{ {t} output = value }}: return output; break;
+        default: return {saturation}; break;
+    }}''',f'{t} {name} clamped to its exact numeric bounds.')
+        emit('overflowing_'+name,f'Tuple<{t},bool>',args,f'    return Tuple.make(wrapping_{name}(left, right), has_error(checked_{name}(left, right)));',f'Wrapped {t} {name} and true exactly when its mathematical result does not fit.')
+    emit('saturating_pow',t,f'{t} base, u32 exponent',f'''    switch (checked_pow(base, exponent)) {{
+        case {result}.Ok {{ {t} output = value }}: return output; break;
+        default: return '''+(f'base < {z} && exponent % 2u32 != 0u32 ? {mi} : {ma}' if signed else ma)+'''; break;
+    }''',f'{t} power clamped to its bounds; exponent zero returns one.')
+    emit('overflowing_pow',f'Tuple<{t},bool>',f'{t} base, u32 exponent','    return Tuple.make(wrapping_pow(base, exponent), has_error(checked_pow(base, exponent)));',f'Wrapped {t} power and exact overflow flag; exponent zero returns one and false.')
+    if signed:
+        for name in ('neg','abs'):
+            expression='-value' if name=='neg' else f'value < {z} ? -value : value'
+            emit('saturating_'+name,t,f'{t} value',f'    if (value == {mi}) return {ma};\n    return {expression};',f'{t} {name} clamped at MAX for MIN.')
+            emit('overflowing_'+name,f'Tuple<{t},bool>',f'{t} value',f'    return Tuple.make(wrapping_{name}(value), value == {mi});',f'Wrapped {t} {name} and MIN overflow flag.')
+    for name,expression in [('is_zero',f'value == {z}'),('is_negative',f'value < {z}' if signed else 'false'),('is_positive',f'value > {z}'),('is_even',f'value % {lit(2,t)} == {z}'),('is_odd',f'value % {lit(2,t)} != {z}'),('is_power_of_two',f'value > {z} && (bits(value) & (bits(value) - {bitone})) == {bitzero}')]:
+        emit(name,'bool',f'{t} value',f'    return {expression};',f'Test {name[3:].replace("_"," ")} for {t} without allocation.')
+    emit('is_multiple_of','bool',args,f'    if (right == {z}) return left == {z};\n'+(f'    if (left == {mi} && right == -{o}) return true;\n' if signed else '')+f'    return left % right == {z};',f'Exact {t} divisibility; only zero is a multiple of zero.')
+    emit('count_ones','u32',f'{t} value',f'''    mut {u} remaining = bits(value);
+    mut u32 count = 0u32;
+    while (remaining != {bitzero}) {{ remaining &= remaining - {bitone}; count++; }}
+    return count;''',f'Number of set bits in the full {w}-bit {t} representation.')
+    emit('count_zeros','u32',f'{t} value',f'    return {w}u32 - count_ones(value);',f'Number of zero bits in the full {w}-bit {t} representation.')
+    for side in ('leading','trailing'):
+        mask=lit(1<<(w-1),u) if side=='leading' else bitone
+        direction='<<' if side=='leading' else '>>'
+        emit(side+'_zeros','u32',f'{t} value',f'''    mut {u} remaining = bits(value);
+    mut u32 count = 0u32;
+    while (count < {w}u32 && (remaining & {mask}) == {bitzero}) {{ remaining = remaining {direction} 1u32; count++; }}
+    return count;''',f'Count {side} zero bits of {t}; zero returns {w}.')
+        emit(side+'_ones','u32',f'{t} value',f'    return {side}_zeros({back("~bits(value)")});',f'Count {side} one bits of {t}; all ones returns {w}.')
+    emit('bit_length','u32',f'{t} value',f'    {u} magnitude = {mag("value")};\n    return {w}u32 - leading_zeros(magnitude);',f'Bit length of the mathematical {t} magnitude; zero returns zero.')
+    emit('reverse_bits',t,f'{t} value',f'''    mut {u} remaining = bits(value);
+    mut {u} output = {bitzero};
+    mut u32 position = 0u32;
+    while (position < {w}u32) {{ output = (output << 1u32) | (remaining & {bitone}); remaining = remaining >> 1u32; position++; }}
+    return {back("output")};''',f'Reverse all {w} bits of {t}, preserving its numeric type.')
+    emit('swap_bytes',t,f'{t} value',f'''    mut {u} remaining = bits(value);
+    mut {u} output = {bitzero};
+    mut u32 position = 0u32;
+    while (position < {w//8}u32) {{ output = (output << '''+('0u32' if w==8 else '8u32')+f''') | (remaining & {lit(255,u)}); remaining = remaining >> '''+('0u32' if w==8 else '8u32')+f'''; position++; }}
+    return {back("output")};''',f'Reverse {t} byte order; bit order inside each byte is preserved.')
+    for name,left in [('rotate_left',True),('rotate_right',False)]:
+        expr='(raw << amount) | (raw >> ('+str(w)+'u32 - amount))' if left else '(raw >> amount) | (raw << ('+str(w)+'u32 - amount))'
+        emit(name,t,f'{t} value, u32 count',f'    u32 amount = count % {w}u32;\n    if (amount == 0u32) return value;\n    {u} raw = bits(value);\n    return {back(expr)};',f'Rotate {t} bits {"left" if left else "right"}; count is reduced modulo {w}.')
+    emit('highest_one_bit',u,f'{t} value',f'    if (value == {z}) return {bitzero};\n    return {bitone} << ({w-1}u32 - leading_zeros(value));',f'Unsigned mask of the highest set representation bit of {t}, or zero.')
+    emit('lowest_one_bit',u,f'{t} value',f'    {u} raw = bits(value);\n    return raw == {bitzero} ? {bitzero} : raw & (~raw + {bitone});',f'Unsigned mask of the lowest set representation bit of {t}, or zero.')
+    emit('abs_diff',u,args,f'''    {u} a = {mag('left')};
+    {u} b = {mag('right')};
+'''+(f'    if ((left < {z}) != (right < {z})) return a + b;\n' if signed else '')+'    return a > b ? a - b : b - a;',f'Exact nonnegative difference of {t} values, in {u}, including both numeric extremes.')
+
+target = generator_options.output
+module_bytes = ('\n'.join(OUTPUT)).encode('utf-8')
+schema_bytes = (json.dumps({'public_function_overloads':len(SCHEMA),'distinct_function_names':sorted({x['name'] for x in SCHEMA}),'constants':24,'records':SCHEMA},indent=2)+'\n').encode('utf-8')
+if generator_options.verify:
+    mismatches=[]
+    for path, expected in ((target,module_bytes),(generator_options.schema,schema_bytes)):
+        if not path.is_file() or path.read_bytes()!=expected:
+            mismatches.append(str(path))
+    if mismatches:
+        parser.exit(1,'Generated contents differ: '+', '.join(mismatches)+'\n')
+else:
+    target.parent.mkdir(parents=True,exist_ok=True)
+    generator_options.schema.parent.mkdir(parents=True,exist_ok=True)
+    target.write_bytes(module_bytes)
+    generator_options.schema.write_bytes(schema_bytes)
+print(json.dumps({'mode':'verify' if generator_options.verify else 'write','module':str(target),'schema':str(generator_options.schema),'overloads':len(SCHEMA),'names':len({x['name'] for x in SCHEMA}),'sha256':hashlib.sha256(module_bytes).hexdigest()}))

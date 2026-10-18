@@ -1,0 +1,18 @@
+/*
+ * Scalar LCG oracle for a single fixed-level ORC session.
+ * Each invocation reads opaque native seed3, initializes x=seed%2147483647+1,
+ * and performs 65536 exact unsigned recurrence steps. No timer is inside this program.
+ * @module phase
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+extern "C" u64 aevixbench_seed();
+
+i32 main() {
+    mut u64 value = aevixbench_seed() % 2147483647u64 + 1u64;
+    for (mut usize round = 0usize; round < 65536usize; round++) {
+        value = (value * 48271u64 + 1u64) % 2147483647u64;
+    }
+    return value == 1919892339u64 ? 0 : 1;
+}

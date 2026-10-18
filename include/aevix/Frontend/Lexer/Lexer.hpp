@@ -56,5 +56,6 @@ namespace aevix
         [[nodiscard]] Token token(TokenKind kind, std::size_t begin);
         [[nodiscard]] Token number(bool missingInteger = false);
         [[nodiscard]] Token quoted();
+        [[nodiscard]] Token rawQuoted();
     };
 }

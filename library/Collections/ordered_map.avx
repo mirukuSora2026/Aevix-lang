@@ -1,0 +1,2634 @@
+/*
+ * Owning AVL tree operations. Ordering callbacks must define a stable total order.
+ * Keys are never exposed mutably; no operation implicitly clones an owner.
+ * @module ordered_map
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import memory;
+import memory { Box };
+import optional;
+import hash;
+import error { Error };
+
+/*
+ * Own both members of a removed entry without cloning.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum Entry<K, V> { /*
+ * Version history for the ordered_map.Entry.Pair public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Pair { /*
+ * Version history for the ordered_map.Entry.Pair.key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public K key; /*
+ * Version history for the ordered_map.Entry.Pair.value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public V value; }; };
+
+/*
+ * Rejected insertion keeps both incoming owners; existing entries remain unchanged.
+ * Occupied is used only by try_insert; insert keeps the canonical stored key.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum InsertError<K, V> implements Error {
+    /*
+     * Version history for the ordered_map.InsertError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure { /*
+ * Version history for the ordered_map.InsertError.AllocationFailure.key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public K key; /*
+ * Version history for the ordered_map.InsertError.AllocationFailure.value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public V value; };
+    /*
+     * Version history for the ordered_map.InsertError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow { /*
+ * Version history for the ordered_map.InsertError.SizeOverflow.key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public K key; /*
+ * Version history for the ordered_map.InsertError.SizeOverflow.value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public V value; };
+    /*
+     * Version history for the ordered_map.InsertError.Occupied public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Occupied { /*
+ * Version history for the ordered_map.InsertError.Occupied.key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public K key; /*
+ * Version history for the ordered_map.InsertError.Occupied.value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public V value; };
+    /*
+     * Version history for the ordered_map.InsertError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) {
+        switch (*self) {
+            case Self.AllocationFailure: return "ordered_map.allocation_failure"; break;
+            case Self.SizeOverflow: return "ordered_map.size_overflow"; break;
+            case Self.Occupied: return "ordered_map.occupied"; break;
+        }
+    }
+    /*
+     * Version history for the ordered_map.InsertError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) {
+        switch (*self) {
+            case Self.AllocationFailure: return "Allocating a tree node failed; the incoming entry is retained."; break;
+            case Self.SizeOverflow: return "The tree entry count cannot be represented; the incoming entry is retained."; break;
+            case Self.Occupied: return "An equivalent key is present; the incoming entry is retained."; break;
+        }
+    }
+};
+
+struct Node<K, V> {
+    public Optional<Entry<K, V>> entry;
+    public Optional<Box<Node<K, V>>> left;
+    public Optional<Box<Node<K, V>>> right;
+    public i32 height;
+    public usize count;
+};
+
+private &Node<K, V> node_ref<K, V>(&Optional<Box<Node<K, V>>> tree) {
+    switch (*tree) {
+        case Optional<Box<Node<K, V>>>.Some { &Box<Node<K, V>> owner = value }: return Box.as_ref(owner); break;
+        case Optional<Box<Node<K, V>>>.None: Never.unreachable(); break;
+    }
+}
+private &mut Node<K, V> node_mut<K, V>(&mut Optional<Box<Node<K, V>>> tree) {
+    switch (&mut *tree) {
+        case Optional<Box<Node<K, V>>>.Some { &mut Box<Node<K, V>> owner = value }: return Box.as_mut(owner); break;
+        case Optional<Box<Node<K, V>>>.None: Never.unreachable(); break;
+    }
+}
+private &K key_ref<K, V>(&Node<K, V> node) {
+    switch (node.entry) {
+        case Optional<Entry<K, V>>.Some { &Entry<K, V> entry = value }:
+            switch (*entry) { case Entry<K, V>.Pair { &K key = key }: return key; break; }
+            break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+}
+private &V value_ref<K, V>(&Node<K, V> node) {
+    switch (node.entry) {
+        case Optional<Entry<K, V>>.Some { &Entry<K, V> entry = value }:
+            switch (*entry) { case Entry<K, V>.Pair { &V value = value }: return value; break; }
+            break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+}
+private &mut V value_mut<K, V>(&mut Node<K, V> node) {
+    switch (&mut node.entry) {
+        case Optional<Entry<K, V>>.Some { &mut Entry<K, V> entry = value }:
+            switch (&mut *entry) { case Entry<K, V>.Pair { &mut V value = value }: return value; break; }
+            break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+}
+private Box<Node<K, V>> take_node<K, V>(&mut Optional<Box<Node<K, V>>> tree) {
+    Optional<Box<Node<K, V>>> taken = optional.take(tree);
+    switch (move taken) {
+        case Optional<Box<Node<K, V>>>.Some { Box<Node<K, V>> owner = value }: return owner; break;
+        case Optional<Box<Node<K, V>>>.None: Never.unreachable(); break;
+    }
+}
+private Entry<K, V> take_entry<K, V>(&mut Node<K, V> node) {
+    Optional<Entry<K, V>> taken = optional.take(&mut node.entry);
+    switch (move taken) {
+        case Optional<Entry<K, V>>.Some { Entry<K, V> entry = value }: return entry; break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+}
+private i32 node_height<K, V>(&Optional<Box<Node<K, V>>> tree) {
+    if (Optional.is_none(tree)) return 0;
+    return node_ref<K, V>(&*tree).height;
+}
+private usize node_count<K, V>(&Optional<Box<Node<K, V>>> tree) {
+    if (Optional.is_none(tree)) return 0;
+    return node_ref<K, V>(tree).count;
+}
+private void update_height<K, V>(&mut Node<K, V> node) {
+    i32 left = node_height<K, V>(&node.left);
+    i32 right = node_height<K, V>(&node.right);
+    node.height = (left > right ? left : right) + 1;
+    node.count = node_count<K, V>(&node.left) + node_count<K, V>(&node.right) + 1;
+    return;
+}
+private i32 skew<K, V>(&Optional<Box<Node<K, V>>> tree) {
+    if (Optional.is_none(tree)) return 0;
+    &Node<K, V> node = node_ref<K, V>(&*tree);
+    return node_height<K, V>(&node.left) - node_height<K, V>(&node.right);
+}
+private void rotate_right<K, V>(&mut Optional<Box<Node<K, V>>> tree) {
+    mut Box<Node<K, V>> old = take_node<K, V>(tree);
+    mut Optional<Box<Node<K, V>>> pivot_slot = Optional.none();
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut old);
+        memory.replace(&mut pivot_slot, optional.take(&mut node.left));
+    }
+    mut Box<Node<K, V>> pivot = take_node<K, V>(&mut pivot_slot);
+    mut Optional<Box<Node<K, V>>> middle = Optional.none();
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut pivot);
+        memory.replace(&mut middle, optional.take(&mut node.right));
+    }
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut old);
+        memory.replace(&mut node.left, middle);
+        update_height<K, V>(node);
+    }
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut pivot);
+        memory.replace(&mut node.right, Optional.some(old));
+        update_height<K, V>(node);
+    }
+    memory.replace(tree, Optional.some(pivot));
+    return;
+}
+private void rotate_left<K, V>(&mut Optional<Box<Node<K, V>>> tree) {
+    mut Box<Node<K, V>> old = take_node<K, V>(tree);
+    mut Optional<Box<Node<K, V>>> pivot_slot = Optional.none();
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut old);
+        memory.replace(&mut pivot_slot, optional.take(&mut node.right));
+    }
+    mut Box<Node<K, V>> pivot = take_node<K, V>(&mut pivot_slot);
+    mut Optional<Box<Node<K, V>>> middle = Optional.none();
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut pivot);
+        memory.replace(&mut middle, optional.take(&mut node.left));
+    }
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut old);
+        memory.replace(&mut node.right, middle);
+        update_height<K, V>(node);
+    }
+    {
+        &mut Node<K, V> node = Box.as_mut(&mut pivot);
+        memory.replace(&mut node.left, Optional.some(old));
+        update_height<K, V>(node);
+    }
+    memory.replace(tree, Optional.some(pivot));
+    return;
+}
+private void balance<K, V>(&mut Optional<Box<Node<K, V>>> tree) {
+    if (Optional.is_none(tree)) return;
+    { &mut Node<K, V> node = node_mut<K, V>(tree); update_height<K, V>(node); }
+    i32 difference = skew<K, V>(&*tree);
+    if (difference > 1) {
+        {
+            &mut Node<K, V> node = node_mut<K, V>(tree);
+            if (skew<K, V>(&node.left) < 0) rotate_left<K, V>(&mut node.left);
+        }
+        rotate_right<K, V>(tree);
+    } else if (difference < -1) {
+        {
+            &mut Node<K, V> node = node_mut<K, V>(tree);
+            if (skew<K, V>(&node.right) > 0) rotate_right<K, V>(&mut node.right);
+        }
+        rotate_left<K, V>(tree);
+    }
+    return;
+}
+private Optional<&V> find<K, V, F>(&Optional<Box<Node<K, V>>> tree, &K query, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+    if (Optional.is_none(tree)) return Optional.none();
+    &Node<K, V> node = node_ref<K, V>(&*tree);
+    i32 order = compare(query, key_ref<K, V>(&*node));
+    if (order == 0) return Optional.some(value_ref<K, V>(node));
+    if (order < 0) return find<K, V, F>(&node.left, query, compare);
+    return find<K, V, F>(&node.right, query, compare);
+}
+private Optional<&mut V> find_mut<K, V, F>(&mut Optional<Box<Node<K, V>>> tree, &K query, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+    if (Optional.is_none(tree)) return Optional.none();
+    &mut Node<K, V> node = node_mut<K, V>(tree);
+    i32 order = compare(query, key_ref<K, V>(&*node));
+    if (order == 0) return Optional.some(value_mut<K, V>(node));
+    if (order < 0) return find_mut<K, V, F>(&mut node.left, query, compare);
+    return find_mut<K, V, F>(&mut node.right, query, compare);
+}
+private void attach<K, V, F>(&mut Optional<Box<Node<K, V>>> tree, Box<Node<K, V>> incoming, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+    if (Optional.is_none(tree)) { memory.replace(tree, Optional.some(incoming)); return; }
+    mut i32 order = 0;
+    {
+        &Node<K, V> existing = node_ref<K, V>(&*tree);
+        &Node<K, V> fresh = Box.as_ref(&incoming);
+        order = compare(key_ref<K, V>(fresh), key_ref<K, V>(existing));
+    }
+    {
+        &mut Node<K, V> node = node_mut<K, V>(tree);
+        if (order < 0) attach<K, V, F>(&mut node.left, incoming, compare);
+        else attach<K, V, F>(&mut node.right, incoming, compare);
+    }
+    balance<K, V>(tree);
+    return;
+}
+private InsertError<K, V> retained_error<K, V>(mut Node<K, V> input, bool overflow) {
+    Optional<Entry<K, V>> retained = optional.take(&mut input.entry);
+    switch (move retained) {
+        case Optional<Entry<K, V>>.Some { Entry<K, V> pair = value }:
+            switch (move pair) {
+                case Entry<K, V>.Pair { K key = key, V value = value }:
+                    if (overflow) return InsertError<K, V>.SizeOverflow { key = key, value = value };
+                    return InsertError<K, V>.AllocationFailure { key = key, value = value };
+                    break;
+            }
+            break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+}
+private InsertError<K, V> allocation_error<K, V>(InputError<Node<K, V>> rejected) {
+    switch (move rejected) {
+        case InputError<Node<K, V>>.AllocationFailure { Node<K, V> input = input }: return retained_error<K, V>(input, false); break;
+        case InputError<Node<K, V>>.SizeOverflow { Node<K, V> input = input }: return retained_error<K, V>(input, true); break;
+        default: Never.unreachable(); break;
+    }
+}
+private Result<Box<Node<K, V>>, InsertError<K, V>> allocate_node<K, V>(K key, V value) {
+    Node<K, V> node = Node<K, V> { entry = Optional.some(Entry<K, V>.Pair { key = key, value = value }), left = Optional.none(), right = Optional.none(), height = 1, count = 1 };
+    Result<Box<Node<K, V>>, InputError<Node<K, V>>> allocated = Box.new(node);
+    switch (move allocated) {
+        case Result<Box<Node<K, V>>, InputError<Node<K, V>>>.Ok { Box<Node<K, V>> owner = value }: return Result.ok(owner); break;
+        case Result<Box<Node<K, V>>, InputError<Node<K, V>>>.Err { InputError<Node<K, V>> rejected = error }: return Result.err(allocation_error<K, V>(rejected)); break;
+    }
+}
+private Entry<K, V> remove_root<K, V>(&mut Optional<Box<Node<K, V>>> tree) {
+    mut Box<Node<K, V>> removed = take_node<K, V>(tree);
+    &mut Node<K, V> node = Box.as_mut(&mut removed);
+    Entry<K, V> result = take_entry<K, V>(node);
+    if (Optional.is_none(&node.left)) memory.replace(tree, optional.take(&mut node.right));
+    else memory.replace(tree, optional.take(&mut node.left));
+    return result;
+}
+private Entry<K, V> pop_edge<K, V>(&mut Optional<Box<Node<K, V>>> tree, bool greatest) {
+    mut bool stop = false;
+    {
+        &Node<K, V> node = node_ref<K, V>(&*tree);
+        stop = greatest ? Optional.is_none(&node.right) : Optional.is_none(&node.left);
+    }
+    if (stop) return remove_root<K, V>(tree);
+    mut Optional<Entry<K, V>> result = Optional.none();
+    {
+        &mut Node<K, V> node = node_mut<K, V>(tree);
+        Entry<K, V> pair = greatest ? pop_edge<K, V>(&mut node.right, greatest) : pop_edge<K, V>(&mut node.left, greatest);
+        memory.replace(&mut result, Optional.some(pair));
+    }
+    balance<K, V>(tree);
+    switch (move result) {
+        case Optional<Entry<K, V>>.Some { Entry<K, V> pair = value }: return pair; break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+}
+private Optional<Entry<K, V>> remove_node<K, V, F>(&mut Optional<Box<Node<K, V>>> tree, &K query, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+    if (Optional.is_none(tree)) return Optional.none();
+    mut i32 order = 0;
+    { &Node<K, V> node = node_ref<K, V>(&*tree); order = compare(query, key_ref<K, V>(&*node)); }
+    if (order == 0) {
+        mut bool single = false;
+        { &Node<K, V> node = node_ref<K, V>(&*tree); single = Optional.is_none(&node.left) || Optional.is_none(&node.right); }
+        if (single) return Optional.some(remove_root<K, V>(tree));
+        mut Optional<Entry<K, V>> result = Optional.none();
+        {
+            &mut Node<K, V> node = node_mut<K, V>(tree);
+            memory.replace(&mut result, Optional.some(take_entry<K, V>(node)));
+            Entry<K, V> successor = pop_edge<K, V>(&mut node.right, false);
+            memory.replace(&mut node.entry, Optional.some(successor));
+        }
+        balance<K, V>(tree);
+        return result;
+    }
+    mut Optional<Entry<K, V>> result = Optional.none();
+    {
+        &mut Node<K, V> node = node_mut<K, V>(tree);
+        Optional<Entry<K, V>> removed = order < 0 ? remove_node<K, V, F>(&mut node.left, query, compare) : remove_node<K, V, F>(&mut node.right, query, compare);
+        memory.replace(&mut result, removed);
+    }
+    balance<K, V>(tree);
+    return result;
+}
+
+private Optional<Tuple<&K, &V>> pair_view<K, V>(&Node<K, V> node) {
+    &K key = key_ref<K, V>(node);
+    &V value = value_ref<K, V>(node);
+    Tuple<&K, &V> pair = Tuple.make(key, value);
+    return Optional.some(pair);
+}
+private Optional<Tuple<&K, &V>> find_pair<K, V, F>(&Optional<Box<Node<K, V>>> tree, &K query, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+    if (Optional.is_none(tree)) return Optional.none();
+    &Node<K, V> node = node_ref<K, V>(tree);
+    i32 order = compare(query, key_ref<K, V>(node));
+    if (order == 0) return pair_view<K, V>(node);
+    if (order < 0) return find_pair<K, V, F>(&node.left, query, compare);
+    return find_pair<K, V, F>(&node.right, query, compare);
+}
+private Optional<Tuple<&K, &V>> edge_view<K, V>(&Optional<Box<Node<K, V>>> tree, bool greatest) {
+    if (Optional.is_none(tree)) return Optional.none();
+    &Node<K, V> node = node_ref<K, V>(tree);
+    if (greatest) {
+        if (Optional.is_some(&node.right)) return edge_view<K, V>(&node.right, greatest);
+    } else if (Optional.is_some(&node.left)) return edge_view<K, V>(&node.left, greatest);
+    return pair_view<K, V>(node);
+}
+private usize lower_rank<K, V, F>(&Optional<Box<Node<K, V>>> tree, &K query, &F compare, bool strict) where F implements Fn<Tuple<&K, &K>, i32> {
+    if (Optional.is_none(tree)) return 0;
+    &Node<K, V> node = node_ref<K, V>(tree);
+    i32 order = compare(key_ref<K, V>(node), query);
+    if (order < 0 || (strict && order == 0)) return node_count<K, V>(&node.left) + 1 + lower_rank<K, V, F>(&node.right, query, compare, strict);
+    return lower_rank<K, V, F>(&node.left, query, compare, strict);
+}
+private &Node<K, V> select_node<K, V>(&Optional<Box<Node<K, V>>> tree, usize index) {
+    &Node<K, V> node = node_ref<K, V>(tree);
+    usize left = node_count<K, V>(&node.left);
+    if (index == left) return node;
+    if (index < left) return select_node<K, V>(&node.left, index);
+    return select_node<K, V>(&node.right, index - left - 1);
+}
+private &mut Node<K, V> select_node_mut<K, V>(&mut Optional<Box<Node<K, V>>> tree, usize index) {
+    &mut Node<K, V> node = node_mut<K, V>(tree);
+    usize left = node_count<K, V>(&node.left);
+    if (index == left) return node;
+    if (index < left) return select_node_mut<K, V>(&mut node.left, index);
+    return select_node_mut<K, V>(&mut node.right, index - left - 1);
+}
+private &mut V select_mut<K, V>(&mut Optional<Box<Node<K, V>>> tree, usize index) {
+    &mut Node<K, V> node = node_mut<K, V>(tree);
+    usize left = node_count<K, V>(&node.left);
+    if (index == left) return value_mut<K, V>(node);
+    if (index < left) return select_mut<K, V>(&mut node.left, index);
+    return select_mut<K, V>(&mut node.right, index - left - 1);
+}
+private unit visit_tree<K, V, F>(&Optional<Box<Node<K, V>>> tree, &mut F visit) where F implements FnMut<Tuple<&K, &V>, unit> {
+    if (Optional.is_none(tree)) return Unit.value();
+    &Node<K, V> node = node_ref<K, V>(tree);
+    visit_tree<K, V, F>(&node.left, visit);
+    visit(key_ref<K, V>(node), value_ref<K, V>(node));
+    visit_tree<K, V, F>(&node.right, visit);
+    return Unit.value();
+}
+private unit visit_tree_mut<K, V, F>(&mut Optional<Box<Node<K, V>>> tree, &mut F visit) where F implements FnMut<Tuple<&K, &mut V>, unit> {
+    if (Optional.is_none(tree)) return Unit.value();
+    &mut Node<K, V> node = node_mut<K, V>(tree);
+    visit_tree_mut<K, V, F>(&mut node.left, visit);
+    switch (&mut node.entry) {
+        case Optional<Entry<K, V>>.Some { &mut Entry<K, V> entry = value }:
+            switch (&mut *entry) { case Entry<K, V>.Pair { &K key = &key, &mut V value = &mut value }: visit(key, value); break; }
+            break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+    visit_tree_mut<K, V, F>(&mut node.right, visit);
+    return Unit.value();
+}
+private unit visit_range<K, V, F, G>(&Optional<Box<Node<K, V>>> tree, &K lower, &K upper, &F compare, &mut G visit) where F implements Fn<Tuple<&K, &K>, i32>, G implements FnMut<Tuple<&K, &V>, unit> {
+    if (Optional.is_none(tree)) return Unit.value();
+    &Node<K, V> node = node_ref<K, V>(tree);
+    i32 low = compare(key_ref<K, V>(node), lower);
+    i32 high = compare(key_ref<K, V>(node), upper);
+    if (low > 0) visit_range<K, V, F, G>(&node.left, lower, upper, compare, visit);
+    if (low >= 0 && high < 0) visit(key_ref<K, V>(node), value_ref<K, V>(node));
+    if (high < 0) visit_range<K, V, F, G>(&node.right, lower, upper, compare, visit);
+    return Unit.value();
+}
+private unit visit_range_mut<K, V, F, G>(&mut Optional<Box<Node<K, V>>> tree, &K lower, &K upper, &F compare, &mut G visit) where F implements Fn<Tuple<&K, &K>, i32>, G implements FnMut<Tuple<&K, &mut V>, unit> {
+    if (Optional.is_none(tree)) return Unit.value();
+    &mut Node<K, V> node = node_mut<K, V>(tree);
+    i32 low = compare(key_ref<K, V>(&*node), lower);
+    i32 high = compare(key_ref<K, V>(&*node), upper);
+    if (low > 0) visit_range_mut<K, V, F, G>(&mut node.left, lower, upper, compare, visit);
+    if (low >= 0 && high < 0) {
+        switch (&mut node.entry) {
+            case Optional<Entry<K, V>>.Some { &mut Entry<K, V> entry = value }:
+                switch (&mut *entry) { case Entry<K, V>.Pair { &K key = &key, &mut V value = &mut value }: visit(key, value); break; }
+                break;
+            case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+        }
+    }
+    if (high < 0) visit_range_mut<K, V, F, G>(&mut node.right, lower, upper, compare, visit);
+    return Unit.value();
+}
+
+private Entry<K, V> erase_root<K, V>(&mut Optional<Box<Node<K, V>>> tree) {
+    mut bool single = false;
+    { &Node<K, V> node = node_ref<K, V>(&*tree); single = Optional.is_none(&node.left) || Optional.is_none(&node.right); }
+    if (single) return remove_root<K, V>(tree);
+    mut Optional<Entry<K, V>> result = Optional.none();
+    {
+        &mut Node<K, V> node = node_mut<K, V>(tree);
+        memory.replace(&mut result, Optional.some(take_entry<K, V>(node)));
+        Entry<K, V> successor = pop_edge<K, V>(&mut node.right, false);
+        memory.replace(&mut node.entry, Optional.some(successor));
+    }
+    balance<K, V>(tree);
+    switch (move result) {
+        case Optional<Entry<K, V>>.Some { Entry<K, V> entry = value }: return entry; break;
+        case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+    }
+}
+private usize retain_tree<K, V, F>(&mut Optional<Box<Node<K, V>>> tree, &mut F keep) where F implements FnMut<Tuple<&K, &mut V>, bool> {
+    if (Optional.is_none(tree)) return 0;
+    mut usize removed = 0;
+    mut bool retained = true;
+    {
+        &mut Node<K, V> node = node_mut<K, V>(tree);
+        removed = retain_tree<K, V, F>(&mut node.left, keep);
+        switch (&mut node.entry) {
+            case Optional<Entry<K, V>>.Some { &mut Entry<K, V> entry = value }:
+                switch (&mut *entry) { case Entry<K, V>.Pair { &K key = &key, &mut V value = &mut value }: retained = keep(key, value); break; }
+                break;
+            case Optional<Entry<K, V>>.None: Never.unreachable(); break;
+        }
+        removed += retain_tree<K, V, F>(&mut node.right, keep);
+    }
+    if (!retained) { erase_root<K, V>(tree); removed++; }
+    balance<K, V>(tree);
+    return removed;
+}
+
+/*
+ * AVL owner. Worst-case lookup, insertion, removal and edge pops use O(log n)
+ * comparisons/node work; default recursive destruction uses O(n) work and O(log n) stack.
+ * No allocator or comparator is hidden in the owner; *_with calls state ordering explicitly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct OrderedMap<K, V> {
+    Optional<Box<Node<K, V>>> root;
+    usize count;
+    /*
+     * Version history for the ordered_map.OrderedMap.new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new() { return Self { root = Optional.none(), count = 0 }; }
+    /*
+     * Version history for the ordered_map.OrderedMap.len public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize len(&Self self) { return self.count; }
+    /*
+     * Version history for the ordered_map.OrderedMap.is_empty public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_empty(&Self self) { return self.count == 0; }
+    /*
+     * Version history for the ordered_map.OrderedMap.height public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public i32 height(&Self self) { return node_height<K, V>(&self.root); }
+    /*
+     * Version history for the ordered_map.OrderedMap.clear public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public void clear(&mut Self self) { Optional<Box<Node<K, V>>> empty = Optional.none(); memory.replace(&mut self.root, empty); self.count = 0; return; }
+    /*
+     * Version history for the ordered_map.OrderedMap.get_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&V> get_with<F>(&Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> { return find<K, V, F>(&self.root, key, compare); }
+    /*
+     * Version history for the ordered_map.OrderedMap.get_mut_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&mut V> get_mut_with<F>(&mut Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> { return find_mut<K, V, F>(&mut self.root, key, compare); }
+    /*
+     * Version history for the ordered_map.OrderedMap.contains_key_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool contains_key_with<F>(&Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> { Optional<&V> found = self.get_with(key, compare); return Optional.is_some(&found); }
+    /*
+     * Keep the equal stored key and replace only its value; return the old value.
+     * A missing entry allocates before changing the tree. Failure retains both inputs.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Optional<V>, InsertError<K, V>> insert_with<F>(&mut Self self, K key, V value, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        {
+            Optional<&mut V> found = self.get_mut_with(&key, compare);
+            switch (move found) {
+                case Optional<&mut V>.Some { &mut V slot = value }: return Result.ok(Optional.some(memory.replace(slot, value))); break;
+                case Optional<&mut V>.None: break;
+            }
+        }
+        if (self.count == 18446744073709551615usize) return Result.err(InsertError<K, V>.SizeOverflow { key = key, value = value });
+        Box<Node<K, V>> fresh = allocate_node<K, V>(key, value)?;
+        attach<K, V, F>(&mut self.root, fresh, compare);
+        self.count++;
+        return Result.ok(Optional.none());
+    }
+    /*
+     * Version history for the ordered_map.OrderedMap.remove_entry_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Entry<K, V>> remove_entry_with<F>(&mut Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        Optional<Entry<K, V>> removed = remove_node<K, V, F>(&mut self.root, key, compare);
+        if (Optional.is_some(&removed)) self.count--;
+        return removed;
+    }
+    /*
+     * Version history for the ordered_map.OrderedMap.remove_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<V> remove_with<F>(&mut Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        Optional<Entry<K, V>> removed = self.remove_entry_with(key, compare);
+        switch (move removed) {
+            case Optional<Entry<K, V>>.Some { Entry<K, V> pair = value }:
+                switch (move pair) { case Entry<K, V>.Pair { V value = value }: return Optional.some(value); break; }
+                break;
+            case Optional<Entry<K, V>>.None: return Optional.none(); break;
+        }
+    }
+    /*
+     * Version history for the ordered_map.OrderedMap.pop_first public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Entry<K, V>> pop_first(&mut Self self) {
+        if (self.count == 0) return Optional.none();
+        Entry<K, V> pair = pop_edge<K, V>(&mut self.root, false);
+        self.count--;
+        return Optional.some(pair);
+    }
+    /*
+     * Version history for the ordered_map.OrderedMap.pop_last public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Entry<K, V>> pop_last(&mut Self self) {
+        if (self.count == 0) return Optional.none();
+        Entry<K, V> pair = pop_edge<K, V>(&mut self.root, true);
+        self.count--;
+        return Optional.some(pair);
+    }
+    /* Borrow the canonical key/value pair; O(log n), no allocation or key cloning.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> get_key_value_with<F>(&Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> { return find_pair<K, V, F>(&self.root, key, compare); }
+    /*
+     * Version history for the ordered_map.OrderedMap.first_key_value public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> first_key_value(&Self self) { return edge_view<K, V>(&self.root, false); }
+    /*
+     * Version history for the ordered_map.OrderedMap.last_key_value public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> last_key_value(&Self self) { return edge_view<K, V>(&self.root, true); }
+    /* Return the number of strictly smaller keys, or not-greater keys when strict is true.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank_with<F>(&Self self, &K key, &F compare, bool strict = false) where F implements Fn<Tuple<&K, &K>, i32> { return lower_rank<K, V, F>(&self.root, key, compare, strict); }
+    /*
+     * Version history for the ordered_map.OrderedMap.select public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> select(&Self self, usize index) {
+        if (index >= self.count) return Optional.none();
+        return pair_view<K, V>(select_node<K, V>(&self.root, index));
+    }
+    /*
+     * Version history for the ordered_map.OrderedMap.lower_bound_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> lower_bound_with<F>(&Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        usize index = lower_rank<K, V, F>(&self.root, key, compare, false);
+        return self.select(index);
+    }
+    /*
+     * Version history for the ordered_map.OrderedMap.upper_bound_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> upper_bound_with<F>(&Self self, &K key, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        usize index = lower_rank<K, V, F>(&self.root, key, compare, true);
+        return self.select(index);
+    }
+    /* Reject an equal key with both incoming owners; borrow only the inserted value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<&mut V, InsertError<K, V>> try_insert_with<F>(&mut Self self, K key, V value, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        if (self.contains_key_with(&key, compare)) return Result.err(InsertError<K, V>.Occupied { key = key, value = value });
+        usize index = lower_rank<K, V, F>(&self.root, &key, compare, false);
+        self.insert_with(key, value, compare)?;
+        return Result.ok(select_mut<K, V>(&mut self.root, index));
+    }
+    /* Visit sorted borrowed entries in O(n) work and O(log n) stack; no allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit for_each<F>(&Self self, mut F visit) where F implements FnMut<Tuple<&K, &V>, unit> { return visit_tree<K, V, F>(&self.root, &mut visit); }
+    /* Visit sorted immutable keys and exclusive values sequentially, without retaining loans.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit for_each_mut<F>(&mut Self self, mut F visit) where F implements FnMut<Tuple<&K, &mut V>, unit> { return visit_tree_mut<K, V, F>(&mut self.root, &mut visit); }
+    /* Half-open callback traversal takes O(log n + k) work, not an allocated iterator.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, BoundsError> for_each_range_with<F, G>(&Self self, &K lower, &K upper, &F compare, mut G visit) where F implements Fn<Tuple<&K, &K>, i32>, G implements FnMut<Tuple<&K, &V>, unit> {
+        i32 order = compare(lower, upper);
+        if (order > 0) return Result.err(BoundsError.ReversedRange);
+        if (order == 0) return Result.ok(Unit.value());
+        return Result.ok(visit_range<K, V, F, G>(&self.root, lower, upper, compare, &mut visit));
+    }
+    /*
+     * Version history for the ordered_map.OrderedMap.for_each_range_mut_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, BoundsError> for_each_range_mut_with<F, G>(&mut Self self, &K lower, &K upper, &F compare, mut G visit) where F implements Fn<Tuple<&K, &K>, i32>, G implements FnMut<Tuple<&K, &mut V>, unit> {
+        i32 order = compare(lower, upper);
+        if (order > 0) return Result.err(BoundsError.ReversedRange);
+        if (order == 0) return Result.ok(Unit.value());
+        return Result.ok(visit_range_mut<K, V, F, G>(&mut self.root, lower, upper, compare, &mut visit));
+    }
+
+    /*
+     * Version history for the ordered_map.OrderedMap.iter public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Iterator<K, V> iter(&Self self) { return Iterator<K, V>.new(self); }
+    /*
+     * Version history for the ordered_map.OrderedMap.range_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Iterator<K, V>, BoundsError> range_with<F>(&Self self, &K lower, &K upper, &F compare) where F implements Fn<Tuple<&K, &K>, i32> { return Iterator<K, V>.between(self, lower, upper, compare); }
+    /*
+     * Version history for the ordered_map.OrderedMap.into_iter public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public OwningIterator<K, V> into_iter(Self self) { return OwningIterator<K, V>.new(self); }
+
+    /* Replace an equivalent key and value together; used by OrderedSet.replace.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Optional<Entry<K, V>>, InsertError<K, V>> replace_entry_with<F>(&mut Self self, K key, V value, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        usize index = lower_rank<K, V, F>(&self.root, &key, compare, false);
+        if (self.contains_key_with(&key, compare)) {
+            &mut Node<K, V> node = select_node_mut<K, V>(&mut self.root, index);
+            Optional<Entry<K, V>> old = memory.replace(&mut node.entry, Optional.some(Entry<K, V>.Pair { key = key, value = value }));
+            return Result.ok(old);
+        }
+        if (self.count == 18446744073709551615usize) return Result.err(InsertError<K, V>.SizeOverflow { key = key, value = value });
+        Box<Node<K, V>> fresh = allocate_node<K, V>(key, value)?;
+        attach<K, V, F>(&mut self.root, fresh, compare);
+        self.count++;
+        return Result.ok(Optional.none());
+    }
+    /* Sorted callbacks; O(n log n) worst-case including balancing and deletion.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit retain<F>(&mut Self self, mut F keep) where F implements FnMut<Tuple<&K, &mut V>, bool> {
+        usize removed = retain_tree<K, V, F>(&mut self.root, &mut keep);
+        self.count -= removed;
+        return Unit.value();
+    }
+
+};
+
+/*
+ * Borrowed double-ended rank cursor. Construction is O(1), each step O(log n),
+ * and full traversal O(n log n). for_each offers O(n) traversal instead.
+ * These costs differ from the catalog's proposed stack iterator contract.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Iterator<K, V> {
+    &OrderedMap<K, V> tree;
+    usize front;
+    usize back;
+    /*
+     * Version history for the ordered_map.Iterator.new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new(&OrderedMap<K, V> tree) { return Self { tree = tree, front = 0, back = tree.len() }; }
+    /*
+     * Version history for the ordered_map.Iterator.between public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, BoundsError> between<F>(&OrderedMap<K, V> tree, &K lower, &K upper, &F compare) where F implements Fn<Tuple<&K, &K>, i32> {
+        if (compare(lower, upper) > 0) return Result.err(BoundsError.ReversedRange);
+        usize front = tree.rank_with(lower, compare);
+        usize back = tree.rank_with(upper, compare);
+        return Result.ok(Self { tree = tree, front = front, back = back });
+    }
+    /*
+     * Version history for the ordered_map.Iterator.len public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize len(&Self self) { return self.back - self.front; }
+    /*
+     * Version history for the ordered_map.Iterator.is_empty public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_empty(&Self self) { return self.front == self.back; }
+    /*
+     * Version history for the ordered_map.Iterator.next public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> next(&mut Self self) {
+        if (self.front == self.back) return Optional.none();
+        usize index = self.front;
+        self.front++;
+        return self.tree.select(index);
+    }
+    /*
+     * Version history for the ordered_map.Iterator.next_back public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> next_back(&mut Self self) {
+        if (self.front == self.back) return Optional.none();
+        self.back--;
+        return self.tree.select(self.back);
+    }
+};
+
+/* Consume one AVL owner and move sorted entries out; each step is O(log n).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct OwningIterator<K, V> {
+    OrderedMap<K, V> tree;
+    /*
+     * Version history for the ordered_map.OwningIterator.new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new(OrderedMap<K, V> tree) { return Self { tree = tree }; }
+    /*
+     * Version history for the ordered_map.OwningIterator.len public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize len(&Self self) { return self.tree.len(); }
+    /*
+     * Version history for the ordered_map.OwningIterator.next public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Entry<K, V>> next(&mut Self self) { return self.tree.pop_first(); }
+    /*
+     * Version history for the ordered_map.OwningIterator.next_back public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Entry<K, V>> next_back(&mut Self self) { return self.tree.pop_last(); }
+};
+
+/* Concrete primitive/text overloads and Ord-bound custom keys share the AVL implementation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i8, &V>> get_key_value<V>(&OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<i8, V>> insert<V>(&mut OrderedMap<i8, V> tree, i8 key, V value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<i8, V>> try_insert<V>(&mut OrderedMap<i8, V> tree, i8 key, V value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i8, V>> remove_entry<V>(&mut OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i8, &V>> lower_bound<V>(&OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i8, &V>> upper_bound<V>(&OrderedMap<i8, V> tree, &i8 key) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i16, &V>> get_key_value<V>(&OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<i16, V>> insert<V>(&mut OrderedMap<i16, V> tree, i16 key, V value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<i16, V>> try_insert<V>(&mut OrderedMap<i16, V> tree, i16 key, V value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i16, V>> remove_entry<V>(&mut OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i16, &V>> lower_bound<V>(&OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i16, &V>> upper_bound<V>(&OrderedMap<i16, V> tree, &i16 key) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i32, &V>> get_key_value<V>(&OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<i32, V>> insert<V>(&mut OrderedMap<i32, V> tree, i32 key, V value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<i32, V>> try_insert<V>(&mut OrderedMap<i32, V> tree, i32 key, V value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i32, V>> remove_entry<V>(&mut OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i32, &V>> lower_bound<V>(&OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i32, &V>> upper_bound<V>(&OrderedMap<i32, V> tree, &i32 key) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i64, &V>> get_key_value<V>(&OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<i64, V>> insert<V>(&mut OrderedMap<i64, V> tree, i64 key, V value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<i64, V>> try_insert<V>(&mut OrderedMap<i64, V> tree, i64 key, V value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i64, V>> remove_entry<V>(&mut OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i64, &V>> lower_bound<V>(&OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i64, &V>> upper_bound<V>(&OrderedMap<i64, V> tree, &i64 key) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i128, &V>> get_key_value<V>(&OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<i128, V>> insert<V>(&mut OrderedMap<i128, V> tree, i128 key, V value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<i128, V>> try_insert<V>(&mut OrderedMap<i128, V> tree, i128 key, V value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i128, V>> remove_entry<V>(&mut OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i128, &V>> lower_bound<V>(&OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&i128, &V>> upper_bound<V>(&OrderedMap<i128, V> tree, &i128 key) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&isize, &V>> get_key_value<V>(&OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<isize, V>> insert<V>(&mut OrderedMap<isize, V> tree, isize key, V value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<isize, V>> try_insert<V>(&mut OrderedMap<isize, V> tree, isize key, V value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<isize, V>> remove_entry<V>(&mut OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&isize, &V>> lower_bound<V>(&OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&isize, &V>> upper_bound<V>(&OrderedMap<isize, V> tree, &isize key) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u8, &V>> get_key_value<V>(&OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<u8, V>> insert<V>(&mut OrderedMap<u8, V> tree, u8 key, V value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<u8, V>> try_insert<V>(&mut OrderedMap<u8, V> tree, u8 key, V value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u8, V>> remove_entry<V>(&mut OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u8, &V>> lower_bound<V>(&OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u8, &V>> upper_bound<V>(&OrderedMap<u8, V> tree, &u8 key) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u16, &V>> get_key_value<V>(&OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<u16, V>> insert<V>(&mut OrderedMap<u16, V> tree, u16 key, V value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<u16, V>> try_insert<V>(&mut OrderedMap<u16, V> tree, u16 key, V value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u16, V>> remove_entry<V>(&mut OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u16, &V>> lower_bound<V>(&OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u16, &V>> upper_bound<V>(&OrderedMap<u16, V> tree, &u16 key) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u32, &V>> get_key_value<V>(&OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<u32, V>> insert<V>(&mut OrderedMap<u32, V> tree, u32 key, V value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<u32, V>> try_insert<V>(&mut OrderedMap<u32, V> tree, u32 key, V value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u32, V>> remove_entry<V>(&mut OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u32, &V>> lower_bound<V>(&OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u32, &V>> upper_bound<V>(&OrderedMap<u32, V> tree, &u32 key) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u64, &V>> get_key_value<V>(&OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<u64, V>> insert<V>(&mut OrderedMap<u64, V> tree, u64 key, V value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<u64, V>> try_insert<V>(&mut OrderedMap<u64, V> tree, u64 key, V value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u64, V>> remove_entry<V>(&mut OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u64, &V>> lower_bound<V>(&OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u64, &V>> upper_bound<V>(&OrderedMap<u64, V> tree, &u64 key) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u128, &V>> get_key_value<V>(&OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<u128, V>> insert<V>(&mut OrderedMap<u128, V> tree, u128 key, V value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<u128, V>> try_insert<V>(&mut OrderedMap<u128, V> tree, u128 key, V value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u128, V>> remove_entry<V>(&mut OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u128, &V>> lower_bound<V>(&OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&u128, &V>> upper_bound<V>(&OrderedMap<u128, V> tree, &u128 key) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&usize, &V>> get_key_value<V>(&OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<usize, V>> insert<V>(&mut OrderedMap<usize, V> tree, usize key, V value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<usize, V>> try_insert<V>(&mut OrderedMap<usize, V> tree, usize key, V value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<usize, V>> remove_entry<V>(&mut OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&usize, &V>> lower_bound<V>(&OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&usize, &V>> upper_bound<V>(&OrderedMap<usize, V> tree, &usize key) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&bool, &V>> get_key_value<V>(&OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<bool, V>> insert<V>(&mut OrderedMap<bool, V> tree, bool key, V value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<bool, V>> try_insert<V>(&mut OrderedMap<bool, V> tree, bool key, V value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<bool, V>> remove_entry<V>(&mut OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&bool, &V>> lower_bound<V>(&OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&bool, &V>> upper_bound<V>(&OrderedMap<bool, V> tree, &bool key) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&byte, &V>> get_key_value<V>(&OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<byte, V>> insert<V>(&mut OrderedMap<byte, V> tree, byte key, V value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<byte, V>> try_insert<V>(&mut OrderedMap<byte, V> tree, byte key, V value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<byte, V>> remove_entry<V>(&mut OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&byte, &V>> lower_bound<V>(&OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&byte, &V>> upper_bound<V>(&OrderedMap<byte, V> tree, &byte key) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&string, &V>> get_key_value<V>(&OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<string, V>> insert<V>(&mut OrderedMap<string, V> tree, string key, V value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<string, V>> try_insert<V>(&mut OrderedMap<string, V> tree, string key, V value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<string, V>> remove_entry<V>(&mut OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&string, &V>> lower_bound<V>(&OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&string, &V>> upper_bound<V>(&OrderedMap<string, V> tree, &string key) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(&OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&string_view, &V>> get_key_value<V>(&OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(&OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<string_view, V>> insert<V>(&mut OrderedMap<string_view, V> tree, string_view key, V value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<string_view, V>> try_insert<V>(&mut OrderedMap<string_view, V> tree, string_view key, V value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<string_view, V>> remove_entry<V>(&mut OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&string_view, &V>> lower_bound<V>(&OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&string_view, &V>> upper_bound<V>(&OrderedMap<string_view, V> tree, &string_view key) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<K, V>(&OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.get_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<K, V>(&mut OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.get_mut_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.get_key_value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&K, &V>> get_key_value<K, V>(&OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.get_key_value_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.contains_key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<K, V>(&OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.contains_key_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InsertError<K, V>> insert<K, V>(&mut OrderedMap<K, V> tree, K key, V value) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut V, InsertError<K, V>> try_insert<K, V>(&mut OrderedMap<K, V> tree, K key, V value) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.try_insert_with(key, value, &compare);
+}
+/*
+ * Version history for the ordered_map.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<K, V>(&mut OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.remove_entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<K, V>> remove_entry<K, V>(&mut OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.remove_entry_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.lower_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&K, &V>> lower_bound<K, V>(&OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.lower_bound_with(key, &compare);
+}
+/*
+ * Version history for the ordered_map.upper_bound public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<&K, &V>> upper_bound<K, V>(&OrderedMap<K, V> tree, &K key) where K implements hash.Ord {
+    rsn compare = [](&K left, &K right) -> i32 { return hash.compare(left, right); };
+    return tree.upper_bound_with(key, &compare);
+}

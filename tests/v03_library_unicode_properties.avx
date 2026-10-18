@@ -1,0 +1,28 @@
+import unicode;
+import error {Error,AnyError};
+T success<T,E>(Result<T,E> input){switch(move input){case Result<T,E>.Ok {T value=value}:return value;break;default:Never.unreachable();break;}}
+bool text(Result<string,unicode.UnicodeError> result,string_view expected){string actual=success(result);return string.equals(string.view(&actual),expected);}
+bool bad(string_view name){Result<char,unicode.UnicodeError> result=unicode.lookup_name(name);switch(move result){case Result<char,unicode.UnicodeError>.Err {unicode.UnicodeError error=error}:switch(error){case unicode.UnicodeError.InvalidSyntax {usize at=offset}:return at==0usize;break;default:return false;break;}break;default:return false;break;}}
+i32 main(){
+    if(!string.equals(unicode.unicode_version(),"17.0.0")||string.byte_len(unicode.ucd_fingerprint())!=71usize)return 1;
+    if(success(unicode.lookup_name("latin small letter a"))!='a'||success(unicode.lookup_name("LaTiN CaPiTaL LeTtEr A"))!='A')return 2;
+    if(success(unicode.lookup_name("hangul jungseong oe"))!='\u{116c}'||success(unicode.lookup_name("hangul jungseong o-e"))!='\u{1180}')return 3;
+    if(success(unicode.lookup_name("cjk unified ideograph-4e00"))!='一'||success(unicode.lookup_name("TANGUT IDEOGRAPH-17000"))!='\u{17000}')return 4;
+    if(success(unicode.lookup_name("NULL"))!='\0'||success(unicode.lookup_name("NUL"))!='\0'||success(unicode.lookup_name("ALERT"))!='\u{7}'||success(unicode.lookup_name("BELL"))!='🔔')return 5;
+    if(!bad("")||!bad("LATIN_SMALL_LETTER_A")||!bad(" LATIN SMALL LETTER A")||!bad("LATIN SMALL LETTER A ")||!bad("CJK UNIFIED IDEOGRAPH-04E00")||!bad("CJK UNIFIED IDEOGRAPH-10FFFF")||!bad("TANGUT IDEOGRAPH-18800")||!bad("한"))return 6;
+    if(!text(unicode.to_uppercase('ß'),"SS")||!text(unicode.to_titlecase('ﬃ'),"Ffi")||!text(unicode.case_fold('ẞ'),"ss")||!text(unicode.to_lowercase('İ'),"i\u{307}")||!text(unicode.to_lowercase('Σ'),"σ")||!text(unicode.case_fold('I'),"i"))return 7;
+    if(unicode.simple_uppercase('ß')!='ß'||unicode.simple_case_fold('ẞ')!='ß')return 8;
+    if(!unicode.is_whitespace(' ')||unicode.is_whitespace('\u{200b}')||!unicode.is_default_ignorable('\u{200b}')||!unicode.is_join_control('\u{200c}')||!unicode.is_variation_selector('\u{fe0f}'))return 9;
+    if(!unicode.is_alphabetic('\u{345}')||!unicode.is_mark('\u{345}')||!unicode.is_numeric('一')||unicode.is_decimal_digit('一'))return 10;
+    if(unicode.combining_class('\u{301}')!=230u8)return 11;
+    if(!unicode.is_unassigned('\u{378}')||unicode.is_assigned('\u{378}'))return 12;
+    switch(unicode.age('\u{378}')){case Optional<unicode.UnicodeVersion>.None:break;default:return 13;break;}
+    switch(unicode.block('\u{378}')){case Optional<unicode.UnicodeBlock>.Some:break;default:return 14;break;}
+    unicode.UnicodeNumeric half=success_numeric('½');if(half.numerator!=1i64||half.denominator!=2u64)return 15;
+    unicode.UnicodeNumeric negative=success_numeric('\u{f33}');if(negative.numerator!=-1i64||negative.denominator!=2u64)return 16;
+    AnyError owner=success(AnyError.pack(unicode.UnicodeError.InvalidSyntax {offset=0usize}));&dyn Error view=owner.as_error();if(!string.equals(view.code(),"unicode.invalid_syntax"))return 17;
+    switch(unicode.bidi_class('\u{590}')){case unicode.BidiClass.RightToLeft:break;default:return 18;break;}
+    switch(unicode.nfc_quick_check('\u{3099}')){case unicode.QuickCheck.Maybe:break;default:return 19;break;}
+    return 0;
+}
+unicode.UnicodeNumeric success_numeric(char c){Optional<unicode.UnicodeNumeric> input=unicode.numeric_value(c);switch(input){case Optional<unicode.UnicodeNumeric>.Some {unicode.UnicodeNumeric value=value}:return value;break;default:Never.unreachable();break;}}

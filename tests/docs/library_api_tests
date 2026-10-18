@@ -1,0 +1,498 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : library_api_tests
+#
+# Description :
+#     공개 API 주석, 버전 이력, 문서 중복 제거와 목록 변경 탐지를 검사한다.
+#     Test public API comments, lifecycle history, catalog deduplication, and inventory drift.
+#
+# ========================
+
+import contextlib
+import importlib.machinery
+import importlib.util
+import io
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[2]
+loader = importlib.machinery.SourceFileLoader("aevix_library_api", str(ROOT / "tools/docs/library_api"))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+api = importlib.util.module_from_spec(spec)
+loader.exec_module(api)
+
+
+class SourceLifecycleTests(unittest.TestCase):
+    def test_nested_public_surface(self):
+        source = '''
+import memory { Box };
+public struct Buffer<T> {
+    public T item;
+    T hidden;
+    public T get(&Self self) { public i32 fake = 1; return self.item; }
+    T helper() { return item; }
+};
+public enum Event {
+    Quit;
+    Message { public string text; i32 hidden; };
+    private Secret;
+    public i32 code(&Self self) { return 1; }
+    i32 helper(&Self self) { return 1; }
+};
+public interface Named { string_view name(&Self self); };
+struct Private { public i32 invisible; };
+public T identity<T>(T value) where T implements Copy { return value; }
+public type Count = usize;
+'''
+        names = {item["name"] for item in api.declarations(source, "sample")}
+        self.assertEqual(names, {"sample.Buffer", "sample.Buffer.item", "sample.Buffer.get",
+                                "sample.Event", "sample.Event.Quit", "sample.Event.Message",
+                                "sample.Event.Message.text", "sample.Event.code", "sample.Named",
+                                "sample.Named.name", "sample.identity", "sample.Count"})
+
+    def test_annotation_complete_and_idempotent(self):
+        source = 'public struct A { public i32 field; public i32 read(&Self self) { return self.field; } };\n'
+        updated = api.annotate(source, "sample", "0.3")
+        self.assertEqual(updated, api.annotate(updated, "sample", "0.3"))
+        for item in api.declarations(updated, "sample"):
+            api.validate_lifecycle(item["lifecycle"], item["name"])
+        self.assertIn("@module sample", updated)
+        self.assertEqual(updated.count("@since 0.3"), 4)
+
+    def test_existing_tags_and_version_preserved(self):
+        source = '''/*
+ * Retain useful prose.
+ * @version 7.2
+ * @parameter input Original name.
+ * @since 0.2
+ * @deprecated_at 0.4
+ * @removed_at 0.5
+ */
+public i32 old(i32 input) { return input; }
+'''
+        updated = api.annotate(source, "sample", "0.3")
+        self.assertIn("@version 7.2", updated)
+        self.assertIn("@parameter input Original name.", updated)
+        values = api.declarations(updated, "sample")[0]["lifecycle"]
+        self.assertEqual(values, {"since": "0.2", "deprecated_at": "0.4", "removed_at": "0.5"})
+        self.assertEqual(updated, api.annotate(updated, "sample", "0.3"))
+
+    def test_no_fabricated_deprecation(self):
+        updated = api.annotate('public void current() { return; }\n', "sample", "0.3")
+        values = api.declarations(updated, "sample")[0]["lifecycle"]
+        self.assertEqual(values["deprecated_at"], "none")
+        self.assertEqual(values["removed_at"], "none")
+        with self.assertRaisesRegex(ValueError, "actual @deprecated_at"):
+            api.annotate('/*\n * @deprecated Use replacement.\n */\npublic void old() { return; }', "sample", "0.3")
+
+    def test_invalid_and_duplicate_metadata(self):
+        with self.assertRaisesRegex(ValueError, "Duplicate"):
+            api.lifecycle('/*\n * @since 0.2\n * @since 0.3\n */')
+        for values in ({"since": "none", "deprecated_at": "none", "removed_at": "none"},
+                       {"since": "0.3", "deprecated_at": "0.2", "removed_at": "none"},
+                       {"since": "0.2", "deprecated_at": "0.4", "removed_at": "0.3"},
+                       {"since": "0.3", "deprecated_at": "0.3-beta", "removed_at": "none"}):
+            with self.assertRaises(ValueError):
+                api.validate_lifecycle(values, "sample")
+
+    def test_literals_and_function_bodies_not_declarations(self):
+        source = '''public string_view source() {
+    string_view text = "public i32 fake(); /* comment */";
+    string_view raw = r#"public struct Hidden { public i32 value; };"#;
+    return text;
+}
+// public i32 ghost;
+/* public void ghost2(); */
+'''
+        self.assertEqual([item["name"] for item in api.declarations(source, "sample")], ["sample.source"])
+
+    def test_comment_delimiters_inside_literals_never_attach_to_api(self):
+        source = '''public string_view begin() { return "/*"; }
+/* Return an ordinary integer. */
+public i32 next() { return 1; }
+'''
+        updated = api.annotate(source, "sample", "0.3")
+        self.assertIn('return "/*";', updated)
+        self.assertEqual(api.TOKEN.findall(api.masked_source(source)), api.TOKEN.findall(api.masked_source(updated)))
+        self.assertEqual(len(api.declarations(updated, "sample")), 2)
+
+    def test_overload_identity_includes_signature(self):
+        source = 'public i32 pick(i32 value) { return value; }\npublic f64 pick(f64 value) { return value; }\n'
+        items = api.declarations(source, "sample")
+        self.assertEqual(len({item["id"] for item in items}), 2)
+
+    def test_generic_defaults_are_functions_not_value_initializers(self):
+        source = '''public T identity<T = i32>(T value) { return value; }
+public i32 stored = identity(1);
+'''
+        items = api.declarations(source, "sample")
+        self.assertEqual([(item["name"], item["kind"]) for item in items],
+                         [("sample.identity", "function"), ("sample.stored", "value")])
+
+    def test_known_intro_version_does_not_age_new_api(self):
+        old = 'public i32 established() { return 1; }\n'
+        old_id = api.declarations(old, "sample")[0]["id"]
+        result = api.annotate(old + 'public i32 fresh() { return 2; }\n', "sample", "0.3", {old_id: "0.2"})
+        by_name = {item["short_name"]: item["lifecycle"]["since"] for item in api.declarations(result, "sample")}
+        self.assertEqual(by_name, {"established": "0.2", "fresh": "0.3"})
+
+    def test_verified_release_history_keeps_01_and_02_distinct(self):
+        policy = json.loads((ROOT / "docs/Language/Library/lifecycle_policy.json").read_text())
+        known = policy["known_since"]
+        self.assertEqual(known["module:memory"], "0.1")
+        self.assertEqual(known["module:$core"], "0.1")
+        self.assertEqual(known["module:complex"], "0.2")
+        self.assertEqual(known["module:simd"], "0.2")
+        self.assertEqual(known["module:parallel"], "0.2")
+        self.assertEqual({item["version"] for item in policy["baselines"]}, {"0.1", "0.2"})
+
+    def test_inventory_detects_added_removed_and_changed_api(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "library/Core/sample.avx"
+            path.parent.mkdir(parents=True)
+            path.write_text(api.annotate('public i32 value() { return 1; }\n', "sample", "0.3"))
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "inventory"])
+                api.main(["--root", str(root), "check"])
+            original = path.read_text()
+            for changed in (original + 'public i32 newer() { return 2; }\n',
+                            original.replace('public i32 value()', 'public i32 changed()'),
+                            original.replace('public i32 value()', 'public i64 value()')):
+                path.write_text(changed)
+                with self.assertRaisesRegex(ValueError, "inventory mismatch"):
+                    api.main(["--root", str(root), "check"])
+            path.write_text(original.replace('@removed_at none', '@removed_at 0.5', 1))
+            with self.assertRaisesRegex(ValueError, "Stale lifecycle"):
+                api.main(["--root", str(root), "check"])
+
+    def test_missing_source_tags_fail_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "library/Core/sample.avx"
+            path.parent.mkdir(parents=True)
+            path.write_text('public void value() { return; }\n')
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "inventory"])
+            with self.assertRaisesRegex(ValueError, "missing @since"):
+                api.main(["--root", str(root), "check"])
+
+    def test_catalog_deduplication_and_gpu_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cpu = '<section id="api"><table><tr id="a"><th><code>Tensor.zeros&lt;T&gt;(Shape shape)</code></th><td>Tensor</td></tr><tr><td>Tensor.upload_async(X input, Queue queue)</td><td>Pending&lt;Tensor&gt;</td></tr></table></section>'
+            for name in ("Tensor", "Tensor_View"):
+                path = root / ("htmls/data_type/Tensor/" + name + ".html")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(cpu)
+            path = root / "htmls/data_type/Pending/Pending.html"
+            path.parent.mkdir(parents=True)
+            path.write_text('<table><tr><td>Pending.wait(Pending value)</td><td>Result</td></tr></table>')
+            entries, excluded = api.catalog(root)
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(len(entries[0]["occurrences"]), 2)
+            self.assertEqual(len(excluded), 3)
+            self.assertEqual(entries[0]["name"], "Tensor.zeros")
+
+    def test_render_escapes_names_and_shows_none(self):
+        output = api.render({"source": [{"name": "module.Pair<T>", "kind": "struct",
+                                         "lifecycle": {"since": "0.3", "deprecated_at": "none", "removed_at": "none"}}]})
+        self.assertIn("Pair&lt;T&gt;", output)
+        self.assertIn("no deprecation or removal version is scheduled", output)
+        self.assertNotIn("<T>", output)
+
+    def test_render_disambiguates_overloaded_signatures(self):
+        output = api.render({"source": [{"name": "sample.copy", "kind": "function",
+                                         "signature": "T copy<T>(&T value)",
+                                         "lifecycle": {"since": "0.3", "deprecated_at": "none", "removed_at": "none"}}]})
+        self.assertIn("<details><summary><code>sample.copy</code></summary>", output)
+        self.assertIn("T copy&lt;T&gt;(&amp;T value)", output)
+
+    def test_render_checkpoint_is_separate_from_new_declaration_presence(self):
+        checkpoint = {"checkpoint_id": "2026-10-18<&>",
+                      "ctest": {"passed": 106, "total": 106, "elapsed_seconds": 294.03},
+                      "binary": {"sha256": "e1fec8a4"},
+                      "source_snapshot": {"public_declarations": 1971}}
+        output = api.render({"source": []}, checkpoint=checkpoint)
+        self.assertIn('id="Verified-Checkpoint"', output)
+        self.assertIn("106/106", output)
+        self.assertIn("2026-10-18&lt;&amp;&gt;", output)
+        self.assertIn("later source declarations and compiler changes are unverified", output)
+        self.assertIn("does not complete the CPU library catalog", output)
+        self.assertNotIn("Verified-Checkpoint", api.render({"source": []}))
+
+    def test_resumed_checkpoint_does_not_invent_total_wall_time(self):
+        checkpoint = {"checkpoint_id": "resumed",
+                      "ctest": {"passed": 129, "total": 129, "elapsed_seconds": None,
+                                "execution": "interrupted_then_resumed_on_identical_snapshot",
+                                "initial_completed": 128, "resumed_completed": 1},
+                      "binary": {"sha256": "9a69330b"},
+                      "source_snapshot": {"public_declarations": 2450}}
+        output = api.render({"source": []}, checkpoint=checkpoint)
+        self.assertIn("129/129", output)
+        self.assertIn("unchanged binary and source snapshot", output)
+        self.assertIn("no combined wall time is claimed", output)
+        self.assertNotIn("</code> seconds on", output)
+        self.assertNotIn("None", output)
+
+    def test_render_never_presents_intrinsic_void_placeholder_as_call_signature(self):
+        row = {"name": "memory.Box.new", "kind": "method", "signature": "public void new(T value)",
+               "implementation": "compiler_generated_declaration_not_ordinary_body",
+               "lifecycle": {"since": "0.1", "deprecated_at": "none", "removed_at": "none"}}
+        output = api.render({"source": [row]})
+        self.assertIn("Compiler binding declaration.", output)
+        self.assertIn("not a usable call signature", output)
+        self.assertNotIn("public void new(T value)", output)
+
+    def test_sync_header_is_opt_in_and_not_confused_with_atomic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / "include/aevix/Frontend/Modules/SyncModuleSource.hpp"
+            provider.parent.mkdir(parents=True)
+            provider.write_text('inline constexpr auto SyncModuleSource = R"(public struct Mutex < T > { public T into_inner(Self self); }; public struct RwLock<T> {};)";')
+            items = api.generated_sources(root)
+            self.assertEqual({item["virtual_module"] for item in items}, {"sync"})
+            self.assertIn("sync.Mutex.into_inner", {item["name"] for item in items})
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "apply", "--since", "0.3", "--compiler-generated"])
+            for item in api.generated_sources(root):
+                api.validate_lifecycle(item["lifecycle"], item["name"])
+
+    def test_atomic_header_payload_has_its_own_virtual_module(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / "include/aevix/Frontend/Modules/AtomicModuleSource.hpp"
+            provider.parent.mkdir(parents=True)
+            source = 'inline constexpr auto AtomicModuleSource = R"(public enum MemoryOrder { Relaxed; }; public struct Atomic<T> { public T load(&Self self); };)";'
+            provider.write_text(source)
+            items = api.generated_sources(root)
+            self.assertEqual({item["virtual_module"] for item in items}, {"atomic"})
+            self.assertIn("atomic.Atomic.load", {item["name"] for item in items})
+            method = next(item for item in items if item["name"] == "atomic.Atomic.load")
+            self.assertNotIn("signature", method)
+            self.assertIn("public T load", method["provider_declaration"])
+            self.assertEqual(method["signature_role"], "compiler_binding_placeholder_not_call_contract")
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "apply", "--since", "0.3", "--compiler-generated"])
+            after = provider.read_text()
+            for item in api.generated_sources(root):
+                api.validate_lifecycle(item["lifecycle"], item["name"])
+                self.assertEqual(item["source"], "include/aevix/Frontend/Modules/AtomicModuleSource.hpp")
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "apply", "--since", "0.3", "--compiler-generated"])
+            self.assertEqual(after, provider.read_text())
+
+    def test_float_bits_lifecycle_requires_dispatch_not_only_comments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / api.SIMD_PROVIDER
+            provider.parent.mkdir(parents=True)
+            docs = "\n".join("/*\n * @api Float." + name + "\n * @since 0.3\n * @deprecated_at none\n * @removed_at none\n */"
+                             for name in ("to_bits", "from_bits"))
+            provider.write_text(docs)
+            self.assertEqual(api.implicit_sources(root), [])
+            dispatch = 'if (node.kind == "CompilerFloatBitsExpression") { if (node.value == "Float.to_bits" || node.value == "Float.from_bits") return output; }'
+            provider.write_text(docs + "\n" + dispatch)
+            items = api.implicit_sources(root)
+            self.assertEqual({item["name"] for item in items}, {"Float.to_bits", "Float.from_bits"})
+            for item in items:
+                api.validate_lifecycle(item["lifecycle"], item["name"])
+                self.assertIn("f16/bf16 pair with u16", item["availability_note"])
+                self.assertNotIn("provider_declaration", item)
+            provider.write_text(docs + '\nif (node.kind == "CompilerFloatBitsExpression") { return output; }')
+            with self.assertRaisesRegex(ValueError, "dispatch changed"):
+                api.implicit_sources(root)
+
+    def test_byte_scalar_lifecycle_retains_released_history(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / api.SIMD_PROVIDER
+            provider.parent.mkdir(parents=True)
+            docs = "\n".join("/*\n * @api Byte." + name + "\n * @since 0.2\n * @deprecated_at none\n * @removed_at none\n */"
+                             for name in ("from_u8", "to_u8"))
+            provider.write_text(docs)
+            self.assertEqual(api.implicit_sources(root), [])
+            provider.write_text(docs + '\nvoid valueIntrinsic() { if (owner.value == "Byte") { if (method != "from_u8" && method != "to_u8") return none; return output; } }')
+            items = api.implicit_sources(root)
+            self.assertEqual({item["name"] for item in items}, {"Byte.from_u8", "Byte.to_u8"})
+            self.assertTrue(all(item["lifecycle"]["since"] == "0.2" for item in items))
+            provider.write_text(docs + '\nvoid valueIntrinsic() { if (owner.value == "Byte") { return output; } }')
+            with self.assertRaisesRegex(ValueError, "dispatch changed"):
+                api.implicit_sources(root)
+
+    def test_char_scalar_lifecycle_requires_checked_dispatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / api.SIMD_PROVIDER
+            provider.parent.mkdir(parents=True)
+            docs = "\n".join("/*\n * @api Char." + name + "\n * @since 0.3\n * @deprecated_at none\n * @removed_at none\n */"
+                             for name in ("from_u32", "to_u32"))
+            provider.write_text(docs)
+            self.assertEqual(api.implicit_sources(root), [])
+            dispatch = 'if (node.kind == "CompilerCharScalarExpression") { if (node.value == "Char.from_u32" || node.value == "Char.to_u32") return output; }'
+            provider.write_text(docs + "\n" + dispatch)
+            items = api.implicit_sources(root)
+            self.assertEqual({item["name"] for item in items}, {"Char.from_u32", "Char.to_u32"})
+            for item in items:
+                api.validate_lifecycle(item["lifecycle"], item["name"])
+                self.assertIn("InvalidScalar retains the original u32", item["availability_note"])
+            provider.write_text(docs + '\nif (node.kind == "CompilerCharScalarExpression") { return output; }')
+            with self.assertRaisesRegex(ValueError, "dispatch changed"):
+                api.implicit_sources(root)
+
+    def test_range_inspection_requires_unique_closed_descriptor_and_dispatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / api.SIMD_PROVIDER
+            provider.parent.mkdir(parents=True)
+            provider.write_text('if (node.kind == "CompilerRangeInspectExpression") { return output; }')
+            with self.assertRaisesRegex(ValueError, "Missing closed Range"):
+                api.implicit_sources(root)
+            descriptor = root / api.RANGE_PROVIDER
+            descriptor.parent.mkdir(parents=True)
+            descriptor.write_text('RangeInspectOperation{"Range.start",Element,0}, RangeInspectOperation{"Range.step_magnitude",Magnitude,2}')
+            items = api.implicit_sources(root)
+            self.assertEqual({item["name"] for item in items}, {"Range.start", "Range.step_magnitude"})
+            self.assertTrue(all(item["descriptor_source"] == api.RANGE_PROVIDER for item in items))
+            descriptor.write_text('RangeInspectOperation{"Range.start",Element,0}, RangeInspectOperation{"Range.start",Element,1}')
+            with self.assertRaisesRegex(ValueError, "Ambiguous"):
+                api.implicit_sources(root)
+            provider.write_text('// Range inspection has not been bound.')
+            self.assertEqual(api.implicit_sources(root), [])
+
+    def test_task_cancellation_provider_keeps_binding_roles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / "include/aevix/Frontend/Modules/TaskModuleSource.hpp"
+            provider.parent.mkdir(parents=True)
+            provider.write_text('inline constexpr auto TaskModuleSource = R"(public struct CancellationSource { public CancellationSource new(); }; public struct Task { public CancellationSource cancel_source(); };)";')
+            items = api.generated_sources(root)
+            self.assertEqual({item["virtual_module"] for item in items}, {"task"})
+            self.assertIn("task.CancellationSource", {item["name"] for item in items})
+            self.assertIn("task.Task.cancel_source", {item["name"] for item in items})
+            method = next(item for item in items if item["name"] == "task.Task.cancel_source")
+            self.assertNotIn("signature", method)
+            self.assertEqual(method["signature_role"], "compiler_binding_placeholder_not_call_contract")
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "apply", "--since", "0.3", "--compiler-generated"])
+            after = provider.read_text()
+            for item in api.generated_sources(root):
+                api.validate_lifecycle(item["lifecycle"], item["name"])
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "apply", "--since", "0.3", "--compiler-generated"])
+            self.assertEqual(after, provider.read_text())
+
+    def test_compiler_generated_payloads_are_separate_and_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            provider = root / "src/Frontend/Modules/ModuleLoader.cpp"
+            provider.parent.mkdir(parents=True)
+            source = '''int unchanged = 1;
+auto system = R"(public enum LogLevel { info; }; public void print() {})";
+auto memory = R"(public struct Box<T> { T payload; public void new(T value) {} };)";
+auto simd = "public struct Simd {}; public struct SimdMask {};";
+auto parallel = "public void for_each() {} public usize worker_count() { return 0; }";
+'''
+            provider.write_text(source)
+            before = {item["id"] for item in api.generated_sources(root)}
+            self.assertEqual(len({item["virtual_module"] for item in api.generated_sources(root)}), 4)
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "apply", "--since", "0.3", "--compiler-generated"])
+            after = provider.read_text()
+            self.assertIn("int unchanged = 1;", after)
+            self.assertEqual(before, {item["id"] for item in api.generated_sources(root)})
+            for item in api.generated_sources(root):
+                api.validate_lifecycle(item["lifecycle"], item["name"])
+                self.assertEqual(item["source"], "src/Frontend/Modules/ModuleLoader.cpp")
+            with contextlib.redirect_stdout(io.StringIO()):
+                api.main(["--root", str(root), "apply", "--since", "0.3", "--compiler-generated"])
+            self.assertEqual(after, provider.read_text())
+
+    def test_implicit_simd_lifecycle_matches_checker_dispatch(self):
+        source = '''
+            std::optional<TypeId> simdIntrinsic(const Node& node, TypeId expected)
+            {
+                if (maskNamespace) {
+                    if (method == "any" || method != "not") { return {}; }
+                }
+                if (method == "splat" || method == "add") { return {}; }
+                return {};
+            }
+'''
+        operations = api.simd_operations(source)
+        self.assertEqual({item["name"] for item in operations},
+                         {"simd.SimdMask.any", "simd.SimdMask.not", "simd.Simd.splat", "simd.Simd.add"})
+        updated = api.annotate_implicit(source, "0.3", {"intrinsic:simd.Simd.add": "0.2"})
+        self.assertEqual(updated, api.annotate_implicit(updated, "0.3", {"intrinsic:simd.Simd.add": "0.2"}))
+        self.assertEqual(api.TOKEN.findall(api.masked_source(source)), api.TOKEN.findall(api.masked_source(updated)))
+        self.assertEqual(updated.count("@api "), 4)
+        self.assertIn("@api simd.Simd.add\n             * @since 0.2", updated)
+
+    def test_implicit_array_copy_preserves_overload_boundary(self):
+        source = '''
+            std::optional<TypeId> valueIntrinsic(const Node& node, TypeId expected)
+            {
+                if (owner.value == "Array") {
+                    if (method != "from_copy") return {};
+                    return done(reference.element, "array.copy");
+                }
+                return {};
+            }
+'''
+        operations = api.array_operations(source)
+        self.assertEqual(len(operations), 1)
+        self.assertEqual(operations[0]["id"], "intrinsic:Array.from_copy")
+        self.assertIn("where T implements Copy", operations[0]["signature"])
+        self.assertIn("Arrays remain move-only", operations[0]["availability_note"])
+        self.assertIn("fill-constructor", operations[0]["availability_note"])
+        updated = api.annotate_implicit(source, "0.3", {})
+        self.assertEqual(updated, api.annotate_implicit(updated, "0.3", {}))
+        self.assertEqual(api.TOKEN.findall(api.masked_source(source)), api.TOKEN.findall(api.masked_source(updated)))
+        self.assertEqual(updated.count("@api Array.from_copy"), 1)
+        self.assertIn("@since 0.3", updated)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            checker = root / api.SIMD_PROVIDER
+            checker.parent.mkdir(parents=True)
+            checker.write_text(updated)
+            recorded = api.implicit_sources(root)
+            self.assertEqual(recorded[0]["virtual_module"], "$core")
+            self.assertEqual(recorded[0]["lifecycle"]["since"], "0.3")
+        with self.assertRaisesRegex(ValueError, "Array namespace dispatch changed"):
+            api.array_operations(source.replace('"array.copy"', '"array.changed"'))
+
+    def test_english_comments_preserve_korean_string_literals(self):
+        source = '''/*
+ * 입력 문자열을 그대로 돌려준다.
+ * Return the input text unchanged.
+ * @since 0.3
+ */
+public string_view text() {
+    string_view value = "한글 /* 문자열 안의 텍스트 */";
+    string_view raw = r#"한글 // 문자열"#;
+    return value;
+}
+// 한국어 요약.
+// English summary.
+'''
+        updated = api.english_comments(source, "sample.avx")
+        self.assertNotIn("입력 문자열을", updated)
+        self.assertNotIn("한국어 요약", updated)
+        self.assertIn("Return the input text unchanged.", updated)
+        self.assertIn('"한글 /* 문자열 안의 텍스트 */"', updated)
+        self.assertIn('r#"한글 // 문자열"#', updated)
+        self.assertIn("// English summary.", updated)
+        self.assertEqual(api.TOKEN.findall(api.masked_source(source)), api.TOKEN.findall(api.masked_source(updated)))
+        with self.assertRaisesRegex(ValueError, "meaningful English translation"):
+            api.english_comments('/* 순수 한국어 설명. */\npublic void f() {}', "sample.avx")
+        with self.assertRaisesRegex(ValueError, "without dropping tags"):
+            api.english_comments('/*\n * Return the value.\n * @version 1.0 한국어 설명.\n */', "sample.avx")
+
+
+if __name__ == "__main__":
+    unittest.main()

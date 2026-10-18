@@ -35,6 +35,7 @@ namespace aevix
         SymbolId field = InvalidSymbolId;
         bool consuming = false;
         bool mutableBorrow = false;
+        bool borrowedBinding = false;
     };
     struct CoreCarrierInfo final
     {
@@ -68,6 +69,11 @@ namespace aevix
         std::size_t slot = 0;
         std::vector<SymbolId> targets;
     };
+    struct BoxExtractionInfo final
+    {
+        TypeId owner = InvalidTypeId;
+        TypeId payload = InvalidTypeId;
+    };
     struct TypeCheckResult final
     {
         TypeContext types;
@@ -93,14 +99,27 @@ namespace aevix
         std::unordered_map<const Node*, DynViewInfo> dynViews;
         std::unordered_map<const Node*, DynViewInfo> boxDynViews;
         std::unordered_map<const Node*, std::string> boxIntrinsics;
+        // 검증된 구체 Box 소유자와 이동할 실제 T를 별도로 기록한다.
+        // Record the validated concrete Box owner and exact extracted T separately.
+        std::unordered_map<const Node*, BoxExtractionInfo> boxExtractions;
         std::unordered_map<const Node*, DynCallInfo> dynCalls;
         std::unordered_map<const Node*, std::string> valueIntrinsics;
+        // 출력이 소유 문자열을 이동하지 않도록 내부 읽기 대여 타입을 보관한다.
+        // Keep internal shared-loan types so output does not consume owned strings.
+        std::unordered_map<const Node*, TypeId> systemBorrows;
         std::unordered_map<const Node*, std::size_t> tupleIndices;
         std::unordered_map<const Node*, TypeId> iterationViews;
         std::unordered_map<const Node*, TypeId> simdTypes;
+        // 명시적 return에만 허용한 bool의 0/1 정수 변환을 표현식 타입과 분리한다.
+        // Keep return-only bool-to-0/1 adaptations separate from expression types.
+        std::unordered_map<const Node*, TypeId> returnConversions;
+        // 검증한 사용자 정리 메서드를 구체 소유 타입에 연결하여 자동 정리에 사용한다.
+        // Associate validated user cleanup methods with concrete owned types for automatic cleanup.
+        std::unordered_map<TypeId, SymbolId> dropMethods;
         // InvalidSymbolId는 worker_count이며 나머지는 검증한 정적 작업 함수다.
         // InvalidSymbolId denotes worker_count; other entries identify validated static workers.
         std::unordered_map<const Node*, SymbolId> parallelCalls;
+        std::unordered_map<const Node*, SymbolId> taskInvokes;
         bool succeeded = false;
     };
 

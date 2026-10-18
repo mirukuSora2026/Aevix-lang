@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : analyze_ir
+#
+# Description :
+#     실행 없이 고정된 벤치마크의 LLVM·어셈블리와 시간 구간을 분석한다.
+#     Inspect frozen benchmark LLVM, assembly, and timed regions without executing workloads.
+#
+# ========================
+"""Reproduce the cpu4096 baseline IR evidence, never benchmark timings."""
+
+import argparse
+from collections import Counter
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+
+
+ROOT = Path(__file__).resolve().parents[4]
+BASELINE = "14e539e98708b8a0b3b8985574a66794d44329bf5c1f63c7e4baba49eeb96e16"
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def save(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(value.encode("utf-8"))
+
+
+def rel(path):
+    path = Path(path)
+    return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+
+
+def function_map(path):
+    result = {}
+    current = None
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        match = re.match(r"^define.*?@([^ (]+)\(", line)
+        if match:
+            current = []
+            result[match[1]] = current
+        if current is not None:
+            current.append((number, line))
+        if line == "}":
+            current = None
+    return result
+
+
+def statistics(lines):
+    text = "\n".join(line for _, line in lines)
+    calls = re.findall(r"\b(?:call|invoke)\b[^\n]*?@([^ (]+)\(", text)
+    return {
+        "allocas": len(re.findall(r"\balloca\b", text)),
+        "phi_instructions": len(re.findall(r"= phi\b", text)),
+        "overflow_intrinsics": sum(".with.overflow." in call for call in calls),
+        "trap_calls": calls.count("llvm.trap"),
+        "vector_type_occurrences": len(re.findall(r"<\d+ x (?:i\d+|float|double)>", text)),
+        "urem_instructions": len(re.findall(r"= urem ", text)),
+        "direct_calls": dict(sorted(Counter(calls).items())),
+        "indirect_call_instructions": len(re.findall(r"\b(?:call|invoke)\b[^\n]*?%[^\n(]+\(", text)),
+    }
+
+
+def block_map(lines):
+    blocks = {}
+    current = None
+    for number, line in lines[1:-1]:
+        match = re.match(r"^([\w.-]+):", line)
+        if match:
+            current = match[1]
+            blocks[current] = []
+        if current is not None:
+            blocks[current].append((number, line))
+    return blocks
+
+
+def between_clocks(lines):
+    blocks = block_map(lines)
+    clocks = [(name, index, number)
+              for name, body in blocks.items()
+              for index, (number, line) in enumerate(body)
+              if re.search(r"call.*@aevix_os_monotonic_ns\(", line)]
+    if len(clocks) != 2:
+        raise ValueError(f"Expected exactly two clock call sites, found {clocks}")
+    start, stop = clocks
+    seen = set()
+    pending = [start[0]]
+    while pending:
+        block = pending.pop()
+        if block in seen:
+            continue
+        seen.add(block)
+        if block != stop[0]:
+            pending.extend(re.findall(r"label %([\w.-]+)", "\n".join(line for _, line in blocks[block])))
+    selected = []
+    for name in seen:
+        body = blocks[name]
+        if name == start[0]:
+            body = body[start[1] + 1:]
+        if name == stop[0]:
+            body = body[:stop[1]]
+        selected.extend(body)
+    return sorted(selected), clocks, seen, blocks
+
+
+def loops(path):
+    result = []
+    function = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"Loop info for function '(.*)':", line)
+        if match:
+            function = match[1]
+        if "Loop at depth" in line:
+            nodes = re.findall(r"%([\w.-]+)", line)
+            result.append({"function": function, "header": nodes[0], "blocks": nodes,
+                           "depth": int(re.search(r"depth (\d+)", line)[1])})
+    return result
+
+
+def assembly_function(path, name):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    start = next(index for index, line in enumerate(lines) if line.startswith("_" + name + ":"))
+    end = next(index for index in range(start, len(lines)) if "; -- End function" in lines[index])
+    body = lines[start:end]
+    instructions = []
+    for line in body:
+        if not line.startswith("\t") or line.lstrip().startswith("."):
+            continue
+        instruction = line.split(";")[0].strip()
+        instructions.append(re.sub(r"LBB\d+_(\d+)", r"LBB_X_\1", instruction))
+    return {"line_start": start + 1, "line_end": end + 1,
+            "static_instruction_lines": len(instructions),
+            "normalized_instructions": instructions,
+            "vector_instruction_lines": [line for line in instructions if re.search(r"\bv\d+\b|\.\d+[bhsd]\b", line)],
+            "opcodes": dict(sorted(Counter(line.split()[0] for line in instructions).items()))}
+
+
+def vectorizer_records(path):
+    result = []
+    for document in path.read_text(encoding="utf-8").split("--- "):
+        if not re.search(r"Pass:\s+(?:loop-vectorize|slp-vectorizer)\s*\n", document):
+            continue
+        get = lambda key: re.search(r"^" + key + r":\s+([^\n]+)", document, re.M)[1].strip()
+        result.append({"kind": document.splitlines()[0], "pass": get("Pass"),
+                       "name": get("Name"), "function": get("Function")})
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--clang", default="/opt/homebrew/opt/llvm/bin/clang")
+    parser.add_argument("--opt", default="/opt/homebrew/opt/llvm/bin/opt")
+    parser.add_argument("--artifacts", type=Path, default=Path("build/bench-cpu4096/aevix-ir"))
+    parser.add_argument("--report", type=Path,
+                        default=Path("benchmarks/Comparison/cpu4096/reports/baseline_ir.json"))
+    args = parser.parse_args()
+    out = (ROOT / args.artifacts).resolve()
+    out.mkdir(parents=True, exist_ok=True)
+    records = []
+
+    def run(argv, destination):
+        process = subprocess.run([str(value) for value in argv], cwd=ROOT, capture_output=True)
+        save(destination, (process.stdout + process.stderr).decode("utf-8", errors="replace"))
+        records.append({"argv": [str(value).replace(str(ROOT) + "/", "") for value in argv],
+                        "exit_code": process.returncode, "log": rel(destination)})
+        if process.returncode:
+            raise RuntimeError(f"Tool failed; inspect {rel(destination)}")
+        return process.stdout.decode("utf-8", errors="replace")
+
+    prep_path = ROOT / "build/bench-cpu4096/aevix/preparation.json"
+    prep = json.loads(prep_path.read_text(encoding="utf-8"))
+    if digest(ROOT / prep["compiler"]) != BASELINE or prep["compiler_sha256"] != BASELINE:
+        raise ValueError("Frozen baseline compiler fingerprint changed")
+    if digest(ROOT / prep["spec"]) != prep["spec_sha256"]:
+        raise ValueError("Shared specification changed since fixture preparation")
+    clang_version = run([args.clang, "--version"], out / "clang-version.txt").strip()
+    opt_version = run([args.opt, "--version"], out / "opt-version.txt").strip()
+    if "version 22." not in clang_version or "version 22." not in opt_version:
+        raise ValueError("Use LLVM 22 for both clang and opt")
+    first_raw = ROOT / prep["programs"][0]["raw_llvm"]
+    run([args.clang, "-###", "-x", "ir", first_raw, "-target", "arm64-apple-macosx", "-O2",
+         "-S", "-o", out / "driver-probe.s"], out / "driver-probe.txt")
+    programs = []
+    native_dir = ROOT / "build/bench-cpu4096/native"
+    native_ready = (native_dir / "build_commands.json").is_file()
+    native_functions = {}
+    for language, filename in (("C", "c_main"), ("C++", "cpp_main")) if native_ready else ():
+        native_functions[language] = {
+            level: function_map(native_dir / f"{filename}.{level}.ll") for level in ("O0", "O2")}
+
+    for program in prep["programs"]:
+        for key in ("source", "binary", "raw_llvm"):
+            if digest(ROOT / program[key]) != program[key + "_sha256"]:
+                raise ValueError(f"Prepared {key} fingerprint changed: {program[key]}")
+        raw = ROOT / program["raw_llvm"]
+        name = raw.name.removesuffix(".raw.ll")
+        optimized = out / (name + ".opt.ll")
+        assembly = out / (name + ".O2.s")
+        for stage, destination in (("ir", optimized), ("assembly", assembly)):
+            argv = [args.clang, "-x", "ir", raw, "-target", "arm64-apple-macosx", "-O2", "-S"]
+            if stage == "ir":
+                argv.append("-emit-llvm")
+            argv += ["-o", destination,
+                     "-Rpass=loop-vectorize|slp-vectorizer", "-Rpass-missed=loop-vectorize|slp-vectorizer",
+                     "-Rpass-analysis=loop-vectorize|slp-vectorizer", "-fsave-optimization-record",
+                     "-foptimization-record-file=" + str(out / (name + "." + stage + ".opt.yaml"))]
+            run(argv, out / (name + "." + stage + ".remarks.txt"))
+        loop_path = out / (name + ".loops.txt")
+        run([args.opt, "-passes=print<loops>", "-disable-output", optimized], loop_path)
+        raw_functions, optimized_functions = function_map(raw), function_map(optimized)
+        raw_kernel, kernel = raw_functions["aevix.fn.46"], optimized_functions["aevix.fn.46"]
+        entry = optimized_functions["aevix.fn.47"]
+        envelope, clocks, included, blocks = between_clocks(entry)
+        hot_loops = []
+        for loop in loops(loop_path):
+            if loop["function"] == "aevix.fn.47" and set(loop["blocks"]) <= included:
+                hot_loops.append({**loop, "statistics": statistics([line for block in loop["blocks"] for line in blocks[block]])})
+        worker_assembly = assembly_function(assembly, "aevix.fn.46")
+        comparisons = {}
+        for language, functions in native_functions.items():
+            tag = "c_main" if language == "C" else "cpp_main"
+            wanted = "bench_prime_callback" if program["case"] == "prime_search" else "bench_" + program["case"] + "_callback"
+            symbols = [symbol for symbol in functions["O2"] if wanted in symbol]
+            if len(symbols) != 1:
+                raise ValueError(f"Native callback mapping is ambiguous: {symbols}")
+            symbol = symbols[0]
+            native_assembly = assembly_function(native_dir / (tag + ".O2.s"), symbol)
+            comparisons[language] = {"function": symbol,
+                "O0": statistics(functions["O0"][symbol]), "O2": statistics(functions["O2"][symbol]),
+                "assembly": native_assembly,
+                "same_normalized_worker_instructions": worker_assembly["normalized_instructions"] == native_assembly["normalized_instructions"]}
+        for stage, lines in (("kernel.raw", raw_kernel), ("kernel.opt", kernel), ("timed.opt", envelope)):
+            save(out / (name + "." + stage + ".ll.txt"), "\n".join(f"{number}: {line}" for number, line in lines) + "\n")
+        programs.append({"case": program["case"], "mode": program["mode"],
+            "source": program["source"], "source_sha256": program["source_sha256"],
+            "binary": program["binary"], "binary_sha256": program["binary_sha256"],
+            "raw_llvm": program["raw_llvm"], "raw_llvm_sha256": program["raw_llvm_sha256"],
+            "optimized_llvm": rel(optimized), "optimized_llvm_sha256": digest(optimized),
+            "assembly": rel(assembly), "assembly_sha256": digest(assembly),
+            "raw_defined_functions": len(raw_functions), "optimized_defined_functions": len(optimized_functions),
+            "raw_kernel": {"line_start": raw_kernel[0][0], "line_end": raw_kernel[-1][0], **statistics(raw_kernel)},
+            "optimized_kernel": {"line_start": kernel[0][0], "line_end": kernel[-1][0], **statistics(kernel)},
+            "raw_main_allocas": statistics(raw_functions["aevix.fn.47"])["allocas"],
+            "optimized_main_allocas": statistics(entry)["allocas"],
+            "clock_locations": [{"block": block, "line": number} for block, _, number in clocks],
+            "timed_envelope": statistics(envelope), "timed_envelope_blocks": sorted(included),
+            "timed_natural_loops": hot_loops, "worker_assembly": worker_assembly,
+            "native_callback_comparisons": comparisons,
+            "vectorizer_records": vectorizer_records(out / (name + ".ir.opt.yaml"))})
+
+    archive = ROOT / "build/bench-cpu4096/baseline-14e539e9/lib/aevix/libaevix_runtime.a"
+    ar = str(Path(args.clang).parent / "llvm-ar")
+    objdump = str(Path(args.clang).parent / "llvm-objdump")
+    obj = out / "ParallelRuntime.cpp.o"
+    extracted = subprocess.run([ar, "p", str(archive), "ParallelRuntime.cpp.o"], capture_output=True, check=True)
+    obj.write_bytes(extracted.stdout)
+    records.append({"argv": [ar, "p", rel(archive), "ParallelRuntime.cpp.o"],
+                    "exit_code": 0, "output": rel(obj)})
+    run([objdump, "--disassemble", "--demangle", "--no-show-raw-insn", obj], out / "ParallelRuntime.disassembly.txt")
+    baseline_manifest = json.loads((ROOT / "build/bench-cpu4096/baseline-14e539e9/baseline_manifest.json").read_text())
+    aot_source = ROOT / "src/Backend/AOT/AOTCompiler.cpp"
+    runtime_source = ROOT / "runtime/Threading/ParallelRuntime.cpp"
+    for source in (aot_source, runtime_source):
+        if digest(source) != baseline_manifest["files"][rel(source)]:
+            raise ValueError(f"Reviewed source differs from baseline: {rel(source)}")
+    data = {"schema_version": 1, "created_by": "miruku_sora2026", "file_name": args.report.name,
+        "description": {"ko": "실행 없는 cpu4096 기준 LLVM·어셈블리 분석과 재현 명령 기록이다.",
+                        "en": "Static cpu4096 baseline LLVM/assembly analysis and reproduction commands; no workload execution."},
+        "analyzer": rel(Path(__file__).resolve()), "analyzer_sha256": digest(Path(__file__).resolve()),
+        "analysis": "cpu4096 baseline IR; workload execution is outside this tool",
+        "measured_programs_executed_by_this_tool": False, "compiler": prep["compiler"], "compiler_sha256": BASELINE,
+        "compiler_version": "Aevix 0.2.0 (ORC JIT enabled)", "spec": prep["spec"], "spec_sha256": prep["spec_sha256"],
+        "preparation_manifest": rel(prep_path), "preparation_manifest_sha256": digest(prep_path),
+        "clang": args.clang, "clang_sha256": digest(Path(args.clang)), "clang_version": clang_version,
+        "opt": args.opt, "opt_version": opt_version, "target_argument": "arm64-apple-macosx",
+        "aot_compiler_source": rel(aot_source), "aot_compiler_source_sha256": digest(aot_source),
+        "runtime_source": rel(runtime_source), "runtime_source_sha256": digest(runtime_source),
+        "runtime_archive_sha256": digest(archive), "parallel_runtime_object_sha256": digest(obj),
+        "analysis_limits": [
+            "Static instruction counts are not dynamic work, throughput, or elapsed time.",
+            "The timed envelope includes clock-wrapper success/failure handling; it is broader than hot loops.",
+            "LLVM remarks without debug locations are function-level evidence, not a unique source-loop attribution.",
+            "Original AOT runtime archives are linked separately; this is not LTO.",
+            "No new Aevix SCEV, LVI, or KnownBits integration is asserted.",
+            "Parallel workers retain an indirect callback per element in the frozen runtime object.",
+            "Configured worker count does not prove actual successful thread starts during fallback.",
+        ], "commands": records, "programs": programs}
+    if native_ready:
+        native_manifest = native_dir / "build_commands.json"
+        native = json.loads(native_manifest.read_text(encoding="utf-8"))
+        for path, expected in native["source_sha256"].items():
+            if digest(ROOT / path) != expected:
+                raise ValueError(f"Native source changed: {path}")
+        for path, expected in native["artifacts_sha256"].items():
+            if path.endswith((".ll", ".s", "_bench")) and digest(ROOT / path) != expected:
+                raise ValueError(f"Native artifact changed: {path}")
+        data["native"] = {"manifest": rel(native_manifest), "manifest_sha256": digest(native_manifest),
+                          "compilers": native["compilers"], "source_sha256": native["source_sha256"],
+                          "artifacts_sha256": {path: value for path, value in native["artifacts_sha256"].items()
+                                               if path.endswith((".ll", ".s", "_bench"))}}
+    save(ROOT / args.report, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    save(out / "commands.json", json.dumps({"records": records}, indent=2) + "\n")
+    print(json.dumps({"programs": len(programs), "native_compared": native_ready,
+                      "report": str(args.report), "workloads_executed": False}))
+
+
+if __name__ == "__main__":
+    main()

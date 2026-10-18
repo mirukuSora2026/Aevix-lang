@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : align_workers
+#
+# Description :
+#     병렬 C 비교의 실행용 CPU 수 조회를 시계 구간 안으로 정렬한다.
+#     Align the C parallel execution-worker query inside the clock envelope.
+#
+# ========================
+import argparse
+import copy
+import hashlib
+import json
+from pathlib import Path
+import runpy
+import subprocess
+
+ROOT = Path(__file__).resolve().parents[4]
+MAIN_SHA = "b6c4f888a4f850d8d13cfaeeb62e9f0f8d2e9114cd411e198d635bec9c2ad2f1"
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def rel(path):
+    return path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path)
+
+
+def save(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes((json.dumps(data, indent=2) + "\n").encode("utf-8"))
+
+
+def replace_once(text, before, after):
+    if text.count(before) != 1:
+        raise ValueError("Expected one exact adapter anchor: " + before)
+    return text.replace(before, after)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prepared", type=Path, required=True)
+    parser.add_argument("--artifacts", type=Path, required=True)
+    parser.add_argument("--objdump", type=Path, default=Path("/opt/homebrew/opt/llvm/bin/llvm-objdump"))
+    parser.add_argument("--timeout", type=int, default=180)
+    args = parser.parse_args()
+    old_path, out = ROOT / args.prepared, ROOT / args.artifacts
+    old_bytes = old_path.read_bytes()
+    if hashlib.sha256(old_bytes).hexdigest() != MAIN_SHA:
+        parser.error("The original main preparation must remain byte-exact")
+    if out.exists():
+        parser.error("Select a fresh artifact directory")
+    old = json.loads(old_bytes)
+    rows = {item["path"]: copy.deepcopy(item) for item in old["fingerprints"]}
+
+    def remember(path, role):
+        key = rel(path)
+        digest = sha(path)
+        if key in rows and rows[key]["sha256"] != digest:
+            raise ValueError("Frozen input changed: " + key)
+        rows[key] = {"path": key, "role": role, "sha256": digest}
+
+    def verify_fingerprints():
+        for item in rows.values():
+            if sha(ROOT / item["path"]) != item["sha256"]:
+                raise ValueError("Input/artifact changed: " + item["path"])
+
+    verify_fingerprints()
+    out.mkdir(parents=True)
+    remember(Path(__file__), "worker_query_alignment_tool")
+    helper_path = Path(__file__).with_name("audit_linked")
+    remember(helper_path, "linked_disassembly_parser_provenance")
+    remember(args.objdump, "linked_binary_inspection_tool")
+    remember(old_path, "original_2016_job_preparation")
+    original_commands_path = old_path.parent / "commands.json"
+    original_commands = json.loads(original_commands_path.read_text())
+    helper = runpy.run_path(str(helper_path))
+    commands, programs, smokes, audit = [], [], [], []
+
+    def run(argv, name, destination=None, stdin=None):
+        values = [str(value) for value in argv]
+        result = subprocess.run(values, cwd=ROOT, input=stdin, capture_output=True, timeout=args.timeout)
+        destination = destination or out / "logs" / (name + ".stdout")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(result.stdout)
+        stderr = out / "logs" / (name + ".stderr")
+        stderr.parent.mkdir(parents=True, exist_ok=True)
+        stderr.write_bytes(result.stderr)
+        commands.append({"label": name, "argv": [value.replace(str(ROOT) + "/", "") for value in values],
+                         "exit_code": result.returncode, "stdout": rel(destination), "stderr": rel(stderr)})
+        save(out / "commands.json", commands)
+        if result.returncode:
+            raise ValueError(name + " failed; inspect " + rel(stderr))
+        print(name + " OK", flush=True)
+        return result.stdout.decode("utf-8")
+
+    for original in old["programs"]:
+        if original["mode"] != "parallel_fresh":
+            continue
+        item = copy.deepcopy(original)
+        case, name = item["case"], item["case"] + "-parallel_fresh"
+        source = out / "cpu4096" / Path(item["c_source"]).name
+        binary = out / "bin" / (name + "-c")
+        source.parent.mkdir(exist_ok=True)
+        binary.parent.mkdir(exist_ok=True)
+        old_source = ROOT / original["c_source"]
+        text = old_source.read_text(encoding="utf-8")
+        text = replace_once(text,
+            "        const uint64_t started = aevixbench_clock_ns();\n",
+            "        const uint64_t started = aevixbench_clock_ns();\n"
+            "        // 실행용 참가자 수는 Aevix 런타임과 같이 시계 안에서 조회한다.\n"
+            "        // Query execution participants inside the clock, like the Aevix runtime.\n"
+            "        const uint32_t participants = bench_workers();\n")
+        text = replace_once(text, "), workers) != 0) return 94;", "), participants) != 0) return 94;")
+        source.write_bytes(text.encode("utf-8"))
+        remember(source, "aligned_C_wrapper_source")
+        command = next(row["argv"] for row in original_commands if row["label"] == name + "-c-build")
+        argv = [str(source) if value == original["c_source"] else str(binary) if value == original["commands"]["C"][0] else value for value in command]
+        if str(source) not in argv or str(binary) not in argv:
+            raise ValueError("Cannot adapt the exact recorded C command")
+        for argument in argv:
+            path = ROOT / argument
+            if argument.endswith(".o") and path.is_file():
+                remember(path, "reused_unchanged_C_backend_object")
+        run(argv, name + "-c-build")
+        remember(binary, "aligned_C_measured_binary")
+        # 함수 검증용 사본은 시계·표본 출력을 제거하여 성능 표본을 만들지 않는다.
+        # A functional-only copy removes clocks and sample output, collecting no timing samples.
+        smoke = out / "functional" / source.name
+        smoke.parent.mkdir(exist_ok=True)
+        smoke_text = replace_once(text, "const uint64_t started = aevixbench_clock_ns();", "const uint64_t started = 0;")
+        smoke_text = replace_once(smoke_text, "const uint64_t stopped = aevixbench_clock_ns();", "const uint64_t stopped = 0;")
+        smoke_text = replace_once(smoke_text, "if (iteration) {", "if (0) {")
+        smoke.write_bytes(smoke_text.encode("utf-8"))
+        smoke_binary = out / "bin" / (name + "-functional-c")
+        smoke_argv = [str(smoke) if value == str(source) else str(smoke_binary) if value == str(binary) else value for value in argv]
+        run(smoke_argv, name + "-functional-build")
+        output = run([smoke_binary], name + "-functional-untimed", stdin=item["stdin"].encode("ascii"))
+        expected_line = "VERIFY " + case + " parallel_fresh " + ",".join(map(str, item["expected"]))
+        if output.splitlines() != [expected_line]:
+            raise ValueError("Untimed full4096 oracle failed: " + case)
+        remember(smoke, "clock_free_functional_source")
+        remember(smoke_binary, "clock_free_functional_binary")
+        smokes.append({"source": rel(smoke), "variant": "C", "executed": True, "clock_calls": 0,
+                       "workload_timing_collected": False, "full4096_matches_original_oracle": True})
+        ir = out / "ir" / (name + ".c.O2.ll")
+        asm = out / "ir" / (name + ".c.O2.s")
+        ir.parent.mkdir(exist_ok=True)
+        # 링크된 파일과 동일한 컴파일 인수를 유지하면서 출력 형식만 바꾼다.
+        # Keep the linked compilation flags while changing only the output format.
+        object_paths = [value for value in argv if value.endswith(".o") or value == old["timer"]["path"] or value == str(ROOT / old["timer"]["path"])]
+        compile_argv = [value for value in argv if value not in object_paths]
+        for target, extra in ((ir, ["-S", "-emit-llvm"]), (asm, ["-S"])):
+            part = [str(target) if value == str(binary) else value for value in compile_argv]
+            run([*part, *extra], name + "-" + target.suffix[1:])
+            remember(target, "aligned_C_IR_or_assembly_provenance")
+        indirect = run([args.objdump, "--macho", "--indirect-symbols", binary], name + "-indirect")
+        stubs, active = {}, False
+        import re
+        for line in indirect.splitlines():
+            if line.startswith("Indirect symbols"):
+                active = "(__TEXT,__stubs)" in line
+            match = re.match(r"^(0x[0-9a-f]+)\s+\d+\s+(\S+)", line)
+            if active and match:
+                stubs[int(match[1], 16)] = match[2]
+        disassembly = run([args.objdump, "--disassemble", "--no-show-raw-insn", "--disassemble-symbols=_main", binary], name + "-linked-main")
+        pairs = helper["split_pairs"](helper["linked_instructions"](disassembly, stubs), True)
+        for index, pair in enumerate(pairs):
+            queries = [value for value in pair if value["stub_symbol"] == "_sysconf"]
+            backend_calls = [value for value in pair if value["opcode"] == "bl" and "<_bench_parallel_for_each>" in value["text"]]
+            if len(queries) != 1 or len(backend_calls) != 1:
+                raise ValueError("Expected exactly one linked sysconf and backend call in each clock pair")
+            audit.append({"case": case, "lexical_pair": index,
+                          "role": "warmup/sample shared body" if len(pairs) == 1 else "warmup" if index == 0 else "sample",
+                          "start": pair[0]["address"], "query": queries[0]["address"],
+                          "backend": backend_calls[0]["address"], "stop": pair[-1]["address"],
+                          "sysconf_queries_inside": 1})
+        item["c_source"] = rel(source)
+        item["commands"]["C"] = [rel(binary)]
+        item["source_sha256"]["c_source"] = sha(source)
+        item["binary_sha256"]["C"] = sha(binary)
+        item["alignment_provenance"] = {"original_C_source": original["c_source"], "original_C_source_sha256": sha(old_source),
+                                        "original_C_binary": original["commands"]["C"][0], "original_C_binary_sha256": original["binary_sha256"]["C"],
+                                        "changed": "Only a separate execution participant query is added immediately after start and passed to the unchanged backend. Reporting query stays outside.",
+                                        "AOT_and_JIT_commands_exactly_reused": True, "timer_exactly_reused": True,
+                                        "C_optimized_IR": rel(ir), "C_assembly": rel(asm)}
+        assert item["commands"]["AOT"] == original["commands"]["AOT"] and item["commands"]["JIT"] == original["commands"]["JIT"]
+        programs.append(item)
+    if len(programs) != 4:
+        raise ValueError("Expected four parallel cases only")
+    save(out / "linked-query-audit.json", audit)
+    remember(out / "linked-query-audit.json", "linked_query_placement_proof")
+    remember(out / "commands.json", "alignment_exact_commands")
+    verify_fingerprints()
+    if old_path.read_bytes() != old_bytes:
+        raise ValueError("Original manifest changed")
+    result = copy.deepcopy(old)
+    result["file_name"] = "prepared.json"
+    result["description"] = "Additional parallel worker-query-aligned comparison; original main experiment remains diagnostic and unchanged."
+    result["programs"] = programs
+    result["fingerprints"] = list(rows.values())
+    result["original_functional_smokes"] = result.pop("functional_smokes")
+    result["functional_smokes"] = smokes
+    result["original_prepared"] = {"path": rel(old_path), "sha256": MAIN_SHA}
+    result["worker_query_alignment"] = {"query": "sysconf(_SC_NPROCESSORS_ONLN)", "execution_queries_inside_each_kernel": 1,
+                                        "reporting_query": "separate, outside the clocks as in Aevix",
+                                        "original_all_305_fingerprints_preserved": True,
+                                        "actual_linked_C_query_placement": rel(out / "linked-query-audit.json"),
+                                        "residuals": ["Distinct C/AOT/JIT backends, zero-initialization and failure handling remain; query placement alone does not establish full equivalence.",
+                                                      "AOT target archive ae46 differs from CLI JIT embedded host runtime83c9; neither was rebuilt or replaced."]}
+    result["measured_programs_executed"] = False
+    result["calibration"]["executed"] = False
+    save(out / "prepared.json", result)
+    print(json.dumps({"prepared": rel(out / "prepared.json"), "sha256": sha(out / "prepared.json"), "programs": 4,
+                      "fingerprints": len(rows), "untimed_full4096_smokes": len(smokes), "measured_executions": 0}))
+
+
+if __name__ == "__main__":
+    main()

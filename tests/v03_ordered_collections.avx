@@ -1,0 +1,132 @@
+import ordered_map;
+import ordered_map { OrderedMap, Entry, InsertError, Iterator };
+import ordered_set;
+import ordered_set { OrderedSet };
+
+/* Exercise rotation directions, deletion, rank bounds, sequential loans and cursor crossing. */
+i32 main() {
+    mut OrderedMap<i32, i32> tree = OrderedMap<i32, i32>.new();
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return *left < *right ? -1 : *left > *right ? 1 : 0; };
+    mut i32 index = 0;
+    while (index < 97) {
+        i32 key = (index * 37) % 97;
+        Result<Optional<i32>, InsertError<i32, i32>> added = ordered_map.insert(&mut tree, key, key * 3);
+        switch (move added) { case Result<Optional<i32>, InsertError<i32, i32>>.Ok: break; case Result<Optional<i32>, InsertError<i32, i32>>.Err: return 1; break; }
+        index++;
+    }
+    if (tree.len() != 97 || tree.height() > 9) return 2;
+    index = 0;
+    while (index < 97) {
+        Optional<&i32> found = ordered_map.get(&tree, &index);
+        switch (move found) { case Optional<&i32>.Some { &i32 value = value }: if (*value != index * 3) return 3; break; case Optional<&i32>.None: return 4; break; }
+        index++;
+    }
+    {
+        i32 key = 23;
+        if (tree.rank_with(&key, &compare) != 23 || tree.rank_with(&key, &compare, true) != 24) return 5;
+        Optional<Tuple<&i32, &i32>> upper = ordered_map.upper_bound(&tree, &key);
+        switch (move upper) { case Optional<Tuple<&i32, &i32>>.Some { Tuple<&i32, &i32> pair = value }: &i32 actual = *Tuple.get<0>(&pair); if (*actual != 24) return 6; break; case Optional<Tuple<&i32, &i32>>.None: return 7; break; }
+    }
+    tree.for_each_mut([](&i32 key, &mut i32 value) -> unit { *value += 1; return Unit.value(); });
+    {
+        i32 lower = 10;
+        i32 upper = 20;
+        Result<unit, BoundsError> changed = tree.for_each_range_mut_with(&lower, &upper, &compare, [](&i32 key, &mut i32 value) -> unit { *value += 100; return Unit.value(); });
+        switch (move changed) { case Result<unit, BoundsError>.Ok: break; case Result<unit, BoundsError>.Err: return 8; break; }
+        Result<Iterator<i32, i32>, BoundsError> ranged = tree.range_with(&lower, &upper, &compare);
+        switch (move ranged) {
+            case Result<Iterator<i32, i32>, BoundsError>.Ok { Iterator<i32, i32> view = value }: if (view.len() != 10) return 9; break;
+            case Result<Iterator<i32, i32>, BoundsError>.Err: return 10; break;
+        }
+        Result<Iterator<i32, i32>, BoundsError> reversed = tree.range_with(&upper, &lower, &compare);
+        switch (move reversed) { case Result<Iterator<i32, i32>, BoundsError>.Ok: return 11; break; case Result<Iterator<i32, i32>, BoundsError>.Err: break; }
+    }
+    {
+        mut Iterator<i32, i32> cursor = tree.iter();
+        mut usize remaining = 97;
+        mut i32 front = 0;
+        mut i32 back = 96;
+        while (remaining != 0) {
+            bool forward = remaining % 2 == 1;
+            Optional<Tuple<&i32, &i32>> item = forward ? cursor.next() : cursor.next_back();
+            switch (move item) {
+                case Optional<Tuple<&i32, &i32>>.Some { Tuple<&i32, &i32> pair = value }:
+                    &i32 key = *Tuple.get<0>(&pair);
+                    if (*key != (forward ? front : back)) return 12;
+                    if (forward) front++; else back--;
+                    break;
+                case Optional<Tuple<&i32, &i32>>.None: return 13; break;
+            }
+            remaining--;
+        }
+        Optional<Tuple<&i32, &i32>> exhausted_front = cursor.next();
+        Optional<Tuple<&i32, &i32>> exhausted_back = cursor.next_back();
+        if (!cursor.is_empty() || !Optional.is_none(&exhausted_front) || !Optional.is_none(&exhausted_back)) return 14;
+    }
+    index = 1;
+    while (index < 97) {
+        Optional<i32> removed = ordered_map.remove(&mut tree, &index);
+        switch (move removed) { case Optional<i32>.Some: break; case Optional<i32>.None: return 15; break; }
+        index += 2;
+    }
+    if (tree.len() != 49 || tree.height() > 8) return 16;
+    mut i32 visited = -2;
+    mut bool sorted = true;
+    tree.retain([&mut visited, &mut sorted](&i32 key, &mut i32 value) -> bool {
+        if (*key <= visited) sorted = false;
+        visited = *key;
+        return *key % 4 == 0;
+    });
+    if (!sorted || tree.len() != 25) return 17;
+    index = 96;
+    while (index >= 0) {
+        Optional<Entry<i32, i32>> removed = tree.pop_last();
+        switch (move removed) {
+            case Optional<Entry<i32, i32>>.Some { Entry<i32, i32> pair = value }:
+                switch (move pair) { case Entry<i32, i32>.Pair { i32 key = key, i32 value = value }: if (key != index || value != index * 3 + 1 + (index >= 10 && index < 20 ? 100 : 0)) return 18; break; }
+                break;
+            case Optional<Entry<i32, i32>>.None: return 19; break;
+        }
+        index -= 4;
+    }
+    {
+        Result<&mut i32, InsertError<i32, i32>> inserted = ordered_map.try_insert(&mut tree, 7, 70);
+        switch (move inserted) { case Result<&mut i32, InsertError<i32, i32>>.Ok { &mut i32 value = value }: *value = 71; break; case Result<&mut i32, InsertError<i32, i32>>.Err: return 20; break; }
+        Result<&mut i32, InsertError<i32, i32>> duplicate = ordered_map.try_insert(&mut tree, 7, 999);
+        switch (move duplicate) { case Result<&mut i32, InsertError<i32, i32>>.Ok: return 21; break; case Result<&mut i32, InsertError<i32, i32>>.Err: break; }
+    }
+    tree.clear();
+    if (!tree.is_empty() || tree.height() != 0) return 22;
+    mut OrderedSet<i32> set = OrderedSet<i32>.new();
+    index = 0;
+    while (index < 40) {
+        Result<bool, InputError<i32>> inserted = ordered_set.insert(&mut set, (index * 13) % 40);
+        switch (move inserted) { case Result<bool, InputError<i32>>.Ok { bool fresh = value }: if (!fresh) return 23; break; case Result<bool, InputError<i32>>.Err: return 24; break; }
+        index++;
+    }
+    if (set.len() != 40 || set.height() > 7) return 25;
+    {
+        Result<bool, InputError<i32>> duplicate = ordered_set.insert(&mut set, 7);
+        switch (move duplicate) { case Result<bool, InputError<i32>>.Ok { bool fresh = value }: if (fresh) return 26; break; case Result<bool, InputError<i32>>.Err: return 27; break; }
+        Result<Optional<i32>, InputError<i32>> replaced = ordered_set.replace(&mut set, 7);
+        switch (move replaced) { case Result<Optional<i32>, InputError<i32>>.Ok { Optional<i32> old = value }: if (!Optional.is_some(&old)) return 28; break; case Result<Optional<i32>, InputError<i32>>.Err: return 29; break; }
+    }
+    {
+        Result<&i32, InsertError<i32, unit>> occupied = ordered_set.try_insert(&mut set, 7);
+        switch (move occupied) { case Result<&i32, InsertError<i32, unit>>.Ok: return 33; break; case Result<&i32, InsertError<i32, unit>>.Err: break; }
+        Result<&i32, InsertError<i32, unit>> fresh = ordered_set.try_insert(&mut set, 40);
+        switch (move fresh) { case Result<&i32, InsertError<i32, unit>>.Ok { &i32 value = value }: if (*value != 40) return 34; break; case Result<&i32, InsertError<i32, unit>>.Err: return 35; break; }
+        i32 removed_key = 40;
+        if (!ordered_set.remove(&mut set, &removed_key)) return 36;
+    }
+    set.retain([](&i32 value) -> bool { return *value % 2 == 0; });
+    if (set.len() != 20) return 30;
+    mut ordered_set.Iterator<i32> cursor = set.iter();
+    index = 0;
+    while (index < 40) {
+        Optional<&i32> item = cursor.next();
+        switch (move item) { case Optional<&i32>.Some { &i32 value = value }: if (*value != index) return 31; break; case Optional<&i32>.None: return 32; break; }
+        index += 2;
+    }
+    return 0;
+}

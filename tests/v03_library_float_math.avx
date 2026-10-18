@@ -1,0 +1,164 @@
+import math;
+bool close(f64 got, f64 expected) { return math.abs(got - expected) <= 0.000000000002 * math.max(1.0, math.abs(expected)); }
+bool close(f32 got, f32 expected) { return math.abs(got - expected) <= 0.000004f32 * math.max(1.0f32, math.abs(expected)); }
+f32 success32(Result<f32, math.FloatMathError> value) { switch (move value) { case Result<f32, math.FloatMathError>.Ok { f32 found = value }: return found; break; case Result<f32, math.FloatMathError>.Err: Never.unreachable(); break; } }
+f64 success64(Result<f64, math.FloatMathError> value) { switch (move value) { case Result<f64, math.FloatMathError>.Ok { f64 found = value }: return found; break; case Result<f64, math.FloatMathError>.Err: Never.unreachable(); break; } }
+bool fails32(Result<f32, math.FloatMathError> value, string_view code) { switch (value) { case Result<f32, math.FloatMathError>.Ok: return false; break; case Result<f32, math.FloatMathError>.Err { &math.FloatMathError failure = error }: return string.equals(failure.code(), code) && string.byte_len(failure.message()) > 0; break; } }
+bool fails64(Result<f64, math.FloatMathError> value, string_view code) { switch (value) { case Result<f64, math.FloatMathError>.Ok: return false; break; case Result<f64, math.FloatMathError>.Err { &math.FloatMathError failure = error }: return string.equals(failure.code(), code) && string.byte_len(failure.message()) > 0; break; } }
+i32 check_f32() {
+    if (!(close(math.sin(0.7f32), 0.644217687237691f32))) return 1;
+    if (!(close(math.cos(0.7f32), 0.7648421872844885f32))) return 2;
+    if (!(close(math.tan(0.4f32), 0.4227932187381618f32))) return 3;
+    if (!(close(math.asin(0.3f32), 0.30469265401539747f32))) return 4;
+    if (!(close(math.acos(0.3f32), 1.266103672779499f32))) return 5;
+    if (!(close(math.atan(0.7f32), 0.6107259643892086f32))) return 6;
+    if (!(close(math.sinh(0.7f32), 0.7585837018395335f32))) return 7;
+    if (!(close(math.cosh(0.7f32), 1.255169005630943f32))) return 8;
+    if (!(close(math.tanh(0.7f32), 0.6043677771171635f32))) return 9;
+    if (!(close(math.asinh(0.7f32), 0.6526665660823557f32))) return 10;
+    if (!(close(math.acosh(2.0f32), 1.3169578969248166f32))) return 11;
+    if (!(close(math.atanh(0.3f32), 0.30951960420311175f32))) return 12;
+    if (!(close(math.exp(0.7f32), 2.0137527074704766f32))) return 13;
+    if (!(close(math.exp2(3.0f32), 8.0f32))) return 14;
+    if (!(close(math.expm1(0.7f32), 1.0137527074704764f32))) return 15;
+    if (!(close(math.log(2.0f32), 0.6931471805599453f32))) return 16;
+    if (!(close(math.log2(8.0f32), 3.0f32))) return 17;
+    if (!(close(math.log10(100.0f32), 2.0f32))) return 18;
+    if (!(close(math.log1p(0.3f32), 0.26236426446749106f32))) return 19;
+    if (!(close(math.sqrt(9.0f32), 3.0f32))) return 20;
+    if (!(close(math.cbrt(-8.0f32), -2.0f32))) return 21;
+    if (!(close(math.floor(-1.2f32), -2.0f32))) return 22;
+    if (!(close(math.ceil(-1.2f32), -1.0f32))) return 23;
+    if (!(close(math.trunc(-1.8f32), -1.0f32))) return 24;
+    if (!(close(math.round(-2.5f32), -3.0f32))) return 25;
+    if (!(close(math.nearbyint(2.5f32), 2.0f32))) return 26;
+    if (!(close(math.rint(3.5f32), 4.0f32))) return 27;
+    if (!(close(math.erf(0.7f32), 0.6778011938374184f32))) return 28;
+    if (!(close(math.erfc(0.7f32), 0.3221988061625815f32))) return 29;
+    if (!(close(math.tgamma(5.0f32), 24.0f32))) return 30;
+    if (!(close(math.atan2(1.0f32, 1.0f32), 0.7853981633974483f32))) return 31;
+    if (!(close(math.pow(2.0f32, 5.0f32), 32.0f32))) return 32;
+    if (!(close(math.hypot(3.0f32, 4.0f32), 5.0f32))) return 33;
+    if (!(close(math.fmod(7.0f32, 2.0f32), 1.0f32))) return 34;
+    if (!(close(math.remainder(7.0f32, 2.0f32), -1.0f32))) return 35;
+    if (!(close(math.copysign(1.0f32, -2.0f32), -1.0f32))) return 36;
+    if (!(close(math.fdim(3.0f32, 1.0f32), 2.0f32))) return 37;
+    if (!(math.fma(2.0f32, 3.0f32, 4.0f32) == 10.0f32)) return 38;
+    f32 nan_value = math.sqrt(-1.0f32);
+    f32 infinity = math.pow(0.0f32, -1.0f32);
+    f32 tiny = math.nextafter(0.0f32, 1.0f32);
+    f32 negative_zero = math.copysign(0.0f32, -1.0f32);
+    if (!(math.is_nan(nan_value) && !math.is_finite(nan_value) && !math.is_infinite(nan_value))) return 39;
+    if (!(math.is_infinite(infinity) && !math.is_normal(infinity) && !math.is_finite(infinity))) return 40;
+    if (!(math.is_subnormal(tiny) && !math.is_normal(tiny) && math.is_finite(tiny))) return 41;
+    if (!(math.is_normal(1.0f32) && !math.is_subnormal(1.0f32) && math.is_finite(1.0f32))) return 42;
+    if (!(math.is_sign_negative(negative_zero) && !math.is_sign_negative(math.abs(negative_zero)))) return 43;
+    if (!(Float.to_bits(math.signum(negative_zero)) == 2147483648u32 && Float.to_bits(math.signum(0.0f32)) == 0u32 && math.signum(-2.0f32) == -1.0f32 && math.signum(2.0f32) == 1.0f32 && math.is_nan(math.signum(nan_value)))) return 44;
+    if (!(math.min(nan_value, 3.0f32) == 3.0f32 && math.max(3.0f32, nan_value) == 3.0f32)) return 45;
+    if (!(success32(math.clamp(3.0f32, 0.0f32, 2.0f32)) == 2.0f32 && math.is_nan(success32(math.clamp(nan_value, 0.0f32, 2.0f32))))) return 46;
+    if (!(fails32(math.clamp(1.0f32, 3.0f32, 2.0f32), "math.invalid_float_bounds") && fails32(math.clamp(1.0f32, nan_value, 2.0f32), "math.invalid_float_bounds"))) return 47;
+    if (!(success32(math.checked_sqrt(9.0f32)) == 3.0f32 && fails32(math.checked_sqrt(-1.0f32), "math.float_domain"))) return 48;
+    if (!(fails32(math.checked_sqrt(infinity), "math.non_finite") && fails32(math.checked_log(0.0f32), "math.float_domain"))) return 49;
+    if (!(success32(math.checked_log(1.0f32)) == 0.0f32 && success32(math.checked_exp(0.0f32)) == 1.0f32)) return 50;
+    if (!(fails32(math.checked_exp(1000.0f32), "math.float_overflow") && fails32(math.checked_exp(nan_value), "math.non_finite"))) return 51;
+    if (!(success32(math.checked_pow(0.0f32, 0.0f32)) == 1.0f32 && success32(math.checked_pow(2.0f32, 3.0f32)) == 8.0f32)) return 52;
+    if (!(fails32(math.checked_pow(-2.0f32, 0.5f32), "math.float_domain") && fails32(math.checked_pow(0.0f32, -1.0f32), "math.float_domain"))) return 53;
+    if (!(success32(math.checked_hypot(3.0f32, 4.0f32)) == 5.0f32 && fails32(math.checked_hypot(infinity, 1.0f32), "math.non_finite"))) return 54;
+    math.FloatClass classified_Nan = math.classify(nan_value);
+    switch (classified_Nan) { case math.FloatClass.Nan: break; default: return 100; break; }
+    math.FloatClass classified_Infinite = math.classify(infinity);
+    switch (classified_Infinite) { case math.FloatClass.Infinite: break; default: return 100; break; }
+    math.FloatClass classified_Subnormal = math.classify(tiny);
+    switch (classified_Subnormal) { case math.FloatClass.Subnormal: break; default: return 100; break; }
+    math.FloatClass classified_Zero = math.classify(0.0f32);
+    switch (classified_Zero) { case math.FloatClass.Zero: break; default: return 100; break; }
+    math.FloatClass classified_Normal = math.classify(1.0f32);
+    switch (classified_Normal) { case math.FloatClass.Normal: break; default: return 100; break; }
+    return 0;
+}
+i32 check_f64() {
+    if (!(close(math.sin(0.7), 0.644217687237691))) return 1;
+    if (!(close(math.cos(0.7), 0.7648421872844885))) return 2;
+    if (!(close(math.tan(0.4), 0.4227932187381618))) return 3;
+    if (!(close(math.asin(0.3), 0.30469265401539747))) return 4;
+    if (!(close(math.acos(0.3), 1.266103672779499))) return 5;
+    if (!(close(math.atan(0.7), 0.6107259643892086))) return 6;
+    if (!(close(math.sinh(0.7), 0.7585837018395335))) return 7;
+    if (!(close(math.cosh(0.7), 1.255169005630943))) return 8;
+    if (!(close(math.tanh(0.7), 0.6043677771171635))) return 9;
+    if (!(close(math.asinh(0.7), 0.6526665660823557))) return 10;
+    if (!(close(math.acosh(2.0), 1.3169578969248166))) return 11;
+    if (!(close(math.atanh(0.3), 0.30951960420311175))) return 12;
+    if (!(close(math.exp(0.7), 2.0137527074704766))) return 13;
+    if (!(close(math.exp2(3.0), 8.0))) return 14;
+    if (!(close(math.expm1(0.7), 1.0137527074704764))) return 15;
+    if (!(close(math.log(2.0), 0.6931471805599453))) return 16;
+    if (!(close(math.log2(8.0), 3.0))) return 17;
+    if (!(close(math.log10(100.0), 2.0))) return 18;
+    if (!(close(math.log1p(0.3), 0.26236426446749106))) return 19;
+    if (!(close(math.sqrt(9.0), 3.0))) return 20;
+    if (!(close(math.cbrt(-8.0), -2.0))) return 21;
+    if (!(close(math.floor(-1.2), -2.0))) return 22;
+    if (!(close(math.ceil(-1.2), -1.0))) return 23;
+    if (!(close(math.trunc(-1.8), -1.0))) return 24;
+    if (!(close(math.round(-2.5), -3.0))) return 25;
+    if (!(close(math.nearbyint(2.5), 2.0))) return 26;
+    if (!(close(math.rint(3.5), 4.0))) return 27;
+    if (!(close(math.erf(0.7), 0.6778011938374184))) return 28;
+    if (!(close(math.erfc(0.7), 0.3221988061625815))) return 29;
+    if (!(close(math.tgamma(5.0), 24.0))) return 30;
+    if (!(close(math.atan2(1.0, 1.0), 0.7853981633974483))) return 31;
+    if (!(close(math.pow(2.0, 5.0), 32.0))) return 32;
+    if (!(close(math.hypot(3.0, 4.0), 5.0))) return 33;
+    if (!(close(math.fmod(7.0, 2.0), 1.0))) return 34;
+    if (!(close(math.remainder(7.0, 2.0), -1.0))) return 35;
+    if (!(close(math.copysign(1.0, -2.0), -1.0))) return 36;
+    if (!(close(math.fdim(3.0, 1.0), 2.0))) return 37;
+    if (!(math.fma(2.0, 3.0, 4.0) == 10.0)) return 38;
+    f64 nan_value = math.sqrt(-1.0);
+    f64 infinity = math.pow(0.0, -1.0);
+    f64 tiny = math.nextafter(0.0, 1.0);
+    f64 negative_zero = math.copysign(0.0, -1.0);
+    if (!(math.is_nan(nan_value) && !math.is_finite(nan_value) && !math.is_infinite(nan_value))) return 39;
+    if (!(math.is_infinite(infinity) && !math.is_normal(infinity) && !math.is_finite(infinity))) return 40;
+    if (!(math.is_subnormal(tiny) && !math.is_normal(tiny) && math.is_finite(tiny))) return 41;
+    if (!(math.is_normal(1.0) && !math.is_subnormal(1.0) && math.is_finite(1.0))) return 42;
+    if (!(math.is_sign_negative(negative_zero) && !math.is_sign_negative(math.abs(negative_zero)))) return 43;
+    if (!(Float.to_bits(math.signum(negative_zero)) == 9223372036854775808u64 && Float.to_bits(math.signum(0.0f64)) == 0u64 && math.signum(-2.0f64) == -1.0f64 && math.signum(2.0f64) == 1.0f64 && math.is_nan(math.signum(nan_value)))) return 44;
+    if (!(math.min(nan_value, 3.0) == 3.0 && math.max(3.0, nan_value) == 3.0)) return 45;
+    if (!(success64(math.clamp(3.0, 0.0, 2.0)) == 2.0 && math.is_nan(success64(math.clamp(nan_value, 0.0, 2.0))))) return 46;
+    if (!(fails64(math.clamp(1.0, 3.0, 2.0), "math.invalid_float_bounds") && fails64(math.clamp(1.0, nan_value, 2.0), "math.invalid_float_bounds"))) return 47;
+    if (!(success64(math.checked_sqrt(9.0)) == 3.0 && fails64(math.checked_sqrt(-1.0), "math.float_domain"))) return 48;
+    if (!(fails64(math.checked_sqrt(infinity), "math.non_finite") && fails64(math.checked_log(0.0), "math.float_domain"))) return 49;
+    if (!(success64(math.checked_log(1.0)) == 0.0 && success64(math.checked_exp(0.0)) == 1.0)) return 50;
+    if (!(fails64(math.checked_exp(1000.0), "math.float_overflow") && fails64(math.checked_exp(nan_value), "math.non_finite"))) return 51;
+    if (!(success64(math.checked_pow(0.0, 0.0)) == 1.0 && success64(math.checked_pow(2.0, 3.0)) == 8.0)) return 52;
+    if (!(fails64(math.checked_pow(-2.0, 0.5), "math.float_domain") && fails64(math.checked_pow(0.0, -1.0), "math.float_domain"))) return 53;
+    if (!(success64(math.checked_hypot(3.0, 4.0)) == 5.0 && fails64(math.checked_hypot(infinity, 1.0), "math.non_finite"))) return 54;
+    math.FloatClass classified_Nan = math.classify(nan_value);
+    switch (classified_Nan) { case math.FloatClass.Nan: break; default: return 100; break; }
+    math.FloatClass classified_Infinite = math.classify(infinity);
+    switch (classified_Infinite) { case math.FloatClass.Infinite: break; default: return 100; break; }
+    math.FloatClass classified_Subnormal = math.classify(tiny);
+    switch (classified_Subnormal) { case math.FloatClass.Subnormal: break; default: return 100; break; }
+    math.FloatClass classified_Zero = math.classify(0.0);
+    switch (classified_Zero) { case math.FloatClass.Zero: break; default: return 100; break; }
+    math.FloatClass classified_Normal = math.classify(1.0);
+    switch (classified_Normal) { case math.FloatClass.Normal: break; default: return 100; break; }
+    return 0;
+}
+i32 main() {
+    i32 narrow = check_f32(); if (narrow != 0) return narrow;
+    i32 wide = check_f64(); if (wide != 0) return wide + 110;
+    if (math.fma(4097.0f32, 4097.0f32, -16785408.0f32) != 1.0f32) return 220;
+    if (math.hypot(1.0e308, 1.0e308) < 1.4e308 || !math.is_finite(math.hypot(1.0e308, 1.0e308))) return 221;
+    if (!fails64(math.checked_hypot(1.7e308, 1.7e308), "math.float_overflow")) return 222;
+    if (math.fma(addend = 4.0, right = 3.0, left = 2.0) != 10.0) return 223;
+    if (!math.is_finite(math.PI) || !math.is_finite(math.PI_F32)) return 224;
+    if (!math.is_finite(math.TAU) || !math.is_finite(math.TAU_F32)) return 224;
+    if (!math.is_finite(math.E) || !math.is_finite(math.E_F32)) return 224;
+    if (!math.is_finite(math.LN2) || !math.is_finite(math.LN2_F32)) return 224;
+    if (!math.is_finite(math.LN10) || !math.is_finite(math.LN10_F32)) return 224;
+    if (!math.is_finite(math.SQRT2) || !math.is_finite(math.SQRT2_F32)) return 224;
+    return 0;
+}

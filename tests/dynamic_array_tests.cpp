@@ -174,7 +174,7 @@ int main(int argc, char** argv)
         if (aevix::JITEngine::available()) expect(allocated == 1 && released == 1, "failed reserve original buffer freed once");
     }
     {
-        const std::string body = "mut i32 rows[][] = []?; i32 row[] = [42]?; Result<unit,InputError<Vector<i32>>> added = Vector.push(&mut rows,row); switch (move added) { case Result<unit,InputError<Vector<i32>>>.Ok: return Result.ok(9); break; case Result<unit,InputError<Vector<i32>>>.Err { InputError<Vector<i32>> reason = error }: switch (move reason) { case InputError<Vector<i32>>.AllocationFailure { Vector<i32> returned = input }: return Result.ok(Vector.len(&rows) == 0 ? returned[0] : 8); break; case InputError<Vector<i32>>.SizeOverflow: return Result.ok(7); break; } break; }";
+        const std::string body = "mut i32 rows[][] = []?; i32 row[] = [42]?; Result<unit,InputError<Vector<i32>>> added = Vector.push(&mut rows,row); switch (move added) { case Result<unit,InputError<Vector<i32>>>.Ok: return Result.ok(9); break; case Result<unit,InputError<Vector<i32>>>.Err { InputError<Vector<i32>> reason = error }: switch (move reason) { case InputError<Vector<i32>>.AllocationFailure { Vector<i32> returned = input }: return Result.ok(Vector.len(&rows) == 0 ? returned[0] : 8); break; case InputError<Vector<i32>>.SizeOverflow: return Result.ok(7); break; case InputError<Vector<i32>>.OutOfBounds: Never.unreachable(); break; } break; }";
         Fixture fixture(source(body)); expect(fixture.jit(42, 2, true), "failed push returns owning input and leaves destination unchanged");
         if (aevix::JITEngine::available()) expect(allocated == 1 && released == 1, "returned failed push owner freed exactly once");
     }
@@ -184,6 +184,16 @@ int main(int argc, char** argv)
         if (aevix::JITEngine::available()) expect(allocated == 1 && released == 1, "discarded InputError payload freed once");
         expect(fixture.jit(42, 0, true), "successful push transfers owning input to destination");
         if (aevix::JITEngine::available()) expect(allocated == 2 && released == 2, "successful nested push buffers freed once");
+    }
+    {
+        const std::string body = "mut i32 rows[][] = []?; i32 row[] = [42]?; Result<unit,InputError<Vector<i32>>> added = Vector.insert(&mut rows,0,row); switch (move added) { case Result<unit,InputError<Vector<i32>>>.Ok: return Result.ok(9); break; case Result<unit,InputError<Vector<i32>>>.Err { InputError<Vector<i32>> reason = error }: switch (move reason) { case InputError<Vector<i32>>.AllocationFailure { Vector<i32> returned = input }: return Result.ok(Vector.len(&rows) == 0 ? returned[0] : 8); break; case InputError<Vector<i32>>.SizeOverflow: return Result.ok(7); break; case InputError<Vector<i32>>.OutOfBounds: return Result.ok(6); break; } break; }";
+        Fixture fixture(source(body)); expect(fixture.jit(42, 2, true), "failed insert returns owning input and leaves destination unchanged");
+        if (aevix::JITEngine::available()) expect(attempts == 2 && allocated == 1 && released == 1, "failed insertion frees returned input exactly once");
+    }
+    {
+        const std::string body = "mut i32 rows[][] = []?; i32 row[] = [42]?; Result<unit,InputError<Vector<i32>>> added = Vector.insert(&mut rows,1,row); switch (move added) { case Result<unit,InputError<Vector<i32>>>.Ok: return Result.ok(9); break; case Result<unit,InputError<Vector<i32>>>.Err { InputError<Vector<i32>> reason = error }: switch (move reason) { case InputError<Vector<i32>>.OutOfBounds { Vector<i32> returned = input }: return Result.ok(Vector.len(&rows) == 0 ? returned[0] : 8); break; case InputError<Vector<i32>>.SizeOverflow: return Result.ok(7); break; case InputError<Vector<i32>>.AllocationFailure: return Result.ok(6); break; } break; }";
+        Fixture fixture(source(body)); expect(fixture.jit(42, 2, true), "invalid insertion index preserves owning input before any growth");
+        if (aevix::JITEngine::available()) expect(attempts == 1 && allocated == 1 && released == 1, "bounds rejection never attempts buffer growth");
     }
     const auto rejects = [&](const std::string& input, const std::string& label)
     { Fixture fixture(input); if (fixture.llvm) std::cerr << "Unexpected acceptance: " << input << '\n'; expect(!fixture.llvm && !fixture.diagnostics.empty(), label); };

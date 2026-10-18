@@ -1,0 +1,160 @@
+{
+  "created_by": "miruku_sora2026",
+  "file_name": "capabilities_audit.json",
+  "description": "Source/build capability audit of CPU state observation, parallel worker lifetime, and fixed-level ORC JIT; no benchmark measurements.",
+  "observed_at_utc": "2026-10-18T08:33:31.151324+00:00",
+  "source_sha256": {
+    "CMakeLists.txt": "25989325ce604cd9019dc0f35feccc635739e6aab19adf11ccddc0546003ab9e",
+    "src/JIT/ORC/ORCJIT.cpp": "92a5891153e4cd1d6f241a2efece5940f03cd6a18ed6c88b05c4f0ce8d24e81e",
+    "include/aevix/JIT/JITEngine.hpp": "0b3a5827bd4163db4aabba440d738cbbe5ecd4ce2f1fb6d070bfda8d497502ce",
+    "include/aevix/JIT/JITOptions.hpp": "5a344fc2b1e758bee3bf5042f7a13c415a92c177da42f8ccb42c3fc45301f0fb",
+    "tools/aevixc/main.cpp": "dbcaf2588bbcabd88ac442c5b25577fa5527c1f6ad6e81da928eee6ee147192b",
+    "runtime/Threading/ParallelRuntime.cpp": "de02d788b60fe700bf042dd40b8352a13786b7d600b52cac5929c563def2fb4f",
+    "runtime/Threading/TaskRuntime.cpp": "7c95178e6c67ecf4ac4b22e049518a6485120f89976202af0fc1132155df654b",
+    "build/CMakeFiles/aevix_jit.dir/flags.make": "bea59977d4fabd80958fb53bc47132902eb1f08ce812fd9b3dfe7c534076980e",
+    "build/CMakeFiles/aevix_jit.dir/build.make": "1e2a44ffd057bb035ba3a5c401b510f4125a37d4505d4cbdad722a0f0da7977b",
+    "benchmarks/Comparison/extended/audit/host_state": "21b464141247368dd3270945dd5ec48633bbb1016183db18cd3659bae61282de",
+    "benchmarks/Comparison/extended/audit/jit_phases.cpp": "3d3c4344471e7259af1feaafd18d5a9913b59dba6c7d26d80467c3dec5fbd138",
+    "benchmarks/Comparison/extended/audit/jit_phase_prepare": "bb5eac62a642b0985c794173bfe63910438be6502d92f9b1f202917343dcabd3",
+    "benchmarks/Comparison/extended/audit/phase.avx": "c8cf80e43e92119ad5207126c2bcc9fa0695284d952b64bf2e1bff54b27201d9",
+    "benchmarks/Comparison/extended/audit/README.md": "7123950ac4f28b0dc06f17cbdd6e1bb635bc6b4d42b03c2c18a697132585319b"
+  },
+  "empty_scaffolding": {
+    "include/aevix/JIT/Tiered": [],
+    "src/JIT/Tiered": [],
+    "include/aevix/JIT/Native": [],
+    "src/JIT/Native": [],
+    "include/aevix/JIT/Profiling": [],
+    "src/JIT/Profiling": []
+  },
+  "absent_classes": {
+    "ThreadPool": {
+      "status": "not_implemented",
+      "named_header_exists": false,
+      "named_header": "include/aevix/Support/ThreadPool.hpp"
+    },
+    "TierManager": {
+      "status": "not_implemented",
+      "named_header_exists": false,
+      "named_header": "include/aevix/JIT/Tiered/TierManager.hpp"
+    },
+    "TierPolicy": {
+      "status": "not_implemented",
+      "named_header_exists": false,
+      "named_header": "include/aevix/JIT/Tiered/TierPolicy.hpp"
+    },
+    "HotnessCounter": {
+      "status": "not_implemented",
+      "named_header_exists": false,
+      "named_header": "include/aevix/JIT/Tiered/HotnessCounter.hpp"
+    },
+    "Recompiler": {
+      "status": "not_implemented",
+      "named_header_exists": false,
+      "named_header": "include/aevix/JIT/Tiered/Recompiler.hpp"
+    }
+  },
+  "parallel_for_each": {
+    "status": "implemented_compiled",
+    "source": "runtime/Threading/ParallelRuntime.cpp",
+    "model": "Up to W-1 freshly created native workers plus calling thread; all started workers joined before return",
+    "W": "min(online CPU count,32,length), after zero-length early return",
+    "pool": false,
+    "work_stealing": false,
+    "length_zero": "No workers; immediate return",
+    "W_one": "Caller only",
+    "create_failure": "Caller executes only unstarted chunks; started workers joined",
+    "task_runtime_is_separate": true,
+    "ready_task_workerless": true
+  },
+  "jit": {
+    "status": "implemented_compiled_ORC",
+    "build_evidence": "AEVIX_HAS_LLVM_ORC=1 in generated flags; only ORCJIT.cpp in aevix_jit_OBJECTS",
+    "installed_llvm": "22.1.8",
+    "cmake_minimum_llvm_major": 22,
+    "engine_optimization": "Fixed at engine creation, 0..3",
+    "module_add": "Parse, ABI/layout checks, verify, O1/O2/O3 default IR pipeline, verify, ORC registration",
+    "first_invoke": "Initialization, signature/address resolution, possible materialization/linking, call",
+    "warm_invoke": "Signature/operation mutex, initialization bookkeeping, cached address, native call",
+    "hotness_counter": false,
+    "runtime_tier_upgrade": false,
+    "recompiler": false,
+    "on_stack_replacement": false,
+    "CLI_new_process_per_run": true,
+    "CLI_uses_internal_child_worker": true,
+    "phase_harness_built": true,
+    "phase_harness_preparation": "Compiled and linked against existing JIT/runtime/support archives, installed LLVM22, and exact common shared timer; one functional-only session passed41 oracle-checked invocations with no clock calls",
+    "phase_harness_schema": {
+      "fixed_optimization": 2,
+      "warm_invocations": 40,
+      "verified_calls": 41,
+      "functional_only_suppresses_clock_calls": true,
+      "fields": [
+        "phases_ns.engine_create",
+        "phases_ns.add_module_combined",
+        "phases_ns.first_invoke_combined",
+        "phases_ns.teardown",
+        "warm_invocations_ns"
+      ]
+    },
+    "phase_harness_metadata": "build/bench-cpu4096/extended-jit-phases-b87fb39d/phase_program.json",
+    "phase_harness_functional_evidence": "build/bench-cpu4096/extended-jit-phases-b87fb39d/functional_smoke.json"
+  },
+  "observer": {
+    "interface": "runpy.run_path(path,run_name='observer')['snapshot']('before')",
+    "import_has_sampling_side_effects": false,
+    "timing_boundary": "Between complete measured processes, never inside timed kernels",
+    "queries": [
+      "pmset -g therm",
+      "pmset -g batt",
+      "pmset -g custom",
+      "Individual whitelisted numeric sysctl -n queries",
+      "Public NSProcessInfo thermalState/isLowPowerModeEnabled",
+      "Observer-only getpriority/qos_class_self"
+    ],
+    "unknown": [
+      "Exact CPU temperature in Celsius",
+      "Instantaneous CPU clock",
+      "Power watts",
+      "Measured-thread core placement/overrides",
+      "All unreturned/denied/unsupported fields"
+    ],
+    "powermetrics": "Existence only; never executed; privileged sampling unverified",
+    "raw_outputs_stored": false,
+    "sensitive_identifiers_collected": false,
+    "settings_changed": false,
+    "per_query_timeout_seconds": 1.5,
+    "observations_atomic": false
+  },
+  "validation": {
+    "parser_privacy_self_test": "passed",
+    "tiny_read_snapshot": "build/bench-cpu4096/host-state-tiny-probe.json",
+    "tiny_snapshot_sha256": "df52879a4133244d22feaf34bc752d9f65effae8f8226387028b49a54ff1844f",
+    "benchmark_timing_runs": 0,
+    "JIT_phase_probe_executions": 0,
+    "scope": "Local observer parser/privacy/read-only smoke plus source audit; no continuous state, timing causality, whole-platform or tiering proof.",
+    "JIT_functional_only_sessions": 1,
+    "JIT_functional_only_verified_calls": 41,
+    "JIT_functional_only_timing_fields": null,
+    "phase_harness_link_warning": "Linker records shared timer deployment target28.0 versus standalone harness default27.0; functional load/execution passed on this host only, no deployment-range compatibility claim.",
+    "failed_preparations_preserved": [
+      "build/bench-cpu4096/extended-jit-phases-failed-opaque-decl-b87fb39d",
+      "build/bench-cpu4096/extended-jit-phases-failed-cxx-driver-b87fb39d"
+    ],
+    "phase_program.json_sha256": "087e782449c9b22f4e45240c592687c8d2cf5d5004e6e596722deef9b7ddcbca",
+    "functional_smoke.json_sha256": "a0d04cf079f32d16c71d6e0e1701b0c95647c2f351ac7b71e0ba2c48afcda401"
+  },
+  "primary_references": [
+    "https://developer.apple.com/documentation/foundation/processinfo/thermalstate-swift.enum",
+    "https://developer.apple.com/documentation/foundation/processinfo/islowpowermodeenabled",
+    "https://support.apple.com/en-us/101613",
+    "https://developer.apple.com/documentation/apple-silicon/tuning-your-code-s-performance-for-apple-silicon/",
+    "https://github.com/apple-oss-distributions/PowerManagement/blob/main/pmset/pmset.1"
+  ],
+  "local_apple_contracts": [
+    "Foundation.framework/Headers/NSProcessInfo.h: public thermal enum/property and Low Power Mode property",
+    "SDK/usr/include/sys/qos.h: qos_class_self returns requested QoS for current thread",
+    "/usr/share/man/man1/pmset.1: thermal query availability depends on platform",
+    "/usr/share/man/man1/powermetrics.1: sampling and estimated power limitations"
+  ]
+}

@@ -350,7 +350,8 @@ namespace
             i32 pick(f64 value) { return 2; }
             i32 main() { return pick(1.5); }
         )");
-        invalid("wrong return type is rejected", "i32 main() { return true; }");
+        valid("bool integer return uses the return-only adaptation", "i32 main() { return true; }");
+        invalid("wrong return type is rejected", "i32 main() { return 1.5; }");
         invalid("nonvoid return requires a value", "i32 main() { return; }");
         invalid("void return rejects a value", "void run() { return 1; }");
         invalid("missing required argument", "i32 f(i32 value) { return value; } i32 main() { return f(); }");
@@ -391,22 +392,23 @@ namespace
             "struct P { public i32 x; }; i32 main() { return P.x; }");
         invalid("struct initializer checks field type", "struct Item { public i32 value; }; i32 main() { Item item = Item { value = false }; return 0; }");
         invalid("struct initializer requires every field", "struct Item { public i32 first; public i32 second; }; i32 main() { Item item = Item { first = 1 }; return 0; }");
-        invalid("field read has its declared type", "struct Item { public bool value; }; i32 main() { Item item = Item { value = true }; return item.value; }");
+        valid("bool field adapts only at an integer return", "struct Item { public bool value; }; i32 main() { Item item = Item { value = true }; return item.value; }");
+        invalid("field read retains its declared type in initialization", "struct Item { public bool value; }; i32 main() { Item item = Item { value = true }; i32 number = item.value; return number; }");
         {
             Fixture test;
-            test.write("src/math.avx", "public i32 add(i32 left, i32 right) { return left + right; }");
-            test.write("src/main.avx", "import math { add }; i32 main() { return math.add(1, 2); }");
+            test.write("src/user_math.avx", "public i32 add(i32 left, i32 right) { return left + right; }");
+            test.write("src/main.avx", "import user_math { add }; i32 main() { return user_math.add(1, 2); }");
             test.requireSuccess("imported function participates in type checking");
         }
         {
             Fixture test;
-            test.write("src/math.avx", "public i32 bad() { return false; }");
-            test.write("src/main.avx", "import math { bad }; i32 main() { return bad(); }");
+            test.write("src/user_math.avx", "public i32 bad() { return 1.5; }");
+            test.write("src/main.avx", "import user_math { bad }; i32 main() { return bad(); }");
             test.requireFailure("reachable imported module is type checked");
             bool importedLocation = false;
             for (const auto& diagnostic : test.diagnostics)
                 if (diagnostic.range.begin.isValid()
-                    && fs::path(test.sources.get(diagnostic.range.begin.source).path).filename() == "math.avx")
+                    && fs::path(test.sources.get(diagnostic.range.begin.source).path).filename() == "user_math.avx")
                     importedLocation = true;
             expect(importedLocation, "imported type error retains original source file");
         }

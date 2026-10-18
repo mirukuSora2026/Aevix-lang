@@ -1,0 +1,373 @@
+/*
+ * Lifecycle of the optional public module.
+ * @module optional
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import memory;
+
+/*
+ * Optional combinators move only the active payload and invoke callbacks once in the selected branch.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T unwrap_or<T>(Optional<T> input, T fallback) {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return item; break;
+        case Optional<T>.None: return fallback; break;
+    }
+}
+/*
+ * Version history for the optional.unwrap_or_else public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T unwrap_or_else<T, F>(Optional<T> input, mut F fallback) where F implements FnOnce<Tuple<>, T> {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return item; break;
+        case Optional<T>.None: return fallback(); break;
+    }
+}
+/*
+ * Version history for the optional.ok_or public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, E> ok_or<T, E>(Optional<T> input, E error) {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return Result.ok(item); break;
+        case Optional<T>.None: return Result.err(error); break;
+    }
+}
+/*
+ * Version history for the optional.ok_or_else public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, E> ok_or_else<T, E, F>(Optional<T> input, mut F fallback) where F implements FnOnce<Tuple<>, E> {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return Result.ok(item); break;
+        case Optional<T>.None: return Result.err(fallback()); break;
+    }
+}
+/*
+ * Version history for the optional.map public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<U> map<T, U, F>(Optional<T> input, mut F transform) where F implements FnOnce<Tuple<T>, U> {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return Optional.some(transform(item)); break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.map_ref public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<U> map_ref<T, U, F>(&Optional<T> input, mut F transform) where F implements FnOnce<Tuple<&T>, U> {
+    switch (*input) {
+        case Optional<T>.Some { &T item = value }: return Optional.some(transform(item)); break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.map_or public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public U map_or<T, U, F>(Optional<T> input, U fallback, mut F transform) where F implements FnOnce<Tuple<T>, U> {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return transform(item); break;
+        case Optional<T>.None: return fallback; break;
+    }
+}
+/*
+ * Version history for the optional.map_or_else public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public U map_or_else<T, U, F, G>(Optional<T> input, mut F fallback, mut G transform)
+    where F implements FnOnce<Tuple<>, U>, G implements FnOnce<Tuple<T>, U> {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return transform(item); break;
+        case Optional<T>.None: return fallback(); break;
+    }
+}
+/*
+ * Version history for the optional.and public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<U> and<T, U>(Optional<T> left, Optional<U> right) {
+    switch (move left) {
+        case Optional<T>.Some: return right; break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.and_then public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<U> and_then<T, U, F>(Optional<T> input, mut F next) where F implements FnOnce<Tuple<T>, Optional<U>> {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }: return next(item); break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.or public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> or<T>(Optional<T> left, Optional<T> right) {
+    if (Optional.is_some(&left)) return left;
+    return right;
+}
+/*
+ * Version history for the optional.or_else public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> or_else<T, F>(Optional<T> input, mut F next) where F implements FnOnce<Tuple<>, Optional<T>> {
+    if (Optional.is_some(&input)) return input;
+    return next();
+}
+/*
+ * Version history for the optional.xor public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> xor<T>(Optional<T> left, Optional<T> right) {
+    if (Optional.is_some(&left)) {
+        if (Optional.is_some(&right)) return Optional.none();
+        return left;
+    }
+    return right;
+}
+/*
+ * Version history for the optional.filter public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> filter<T, F>(Optional<T> input, mut F predicate) where F implements FnOnce<Tuple<&T>, bool> {
+    switch (move input) {
+        case Optional<T>.Some { T item = value }:
+            if (predicate(&item)) return Optional.some(item);
+            return Optional.none();
+            break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.inspect public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> inspect<T, F>(Optional<T> input, mut F observer) where F implements FnOnce<Tuple<&T>, unit> {
+    switch (input) {
+        case Optional<T>.Some { &T item = value }: observer(item); break;
+        case Optional<T>.None: break;
+    }
+    return input;
+}
+/*
+ * Version history for the optional.is_some_and public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_some_and<T, F>(&Optional<T> input, mut F predicate) where F implements FnOnce<Tuple<&T>, bool> {
+    switch (*input) {
+        case Optional<T>.Some { &T item = value }: return predicate(item); break;
+        case Optional<T>.None: return false; break;
+    }
+}
+/*
+ * Version history for the optional.is_none_or public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_none_or<T, F>(&Optional<T> input, mut F predicate) where F implements FnOnce<Tuple<&T>, bool> {
+    switch (*input) {
+        case Optional<T>.Some { &T item = value }: return predicate(item); break;
+        case Optional<T>.None: return true; break;
+    }
+}
+/*
+ * Version history for the optional.flatten public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> flatten<T>(Optional<Optional<T>> input) {
+    switch (move input) {
+        case Optional<Optional<T>>.Some { Optional<T> item = value }: return item; break;
+        case Optional<Optional<T>>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.transpose public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<T>, E> transpose<T, E>(Optional<Result<T, E>> input) {
+    switch (move input) {
+        case Optional<Result<T, E>>.Some { Result<T, E> nested = value }:
+            T item = nested?;
+            return Result.ok(Optional.some(item));
+            break;
+        case Optional<Result<T, E>>.None: return Result.ok(Optional.none()); break;
+    }
+}
+/*
+ * Version history for the optional.zip public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Tuple<T, U>> zip<T, U>(Optional<T> left, Optional<U> right) {
+    T first = left?;
+    U second = right?;
+    return Optional.some(Tuple.make(first, second));
+}
+/*
+ * Version history for the optional.copy public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> copy<T>(&Optional<T> input) where T implements Copy {
+    switch (*input) {
+        case Optional<T>.Some { T item = value }: return Optional.some(item); break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.as_ref public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> as_ref<T>(&Optional<T> input) {
+    switch (*input) {
+        case Optional<T>.Some { &T item = value }: return Optional.some(item); break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the optional.as_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> as_mut<T>(&mut Optional<T> input) {
+    switch (&mut *input) {
+        case Optional<T>.Some { &mut T item = value }: return Optional.some(item); break;
+        case Optional<T>.None: return Optional.none(); break;
+    }
+}
+
+/*
+ * Move the current value out and leave None without allocating or cloning.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> take<T>(&mut Optional<T> input) {
+    Optional<T> empty = Optional.none();
+    return memory.replace<Optional<T>>(input, empty);
+}
+
+/*
+ * Install Some(value) and return the previous optional, preserving ownership.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> replace<T>(&mut Optional<T> input, T value) {
+    Optional<T> replacement = Optional.some(value);
+    return memory.replace<Optional<T>>(input, replacement);
+}
+
+/*
+ * Invoke the predicate only for Some, then move out the value when it returns true.
+ * Predicate mutations remain visible even when the value is retained.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> take_if<T, F>(&mut Optional<T> input, mut F predicate)
+    where F implements FnOnce<Tuple<&mut T>, bool> {
+    mut bool accepted = false;
+    switch (&mut *input) {
+        case Optional<T>.Some { &mut T item = value }: accepted = predicate(item); break;
+        case Optional<T>.None: break;
+    }
+    if (accepted) return take(input);
+    return Optional.none();
+}
+
+/*
+ * Replace the payload and borrow the newly installed value; the old value is dropped once.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public &mut T insert<T>(&mut Optional<T> input, T value) {
+    { Optional<T> previous = replace(input, value); }
+    switch (&mut *input) {
+        case Optional<T>.Some { &mut T item = value }: return item; break;
+        case Optional<T>.None: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Keep an existing payload or insert the eager fallback, then borrow the payload.
+ * The unused eager fallback is dropped normally.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public &mut T get_or_insert<T>(&mut Optional<T> input, T fallback) {
+    if (Optional.is_none(input)) { Optional<T> previous = replace(input, fallback); }
+    switch (&mut *input) {
+        case Optional<T>.Some { &mut T item = value }: return item; break;
+        case Optional<T>.None: Never.unreachable(); break;
+    }
+}
+
+/*
+ * Build a missing value exactly once; the callback is not invoked for Some.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public &mut T get_or_insert_with<T, F>(&mut Optional<T> input, mut F fallback)
+    where F implements FnOnce<Tuple<>, T> {
+    if (Optional.is_none(input)) { Optional<T> previous = replace(input, fallback()); }
+    switch (&mut *input) {
+        case Optional<T>.Some { &mut T item = value }: return item; break;
+        case Optional<T>.None: Never.unreachable(); break;
+    }
+}

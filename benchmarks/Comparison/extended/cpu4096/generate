@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : generate
+#
+# Description :
+#     공통 시계·단일 표본 프로토콜에 맞춘 CPU4096 소스와 독립 기준값을 생성한다.
+#     Generate common-clock single-sample CPU4096 sources and independent expected values.
+#
+# ========================
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import runpy
+
+ROOT = Path(__file__).resolve().parents[4]
+HERE = Path(__file__).resolve().parent
+ORIGINAL = ROOT / "benchmarks/Comparison/cpu4096"
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def relative(path):
+    path = path.resolve()
+    return path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path)
+
+
+def c_banner(filename, description):
+    return f"""// ========================
+//
+// Created By : miruku_sora2026
+//
+// File name : {filename}
+//
+// Description :
+//     공통 시계로 하나의 계산 표본을 출력하고 전체 결과를 공개한다.
+//     {description}
+//
+// ========================
+"""
+
+
+def aevix_source(case, mode):
+    path = ORIGINAL / "aevix" / f"{case}_{mode}.avx"
+    text = path.read_text(encoding="utf-8")
+    replacements = {
+        " * Read six u64 seed tokens: one before the warmup and each of five samples.":
+            " * Read two u64 seed tokens: one before the warmup and one before the single sample.",
+        " * Supply six zero seeds for the shared values[index] = index comparison.":
+            " * Supply two zero seeds for the shared values[index] = index comparison.",
+        "import time;\n": "",
+        "T success<T, E>": 'extern "C" u64 aevixbench_clock_ns();\n\nT success<T, E>',
+        "iteration < 6usize": "iteration < 2usize",
+        "u64 started = success(time.monotonic_ns());": "u64 started = aevixbench_clock_ns();",
+        "u64 stopped = success(time.monotonic_ns());": "u64 stopped = aevixbench_clock_ns();",
+    }
+    for old, new in replacements.items():
+        if text.count(old) != 1:
+            raise ValueError("Original fixture changed; review common-clock adaptation: " + old)
+        text = text.replace(old, new)
+    return text
+
+
+def c_source(case, mode):
+    selected = "BENCH_" + case.upper()
+    parallel = mode == "parallel_fresh"
+    work = f"""if (bench_parallel_for_each(values, BENCH_ELEMENTS, sizeof(uint64_t),
+                                    bench_callback({selected}), workers) != 0) return 94;""" if parallel else f"bench_serial(values, {selected});"
+    workers = "bench_workers()" if parallel else "1"
+    return c_banner(f"{case}_{mode}.c", "Run the exact shared CPU kernel once after a warmup; expose every final value.") + f"""
+#include "shared_timer.h"
+#include "bench_backend.h"
+#include "bench_kernels.h"
+#include <inttypes.h>
+#include <stdio.h>
+#include <unistd.h>
+
+static int bench_read_seed(uint64_t* result) {{
+    char line[128];
+    if (!fgets(line, sizeof line, stdin)) return 0;
+    uint64_t value = 0;
+    unsigned digits = 0;
+    const unsigned char* cursor = (const unsigned char*)line;
+    for (; *cursor >= '0' && *cursor <= '9'; ++cursor) {{
+        const unsigned digit = *cursor - '0';
+        if (value > (UINT64_MAX - digit) / 10) return 0;
+        value = value * 10 + digit;
+        ++digits;
+    }}
+    if (!digits || (*cursor != '\\n' && *cursor != '\\0')) return 0;
+    *result = value % BENCH_ELEMENTS;
+    return 1;
+}}
+
+static uint32_t bench_workers(void) {{
+    const long count = sysconf(_SC_NPROCESSORS_ONLN);
+    return count <= 0 ? 1 : (uint32_t)(count > 32 ? 32 : count);
+}}
+
+int main(void) {{
+    uint64_t values[4096] = {{0}};
+    for (unsigned iteration = 0; iteration < 2; ++iteration) {{
+        uint64_t seed;
+        if (!bench_read_seed(&seed)) return 91;
+        for (uint64_t index = 0; index < BENCH_ELEMENTS; ++index)
+            values[index] = (index + seed) % BENCH_ELEMENTS;
+        const uint32_t workers = {workers};
+        const uint64_t started = aevixbench_clock_ns();
+        {work}
+        const uint64_t stopped = aevixbench_clock_ns();
+        if (stopped < started) return 93;
+        if (iteration) {{
+            uint64_t total = 0, weighted = 0;
+            for (uint64_t index = 0; index < BENCH_ELEMENTS; ++index) {{
+                total += values[index];
+                weighted = (weighted + (index + 1) * values[index]) % BENCH_CHECKSUM_MODULUS;
+            }}
+            printf("SAMPLE {case} {mode} 0 %" PRIu64 " %" PRIu64 " %" PRIu64 " %u\\n",
+                   stopped - started, total, weighted, workers);
+        }}
+    }}
+    printf("VERIFY {case} {mode} ");
+    for (uint64_t index = 0; index < BENCH_ELEMENTS; ++index)
+        printf("%s%" PRIu64, index ? "," : "", values[index]);
+    putchar('\\n');
+    return fflush(stdout) == 0 ? 0 : 95;
+}}
+"""
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--verify", action="store_true")
+    args = parser.parse_args()
+    if not 0 <= args.seed < 4096:
+        parser.error("Seed must be 0..4095")
+    output = (ROOT / args.output_dir).absolute()
+    spec_path = ORIGINAL / "spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    if digest(spec_path) != "ee8b5772bdfb7c85f342cf3dcdd070020ad72f27b03f9e48e91559a7def0e792":
+        raise ValueError("Shared CPU4096 contract changed; review the adapters explicitly")
+    oracle = runpy.run_path(str(ORIGINAL / "run"))
+    outputs = {}
+    programs = []
+    header = c_banner("bench_spec.h", "Use constants checked against the original CPU4096 shared specification.")
+    header += '#ifndef AEVIX_COMMON_CLOCK_CPU4096_SPEC_H\n#define AEVIX_COMMON_CLOCK_CPU4096_SPEC_H\n'
+    constants = {"ELEMENTS": 4096, "LCG_MODULUS": 2147483647, "LCG_MULTIPLIER": 48271,
+                 "CHECKSUM_MODULUS": 1000000007, "DEFAULT_SAMPLES": 1, "DEFAULT_WARMUPS": 1}
+    constants.update({"ROUNDS_" + case.upper(): data["rounds"] for case, data in spec["cases"].items() if "rounds" in data})
+    header += "".join(f"#define BENCH_{name} UINT64_C({value})\n" for name, value in constants.items()) + "#endif\n"
+    outputs[output / "bench_spec.h"] = header
+    for case in spec["cases"]:
+        expected = oracle["expected_values"](case, args.seed)
+        total, weighted = oracle["checksums"](expected)
+        for mode in spec["modes"]:
+            avx, native = output / f"{case}_{mode}.avx", output / f"{case}_{mode}.c"
+            outputs[avx] = aevix_source(case, mode)
+            outputs[native] = c_source(case, mode)
+            programs.append({"case": case, "mode": mode, "aevix_source": relative(avx), "c_source": relative(native),
+                "seed": args.seed, "stdin": (str(args.seed) + "\n") * 2, "warmups": 1, "samples": 1,
+                "expected": expected, "checksums": {"sum": total, "weighted": weighted},
+                "clock_symbol": "aevixbench_clock_ns", "c_include_dirs": [relative(output), relative(ORIGINAL / "native")],
+                "c_extra_sources": [relative(ORIGINAL / "native/pthread_backend.c")] if mode == "parallel_fresh" else [],
+                "original_aevix_source_sha256": digest(ORIGINAL / "aevix" / avx.name)})
+    smoke_avx = """/* Untimed four-input functional and shared-clock ABI smoke.
+ * @module common_clock_smoke
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import parallel;
+extern "C" u64 aevixbench_clock_ns();
+"""
+    smoke_c = c_banner("functional_smoke.c", "Check four inputs and the shared clock ABI without collecting workload timing.")
+    smoke_c += '#include "shared_timer.h"\n#include "bench_backend.h"\n#include "bench_kernels.h"\n'
+    for case in spec["cases"]:
+        original = (ORIGINAL / "aevix" / f"{case}_serial.avx").read_text(encoding="utf-8")
+        body = original[original.index("void kernel("):original.index("\ni32 main()")]
+        smoke_avx += body.replace("void kernel(", "void work_" + case + "(", 1) + "\n"
+    smoke_avx += "i32 main() {\n    u64 first = aevixbench_clock_ns();\n    u64 second = aevixbench_clock_ns();\n    if (second < first) return 2;\n"
+    smoke_c += "int main(void) {\n    uint64_t first = aevixbench_clock_ns();\n    uint64_t second = aevixbench_clock_ns();\n    if (second < first) return 2;\n"
+    indices = [0, 1, 4094, 4095]
+    for case in spec["cases"]:
+        full = oracle["expected_values"](case, 0)
+        expected = [full[index] for index in indices]
+        for mode in spec["modes"]:
+            smoke_avx += "    { mut u64 values[4] = [0u64, 1u64, 4094u64, 4095u64]; u64 expected[4] = [" + ", ".join(str(value) + "u64" for value in expected) + "];\n"
+            smoke_avx += "      parallel.for_each(Slice.from_array_mut(&mut values), work_" + case + ");\n" if mode == "parallel_fresh" else "      for (mut usize index = 0usize; index < 4usize; index++) work_" + case + "(&mut values[index]);\n"
+            smoke_avx += "      for (mut usize index = 0usize; index < 4usize; index++) if (values[index] != expected[index]) return 1; }\n"
+            smoke_c += "    { uint64_t values[4] = {0, 1, 4094, 4095}; uint64_t expected[4] = {" + ", ".join(str(value) + "ULL" for value in expected) + "};\n"
+            callback = "bench_callback(BENCH_" + case.upper() + ")"
+            smoke_c += "      if (bench_parallel_for_each(values, 4, 8, " + callback + ", 4) != 0) return 3;\n" if mode == "parallel_fresh" else "      for (unsigned i = 0; i < 4; ++i) " + callback + "(&values[i]);\n"
+            smoke_c += "      for (unsigned i = 0; i < 4; ++i) if (values[i] != expected[i]) return 1; }\n"
+    smoke_avx += "    return 0;\n}\n"
+    smoke_c += "    return 0;\n}\n"
+    outputs[output / "functional_smoke.avx"] = smoke_avx
+    outputs[output / "functional_smoke.c"] = smoke_c
+    for path, text in outputs.items():
+        data = text.encode("utf-8")
+        if args.verify:
+            if not path.is_file() or path.read_bytes() != data:
+                raise ValueError("Generated bytes differ: " + relative(path))
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+    for item in programs:
+        item["source_sha256"] = {key: digest(ROOT / item[key]) for key in ("aevix_source", "c_source")}
+    data = {"schema_version": 1, "created_by": "miruku_sora2026", "file_name": "generated.json",
+        "description": "Common-clock CPU4096 fixtures; one warmup and one measured sample per future process.",
+        "spec": relative(spec_path), "spec_sha256": digest(spec_path), "oracle": relative(ORIGINAL / "run"),
+        "oracle_sha256": digest(ORIGINAL / "run"), "clock_abi": 'extern "C" u64 aevixbench_clock_ns();',
+        "programs": programs, "functional_smokes": [
+            {"language": "C", "source": relative(output / "functional_smoke.c"), "stdin": "",
+             "c_include_dirs": [relative(output), relative(ORIGINAL / "native")],
+             "c_extra_sources": [relative(ORIGINAL / "native/pthread_backend.c")]},
+            {"language": "Aevix", "source": relative(output / "functional_smoke.avx"), "stdin": ""}],
+        "limits": ["No measured fixture was executed by generation.",
+            "The scalar C/AOT/JIT clock is identical; JIT may still use a different host CPU target.",
+            "Configured Aevix worker count does not expose runtime thread-creation fallback."]}
+    manifest = output / "generated.json"
+    encoded = (json.dumps(data, indent=2) + "\n").encode("utf-8")
+    if args.verify:
+        if manifest.read_bytes() != encoded:
+            raise ValueError("Generated manifest differs")
+    else:
+        manifest.write_bytes(encoded)
+    print(json.dumps({"programs": len(programs), "functional_smokes": 2, "manifest": relative(manifest), "measured_executions": 0}))
+
+
+if __name__ == "__main__":
+    main()

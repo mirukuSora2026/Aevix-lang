@@ -1,0 +1,349 @@
+/*
+ * Lifecycle of the result public module.
+ * @module result
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * Result combinators never implicitly convert error types or throw exceptions.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T unwrap_or<T, E>(Result<T, E> input, T fallback) {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return item; break;
+        case Result<T, E>.Err: return fallback; break;
+    }
+}
+/*
+ * Version history for the result.unwrap_or_else public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T unwrap_or_else<T, E, F>(Result<T, E> input, mut F recover) where F implements FnOnce<Tuple<E>, T> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return item; break;
+        case Result<T, E>.Err { E problem = error }: return recover(problem); break;
+    }
+}
+/*
+ * Version history for the result.map public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<U, E> map<T, E, U, F>(Result<T, E> input, mut F transform) where F implements FnOnce<Tuple<T>, U> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return Result.ok(transform(item)); break;
+        case Result<T, E>.Err { E problem = error }: return Result.err(problem); break;
+    }
+}
+/*
+ * Version history for the result.map_err public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, G> map_err<T, E, G, F>(Result<T, E> input, mut F transform) where F implements FnOnce<Tuple<E>, G> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return Result.ok(item); break;
+        case Result<T, E>.Err { E problem = error }: return Result.err(transform(problem)); break;
+    }
+}
+/*
+ * Version history for the result.map_both public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<U, G> map_both<T, E, U, G, F, H>(Result<T, E> input, mut F success, mut H failure)
+    where F implements FnOnce<Tuple<T>, U>, H implements FnOnce<Tuple<E>, G> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return Result.ok(success(item)); break;
+        case Result<T, E>.Err { E problem = error }: return Result.err(failure(problem)); break;
+    }
+}
+/*
+ * Version history for the result.map_ref public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<U, &E> map_ref<T, E, U, F>(&Result<T, E> input, mut F transform) where F implements FnOnce<Tuple<&T>, U> {
+    switch (*input) {
+        case Result<T, E>.Ok { &T item = value }: return Result.ok(transform(item)); break;
+        case Result<T, E>.Err { &E problem = error }: return Result.err(problem); break;
+    }
+}
+/*
+ * Version history for the result.and public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<U, E> and<T, E, U>(Result<T, E> left, Result<U, E> right) {
+    switch (move left) {
+        case Result<T, E>.Ok: return right; break;
+        case Result<T, E>.Err { E problem = error }: return Result.err(problem); break;
+    }
+}
+/*
+ * Version history for the result.and_then public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<U, E> and_then<T, E, U, F>(Result<T, E> input, mut F next) where F implements FnOnce<Tuple<T>, Result<U, E>> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return next(item); break;
+        case Result<T, E>.Err { E problem = error }: return Result.err(problem); break;
+    }
+}
+/*
+ * Version history for the result.or public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, G> or<T, E, G>(Result<T, E> left, Result<T, G> right) {
+    switch (move left) {
+        case Result<T, E>.Ok { T item = value }: return Result.ok(item); break;
+        case Result<T, E>.Err: return right; break;
+    }
+}
+/*
+ * Version history for the result.or_else public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, G> or_else<T, E, G, F>(Result<T, E> input, mut F recover) where F implements FnOnce<Tuple<E>, Result<T, G>> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return Result.ok(item); break;
+        case Result<T, E>.Err { E problem = error }: return recover(problem); break;
+    }
+}
+/*
+ * Version history for the result.inspect public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, E> inspect<T, E, F>(Result<T, E> input, mut F observer) where F implements FnOnce<Tuple<&T>, unit> {
+    switch (input) {
+        case Result<T, E>.Ok { &T item = value }: observer(item); break;
+        case Result<T, E>.Err: break;
+    }
+    return input;
+}
+/*
+ * Version history for the result.inspect_err public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, E> inspect_err<T, E, F>(Result<T, E> input, mut F observer) where F implements FnOnce<Tuple<&E>, unit> {
+    switch (input) {
+        case Result<T, E>.Ok: break;
+        case Result<T, E>.Err { &E problem = error }: observer(problem); break;
+    }
+    return input;
+}
+/*
+ * Version history for the result.map_or public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public U map_or<T, E, U, F>(Result<T, E> input, U fallback, mut F transform) where F implements FnOnce<Tuple<T>, U> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return transform(item); break;
+        case Result<T, E>.Err: return fallback; break;
+    }
+}
+/*
+ * Version history for the result.map_or_else public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public U map_or_else<T, E, U, F, G>(Result<T, E> input, mut F recover, mut G transform)
+    where F implements FnOnce<Tuple<E>, U>, G implements FnOnce<Tuple<T>, U> {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return transform(item); break;
+        case Result<T, E>.Err { E problem = error }: return recover(problem); break;
+    }
+}
+/*
+ * Version history for the result.is_ok_and public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_ok_and<T, E, F>(&Result<T, E> input, mut F predicate) where F implements FnOnce<Tuple<&T>, bool> {
+    switch (*input) {
+        case Result<T, E>.Ok { &T item = value }: return predicate(item); break;
+        case Result<T, E>.Err: return false; break;
+    }
+}
+/*
+ * Version history for the result.is_err_and public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_err_and<T, E, F>(&Result<T, E> input, mut F predicate) where F implements FnOnce<Tuple<&E>, bool> {
+    switch (*input) {
+        case Result<T, E>.Ok: return false; break;
+        case Result<T, E>.Err { &E problem = error }: return predicate(problem); break;
+    }
+}
+/*
+ * Version history for the result.ok_optional public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> ok_optional<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T item = value }: return Optional.some(item); break;
+        case Result<T, E>.Err: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the result.err_optional public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<E> err_optional<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok: return Optional.none(); break;
+        case Result<T, E>.Err { E problem = error }: return Optional.some(problem); break;
+    }
+}
+/*
+ * Version history for the result.flatten public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, E> flatten<T, E>(Result<Result<T, E>, E> input) {
+    Result<T, E> nested = input?;
+    return nested;
+}
+/*
+ * Version history for the result.transpose public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Result<T, E>> transpose<T, E>(Result<Optional<T>, E> input) {
+    switch (move input) {
+        case Result<Optional<T>, E>.Ok { Optional<T> nested = value }:
+            T item = nested?;
+            return Optional.some(Result.ok(item));
+            break;
+        case Result<Optional<T>, E>.Err { E problem = error }: return Optional.some(Result.err(problem)); break;
+    }
+}
+/*
+ * Version history for the result.zip public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Tuple<T, U>, E> zip<T, E, U>(Result<T, E> left, Result<U, E> right) {
+    T first = left?;
+    U second = right?;
+    return Result.ok(Tuple.make(first, second));
+}
+/*
+ * Version history for the result.copy public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<T, E> copy<T, E>(&Result<T, E> input) where T implements Copy, E implements Copy {
+    switch (*input) {
+        case Result<T, E>.Ok { T item = value }: return Result.ok(item); break;
+        case Result<T, E>.Err { E problem = error }: return Result.err(problem); break;
+    }
+}
+/*
+ * Version history for the result.as_ref public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&T, &E> as_ref<T, E>(&Result<T, E> input) {
+    switch (*input) {
+        case Result<T, E>.Ok { &T item = value }: return Result.ok(item); break;
+        case Result<T, E>.Err { &E problem = error }: return Result.err(problem); break;
+    }
+}
+/*
+ * Version history for the result.get_ok public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> get_ok<T, E>(&Result<T, E> input) {
+    switch (*input) {
+        case Result<T, E>.Ok { &T item = value }: return Optional.some(item); break;
+        case Result<T, E>.Err: return Optional.none(); break;
+    }
+}
+/*
+ * Version history for the result.get_err public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&E> get_err<T, E>(&Result<T, E> input) {
+    switch (*input) {
+        case Result<T, E>.Ok: return Optional.none(); break;
+        case Result<T, E>.Err { &E problem = error }: return Optional.some(problem); break;
+    }
+}
+/*
+ * Version history for the result.as_mut public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&mut T, &mut E> as_mut<T, E>(&mut Result<T, E> input) {
+    switch (&mut *input) {
+        case Result<T, E>.Ok { &mut T item = value }: return Result.ok(item); break;
+        case Result<T, E>.Err { &mut E problem = error }: return Result.err(problem); break;
+    }
+}
+
+/*
+ * Borrow the success payload for mutation without consuming the result.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut T> get_ok_mut<T, E>(&mut Result<T, E> input) {
+    switch (&mut *input) {
+        case Result<T, E>.Ok { &mut T item = value }: return Optional.some(item); break;
+        case Result<T, E>.Err: return Optional.none(); break;
+    }
+}
+
+/*
+ * Borrow the error payload for mutation without consuming the result.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut E> get_err_mut<T, E>(&mut Result<T, E> input) {
+    switch (&mut *input) {
+        case Result<T, E>.Ok: return Optional.none(); break;
+        case Result<T, E>.Err { &mut E problem = error }: return Optional.some(problem); break;
+    }
+}

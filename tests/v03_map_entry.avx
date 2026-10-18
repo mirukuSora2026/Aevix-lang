@@ -1,0 +1,134 @@
+import map { Map, Entry };
+import map_entry { MapEntry, EntryInputError, EntryBuildError };
+import map_entry;
+
+/* A stable comparator uses decimal equivalence; all fixtures deliberately collide in hash code. */
+i32 vacant<F>(&mut Map<i32, i32> owner, F same) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    mut MapEntry<i32, i32, F> view = map_entry.entry_with(owner, 1, 1u64, same);
+    if (view.is_occupied() || *view.key() != 1) return 1;
+    Optional<&i32> before = view.get();
+    if (!Optional.is_none(&before)) return 2;
+    Optional<&mut i32> before_mut = view.get_mut();
+    if (!Optional.is_none(&before_mut)) return 3;
+    mut i32 calls = 0;
+    MapEntry<i32, i32, F> next = view.and_modify([&mut calls](&mut i32 item) -> unit { calls++; *item += 100; return Unit.value(); });
+    if (calls != 0) return 4;
+    Result<&mut i32, EntryInputError<i32, i32, F>> made = next.or_insert(11);
+    switch (move made) {
+        case Result<&mut i32, EntryInputError<i32, i32, F>>.Ok { &mut i32 value = value }: if (*value != 11) return 5; *value = 12; break;
+        case Result<&mut i32, EntryInputError<i32, i32, F>>.Err: return 6; break;
+    }
+    return 0;
+}
+i32 occupied<F>(&mut Map<i32, i32> owner, F same) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    mut MapEntry<i32, i32, F> view = map_entry.entry_with(owner, 11, 1u64, same);
+    if (!view.is_occupied() || *view.key() != 1) return 7;
+    Optional<&i32> before = view.get();
+    switch (move before) { case Optional<&i32>.Some { &i32 item = value }: if (*item != 12) return 8; break; case Optional<&i32>.None: return 9; break; }
+    Optional<&mut i32> changed = view.get_mut();
+    switch (move changed) { case Optional<&mut i32>.Some { &mut i32 item = value }: *item += 3; break; case Optional<&mut i32>.None: return 10; break; }
+    MapEntry<i32, i32, F> next = view.and_modify([](&mut i32 item) -> unit { *item += 2; return Unit.value(); });
+    Result<&mut i32, EntryInputError<i32, i32, F>> kept = next.or_insert(999);
+    switch (move kept) { case Result<&mut i32, EntryInputError<i32, i32, F>>.Ok { &mut i32 item = value }: return *item == 17 ? 0 : 11; break; case Result<&mut i32, EntryInputError<i32, i32, F>>.Err: return 12; break; }
+}
+i32 replace<F>(&mut Map<i32, i32> owner, F same) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    MapEntry<i32, i32, F> view = map_entry.entry_with(owner, 11, 1u64, same);
+    Result<Optional<i32>, EntryInputError<i32, i32, F>> replaced = view.insert(20);
+    switch (move replaced) {
+        case Result<Optional<i32>, EntryInputError<i32, i32, F>>.Ok { Optional<i32> previous = value }:
+            switch (move previous) { case Optional<i32>.Some { i32 item = value }: return item == 17 ? 0 : 13; break; case Optional<i32>.None: return 14; break; }
+            break;
+        case Result<Optional<i32>, EntryInputError<i32, i32, F>>.Err: return 15; break;
+    }
+}
+i32 lazy<F>(&mut Map<i32, i32> owner, F same, i32 key, bool expected_call, i32 expected) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    MapEntry<i32, i32, F> view = map_entry.entry_with(owner, key, 1u64, same);
+    mut i32 calls = 0;
+    Result<&mut i32, EntryBuildError<i32, i32, F, unit>> made = view.or_insert_with([&mut calls]() -> i32 { calls++; return 30; });
+    switch (move made) { case Result<&mut i32, EntryBuildError<i32, i32, F, unit>>.Ok { &mut i32 item = value }: if (*item != expected) return 16; break; case Result<&mut i32, EntryBuildError<i32, i32, F, unit>>.Err: return 17; break; }
+    return calls == (expected_call ? 1 : 0) ? 0 : 18;
+}
+i32 failing_builder<F>(&mut Map<i32, i32> owner, F same) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    MapEntry<i32, i32, F> view = map_entry.entry_with(owner, 3, 1u64, same);
+    Result<&mut i32, EntryBuildError<i32, i32, F, i32>> made = view.try_or_insert_with<i32>([]() -> Result<i32, i32> { return Result.err(77); });
+    switch (move made) {
+        case Result<&mut i32, EntryBuildError<i32, i32, F, i32>>.Ok: return 19; break;
+        case Result<&mut i32, EntryBuildError<i32, i32, F, i32>>.Err { EntryBuildError<i32, i32, F, i32> problem = error }:
+            switch (move problem) {
+                case EntryBuildError<i32, i32, F, i32>.Build { i32 code = error, MapEntry<i32, i32, F> retry = entry }:
+                    if (code != 77 || retry.is_occupied() || retry.into_incoming_key() != 3) return 20;
+                    break;
+                case EntryBuildError<i32, i32, F, i32>.Preflight: return 21; break;
+                case EntryBuildError<i32, i32, F, i32>.Insertion: return 22; break;
+            }
+            break;
+    }
+    return 0;
+}
+i32 successful_builder<F>(&mut Map<i32, i32> owner, F same) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    MapEntry<i32, i32, F> view = map_entry.entry_with(owner, 3, 1u64, same);
+    Result<&mut i32, EntryBuildError<i32, i32, F, i32>> made = view.try_or_insert_with<i32>([]() -> Result<i32, i32> { return Result.ok(40); });
+    switch (move made) { case Result<&mut i32, EntryBuildError<i32, i32, F, i32>>.Ok { &mut i32 item = value }: return *item == 40 ? 0 : 23; break; case Result<&mut i32, EntryBuildError<i32, i32, F, i32>>.Err: return 24; break; }
+}
+i32 recover_key<F>(&mut Map<i32, i32> owner, F same, i32 key) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    MapEntry<i32, i32, F> view = map_entry.entry_with(owner, key, 1u64, same);
+    return view.into_incoming_key() == key ? 0 : 25;
+}
+i32 remove_value<F>(&mut Map<i32, i32> owner, F same, i32 key, bool expected) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    MapEntry<i32, i32, F> view = map_entry.entry_with(owner, key, 1u64, same);
+    Optional<i32> removed = view.remove();
+    switch (move removed) { case Optional<i32>.Some { i32 value = value }: return expected && value == 30 ? 0 : 26; break; case Optional<i32>.None: return expected ? 27 : 0; break; }
+}
+i32 remove_pair<F>(&mut Map<i32, i32> owner, F same) where F implements Fn<Tuple<&i32, &i32>, bool> {
+    MapEntry<i32, i32, F> view = map_entry.entry_with(owner, 11, 1u64, same);
+    Optional<Entry<i32, i32>> removed = view.remove_entry();
+    switch (move removed) {
+        case Optional<Entry<i32, i32>>.Some { Entry<i32, i32> pair = value }:
+            switch (move pair) { case Entry<i32, i32>.Pair { i32 key = key, i32 value = value }: return key == 1 && value == 20 ? 0 : 28; break; }
+            break;
+        case Optional<Entry<i32, i32>>.None: return 29; break;
+    }
+}
+Result<i32, CollectionError> exercise() {
+    mut Map<i32, i32> owner = Map<i32, i32>.new()?;
+    i32 first = vacant(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; });
+    if (first != 0) return Result.ok(first);
+    i32 second = occupied(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; });
+    if (second != 0) return Result.ok(second);
+    i32 third = replace(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; });
+    if (third != 0) return Result.ok(third);
+    i32 fourth = lazy(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; }, 11, false, 20);
+    if (fourth != 0) return Result.ok(fourth);
+    i32 fifth = lazy(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; }, 2, true, 30);
+    if (fifth != 0) return Result.ok(fifth);
+    i32 sixth = failing_builder(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; });
+    if (sixth != 0 || owner.len() != 2) return Result.ok(sixth == 0 ? 30 : sixth);
+    i32 seventh = successful_builder(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; });
+    if (seventh != 0) return Result.ok(seventh);
+    i32 eighth = recover_key(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; }, 11);
+    if (eighth != 0) return Result.ok(eighth);
+    i32 ninth = recover_key(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; }, 9);
+    if (ninth != 0) return Result.ok(ninth);
+    i32 tenth = remove_value(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; }, 2, true);
+    if (tenth != 0) return Result.ok(tenth);
+    i32 eleventh = remove_value(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; }, 9, false);
+    if (eleventh != 0) return Result.ok(eleventh);
+    i32 twelfth = remove_pair(&mut owner, [](&i32 a, &i32 b) -> bool { return *a % 10 == *b % 10; });
+    if (twelfth != 0) return Result.ok(twelfth);
+    if (owner.len() != 1) return Result.ok(31);
+    {
+        Optional<Tuple<&i32, &i32>> invalid_pair = owner.entry_pair_at(18446744073709551615usize);
+        if (!Optional.is_none(&invalid_pair)) return Result.ok(32);
+    }
+    {
+        Optional<&mut i32> invalid_value = owner.entry_value_at_mut(18446744073709551615usize);
+        if (!Optional.is_none(&invalid_value)) return Result.ok(32);
+    }
+    Optional<Entry<i32, i32>> invalid_take = owner.entry_take_at(18446744073709551615usize);
+    if (!Optional.is_none(&invalid_take) || owner.len() != 1) return Result.ok(32);
+    owner.clear();
+    Optional<Entry<i32, i32>> empty_take = owner.entry_take_at(0);
+    if (!Optional.is_none(&empty_take) || !owner.is_empty()) return Result.ok(33);
+    return Result.ok(0);
+}
+i32 main() { Result<i32, CollectionError> result = exercise(); switch (move result) { case Result<i32, CollectionError>.Ok { i32 code = value }: return code; break; case Result<i32, CollectionError>.Err: return 90; break; } }

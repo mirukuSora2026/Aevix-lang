@@ -1,0 +1,258 @@
+public import error { PathError };
+import memory;
+
+/*
+ * Lexical helpers use slash-separated UTF-8 by default. Set windows to recognize
+ * backslashes, drive prefixes and UNC roots as well; this is not OS validation.
+ * These APIs cannot represent arbitrary Unix byte paths or unpaired Windows UTF-16.
+ * @module path
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+/* Reject embedded NUL without allocating. Empty lexical paths are permitted.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, PathError> validate(string_view value) {
+    Slice<byte> bytes = string.as_bytes(value);
+    mut usize index = 0;
+    while (index < Slice.len(bytes)) {
+        if (Byte.to_u8(bytes[index]) == 0) return Result.err(PathError.EmbeddedNull);
+        index++;
+    }
+    return Result.ok(Unit.value());
+}
+
+bool separator(byte value, bool windows) {
+    u8 code = Byte.to_u8(value);
+    return code == 47 || (windows && code == 92);
+}
+bool letter(byte value) {
+    u8 code = Byte.to_u8(value);
+    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+usize root_length(Slice<byte> bytes, bool windows) {
+    usize length = Slice.len(bytes);
+    if (length == 0) return 0;
+    if (windows && length >= 2 && letter(bytes[0]) && Byte.to_u8(bytes[1]) == 58) {
+        if (length >= 3 && separator(bytes[2], true)) return 3;
+        return 2;
+    }
+    if (!separator(bytes[0], windows)) return 0;
+    if (windows && length >= 2 && separator(bytes[1], true)) {
+        mut usize cursor = 2;
+        while (cursor < length && separator(bytes[cursor], true)) cursor++;
+        usize server = cursor;
+        while (cursor < length && !separator(bytes[cursor], true)) cursor++;
+        if (cursor == server || cursor == length) return 1;
+        while (cursor < length && separator(bytes[cursor], true)) cursor++;
+        usize share = cursor;
+        while (cursor < length && !separator(bytes[cursor], true)) cursor++;
+        if (cursor == share) return 1;
+        if (cursor < length) return cursor + 1;
+        return cursor;
+    }
+    return 1;
+}
+usize trimmed_end(Slice<byte> bytes, usize root, bool windows) {
+    mut usize end = Slice.len(bytes);
+    while (end > root && separator(bytes[end - 1], windows)) end--;
+    return end;
+}
+PathError text_error(TextError problem) {
+    switch (problem) {
+        case TextError.AllocationFailure: return PathError.AllocationFailure; break;
+        case TextError.SizeOverflow: return PathError.SizeOverflow; break;
+        case TextError.InvalidUtf8: return PathError.InvalidEncoding; break;
+        case TextError.InvalidBoundary: return PathError.InvalidComponent; break;
+    }
+}
+Result<string_view, PathError> view_part(string_view value, usize start, usize end) {
+    Result<string_view, TextError> result = string.slice_bytes(value, start, end);
+    switch (move result) {
+        case Result<string_view, TextError>.Ok { string_view part = value }: return Result.ok(part); break;
+        case Result<string_view, TextError>.Err { TextError problem = error }: return Result.err(text_error(problem)); break;
+    }
+}
+Result<string, PathError> copy_text(string_view value) {
+    Result<string, TextError> result = string.from_view(value);
+    switch (move result) {
+        case Result<string, TextError>.Ok { string output = value }: return Result.ok(output); break;
+        case Result<string, TextError>.Err { TextError problem = error }: return Result.err(text_error(problem)); break;
+    }
+}
+Result<unit, PathError> append_text(&mut string output, string_view value) {
+    Result<unit, TextError> result = string.append(output, value);
+    switch (move result) {
+        case Result<unit, TextError>.Ok: return Result.ok(Unit.value()); break;
+        case Result<unit, TextError>.Err { TextError problem = error }: return Result.err(text_error(problem)); break;
+    }
+}
+Result<Vector<string>, PathError> new_components() {
+    Result<Vector<string>, CollectionError> created = [];
+    switch (move created) {
+        case Result<Vector<string>, CollectionError>.Ok { Vector<string> output = value }:
+            return Result.ok(output);
+            break;
+        case Result<Vector<string>, CollectionError>.Err { CollectionError problem = error }:
+            switch (problem) {
+                case CollectionError.AllocationFailure: return Result.err(PathError.AllocationFailure); break;
+                case CollectionError.SizeOverflow: return Result.err(PathError.SizeOverflow); break;
+            }
+            break;
+    }
+}
+
+/*
+ * Borrow the final component, ignoring trailing separators. A root returns its
+ * root prefix and an empty path returns an empty view. No string copy occurs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string_view, PathError> basename(string_view value, bool windows = false) {
+    validate(value)?;
+    Slice<byte> bytes = string.as_bytes(value);
+    usize root = root_length(bytes, windows);
+    usize end = trimmed_end(bytes, root, windows);
+    if (end <= root) return view_part(value, 0, end);
+    mut usize start = end;
+    while (start > root && !separator(bytes[start - 1], windows)) start--;
+    return view_part(value, start, end);
+}
+
+/*
+ * Borrow the parent after ignoring trailing separators. A path without a parent
+ * returns an empty view; a root remains a root. This never queries the filesystem.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string_view, PathError> dirname(string_view value, bool windows = false) {
+    validate(value)?;
+    Slice<byte> bytes = string.as_bytes(value);
+    usize root = root_length(bytes, windows);
+    usize end = trimmed_end(bytes, root, windows);
+    if (end <= root) return view_part(value, 0, end);
+    mut usize start = end;
+    while (start > root && !separator(bytes[start - 1], windows)) start--;
+    while (start > root && separator(bytes[start - 1], windows)) start--;
+    return view_part(value, 0, start);
+}
+
+/*
+ * Borrow the suffix after the last non-leading dot, without the dot. Dotfiles,
+ * dot/dot-dot components, trailing dots and missing extensions return an empty view.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string_view, PathError> extension(string_view value, bool windows = false) {
+    string_view name = basename(value, windows)?;
+    Slice<byte> bytes = string.as_bytes(name);
+    usize length = Slice.len(bytes);
+    if (length == 0) return view_part(name, 0, 0);
+    if (length == 1 && Byte.to_u8(bytes[0]) == 46) return view_part(name, 0, 0);
+    if (length == 2 && Byte.to_u8(bytes[0]) == 46 && Byte.to_u8(bytes[1]) == 46) return view_part(name, 0, 0);
+    mut usize cursor = length;
+    while (cursor > 1) {
+        cursor--;
+        if (Byte.to_u8(bytes[cursor]) == 46) return view_part(name, cursor + 1, length);
+    }
+    return view_part(name, 0, 0);
+}
+
+/*
+ * Copy every component into owned strings, including an optional first root.
+ * Repeated/trailing separators are skipped; dot and dot-dot are preserved.
+ * O(bytes) scanning and explicit fallible allocation replace borrowed-view storage.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<string>, PathError> components(string_view value, bool windows = false) {
+    validate(value)?;
+    Slice<byte> bytes = string.as_bytes(value);
+    usize length = Slice.len(bytes);
+    usize root = root_length(bytes, windows);
+    mut Vector<string> output = new_components()?;
+    mut usize cursor = 0;
+    while (cursor < length) {
+        mut usize start = cursor;
+        if (cursor == 0 && root > 0) cursor = root;
+        else {
+            while (cursor < length && separator(bytes[cursor], windows)) cursor++;
+            if (cursor == length) break;
+            start = cursor;
+            while (cursor < length && !separator(bytes[cursor], windows)) cursor++;
+        }
+        string_view part = view_part(value, start, cursor)?;
+        string owned = copy_text(part)?;
+        Result<unit, InputError<string>> pushed = Vector.push(&mut output, owned);
+        switch (move pushed) {
+            case Result<unit, InputError<string>>.Ok: break;
+            case Result<unit, InputError<string>>.Err { InputError<string> problem = error }:
+                switch (problem) {
+                    case InputError<string>.AllocationFailure: return Result.err(PathError.AllocationFailure); break;
+                    case InputError<string>.SizeOverflow: return Result.err(PathError.SizeOverflow); break;
+                    // This path only delegates to push/rehash, which never reports an index error.
+                    case InputError<string>.OutOfBounds: Never.unreachable(); break;
+                }
+                break;
+        }
+    }
+    return Result.ok(output);
+}
+
+/*
+ * Allocate a lexical join without normalization. A rooted or drive-prefixed right
+ * operand replaces the left; otherwise insert one separator only when needed.
+ * Inputs remain borrowed and unchanged on all error paths.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, PathError> join(string_view left, string_view right, bool windows = false) {
+    validate(left)?;
+    validate(right)?;
+    Slice<byte> first = string.as_bytes(left);
+    Slice<byte> second = string.as_bytes(right);
+    if (Slice.len(first) == 0 || root_length(second, windows) > 0) return copy_text(right);
+    mut string output = copy_text(left)?;
+    if (Slice.len(second) == 0) return Result.ok(output);
+    bool drive_only = windows && Slice.len(first) == 2 && letter(first[0]) && Byte.to_u8(first[1]) == 58;
+    if (!separator(first[Slice.len(first) - 1], windows) && !drive_only)
+        append_text(&mut output, windows ? "\\" : "/")?;
+    append_text(&mut output, right)?;
+    return Result.ok(output);
+}
+
+/*
+ * Allocate the host platform's lexical normalization. It collapses dot/dot-dot
+ * segments without resolving symlinks, checking existence, or making a path absolute.
+ * Only valid UTF-8 without embedded NUL is accepted; native lossless paths are separate.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, PathError> normalize(string_view value) {
+    validate(value)?;
+    mut Tuple<i32, string, i32, i32> outcome = __path_normalize(value);
+    i32 status = *Tuple.get<0>(&outcome);
+    if (status != 0) {
+        if (status == 2) return Result.err(PathError.InvalidComponent);
+        if (status == 3) return Result.err(PathError.InvalidEncoding);
+        if (status == 4) return Result.err(PathError.AllocationFailure);
+        if (status == 5) return Result.err(PathError.SizeOverflow);
+        return Result.err(PathError.Os { os_code = *Tuple.get<2>(&outcome) });
+    }
+    string empty = copy_text("")?;
+    string output = memory.replace<string>(Tuple.get_mut<1>(&mut outcome), empty);
+    return Result.ok(output);
+}
+
+/* Compiler-only binding: the trusted loader validates and lowers this exact signature. */
+Tuple<i32, string, i32, i32> __path_normalize(string_view value) {}

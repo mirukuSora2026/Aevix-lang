@@ -1,0 +1,74 @@
+import slice;
+import array;
+
+i32 read(Optional<&i32> input) {
+    switch (move input) {
+        case Optional<&i32>.Some { &i32 item = value }: return *item; break;
+        case Optional<&i32>.None: return -1; break;
+    }
+}
+void write(Optional<&mut i32> input, i32 replacement) {
+    switch (move input) {
+        case Optional<&mut i32>.Some { &mut i32 item = value }: *item = replacement; break;
+        case Optional<&mut i32>.None: break;
+    }
+    return;
+}
+
+i32 main() {
+    mut i32 values[3] = [1, 2, 3];
+    i32 empty[0] = [];
+    if (array.len(&values) != 3 || array.is_empty(&values) || !array.is_empty(&empty)) return 1;
+    if (slice.len(array.as_slice(&values)) != 3 || !slice.is_empty(array.as_slice(&empty))) return 2;
+    if (read(array.get(&values, 1)) != 2 || read(array.first(&values)) != 1 || read(array.last(&values)) != 3) return 3;
+    if (read(array.get(&values, 3)) != -1 || read(array.first(&empty)) != -1 || read(array.last(&empty)) != -1) return 4;
+    write(array.get_mut(&mut values, 1), 20);
+    write(array.first_mut(&mut values), 10);
+    write(array.last_mut(&mut values), 30);
+    if (values[0] != 10 || values[1] != 20 || values[2] != 30) return 5;
+    i32 duplicate[3] = array.copy(&values);
+    if (duplicate[0] != 10 || duplicate[2] != 30) return 6;
+    if (read(slice.get(Slice.from_array(&values), 1)) != 20 || read(slice.first(Slice.from_array(&values))) != 10 || read(slice.last(Slice.from_array(&values))) != 30) return 7;
+    write(slice.first_mut(array.as_mut_slice(&mut values)), 11);
+    write(slice.last_mut(array.as_mut_slice(&mut values)), 31);
+    write(slice.get_mut(array.as_mut_slice(&mut values), 1), 21);
+    write(slice.get_mut(array.as_mut_slice(&mut values), 3), 99);
+    if (values[0] != 11 || values[1] != 21 || values[2] != 31) return 8;
+    {
+        Result<Slice<i32>, BoundsError> outcome = slice.subrange(Slice.from_array(&values), 1, 3);
+        switch (move outcome) {
+            case Result<Slice<i32>, BoundsError>.Ok { Slice<i32> view = value }:
+                if (slice.len(view) != 2 || view[0] != 21) return 9;
+                break;
+            case Result<Slice<i32>, BoundsError>.Err: return 10; break;
+        }
+    }
+    {
+        Result<MutSlice<i32>, BoundsError> outcome = slice.subrange_mut(Slice.from_array_mut(&mut values), 1, 2);
+        switch (move outcome) {
+            case Result<MutSlice<i32>, BoundsError>.Ok { MutSlice<i32> view = value }:
+                mut MutSlice<i32> writable = view;
+                writable[0] = 22;
+                break;
+            case Result<MutSlice<i32>, BoundsError>.Err: return 11; break;
+        }
+    }
+    mut rsn increment = [](&mut i32 item) -> unit { *item += 1; return Unit.value(); };
+    slice.for_each_mut(Slice.from_array_mut(&mut values), &mut increment);
+    if (values[0] != 12 || values[1] != 23 || values[2] != 32) return 12;
+    i32 source[3] = [40, 50, 60];
+    Result<unit, slice.LengthMismatch> copied = slice.copy_from(Slice.from_array_mut(&mut values), Slice.from_array(&source));
+    if (!Result.is_ok(&copied) || values[0] != 40 || values[2] != 60) return 13;
+    Result<unit, slice.LengthMismatch> refused = slice.copy_from(Slice.from_array_mut(&mut values), Slice.from_array(&empty));
+    switch (move refused) {
+        case Result<unit, slice.LengthMismatch>.Ok: return 14; break;
+        case Result<unit, slice.LengthMismatch>.Err { slice.LengthMismatch failure = error }:
+            if (failure.expected != 3 || failure.actual != 0 || !string.equals(failure.code(), "slice.length_mismatch")) return 15;
+            break;
+    }
+    if (values[0] != 40 || values[2] != 60) return 16;
+    Result<Slice<i32>, BoundsError> reversed = slice.subrange(Slice.from_array(&values), 2, 1);
+    Result<Slice<i32>, BoundsError> outside = slice.subrange(Slice.from_array(&values), 0, 4);
+    if (!Result.is_err(&reversed) || !Result.is_err(&outside)) return 17;
+    return 0;
+}

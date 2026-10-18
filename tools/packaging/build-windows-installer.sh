@@ -15,8 +15,8 @@ set -eu
 source_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 build_dir=
 config=
-output_dir="$source_root/releases/0.2V/installers"
-version=0.2.0
+output_dir="$source_root/releases/0.3V/installers"
+version=0.3.0
 cxx=${AEVIX_WINDOWS_CXX:-x86_64-w64-mingw32-g++}
 windres=${AEVIX_WINDOWS_WINDRES:-x86_64-w64-mingw32-windres}
 while [ "$#" -gt 0 ]; do
@@ -78,7 +78,7 @@ AEVIX_RESOURCES
 cat > "$work/setup.manifest" <<'AEVIX_MANIFEST'
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity version="0.2.0.0" processorArchitecture="amd64" name="Aevix.Setup" type="win32"/>
+  <assemblyIdentity version="0.3.0.0" processorArchitecture="amd64" name="Aevix.Setup" type="win32"/>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3"><security><requestedPrivileges><requestedExecutionLevel level="asInvoker" uiAccess="false"/></requestedPrivileges></security></trustInfo>
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1"><application><supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/></application></compatibility>
 </assembly>

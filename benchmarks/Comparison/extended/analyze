@@ -1,0 +1,345 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : analyze
+#
+# Description :
+#     모든 측정값을 유지하며 분포, 실행 순서 및 짝지은 상대 시간을 분석한다.
+#     Analyze distributions, execution order, and paired relative times without discarding observations.
+#
+# ========================
+"""Analyze a complete balanced experiment; never turn missing observations into zeroes."""
+import argparse
+import collections
+import csv
+import hashlib
+import itertools
+import json
+import math
+import os
+from pathlib import Path
+import random
+import statistics
+import sys
+
+VARIANTS = ('C', 'AOT', 'JIT')
+HERE = Path(__file__).resolve().parent
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def quantile(values, probability):
+    values = sorted(values)
+    location = (len(values) - 1) * probability
+    lower = math.floor(location)
+    upper = math.ceil(location)
+    return values[lower] + (values[upper] - values[lower]) * (location - lower)
+
+
+def describe(values):
+    if len(values) < 2:
+        raise ValueError('At least two finite observations are required.')
+    if any(not math.isfinite(value) or value < 0 for value in values):
+        raise ValueError('Non-finite or negative duration.')
+    median = statistics.median(values)
+    mean = statistics.mean(values)
+    deviation = statistics.stdev(values)
+    q1, q3 = quantile(values, .25), quantile(values, .75)
+    iqr = q3 - q1
+    return {'n': len(values), 'median_ns': median, 'mean_ns': mean,
+            'sample_stdev_ns': deviation, 'cv_percent': 100 * deviation / mean if mean else None,
+            'q1_ns': q1, 'q3_ns': q3, 'iqr_ns': iqr,
+            'mad_ns': statistics.median(abs(value - median) for value in values),
+            'p05_ns': quantile(values, .05), 'p95_ns': quantile(values, .95),
+            'min_ns': min(values), 'max_ns': max(values),
+            'tukey_flag_count_retained': sum(value < q1 - 1.5 * iqr or value > q3 + 1.5 * iqr for value in values),
+            'observations_removed': 0}
+
+
+def paired_ratios(numerator, denominator, seed, repetitions=2000, block_length=5):
+    if len(numerator) != len(denominator) or len(numerator) < 30:
+        raise ValueError('Paired series require equal lengths of at least30.')
+    if min(numerator + denominator) <= 0:
+        return {'status': 'unavailable', 'reason': 'At least one kernel duration is zero; ratios are undefined.'}
+    ratios = [left / right for left, right in zip(numerator, denominator)]
+    generator = random.Random(seed)
+    medians = []
+    for _ in range(repetitions):
+        indices = []
+        while len(indices) < len(ratios):
+            start = generator.randrange(len(ratios))
+            indices.extend((start + step) % len(ratios) for step in range(block_length))
+        medians.append(statistics.median(ratios[index] for index in indices[:len(ratios)]))
+    return {'status': 'computed', 'n_pairs': len(ratios),
+            'median_paired_ratio': statistics.median(ratios),
+            'ratio_of_medians': statistics.median(numerator) / statistics.median(denominator),
+            'interval_95': [quantile(medians, .025), quantile(medians, .975)],
+            'interval_method': 'Percentile circular moving-block bootstrap of per-round paired ratios; block length5.',
+            'bootstrap_repetitions': repetitions, 'bootstrap_seed': seed,
+            'interpretation': 'Conditional local uncertainty, not causal, not a multiple-comparison-adjusted language ranking.'}
+
+
+def validate(rows, receipt, schedule):
+    if receipt['status'] != 'passed' or not receipt['fingerprints_stable']:
+        raise ValueError('Only a complete passed run with stable inputs can be summarized.')
+    blocks = receipt['blocks']
+    keys = receipt['selected_cases']
+    if blocks < 30 or blocks % 6 or len(rows) != blocks * len(keys) * 3:
+        raise ValueError('Incomplete or unbalanced observation count.')
+    if len(schedule) != len(rows):
+        raise ValueError('Schedule and observation lengths differ.')
+    seen = set()
+    for row, planned in zip(rows, schedule):
+        for key in ('round', 'case_key', 'variant', 'position', 'order'):
+            if row[key] != planned[key]:
+                raise ValueError('Observation does not match its preserved schedule.')
+        key = (row['round'], row['case_key'], row['variant'])
+        if not 0 <= row['round'] < blocks or row['case_key'] not in keys or row['variant'] not in VARIANTS:
+            raise ValueError('Observation identity is outside the declared experiment.')
+        if key in seen or not row['passed'] or row['timeout'] or row['status'] != 0:
+            raise ValueError('Duplicate, failed, or timed-out observation.')
+        if not row['exact_values_compared'] or row['configured_participants'] < 1:
+            raise ValueError('Missing full-output check or participant contract.')
+        seen.add(key)
+    if seen != set(itertools.product(range(blocks), keys, VARIANTS)):
+        raise ValueError('Round-pair coverage is incomplete; temporal pairs cannot be constructed.')
+    for case in keys:
+        for variant in VARIANTS:
+            selected = [row for row in rows if row['case_key'] == case and row['variant'] == variant]
+            if len(selected) != blocks:
+                raise ValueError('Sample count differs between variants.')
+            if any(sum(row['position'] == position for row in selected) != blocks // 3 for position in (1, 2, 3)):
+                raise ValueError('Position balance differs from the experiment contract.')
+        orders = collections.Counter(tuple(row['order']) for row in rows if row['case_key'] == case and row['position'] == 1)
+        if any(orders[order] != blocks // 6 for order in itertools.permutations(VARIANTS)):
+            raise ValueError('Permutation balance differs from the experiment contract.')
+    return {'passed': True, 'observations': len(rows), 'cases': len(keys), 'blocks': blocks,
+            'observations_per_variant_per_case': blocks, 'per_position': blocks // 3,
+            'per_permutation': blocks // 6, 'exact_values_compared': sum(row['exact_values_compared'] for row in rows),
+            'outliers_discarded': 0, 'missing_imputed': 0}
+
+
+def state_summary(states):
+    counters = {}
+    def collect(prefix, value):
+        if isinstance(value, dict):
+            if value.get('status') in ('known', 'unknown') and 'value' in value:
+                item = json.dumps(value['value'], sort_keys=True)
+                counters.setdefault(prefix, collections.Counter())[item] += 1
+            else:
+                for key, child in value.items():
+                    collect(prefix + '.' + key if prefix else key, child)
+    for state in states:
+        collect('', {key: state[key] for key in ('foundation', 'pmset', 'sysctl', 'observer_scheduling_context',
+                        'exact_cpu_temperature_celsius', 'instantaneous_cpu_frequency_hz', 'power_watts')})
+    return {'snapshots': len(states), 'known_and_unknown_value_counts': counters,
+            'scope': 'Round boundaries only; not continuous or per-core telemetry. A nominal category does not prove stable frequency or placement.'}
+
+
+def figure(rows, output, case_keys=None):
+    os.environ['MPLCONFIGDIR'] = str(HERE.parents[2] / 'build/bench-cpu4096/matplotlib-cache')
+    os.environ['XDG_CACHE_HOME'] = str(HERE.parents[2] / 'build/bench-cpu4096/xdg-cache')
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 9, 'axes.spines.top': False,
+                         'axes.spines.right': False, 'savefig.facecolor': 'white'})
+    keys = case_keys or list(dict.fromkeys(row['case_key'] for row in rows))
+    blocks = len({row['round'] for row in rows})
+    colors = {'C': '#505b71', 'AOT': '#008db8', 'JIT': '#a74c9a'}
+    columns = 4
+    height = math.ceil(len(keys) / columns)
+    fig, axes = plt.subplots(height, columns, figsize=(16, height * 3.1), squeeze=False)
+    generator = random.Random(20261018)
+    for axis, case in zip(axes.flat, keys):
+        for index, variant in enumerate(VARIANTS, 1):
+            values = [row['elapsed_ns'] / 1e6 for row in rows if row['case_key'] == case and row['variant'] == variant]
+            axis.boxplot([values], positions=[index], widths=.48, showfliers=False,
+                         medianprops={'color': 'black'}, boxprops={'color': colors[variant]},
+                         whiskerprops={'color': colors[variant]}, capprops={'color': colors[variant]})
+            axis.scatter([index + generator.uniform(-.12, .12) for _ in values], values,
+                         s=10, alpha=.55, color=colors[variant], edgecolors='none')
+        axis.set_xticks([1, 2, 3], VARIANTS)
+        axis.set_title(case.replace('_', ' '), loc='left', fontsize=10, fontweight='bold')
+        axis.set_ylabel('Kernel time (ms)')
+        axis.grid(axis='y', alpha=.18)
+        axis.set_ylim(bottom=0)
+    for axis in list(axes.flat)[len(keys):]:
+        axis.axis('off')
+    fig.suptitle(f'C / Aevix AOT / Aevix JIT — {blocks} independent processes per case and variant', fontsize=15, y=.995)
+    fig.text(.01, .004, 'Every point retained. Boxes: median and IQR; whiskers: 1.5 IQR. Independent linear scales per panel; one warmup per process.', fontsize=9)
+    fig.tight_layout(rect=[0, .02, 1, .975])
+    fig.savefig(output / 'distributions.png', dpi=145)
+    plt.close(fig)
+    fig, axes = plt.subplots(height, columns, figsize=(16, height * 2.7), squeeze=False)
+    for axis, case in zip(axes.flat, keys):
+        panel_values = [1.0]
+        for variant in VARIANTS:
+            selected = [row for row in rows if row['case_key'] == case and row['variant'] == variant]
+            baseline = statistics.median(row['elapsed_ns'] for row in selected)
+            values = [statistics.median(row['elapsed_ns'] for row in selected if row['position'] == position) / baseline
+                      if baseline else float('nan') for position in (1, 2, 3)]
+            panel_values.extend(value for value in values if math.isfinite(value))
+            axis.plot([1, 2, 3], values, marker='o', color=colors[variant], linewidth=1.3)
+        axis.axhline(1, color='#777777', linestyle=':', linewidth=.8)
+        axis.set_xticks([1, 2, 3])
+        axis.set_xlabel('Position inside C/AOT/JIT group')
+        axis.set_ylabel('Position median / own median')
+        axis.set_title(case.replace('_', ' '), loc='left', fontsize=10, fontweight='bold')
+        axis.grid(axis='y', alpha=.18)
+        axis.set_ylim(0, max(panel_values) * 1.12)
+    for axis in list(axes.flat)[len(keys):]:
+        axis.axis('off')
+    fig.suptitle(f'Execution-order sensitivity — {blocks // 3} observations per position and variant', fontsize=15, y=.995)
+    handles = [Line2D([0], [0], color=colors[variant], marker='o', label=variant) for variant in VARIANTS]
+    fig.legend(handles=handles, loc='lower right', ncol=3, frameon=False)
+    fig.text(.01, .005, 'Descriptive groups only; randomized balance reduces order bias but does not establish a thermal or scheduler cause. Independent panel scales.', fontsize=9)
+    fig.tight_layout(rect=[0, .025, 1, .975])
+    fig.savefig(output / 'order_effects.png', dpi=145)
+    plt.close(fig)
+    selected_keys = [key for key in keys if key.startswith('lcg_256/') or key.startswith('lcg_16384/')]
+    if not selected_keys:
+        return
+    fig, axes = plt.subplots(len(selected_keys), 1, figsize=(12, 2.8 * len(selected_keys)), squeeze=False)
+    for axis, case in zip(axes.flat, selected_keys):
+        for variant in VARIANTS:
+            selected = sorted((row for row in rows if row['case_key'] == case and row['variant'] == variant), key=lambda row: row['round'])
+            axis.plot([row['round'] + 1 for row in selected], [row['elapsed_ns'] / 1e6 for row in selected],
+                      marker='.', markersize=5, color=colors[variant], alpha=.8, label=variant)
+        axis.set_title(case.replace('_', ' '), loc='left')
+        axis.set_xlabel('Randomized round'); axis.set_ylabel('Kernel time (ms)'); axis.grid(alpha=.18)
+        axis.set_ylim(bottom=0)
+    fig.suptitle('LCG chronological variation — every round retained', fontsize=14, y=.998)
+    fig.legend(handles=handles, loc='lower right', ncol=3, frameon=False)
+    fig.tight_layout(rect=[0, .02, 1, .98])
+    fig.savefig(output / 'chronology.png', dpi=145)
+    plt.close(fig)
+
+
+def analyze(args):
+    source = args.run.resolve()
+    receipt = json.loads((source / 'run.json').read_text())
+    rows = [json.loads(line) for line in (source / 'observations.jsonl').read_text().splitlines()]
+    if sha(source / 'observations.jsonl') != receipt['observations_sha256']:
+        raise ValueError('Preserved observation digest differs from its completed receipt.')
+    schedule = json.loads((source / 'schedule.json').read_text())
+    validation = validate(rows, receipt, schedule)
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    groups = {}
+    for case in receipt['selected_cases']:
+        groups[case] = {}
+        for variant in VARIANTS:
+            selected = sorted((row for row in rows if row['case_key'] == case and row['variant'] == variant), key=lambda row: row['round'])
+            times = [row['elapsed_ns'] for row in selected]
+            positions = {str(position): describe([row['elapsed_ns'] for row in selected if row['position'] == position]) for position in (1, 2, 3)}
+            orders = {'>'.join(order): describe([row['elapsed_ns'] for row in selected if row['order'] == list(order)]) for order in itertools.permutations(VARIANTS)}
+            preceding = {}
+            for previous in VARIANTS:
+                values = [row['elapsed_ns'] for row in selected if row.get('previous_global_variant') == previous]
+                if len(values) >= 2:
+                    preceding[previous] = describe(values)
+            groups[case][variant] = {'kernel': describe(times),
+                'whole_process': describe([row['whole_process_wall_ns'] for row in selected]),
+                'by_position': positions, 'by_permutation': orders,
+                'by_previous_global_variant_unbalanced_descriptive': preceding,
+                'position_median_max_over_min': max(row['median_ns'] for row in positions.values()) / min(row['median_ns'] for row in positions.values())
+                    if min(row['median_ns'] for row in positions.values()) else None,
+                'reaped_children_user_seconds_total': sum(row['reaped_children_user_seconds_delta'] for row in selected),
+                'reaped_children_system_seconds_total': sum(row['reaped_children_system_seconds_delta'] for row in selected),
+                'involuntary_switches_total': sum(row['reaped_children_involuntary_switches_delta'] for row in selected),
+                'voluntary_switches_total': sum(row['reaped_children_voluntary_switches_delta'] for row in selected)}
+        base = sorted((row for row in rows if row['case_key'] == case and row['variant'] == 'C'), key=lambda row: row['round'])
+        for variant in ('AOT', 'JIT'):
+            selected = sorted((row for row in rows if row['case_key'] == case and row['variant'] == variant), key=lambda row: row['round'])
+            seed = int.from_bytes(hashlib.sha256((case + variant).encode()).digest()[:8], 'big')
+            groups[case][variant]['paired_vs_C'] = paired_ratios([row['elapsed_ns'] for row in selected], [row['elapsed_ns'] for row in base], seed)
+    summary = {'schema_version': 1, 'description': 'All-sample distribution and order analysis of one local randomized native experiment.',
+               'source_hashes': {'receipt': sha(source / 'run.json'), 'observations': sha(source / 'observations.jsonl'),
+                                 'schedule': sha(source / 'schedule.json'), 'prepared': receipt['prepared_sha256'], 'analyzer': sha(__file__)},
+               'validation': validation, 'order_seed': receipt['order_seed'], 'groups': groups,
+               'editorial_notes': getattr(args, 'note', []),
+               'host_state': state_summary(receipt['states']),
+               'limits': receipt['limits'] + ['Ratios compare temporally paired rounds, not simultaneous executions.',
+                'Position/permutation groups are descriptive; no causal hardware claim or family-wise significance test is made.',
+                'C/AOT use the same default arm64 target; JIT host CPU detection cannot currently be forced to match.',
+                'Cold process/JIT setup is outside the kernel timer but remains in whole-process wall time.']}
+    (output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+    columns = ['round', 'case_key', 'variant', 'position', 'order', 'elapsed_ns', 'whole_process_wall_ns',
+               'configured_participants', 'exact_values_compared', 'reaped_children_user_seconds_delta',
+               'reaped_children_system_seconds_delta', 'reaped_children_voluntary_switches_delta',
+               'reaped_children_involuntary_switches_delta', 'passed']
+    with (output / 'observations.csv').open('w', newline='') as stream:
+        writer = csv.DictWriter(stream, fieldnames=columns)
+        writer.writeheader()
+        for row in rows:
+            public = {key: row[key] for key in columns}
+            public['order'] = '>'.join(row['order'])
+            writer.writerow(public)
+    if not args.no_plots:
+        figure(rows, output, receipt['selected_cases'])
+    lines = ['# Randomized native benchmark results', '',
+             f"{validation['observations']} observations; {validation['cases']} cases; {validation['blocks']} independent processes per case and variant. "
+             f"All {validation['exact_values_compared']:,} final values matched independent oracles. No observations removed.", '',
+             'Kernel median times in milliseconds; CV is sample standard deviation divided by mean. Paired ratios greater than1 mean slower than C.', '',
+             '| Case | C median ms (CV) | AOT median ms (CV) | JIT median ms (CV) | Paired AOT/C | Paired JIT/C |',
+             '|---|---:|---:|---:|---:|---:|']
+    for case, group in groups.items():
+        cells = [f"{group[variant]['kernel']['median_ns']/1e6:.6f} (" +
+                 (f"{group[variant]['kernel']['cv_percent']:.1f}%" if group[variant]['kernel']['cv_percent'] is not None else 'CV unknown') + ')'
+                 for variant in VARIANTS]
+        ratios = [f"{group[variant]['paired_vs_C']['median_paired_ratio']:.3f}" if group[variant]['paired_vs_C']['status'] == 'computed' else 'unknown' for variant in ('AOT', 'JIT')]
+        lines.append('| ' + ' | '.join([case] + cells + ratios) + ' |')
+    for note in getattr(args, 'note', []):
+        lines += ['', note]
+    if not args.no_plots:
+        lines += ['', '![All distributions](distributions.png)', '', '![Position medians](order_effects.png)']
+        if (output / 'chronology.png').is_file():
+            lines += ['', '![LCG chronological variation](chronology.png)']
+    lines += ['',
+              'See `summary.json` for every quantile, bootstrap interval, order group, whole-process distribution, and observed/unknown host state. '
+              'See `observations.csv` for every retained sample without local paths or process identifiers.', '',
+              'These are selected local workloads, not a whole-language ranking. Order group differences do not identify scheduling, frequency or thermal causes. '
+              'Fresh-thread parallelism is not a reusable thread pool; fixed-O2 repeated JIT execution is not adaptive tiering.', '']
+    (output / 'RESULTS.md').write_text('\n'.join(lines))
+    print(json.dumps({'output': str(output), 'validation': validation}))
+
+
+def self_test():
+    result = describe([1, 2, 3, 4, 100])
+    assert result['median_ns'] == 3 and result['q1_ns'] == 2 and result['q3_ns'] == 4
+    assert result['mad_ns'] == 1 and result['tukey_flag_count_retained'] == 1
+    assert result['observations_removed'] == 0
+    ratio = paired_ratios([2 * (index + 1) for index in range(42)], list(range(1, 43)), 7, 100)
+    assert ratio['median_paired_ratio'] == 2 and ratio['interval_95'] == [2, 2]
+    assert paired_ratios([0] * 42, [1] * 42, 7)['status'] == 'unavailable'
+    assert math.isclose(result['sample_stdev_ns'], statistics.stdev([1, 2, 3, 4, 100]))
+    print('PASS quantiles, retained extreme value, sample variance, paired-block bootstrap, and zero-duration boundary.')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=['self-test', 'analyze'])
+    parser.add_argument('--run', type=Path)
+    parser.add_argument('--output', type=Path)
+    parser.add_argument('--no-plots', action='store_true')
+    parser.add_argument('--note', action='append', default=[], help='Explicit profile limitation retained in JSON and Markdown')
+    args = parser.parse_args()
+    if args.command == 'self-test':
+        return self_test()
+    if args.run is None or args.output is None:
+        parser.error('analyze requires --run and a fresh --output')
+    analyze(args)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, ValueError, KeyError) as error:
+        print('benchmark analysis: ' + str(error), file=sys.stderr)
+        sys.exit(2)

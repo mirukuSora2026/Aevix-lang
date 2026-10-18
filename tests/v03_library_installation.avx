@@ -1,0 +1,21 @@
+/*
+ * Exercise explicit-import CPU source modules from a relocated installation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import boolean;
+import integer;
+import unicode;
+T success<T,E>(Result<T,E> input) {
+    switch(move input) {
+        case Result<T,E>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+i32 main() {
+    if (success(integer.checked_add(20i128,22i128)) != 42i128) return 1;
+    if (!success(boolean.parse("true")) || boolean.from_nonzero(0i32)) return 2;
+    if (!unicode.is_alphabetic('λ') || unicode.is_alphabetic('0')) return 3;
+    return string.equals(unicode.unicode_version(),"17.0.0") ? 0 : 4;
+}

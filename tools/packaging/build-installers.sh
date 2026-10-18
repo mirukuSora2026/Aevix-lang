@@ -15,8 +15,8 @@ set -eu
 source_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd -P)
 build_dir=
 config=
-output_dir="$source_root/releases/0.2V/installers"
-version=0.2.0-dev
+output_dir="$source_root/releases/0.3V/installers"
+version=0.3.0
 bundle=yes
 while [ "$#" -gt 0 ]; do
     case "$1" in

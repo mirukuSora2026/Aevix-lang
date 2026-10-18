@@ -1,0 +1,1384 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "task_implementation_plan.json",
+  "description": {
+    "ko": "Task CPU 카탈로그 59개와 구조적 소유권을 지키기 위한 구현 순서. 구현 완료를 뜻하지 않는다.",
+    "en": "All 59 Task CPU catalog rows and the prerequisites for structured ownership; not an implementation claim."
+  },
+  "catalog_rows": 59,
+  "native_foundation": {
+    "source": [
+      "include/aevix/Runtime/TaskRuntime.hpp",
+      "include/aevix/Runtime/TaskScopeRuntime.hpp",
+      "include/aevix/Runtime/CancellationRuntime.hpp",
+      "runtime/Threading/TaskRuntime.cpp"
+    ],
+    "current_contract": "One native worker per task; gated prepare/commit/abort, terminal snapshot, cooperative requests, join/wait/timeout, terminal-only nonblocking try_take and global drain. Native structured Scope closes admission, drains all accepted children independently of discarded result observations, retries reap failure, and guards reentrant close. Independent native CancellationSource/Token roles retain small notification state after Task/Scope cleanup; new/clone/derivation are explicitly fallible. Source CancellationSource/Token and five cancellation aliases now have sealed, fallible bindings and local execution/safety gates. Generic worker Task<T>, source TaskScope, hierarchy, waits, executors and async remain separate obligations.",
+    "review_boundary": "Read-only audit found and fixed discarded-handle entry reuse and concurrent report ordering. Runtime task reports Scope589 checks, Task865 checks plus100 cancellation races, and cancellation1370 checks plus4000 clone/query/release iterations and200 derivation/cleanup races, including sanitizer runs. Static Windows linking is not execution. These native checks do not establish source Task, Send/Sync permissions, JIT lifetime, hierarchy, waits or async."
+  },
+  "implementation_order": [
+    {
+      "stage": 1,
+      "goal": "Sealed typed Task<T> owner and explicit lifecycle errors",
+      "requirements": [
+        "Never expose the raw runtime token or context pointer to source. Constructors, initialized-result state, consuming join and nullable/Consumed state are compiler-managed.",
+        "T remains the actual application result type: Task<Result<U,E>> joins to Result<Result<U,E>,TaskError>; no implicit flattening or automatic E conversion.",
+        "On native success/cancellation/failure, consume the native token exactly once. NotReady preserves it; validation/reap errors preserve the native owner. Source error handling must keep or safely drain that ownership obligation.",
+        "Source Task Drop must either synchronously wait/drain or transfer its obligation to a live structured scope; it cannot silently retire a running borrowed task. A blocking-drop profile must say so explicitly and must not pretend to implement nonblocking discard_result."
+      ]
+    },
+    {
+      "stage": 2,
+      "goal": "Real structured scope registry before borrowed spawn or result abandonment",
+      "requirements": [
+        "Register every accepted child before commit/scheduling. Allocation or admission failure must leave no untracked worker; destroy unstarted owned captures exactly once or preserve input handles where the catalog requires.",
+        "TaskScope owns the drain obligation independently of result handles. close_scope closes admission, joins all children, releases all scoped loans and reports lifecycle failures; global process drain is not a substitute.",
+        "Borrowed captures, result handles and error carriers may not outlive their lexical source owners or scope. Scope/child lifetimes require compiler provenance, including early returns and nested scopes.",
+        "Nonblocking discard_result may discard result observation only after scope ownership is retained. The native Scope backend now implements that tracking; source capabilities and lexical loan release still require compiler integration."
+      ]
+    },
+    {
+      "stage": 3,
+      "goal": "Safe work transfer and one-shot result access",
+      "requirements": [
+        "spawn_owned moves F implementing FnOnce<Tuple<>,T>; repeatable Fn is not required. Captures/result/destructors need valid transfer permissions for native-thread execution.",
+        "Reject non-Send guards, thread-affine native owners and short-lived captures on migrating workers; owning a value alone does not prove Send. Shared/Weak permissions must follow actual Send/Sync checks.",
+        "try_take is a true nonblocking take: NotReady -> Ok(None), terminal success -> Ok(Some(T)) and mark handle Consumed; terminal lifecycle errors consume only after the runtime says so.",
+        "wait_timeout observes readiness; timeout neither cancels nor ends capture use or loans. cancel_and_join requests then returns actual completion, including races won by successful work."
+      ]
+    },
+    {
+      "stage": 4,
+      "goal": "Independent cancellation ownership",
+      "requirements": [
+        "CancellationToken must retain notification state after the source/task handle is gone. The native TaskContext pointer is valid only during invoke and cannot serve as a returned token.",
+        "CancellationSource has request authority; CancellationToken is a retained readonly observer. Cloning shares state; cancel_child propagates parent requests only downward.",
+        "Requests are cooperative and do not prove worker completion or release captures. check_cancel returns a typed Cancelled value; no forced thread termination.",
+        "The catalog cancel_token/cancel_clone return values are nonfallible, while Shared clone/retain currently reports RefCountError. Reconcile overflow/retain policy explicitly; do not erase a recoverable refcount error or silently claim the same source signature."
+      ]
+    },
+    {
+      "stage": 5,
+      "goal": "Safe groups and composition",
+      "requirements": [
+        "join_all and join_pair must wait every child even after an earlier failure; output allocation failure must preserve structured tracking.",
+        "map/then scheduling failure preserves the consumed input handle in SpawnInputError<Task<T>>. Mapper execution starts only after the input cleanup/result-take boundary.",
+        "JoinSet membership belongs to a compatible live scope; dropping the group does not detach or untrack children.",
+        "race is nonempty and returns owned handles for unfinished losers. It may not drop losers, force-cancel them, or return an outcome while abandoning their lifetime obligations."
+      ]
+    },
+    {
+      "stage": 6,
+      "goal": "Executors, local work, timers and suspension",
+      "requirements": [
+        "ExecutorId is scheduler identity, not OS thread id. A one-thread-per-task native backend is not a blocking pool or a local executor.",
+        "spawn_local/local_scope require execution on a compatible local executor without moving non-Send captures to the native worker backend.",
+        "Awaitable-returning APIs need actual suspension/wake/timer integration. A blocking join/sleep wrapped in an Awaitable name does not implement the catalog contract.",
+        "deadline_after uses checked monotonic time. sleep/yield_now need scheduler semantics; shutdown closes admission and drains without forced release of borrowed work."
+      ]
+    },
+    {
+      "stage": 7,
+      "goal": "Explicit detach and capture diagnostics only after ownership infrastructure",
+      "requirements": [
+        "detach permits independently owned/static-valid captures only and transfers the scope obligation to a retained detached registry. Failure must return the original Task<T>.",
+        "Terminal-only native pthread_detach/CloseHandle in try_take is OS metadata auto-reaping after all language work; it is not source-level Task.detach.",
+        "validate_captures is a compiler diagnostic/reporting facility and cannot be a runtime cast, Send bypass or lifetime validator."
+      ]
+    }
+  ],
+  "must_reject_until_supported": [
+    "Borrowed/thread-affine work on native workers without precise transfer and lifetime proofs.",
+    "A scoped Task/error/JoinSet/awaitable escaping its source storage or a scope closing while accepted work remains untracked.",
+    "await_result/await_timeout/await_scope/await_cancel/join_next/drain/wait_deadline/sleep/yield_now/cancel_scope_and_wait as suspension APIs without an executor/state machine/wake mechanism.",
+    "spawn_local/local_scope implemented by the migrating native-thread backend.",
+    "discard_result as a nonblocking operation without retained scope tracking; substituting blocking cleanup silently changes its contract.",
+    "detach for borrowed captures or by merely returning a raw token; terminal OS auto-reaping is not source detach.",
+    "Borrowing T from observe/status, taking T twice, aliasing a mutable take, or treating cancellation request/timeout as completed cleanup.",
+    "Returning TaskError after losing a still-running native owner on a reap failure unless an existing scope retains/drains the obligation.",
+    "Returning an escaping TaskContext pointer as CancellationToken, manufacturing ExecutorId from worker id, or returning success for unimplemented scheduling/diagnostic facilities."
+  ],
+  "required_gates": [
+    "Exact capture/result Drop on success, pre-invoke cancellation, in-flight cancellation, failed registration, failed reap, unclaimed result and consumed state.",
+    "Custom Drop and reference-containing captures/results; no short-lived local escapes, owner mutation while work may use loans, nested-scope and early-return drains.",
+    "Guard/thread-affinity negatives, unsupported Send/Sync types, self-join and incompatible executor contexts.",
+    "Try-take nonblocking tail test, timeout keeps live work, cancellation race permits normal completion, every group child drained, race loser handles preserved.",
+    "Deterministic allocation/thread-creation/reap failures, source check/AOT/JIT O0/O2, AIR malformed-operation rejection and per-claimed-target execution."
+  ],
+  "groups": {
+    "lifecycle_and_observation": {
+      "count": 7,
+      "operations": [
+        "Task.id",
+        "Task.executor",
+        "Task.status",
+        "Task.observe",
+        "Task.is_finished",
+        "Task.is_cancel_requested",
+        "Task.set_label"
+      ]
+    },
+    "structured_scope": {
+      "count": 10,
+      "operations": [
+        "Task.open_scope",
+        "Task.scope",
+        "Task.close_admission",
+        "Task.close_scope",
+        "Task.scope_id",
+        "Task.scope_status",
+        "Task.active_count",
+        "Task.request_scope_cancel",
+        "Task.cancel_scope_and_wait",
+        "Task.await_scope"
+      ]
+    },
+    "spawn_and_terminal_owners": {
+      "count": 7,
+      "operations": [
+        "Task.spawn",
+        "Task.spawn_owned",
+        "Task.spawn_blocking",
+        "Task.spawn_local",
+        "Task.local_scope",
+        "Task.ready",
+        "Task.failed"
+      ]
+    },
+    "result_take_and_wait": {
+      "count": 8,
+      "operations": [
+        "Task.join",
+        "Task.try_take",
+        "Task.wait_timeout",
+        "Task.cancel_and_join",
+        "Task.discard_result",
+        "Task.await_result",
+        "Task.await_timeout",
+        "Task.wait_deadline"
+      ]
+    },
+    "cancellation_capabilities": {
+      "count": 10,
+      "operations": [
+        "Task.request_cancel",
+        "Task.cancel_source",
+        "Task.cancel_token",
+        "Task.cancel_clone",
+        "Task.cancel_child",
+        "Task.cancel_request",
+        "Task.cancel_requested",
+        "Task.check_cancel",
+        "Task.cancellation",
+        "Task.await_cancel"
+      ]
+    },
+    "groups_and_combinators": {
+      "count": 10,
+      "operations": [
+        "Task.join_pair",
+        "Task.join_all",
+        "Task.join_set",
+        "Task.insert",
+        "Task.join_next",
+        "Task.drain",
+        "Task.map",
+        "Task.then",
+        "Task.race",
+        "Task.race_with_policy"
+      ]
+    },
+    "timers_and_executor": {
+      "count": 4,
+      "operations": [
+        "Task.deadline_after",
+        "Task.sleep",
+        "Task.yield_now",
+        "Task.shutdown"
+      ]
+    },
+    "explicit_detachment": {
+      "count": 2,
+      "operations": [
+        "Task.detach",
+        "Task.join_detached"
+      ]
+    },
+    "compiler_capture_diagnostics": {
+      "count": 1,
+      "operations": [
+        "Task.validate_captures"
+      ]
+    }
+  },
+  "catalog": [
+    {
+      "name": "Task.active_count",
+      "signature": "Task.active_count(&TaskScope scope)",
+      "returns": "usize",
+      "contract": "Snapshot of registered unfinished children; not a standalone synchronization proof. | O(1) or registry query.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-active_count",
+          "section": "functions",
+          "line": 94
+        }
+      ],
+      "id": "catalog:8d15fa30ce28c87c7e19",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.await_cancel",
+      "signature": "Task.await_cancel(CancellationToken token)",
+      "returns": "Awaitable<unit>",
+      "contract": "Resolves once a request is visible; does not wait for task cleanup. | Wake registration/suspension.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-await_cancel",
+          "section": "functions",
+          "line": 100
+        }
+      ],
+      "id": "catalog:9437b2c2a321e1700d54",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.await_result",
+      "signature": "Task.await_result(&mut Task<T> task)",
+      "returns": "Awaitable<Result<T, TaskError>>",
+      "contract": "Suspends host computation; exclusive result take; lifetime of wait object retains scope obligations. | Scheduling/suspension cost; not a GPU command.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-await_result",
+          "section": "join-functions",
+          "line": 135
+        }
+      ],
+      "id": "catalog:ff6c6220a22676777798",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.await_scope",
+      "signature": "Task.await_scope(TaskScope scope)",
+      "returns": "Awaitable<Result<ScopeReport, ScopeError>>",
+      "contract": "Requires admission closed; drains all children and releases scoped loans before returning. | Suspends; may never complete for noncooperative work.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-await_scope",
+          "section": "functions",
+          "line": 98
+        }
+      ],
+      "id": "catalog:a7913c64a2e781682658",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.await_timeout",
+      "signature": "Task.await_timeout(&Task<T> task, Duration timeout)",
+      "returns": "Awaitable<Result<WaitStatus, TaskError>>",
+      "contract": "Suspending timeout observation; timed-out work remains registered and running. | Timer/scheduler overhead.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-await_timeout",
+          "section": "join-functions",
+          "line": 141
+        }
+      ],
+      "id": "catalog:70ec778f99f59494b246",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_and_join",
+      "signature": "Task.cancel_and_join(Task<T> task)",
+      "returns": "Result<T, TaskError>",
+      "contract": "Requests then joins actual outcome; normal completion can win the race. | May wait indefinitely.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_and_join",
+          "section": "functions",
+          "line": 102
+        }
+      ],
+      "id": "catalog:81b5dc46002911a56aa8",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_child",
+      "signature": "Task.cancel_child(&CancellationToken parent)",
+      "returns": "Result<CancellationSource, CancellationError>",
+      "contract": "New child state receives parent propagation; child request does not affect parent. | May allocate/register.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_child",
+          "section": "functions",
+          "line": 92
+        }
+      ],
+      "id": "catalog:07591636b51e70778885",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_clone",
+      "signature": "Task.cancel_clone(&CancellationToken token)",
+      "returns": "CancellationToken",
+      "contract": "Retained observer of the same request state, not a new independent child. | O(1) retain.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_clone",
+          "section": "functions",
+          "line": 94
+        }
+      ],
+      "id": "catalog:d3ba890a3e39367e31b3",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_request",
+      "signature": "Task.cancel_request(&CancellationSource source)",
+      "returns": "Result<CancelRequest, CancellationError>",
+      "contract": "Idempotent request; reports newly-requested or already-requested state. | Notification/propagation cost.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_request",
+          "section": "functions",
+          "line": 96
+        }
+      ],
+      "id": "catalog:95e754d65a7250673347",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_requested",
+      "signature": "Task.cancel_requested(&CancellationToken token)",
+      "returns": "bool",
+      "contract": "Synchronized request snapshot; no completion guarantee. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_requested",
+          "section": "functions",
+          "line": 98
+        }
+      ],
+      "id": "catalog:dca012c34a63b6b326d7",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_scope_and_wait",
+      "signature": "Task.cancel_scope_and_wait(TaskScope scope)",
+      "returns": "Awaitable<Result<ScopeReport, ScopeError>>",
+      "contract": "Closes admission, requests cancellation, drains all accepted children. | May wait indefinitely.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_scope_and_wait",
+          "section": "functions",
+          "line": 104
+        }
+      ],
+      "id": "catalog:24908a935c89dbc5516d",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_source",
+      "signature": "Task.cancel_source()",
+      "returns": "Result<CancellationSource, CancellationError>",
+      "contract": "Creates independent unrequested state. | May allocate.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_source",
+          "section": "functions",
+          "line": 88
+        }
+      ],
+      "id": "catalog:b0e5a45db98b04f01968",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancel_token",
+      "signature": "Task.cancel_token(&CancellationSource source)",
+      "returns": "CancellationToken",
+      "contract": "Retained read-only notification capability; source lifetime alone is not required afterward. | O(1) state retain.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-cancel_token",
+          "section": "functions",
+          "line": 90
+        }
+      ],
+      "id": "catalog:fe3f34e9e547f3517e91",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.cancellation",
+      "signature": "Task.cancellation(&Task<T> task)",
+      "returns": "CancellationToken",
+      "contract": "Returns retained read-only cancellation notification capability. | Reference-count/state retention cost.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-cancellation",
+          "section": "composition-functions",
+          "line": 175
+        }
+      ],
+      "id": "catalog:6c8a7d6d83feeba8e292",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.check_cancel",
+      "signature": "Task.check_cancel(&CancellationToken token)",
+      "returns": "Result<unit, Cancelled>",
+      "contract": "Cooperative checkpoint; reports a request without killing task or releasing captures. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-check_cancel",
+          "section": "composition-functions",
+          "line": 179
+        }
+      ],
+      "id": "catalog:a505e9072f836273a295",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.close_admission",
+      "signature": "Task.close_admission(&TaskScope scope)",
+      "returns": "Result<unit, ScopeError>",
+      "contract": "Stops new accepted registrations; existing work remains live. | O(1) synchronized transition.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-close_admission",
+          "section": "functions",
+          "line": 92
+        }
+      ],
+      "id": "catalog:e051a55860516e853af7",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.close_scope",
+      "signature": "Task.close_scope(TaskScope scope)",
+      "returns": "Result<ScopeReport, ScopeError>",
+      "contract": "Stops admission, joins accepted children, releases loans before return; report retains unobserved lifecycle failures. | May wait indefinitely; no implicit detach.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-close_scope",
+          "section": "creation-functions",
+          "line": 97
+        }
+      ],
+      "id": "catalog:5b5b80ec2aeb0be8af97",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.deadline_after",
+      "signature": "Task.deadline_after(Duration duration)",
+      "returns": "Result<Deadline, TimerError>",
+      "contract": "Checked monotonic deadline computation; no wall-clock dependency. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-deadline_after",
+          "section": "functions",
+          "line": 106
+        }
+      ],
+      "id": "catalog:d7ae885e0e8f1ad86542",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "timers_and_executor",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.detach",
+      "signature": "Task.detach(Task<T> task, DetachPolicy policy)",
+      "returns": "Result<DetachedTask, DetachError<Task<T>>>",
+      "contract": "Only independently owned/static-valid captures; failure returns original handle; runtime retains lifetime obligations. | Explicit scope transfer; detached runtime registry.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-detach",
+          "section": "join-functions",
+          "line": 153
+        }
+      ],
+      "id": "catalog:33009694095613ef6cb2",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "explicit_detachment",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.discard_result",
+      "signature": "Task.discard_result(Task<T> task)",
+      "returns": "Result<unit, TaskError>",
+      "contract": "Abandons result observation; scope still tracks work, failures and resource cleanup. | Nonblocking; destructor not sole tracker.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-discard_result",
+          "section": "join-functions",
+          "line": 145
+        }
+      ],
+      "id": "catalog:0f5e02d660d40f7376eb",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.drain",
+      "signature": "Task.drain<T>(JoinSet<T> set)",
+      "returns": "Awaitable<Result<Vector<Result<T, TaskError>>, JoinError>>",
+      "contract": "Collects every registered group result before returning; scope obligations remain tracked on allocation error. | O(tasks); output allocation.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-drain",
+          "section": "functions",
+          "line": 106
+        }
+      ],
+      "id": "catalog:c5135c4b9c036dc71bff",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.executor",
+      "signature": "Task.executor(&Task<T> task)",
+      "returns": "ExecutorId",
+      "contract": "Scheduler identity or local executor binding; not current worker-thread identity. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-executor",
+          "section": "composition-functions",
+          "line": 191
+        }
+      ],
+      "id": "catalog:eb38aae758ff8c0e9902",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "lifecycle_and_observation",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.failed",
+      "signature": "Task.failed<T>(&TaskScope scope, TaskError error)",
+      "returns": "Result<Task<T>, SpawnError>",
+      "contract": "Creates tracked terminal lifecycle failure; does not encode an application E automatically. | State allocation may fail.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-failed",
+          "section": "creation-functions",
+          "line": 109
+        }
+      ],
+      "id": "catalog:9a6b73cd00e67f45d875",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "spawn_and_terminal_owners",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.id",
+      "signature": "Task.id(&Task<T> task)",
+      "returns": "TaskId",
+      "contract": "Stable identity during task state lifetime; not an OS thread ID. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-id",
+          "section": "creation-functions",
+          "line": 111
+        }
+      ],
+      "id": "catalog:9860f857031f1209619f",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "lifecycle_and_observation",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.insert",
+      "signature": "Task.insert<T>(&mut JoinSet<T> set, Task<T> task)",
+      "returns": "Result<unit, JoinInsertError<Task<T>>>",
+      "contract": "Requires same compatible scope and no result take; error preserves handle. | Registration/bookkeeping cost.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-insert",
+          "section": "functions",
+          "line": 102
+        }
+      ],
+      "id": "catalog:81745db339b3ee909875",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.is_cancel_requested",
+      "signature": "Task.is_cancel_requested(&Task<T> task)",
+      "returns": "bool",
+      "contract": "Snapshot of request flag, independent of success/finished state. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-is_cancel_requested",
+          "section": "composition-functions",
+          "line": 177
+        }
+      ],
+      "id": "catalog:4007b14411ec683383de",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "lifecycle_and_observation",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.is_finished",
+      "signature": "Task.is_finished(&Task<T> task)",
+      "returns": "bool",
+      "contract": "True only once required task-local cleanup/captured loan use is complete; not a success test. | O(1); no waiting.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-is_finished",
+          "section": "creation-functions",
+          "line": 115
+        }
+      ],
+      "id": "catalog:f88588d7ee7663505c62",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "lifecycle_and_observation",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.join",
+      "signature": "Task.join(Task<T> task)",
+      "returns": "Result<T, TaskError>",
+      "contract": "Consumes result handle, waits to terminal state and transfers the result exactly once. | Blocking wait; forbidden on incompatible executor context.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-join",
+          "section": "join-functions",
+          "line": 133
+        }
+      ],
+      "id": "catalog:0d67629e46ea837fc572",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.join_all",
+      "signature": "Task.join_all(Vector<Task<T>> tasks)",
+      "returns": "Result<Vector<Result<T, TaskError>>, JoinError>",
+      "contract": "Waits for every task and returns outcomes in input order; no fail-fast child abandonment. | O(tasks); allocates result vector.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-join_all",
+          "section": "join-functions",
+          "line": 147
+        }
+      ],
+      "id": "catalog:e9e2b2ae4cc0a5be6393",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.join_detached",
+      "signature": "Task.join_detached(DetachedTask task)",
+      "returns": "Result<unit, TaskError>",
+      "contract": "Observes detached terminal lifecycle and cleanup; result T was discarded by detach policy. | May wait; no ownership recovery of T.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-join_detached",
+          "section": "join-functions",
+          "line": 155
+        }
+      ],
+      "id": "catalog:d03f25fecb5d446fa683",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "explicit_detachment",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.join_next",
+      "signature": "Task.join_next<T>(&mut JoinSet<T> set)",
+      "returns": "Awaitable<Result<Optional<Result<T, TaskError>>, JoinError>>",
+      "contract": "Returns one completed task outcome; absence only when admission/group membership exhausted. | Suspends; removes one result.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-join_next",
+          "section": "functions",
+          "line": 104
+        }
+      ],
+      "id": "catalog:ae0018724d05d3280852",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.join_pair",
+      "signature": "Task.join_pair(Task<A> a, Task<B> b)",
+      "returns": "Result<(Result<A, TaskError>, Result<B, TaskError>), JoinError>",
+      "contract": "Waits both children regardless of one failing. | May block; fixed tuple output.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-join_pair",
+          "section": "join-functions",
+          "line": 149
+        }
+      ],
+      "id": "catalog:04a75292e3c30e139684",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.join_set",
+      "signature": "Task.join_set<T>(&TaskScope scope)",
+      "returns": "Result<JoinSet<T>, SpawnError>",
+      "contract": "Creates result grouping tied to existing scope; dropping group does not untrack its tasks. | Allocates grouping state.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-join_set",
+          "section": "functions",
+          "line": 100
+        }
+      ],
+      "id": "catalog:40d9ad7e4d66a82eeff6",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.local_scope",
+      "signature": "Task.local_scope<T>(&LocalExecutor executor, ScopeBody<T> body)",
+      "returns": "Result<T, ScopeError>",
+      "contract": "Scope and children stay on same local executor; borrowed data still cannot escape. | Scheduling and drain costs.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-local_scope",
+          "section": "functions",
+          "line": 108
+        }
+      ],
+      "id": "catalog:1f621b3343d4fdc67b03",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "spawn_and_terminal_owners",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.map",
+      "signature": "Task.map<T, U>(&TaskScope scope, Task<T> input, Mapper<T, U> function)",
+      "returns": "Result<Task<Result<U, TaskError>>, SpawnInputError<Task<T>>>",
+      "contract": "Tracks input and child; mapper runs after successful input take; input lifecycle failure remains inner TaskError. | Scheduling/state allocation; failure preserves input in error payload.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-map",
+          "section": "composition-functions",
+          "line": 185
+        }
+      ],
+      "id": "catalog:c008b8243dc2ceeba3bc",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.observe",
+      "signature": "Task.observe(&Task<T> task)",
+      "returns": "TaskObservation",
+      "contract": "Snapshot without consuming result; cannot provide an escaping borrowed T. | O(1); synchronized.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-observe",
+          "section": "join-functions",
+          "line": 143
+        }
+      ],
+      "id": "catalog:e219867d89a7fb0f63ff",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "lifecycle_and_observation",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.open_scope",
+      "signature": "Task.open_scope(&Executor executor, ScopeOptions options)",
+      "returns": "Result<TaskScope, SpawnError>",
+      "contract": "Creates a compiler-tracked scope obligation; cannot escape storage it may borrow. | Registry allocation may fail.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-open_scope",
+          "section": "creation-functions",
+          "line": 95
+        }
+      ],
+      "id": "catalog:9aa6adac012aae613bce",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.race",
+      "signature": "Task.race(Vector<Task<T>> tasks)",
+      "returns": "Result<RaceOutcome<T>, JoinError>",
+      "contract": "Nonempty input; returns first terminal outcome plus owned handles for every unfinished loser. | Allocates bookkeeping; no automatic cancel.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-race",
+          "section": "join-functions",
+          "line": 151
+        }
+      ],
+      "id": "catalog:02f03df95317b3e3a371",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.race_with_policy",
+      "signature": "Task.race_with_policy(Vector<Task<T>> tasks, RacePolicy policy)",
+      "returns": "Result<RaceOutcome<T>, JoinError>",
+      "contract": "Nonempty input; named tie policy; unfinished losers returned as handles. | Bookkeeping allocation possible.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-race_with_policy",
+          "section": "functions",
+          "line": 110
+        }
+      ],
+      "id": "catalog:7a6ef6a709cb3d961dad",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.ready",
+      "signature": "Task.ready<T>(&TaskScope scope, T value)",
+      "returns": "Result<Task<T>, SpawnError>",
+      "contract": "Creates already-completed tracked task retaining value until taken or scope cleanup. | State allocation may fail.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-ready",
+          "section": "creation-functions",
+          "line": 107
+        }
+      ],
+      "id": "catalog:b17e90d03b8d2de059da",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "spawn_and_terminal_owners",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.request_cancel",
+      "signature": "Task.request_cancel(&Task<T> task)",
+      "returns": "Result<CancelRequest, TaskError>",
+      "contract": "Requests cooperative cancellation; outcome reports accepted/already-terminal/unsupported, never proves completion. | O(1) signal plus wake cost.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-request_cancel",
+          "section": "composition-functions",
+          "line": 173
+        }
+      ],
+      "id": "catalog:4db3074caf2e4cb31601",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "cancellation_capabilities",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.request_scope_cancel",
+      "signature": "Task.request_scope_cancel(&TaskScope scope)",
+      "returns": "Result<CancelRequest, ScopeError>",
+      "contract": "Signals all registered children and propagating token descendants; does not drain them. | O(children) notifications possible.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-request_scope_cancel",
+          "section": "functions",
+          "line": 96
+        }
+      ],
+      "id": "catalog:160acfc2b21cf2035c20",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.scope",
+      "signature": "Task.scope<T>(&Executor executor, ScopeBody<T> body)",
+      "returns": "Result<T, ScopeError>",
+      "contract": "Body receives a lexical scope; all accepted children drained before returning; child failures reported by policy. | Allocates/tracks; explicit join boundary.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-scope",
+          "section": "creation-functions",
+          "line": 93
+        }
+      ],
+      "id": "catalog:cae96815e384ed0866a3",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.scope_id",
+      "signature": "Task.scope_id(&TaskScope scope)",
+      "returns": "ScopeId",
+      "contract": "Stable registry identity during scope lifetime. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-scope_id",
+          "section": "functions",
+          "line": 88
+        }
+      ],
+      "id": "catalog:4884b6ec4b69eca0e4b3",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.scope_status",
+      "signature": "Task.scope_status(&TaskScope scope)",
+      "returns": "ScopeStatus",
+      "contract": "Open, Closing or Drained snapshot; Drained proves no remaining scope loan use. | O(1).",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-scope_status",
+          "section": "functions",
+          "line": 90
+        }
+      ],
+      "id": "catalog:eddcdd470e79afff552d",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "structured_scope",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.set_label",
+      "signature": "Task.set_label(&mut Task<T> task, string_view label)",
+      "returns": "Result<unit, TaskMetadataError>",
+      "contract": "Copies UTF-8 label explicitly; invalid state/allocation error; no borrowed dangling label. | O(label bytes); allocates.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-set_label",
+          "section": "composition-functions",
+          "line": 193
+        }
+      ],
+      "id": "catalog:a5023def0fe0cd66844d",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "lifecycle_and_observation",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.shutdown",
+      "signature": "Task.shutdown(Executor executor, ShutdownPolicy policy)",
+      "returns": "Result<ShutdownReport, ShutdownError>",
+      "contract": "Closes admission, requests configured cancellation and drains tracked tasks; no unsafe forced release of borrowed work. | May wait indefinitely; fatal policy explicit.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-shutdown",
+          "section": "composition-functions",
+          "line": 195
+        }
+      ],
+      "id": "catalog:be5b2360cc57fd3b53a3",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "timers_and_executor",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.sleep",
+      "signature": "Task.sleep(Duration duration)",
+      "returns": "Awaitable<Result<unit, TimerError>>",
+      "contract": "Timer suspension; duration checked; no exact wake-up deadline guarantee. | Timer registration may allocate/fail.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-sleep",
+          "section": "composition-functions",
+          "line": 183
+        }
+      ],
+      "id": "catalog:a6aa1afdd06fbbc33b75",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "timers_and_executor",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.spawn",
+      "signature": "Task.spawn<T>(&TaskScope scope, Work<T> work)",
+      "returns": "Result<Task<T>, SpawnError>",
+      "contract": "Registers scoped captures before scheduling; accepts only lifetime/transfer-safe work. | Scheduling/allocation costs.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-spawn",
+          "section": "creation-functions",
+          "line": 99
+        }
+      ],
+      "id": "catalog:aed09570ca41e4869f6a",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "spawn_and_terminal_owners",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.spawn_blocking",
+      "signature": "Task.spawn_blocking<T>(&TaskScope scope, BlockingWork<T> work)",
+      "returns": "Result<Task<T>, SpawnError>",
+      "contract": "Blocking-pool execution; running work cannot be force-killed by cancellation. | May reserve worker/allocate.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-spawn_blocking",
+          "section": "creation-functions",
+          "line": 105
+        }
+      ],
+      "id": "catalog:eff3927cd3cef806fe9c",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "spawn_and_terminal_owners",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.spawn_local",
+      "signature": "Task.spawn_local<T>(&LocalTaskScope scope, LocalWork<T> work)",
+      "returns": "Result<Task<T>, SpawnError>",
+      "contract": "Non-Send captures stay on compatible local executor and within scope lifetime. | Local scheduling; no migration.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-spawn_local",
+          "section": "creation-functions",
+          "line": 103
+        }
+      ],
+      "id": "catalog:98fc2cfc139225c577ff",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "spawn_and_terminal_owners",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.spawn_owned",
+      "signature": "Task.spawn_owned<T>(&TaskScope scope, OwnedWork<T> work)",
+      "returns": "Result<Task<T>, SpawnError>",
+      "contract": "Owned captures move into the call and remain structured; failed registration safely destroys unstarted work/captures and releases their scoped loans. | May allocate and queue.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-spawn_owned",
+          "section": "creation-functions",
+          "line": 101
+        }
+      ],
+      "id": "catalog:636e76eea5ce099a8b89",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "spawn_and_terminal_owners",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.status",
+      "signature": "Task.status(&Task<T> task)",
+      "returns": "TaskStatus",
+      "contract": "Observation snapshot of phase plus cancellation-request flag. | O(1) synchronized query.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-status",
+          "section": "creation-functions",
+          "line": 113
+        }
+      ],
+      "id": "catalog:3482e2b7824f4e44a70e",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "lifecycle_and_observation",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.then",
+      "signature": "Task.then<T, U>(&TaskScope scope, Task<T> input, OutcomeMapper<T, U> function)",
+      "returns": "Result<Task<U>, SpawnInputError<Task<T>>>",
+      "contract": "Mapper receives Result<T, TaskError> after input finishes; does not run before cleanup boundary. | May allocate; failure preserves consumed work handles.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-then",
+          "section": "composition-functions",
+          "line": 187
+        }
+      ],
+      "id": "catalog:94b7bb2462e65c4b670d",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "groups_and_combinators",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.try_take",
+      "signature": "Task.try_take(&mut Task<T> task)",
+      "returns": "Result<Optional<T>, TaskError>",
+      "contract": "Absent while running; present takes terminal success once; consumed handle reports Consumed. | Nonblocking synchronized operation.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-try_take",
+          "section": "join-functions",
+          "line": 137
+        }
+      ],
+      "id": "catalog:78de774cb3e5775abe43",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.validate_captures",
+      "signature": "Task.validate_captures(Work<T> work, ScopeDescriptor scope)",
+      "returns": "CaptureReport",
+      "contract": "Compile-time/diagnostic view of transfer and lifetime requirements; not a dynamic bypass. | Diagnostics; no scheduling.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Scope.html",
+          "anchor": "Task-validate_captures",
+          "section": "functions",
+          "line": 110
+        }
+      ],
+      "id": "catalog:c7910d13ab50b2d39be9",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "compiler_capture_diagnostics",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.wait_deadline",
+      "signature": "Task.wait_deadline(&Task<T> task, Deadline deadline)",
+      "returns": "Awaitable<Result<WaitStatus, TaskError>>",
+      "contract": "Observation only; expiry does not release captures or cancel task. | Timer scheduling cost.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task_Cancellation.html",
+          "anchor": "Task-wait_deadline",
+          "section": "functions",
+          "line": 108
+        }
+      ],
+      "id": "catalog:65efa5426bfce32050dc",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.wait_timeout",
+      "signature": "Task.wait_timeout(&Task<T> task, Duration timeout)",
+      "returns": "Result<WaitStatus, TaskError>",
+      "contract": "Ready or TimedOut observation; does not take T, cancel work or end its loans. | May block up to scheduler-dependent interval.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-wait_timeout",
+          "section": "join-functions",
+          "line": 139
+        }
+      ],
+      "id": "catalog:adb0941626c6d0e00cc2",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "result_take_and_wait",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    },
+    {
+      "name": "Task.yield_now",
+      "signature": "Task.yield_now()",
+      "returns": "Awaitable<unit>",
+      "contract": "Cooperative scheduling point; resumption and fairness not bounded. | Executor scheduling cost.",
+      "family": "Task",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Task/Task.html",
+          "anchor": "Task-yield_now",
+          "section": "composition-functions",
+          "line": 181
+        }
+      ],
+      "id": "catalog:85f2511fe4b89c28f8d2",
+      "implementation": "design_contract_unmapped",
+      "implementation_group": "timers_and_executor",
+      "signature_status": "conceptual_catalog_callback_aliases_not_a_fixed_source_ABI"
+    }
+  ],
+  "source_cancellation_checkpoint": {
+    "provider": "include/aevix/Frontend/Modules/TaskModuleSource.hpp",
+    "scope": "Nongeneric Task cancellation namespace and move-only source/token capabilities only.",
+    "catalog_name_candidates": [
+      "Task.cancel_clone",
+      "Task.cancel_request",
+      "Task.cancel_requested",
+      "Task.cancel_source",
+      "Task.cancel_token"
+    ],
+    "remaining_task_rows_without_callable_provider": 54,
+    "signature_difference": "Token derivation and source/token clone are explicitly fallible Result operations, unlike conceptual nonfallible catalog signatures.",
+    "evidence": "Compiler e1fec8a4:5 positive groups across5 modes,11 negatives,112 injected-failure cases and96 AIR checks. No public source worker/Scope/spawn implementation is claimed."
+  },
+  "version_scope": {
+    "confirmed_by_user": "2026-10-18",
+    "0.3": "Synchronous thread-backed Task/Scope, blocking waits, cooperative cancellation, and the other CPU libraries remain in scope.",
+    "0.4": "Suspending Task APIs and their required async/await, coroutine, wake and timer machinery. A blocking wrapper is not an implementation of suspension.",
+    "gpu": "Deferred independently; not enabled by either CPU decision."
+  },
+  "source_integration_checkpoint": {
+    "status": "owned_worker_pipeline_passed_120_test_coherent_checkpoint_f46a65b2",
+    "provider": "include/aevix/Frontend/Modules/TaskModuleSource.hpp",
+    "operations": [
+      "open_scope",
+      "close_scope",
+      "spawn_owned",
+      "spawn",
+      "join",
+      "try_take",
+      "discard_result",
+      "status",
+      "wait_timeout",
+      "request_cancel"
+    ],
+    "native_backend": "One native thread per admitted task; Executor.native_threads() is explicit.",
+    "callables": "Concrete zero-argument compiler closures satisfying sealed Send and transitive cleanup/effect validation. Fn, FnMut and FnOnce are accepted.",
+    "restrictions": [
+      "Captured and returned values must be fully owned; scoped/static borrowed views are not admitted yet.",
+      "Task<T> retains a hidden Scope loan, including through carrier/container/helper paths.",
+      "Task and TaskScope, including wrappers, are prohibited in global/persist storage until shutdown ordering is proved.",
+      "Ordinary projected moves, including moving an owning field directly out of a closure capture, remain unsupported; this is not bypassed by Task.",
+      "Nested scopes, local executors, hierarchy, composition, detach and the remaining synchronous catalog contracts still require implementation."
+    ],
+    "jit": "Actual-source O0/O2 repeated-invocation, exact Drop and shutdown code-lifetime gate passed68checks and is included in120/120coherentcheckpointf46a65b2."
+  }
+}

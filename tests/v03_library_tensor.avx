@@ -1,0 +1,223 @@
+import tensor;
+import shape;
+
+string owned_text(string_view text) {
+    Result<string, TextError> created = string.from_view(text);
+    switch (move created) { case Result<string, TextError>.Ok { string owner = value }: return owner; break; default: Never.unreachable(); break; }
+}
+struct Tracked implements Drop {
+    public &mut i32 counter;
+    public void drop(&mut Tracked self) { *self.counter += 1; return; }
+};
+S owned_shape<S>(Result<S, shape.ShapeError> outcome) {
+    switch (move outcome) { case Result<S, shape.ShapeError>.Ok { S owner = value }: return owner; break; default: Never.unreachable(); break; }
+}
+bool budget_limit<T>(Result<T, tensor.TensorAllocationError> outcome, usize expected, usize maximum) {
+    switch (move outcome) {
+        case Result<T, tensor.TensorAllocationError>.Ok: return false; break;
+        case Result<T, tensor.TensorAllocationError>.Err { tensor.TensorAllocationError cause = error }:
+            if (!string.equals(cause.code(), "tensor.element_budget_exceeded") || string.is_empty(cause.message())) return false;
+            switch (cause) {
+                case tensor.TensorAllocationError.LimitExceeded { usize required = required, usize limit = limit }: return required == expected && limit == maximum; break;
+                default: return false; break;
+            }
+            break;
+    }
+}
+
+Result<i32, tensor.TensorError> storage() {
+    shape.Shape2<2, 3> dimensions = shape.Shape2<2, 3>.new();
+    i32 input[6] = [1, 2, 3, 4, 5, 6];
+    mut tensor.Tensor<i32, shape.Shape2<2, 3>> data = tensor.Tensor<i32, shape.Shape2<2, 3>>.from_array(input, dimensions)?;
+    if (data.rank() != 2 || data.element_count() != 6 || !data.is_contiguous()) return Result.ok(1);
+    Result<usize, shape.ShapeError> dimension = data.dim(1);
+    if (Result.is_err(&dimension)) return Result.ok(2);
+    usize index[2] = [1, 2];
+    if (data.get(Slice.from_array(&index))? != 6) return Result.ok(3);
+    data.set(Slice.from_array(&index), 43)?;
+    if (data.view()[5] != 43) return Result.ok(4);
+    {
+        MutSlice<i32> view = data.view_mut();
+        view[0] = 8;
+    }
+    tensor.Tensor<i32, shape.Shape2<2, 3>> copied = data.clone()?;
+    data.fill(9)?;
+    if (copied.view()[0] != 8 || copied.view()[5] != 43 || data.view()[0] != 9) return Result.ok(5);
+    shape.Shape1<6> flat_shape = shape.Shape1<6>.new();
+    tensor.Tensor<i32, shape.Shape1<6>> reshaped = copied.reshape_copy(flat_shape)?;
+    if (reshaped.rank() != 1 || reshaped.view()[5] != 43 || copied.rank() != 2) return Result.ok(14);
+    shape.Shape1<5> wrong_shape = shape.Shape1<5>.new();
+    Result<tensor.Tensor<i32, shape.Shape1<5>>, tensor.TensorError> bad_reshape = copied.reshape_copy(wrong_shape);
+    if (Result.is_ok(&bad_reshape)) return Result.ok(15);
+    rsn double = [](&i32 value) -> i32 { return *value * 2; };
+    tensor.Tensor<i32, shape.Shape2<2, 3>> mapped = copied.map<i32>(&double)?;
+    if (mapped.view()[0] != 16 || mapped.view()[5] != 86) return Result.ok(6);
+    Vector<i32> moved = mapped.into_vector()?;
+    tensor.Tensor<i32, shape.Shape2<2, 3>> recovered = tensor.Tensor<i32, shape.Shape2<2, 3>>.from_vector(moved, dimensions)?;
+    if (recovered.view()[5] != 86) return Result.ok(7);
+    usize invalid[2] = [2, 0];
+    Result<i32, tensor.TensorError> invalid_element = recovered.get(Slice.from_array(&invalid));
+    if (Result.is_ok(&invalid_element)) return Result.ok(8);
+    usize wrong_rank[1] = [0];
+    Result<i32, tensor.TensorError> invalid_rank = recovered.get(Slice.from_array(&wrong_rank));
+    if (Result.is_ok(&invalid_rank)) return Result.ok(9);
+    i32 short_input[2] = [1, 2];
+    Result<tensor.Tensor<i32, shape.Shape2<2, 3>>, tensor.TensorError> mismatch = tensor.Tensor<i32, shape.Shape2<2, 3>>.from_slice(Slice.from_array(&short_input), dimensions);
+    if (Result.is_ok(&mismatch)) return Result.ok(10);
+    shape.Shape2<0, 18446744073709551615usize> empty_shape = shape.Shape2<0, 18446744073709551615usize>.new();
+    tensor.Tensor<i32, shape.Shape2<0, 18446744073709551615usize>> empty = tensor.Tensor<i32, shape.Shape2<0, 18446744073709551615usize>>.full(7, empty_shape)?;
+    if (empty.element_count() != 0 || Slice.len(empty.view()) != 0) return Result.ok(11);
+    shape.Shape0 scalar_shape = shape.Shape0.new();
+    tensor.Tensor<i32, shape.Shape0> scalar = tensor.Tensor<i32, shape.Shape0>.full(12, scalar_shape)?;
+    usize scalar_index[0] = [];
+    if (scalar.get(Slice.from_array(&scalar_index))? != 12) return Result.ok(12);
+    shape.Shape1<18446744073709551615usize> impossible = shape.Shape1<18446744073709551615usize>.new();
+    Result<tensor.Tensor<i32, shape.Shape1<18446744073709551615usize>>, tensor.TensorError> too_large = tensor.Tensor<i32, shape.Shape1<18446744073709551615usize>>.full(0, impossible);
+    if (Result.is_ok(&too_large)) return Result.ok(13);
+    return Result.ok(0);
+}
+Result<i32, tensor.TensorError> arithmetic() {
+    shape.Shape2<2, 3> a_shape = shape.Shape2<2, 3>.new();
+    shape.Shape2<3, 2> b_shape = shape.Shape2<3, 2>.new();
+    f64 a[6] = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    f64 b[6] = [7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
+    tensor.Tensor<f64, shape.Shape2<2, 3>> left = tensor.Tensor<f64, shape.Shape2<2, 3>>.from_array(a, a_shape)?;
+    tensor.Tensor<f64, shape.Shape2<3, 2>> right = tensor.Tensor<f64, shape.Shape2<3, 2>>.from_array(b, b_shape)?;
+    tensor.Tensor<f64, shape.Shape2<2, 2>> product = tensor.matmul(&left, &right)?;
+    if (product.view()[0] != 58.0 || product.view()[1] != 64.0 || product.view()[2] != 139.0 || product.view()[3] != 154.0) return Result.ok(20);
+    if (tensor.sum_all(&product) != 415.0) return Result.ok(21);
+    tensor.Tensor<f64, shape.Shape2<2, 2>> added = tensor.add_exact(&product, &product)?;
+    if (tensor.sum_all(&added) != 830.0) return Result.ok(22);
+    shape.Shape2<2, 0> zero_left = shape.Shape2<2, 0>.new();
+    shape.Shape2<0, 3> zero_right = shape.Shape2<0, 3>.new();
+    tensor.Tensor<f32, shape.Shape2<2, 0>> first = tensor.Tensor<f32, shape.Shape2<2, 0>>.full(0.0f32, zero_left)?;
+    tensor.Tensor<f32, shape.Shape2<0, 3>> second = tensor.Tensor<f32, shape.Shape2<0, 3>>.full(0.0f32, zero_right)?;
+    tensor.Tensor<f32, shape.Shape2<2, 3>> zeros = tensor.matmul(&first, &second)?;
+    if (zeros.element_count() != 6 || tensor.sum_all(&zeros) != 0.0f32) return Result.ok(23);
+    return Result.ok(0);
+}
+Result<i32, tensor.TensorError> owning_elements() {
+    Result<Vector<string>, CollectionError> created = [owned_text("old"), owned_text("keep")];
+    mut Vector<string> storage;
+    switch (move created) {
+        case Result<Vector<string>, CollectionError>.Ok { Vector<string> owner = value }: storage = owner; break;
+        default: return Result.ok(30); break;
+    }
+    shape.Shape1<2> dimensions = shape.Shape1<2>.new();
+    mut tensor.Tensor<string, shape.Shape1<2>> value = tensor.Tensor<string, shape.Shape1<2>>.from_vector(storage, dimensions)?;
+    usize index[1] = [0];
+    value.set(Slice.from_array(&index), owned_text("new"))?;
+    {
+        Slice<string> view = value.view();
+        if (!string.equals(&view[0], "new") || !string.equals(&view[1], "keep")) return Result.ok(31);
+    }
+    Vector<string> recovered = value.into_vector()?;
+    if (Vector.len(&recovered) != 2 || !string.equals(&recovered[0], "new") || !string.equals(&recovered[1], "keep")) return Result.ok(32);
+    return Result.ok(0);
+}
+Result<i32, tensor.TensorError> drop_elements() {
+    mut i32 old_drops = 0;
+    mut i32 new_drops = 0;
+    {
+        Result<Vector<Tracked>, CollectionError> created = [Tracked { counter = &mut old_drops }];
+        mut Vector<Tracked> storage;
+        switch (move created) {
+            case Result<Vector<Tracked>, CollectionError>.Ok { Vector<Tracked> owner = value }: storage = owner; break;
+            default: return Result.ok(33); break;
+        }
+        shape.Shape1<1> dimensions = shape.Shape1<1>.new();
+        mut tensor.Tensor<Tracked, shape.Shape1<1>> value = tensor.Tensor<Tracked, shape.Shape1<1>>.from_vector(storage, dimensions)?;
+        usize index[1] = [0];
+        value.set(Slice.from_array(&index), Tracked { counter = &mut new_drops })?;
+    }
+    if (old_drops != 1 || new_drops != 1) return Result.ok(34);
+    return Result.ok(0);
+}
+Result<i32, tensor.TensorError> views_and_dynamic_shapes() {
+    shape.Shape2<2, 3> dimensions = shape.Shape2<2, 3>.new();
+    mut tensor.Tensor<i32, shape.Shape2<2, 3>> owner = tensor.Tensor<i32, shape.Shape2<2, 3>>.full(7, dimensions)?;
+    mut tensor.Tensor<i32, shape.Shape2<3, 2>> independent;
+    {
+        shape.Shape1<6> flat_shape = shape.Shape1<6>.new();
+        tensor.TensorView<i32, shape.Shape1<6>> flat = owner.reshape_view(flat_shape)?;
+        if (flat.rank() != 1 || flat.element_count() != 6 || flat.view()[5] != 7 || flat.shape().rank() != 1) return Result.ok(40);
+        Result<usize, shape.ShapeError> extent = flat.dim(0);
+        if (Result.is_err(&extent)) return Result.ok(41);
+        shape.Shape2<3, 2> rotated_shape = shape.Shape2<3, 2>.new();
+        tensor.TensorView<i32, shape.Shape2<3, 2>> reshaped = flat.reshape_view(rotated_shape)?;
+        usize index[2] = [2, 1];
+        if (reshaped.get(Slice.from_array(&index))? != 7) return Result.ok(42);
+        independent = reshaped.materialize()?;
+        shape.Shape1<5> wrong = shape.Shape1<5>.new();
+        Result<tensor.TensorView<i32, shape.Shape1<5>>, tensor.TensorError> rejected = flat.reshape_view(wrong);
+        if (Result.is_ok(&rejected)) return Result.ok(43);
+    }
+    owner.fill(9)?;
+    if (independent.view()[0] != 7 || owner.view()[0] != 9) return Result.ok(44);
+    usize original_dimensions[2] = [2, 3];
+    shape.DynamicShape<2> dynamic_shape = owned_shape(shape.DynamicShape<2>.new(original_dimensions));
+    mut tensor.Tensor<f32, shape.DynamicShape<2>> dynamic = tensor.Tensor<f32, shape.DynamicShape<2>>.full(1.5f32, dynamic_shape)?;
+    tensor.Tensor<f32, shape.DynamicShape<2>> cloned = dynamic.clone()?;
+    rsn double = [](&f32 value) -> f32 { return *value * 2.0f32; };
+    tensor.Tensor<f32, shape.DynamicShape<2>> mapped = dynamic.map<f32>(&double)?;
+    tensor.Tensor<f32, shape.DynamicShape<2>> sum = tensor.add_exact(&dynamic, &mapped)?;
+    dynamic.fill(0.0f32)?;
+    if (tensor.sum_all(&cloned) != 9.0f32 || tensor.sum_all(&mapped) != 18.0f32 || tensor.sum_all(&sum) != 27.0f32) return Result.ok(45);
+    usize other_dimensions[2] = [1, 6];
+    shape.DynamicShape<2> other_shape = owned_shape(shape.DynamicShape<2>.new(other_dimensions));
+    tensor.Tensor<f32, shape.DynamicShape<2>> other = tensor.Tensor<f32, shape.DynamicShape<2>>.full(0.0f32, other_shape)?;
+    Result<tensor.Tensor<f32, shape.DynamicShape<2>>, tensor.TensorError> mismatch = tensor.add_exact(&cloned, &other);
+    if (Result.is_ok(&mismatch)) return Result.ok(46);
+    return Result.ok(0);
+}
+Result<i32, tensor.TensorAllocationError> budgets() {
+    tensor.ElementBudget budget = tensor.ElementBudget.new(3);
+    if (budget.maximum_elements() != 3) return Result.ok(50);
+    budget.check(0)?;
+    budget.check(3)?;
+    shape.Shape1<3> dimensions = shape.Shape1<3>.new();
+    tensor.Tensor<i32, shape.Shape1<3>> filled = tensor.Tensor<i32, shape.Shape1<3>>.full_bounded(4, dimensions, &budget)?;
+    i32 data[3] = [1, 2, 3];
+    tensor.Tensor<i32, shape.Shape1<3>> copied = tensor.Tensor<i32, shape.Shape1<3>>.from_slice_bounded(Slice.from_array(&data), dimensions, &budget)?;
+    tensor.Tensor<i32, shape.Shape1<3>> cloned = copied.clone_bounded(&budget)?;
+    if (filled.view()[0] != 4 || copied.view()[2] != 3 || cloned.view()[1] != 2) return Result.ok(51);
+    tensor.ElementBudget low = tensor.ElementBudget.new(2);
+    if (!budget_limit(copied.clone_bounded(&low), 3, 2)) return Result.ok(52);
+    shape.Shape1<18446744073709551615usize> huge = shape.Shape1<18446744073709551615usize>.new();
+    if (!budget_limit(tensor.Tensor<i32, shape.Shape1<18446744073709551615usize>>.full_bounded(1, huge, &budget), 18446744073709551615usize, 3)) return Result.ok(53);
+    tensor.ElementBudget zero = tensor.ElementBudget.new(0);
+    shape.Shape1<0> empty_shape = shape.Shape1<0>.new();
+    tensor.Tensor<i32, shape.Shape1<0>> empty = tensor.Tensor<i32, shape.Shape1<0>>.full_bounded(1, empty_shape, &zero)?;
+    if (empty.element_count() != 0) return Result.ok(54);
+    tensor.TensorView<i32, shape.Shape1<3>> view;
+    Result<tensor.TensorView<i32, shape.Shape1<3>>, tensor.TensorError> viewed = copied.reshape_view(dimensions);
+    switch (move viewed) {
+        case Result<tensor.TensorView<i32, shape.Shape1<3>>, tensor.TensorError>.Ok { tensor.TensorView<i32, shape.Shape1<3>> descriptor = value }: view = descriptor; break;
+        default: return Result.ok(55); break;
+    }
+    tensor.Tensor<i32, shape.Shape1<3>> materialized = view.materialize_bounded(&budget)?;
+    if (materialized.view()[0] != 1 || !budget_limit(view.materialize_bounded(&low), 3, 2)) return Result.ok(56);
+    tensor.ElementBudget unlimited = tensor.ElementBudget.new(18446744073709551615usize);
+    Result<tensor.Tensor<i32, shape.Shape1<18446744073709551615usize>>, tensor.TensorAllocationError> failed = tensor.Tensor<i32, shape.Shape1<18446744073709551615usize>>.full_bounded(0, huge, &unlimited);
+    switch (move failed) {
+        case Result<tensor.Tensor<i32, shape.Shape1<18446744073709551615usize>>, tensor.TensorAllocationError>.Ok: return Result.ok(57); break;
+        case Result<tensor.Tensor<i32, shape.Shape1<18446744073709551615usize>>, tensor.TensorAllocationError>.Err { tensor.TensorAllocationError cause = error }:
+            if (!string.equals(cause.code(), "tensor.size_overflow") || string.is_empty(cause.message())) return Result.ok(58);
+            break;
+    }
+    return Result.ok(0);
+}
+i32 main() {
+    Result<i32, tensor.TensorError> first = storage();
+    switch (first) { case Result<i32, tensor.TensorError>.Ok { i32 code = value }: if (code != 0) return code; break; default: return 98; break; }
+    Result<i32, tensor.TensorError> second = arithmetic();
+    switch (second) { case Result<i32, tensor.TensorError>.Ok { i32 code = value }: if (code != 0) return code; break; default: return 99; break; }
+    Result<i32, tensor.TensorError> third = owning_elements();
+    switch (third) { case Result<i32, tensor.TensorError>.Ok { i32 code = value }: if (code != 0) return code; break; default: return 97; break; }
+    Result<i32, tensor.TensorError> fourth = drop_elements();
+    switch (fourth) { case Result<i32, tensor.TensorError>.Ok { i32 code = value }: if (code != 0) return code; break; default: return 96; break; }
+    Result<i32, tensor.TensorError> fifth = views_and_dynamic_shapes();
+    switch (fifth) { case Result<i32, tensor.TensorError>.Ok { i32 code = value }: if (code != 0) return code; break; default: return 95; break; }
+    Result<i32, tensor.TensorAllocationError> sixth = budgets();
+    switch (sixth) { case Result<i32, tensor.TensorAllocationError>.Ok { i32 code = value }: return code; break; default: return 94; break; }
+}

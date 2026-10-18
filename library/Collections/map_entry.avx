@@ -1,0 +1,481 @@
+/*
+ * Exclusive entry capabilities with an explicitly owned equality callback.
+ * This source API is MapEntry<K,V,F>, not the catalog's erased two-parameter draft.
+ * Call entry_with with a stable hash code and stable equality relation; no clone,
+ * dynamic dispatch or capability allocation is implicit. A vacant insertion may
+ * reserve/recompute its transient position, while occupied access uses one lookup.
+ * @module map_entry
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import map;
+import memory;
+import error { Error };
+
+/*
+ * Failed insertion preserves the live exclusive entry and unused value.
+ * The reason distinguishes allocation failure from size overflow.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum EntryInputError<K, V, F> implements Error where F implements Fn<Tuple<&K, &K>, bool> {
+    /*
+     * Version history for the map_entry.EntryInputError.Preflight public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Preflight { /*
+ * Version history for the map_entry.EntryInputError.Preflight.reason public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public CollectionError reason; /*
+ * Version history for the map_entry.EntryInputError.Preflight.entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public MapEntry<K, V, F> entry; /*
+ * Version history for the map_entry.EntryInputError.Preflight.input public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public V input; };
+    /*
+     * Version history for the map_entry.EntryInputError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) {
+        switch (*self) {
+            case Self.Preflight { &CollectionError problem = reason }:
+                switch (*problem) {
+                    case CollectionError.AllocationFailure: return "MapEntry.AllocationFailure"; break;
+                    case CollectionError.SizeOverflow: return "MapEntry.SizeOverflow"; break;
+                }
+                break;
+        }
+    }
+    /*
+     * Version history for the map_entry.EntryInputError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) { return "Entry insertion failed; the entry lease and unused value remain owned by this error."; }
+};
+
+/*
+ * Lazy construction failure preserves the entry. Build additionally owns the
+ * callback error; Insertion owns a completed value if a later insertion fails.
+ * Preflight is produced before the builder is called. Normal stable-comparator
+ * insertion after successful reservation does not allocate again.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum EntryBuildError<K, V, F, E> implements Error where F implements Fn<Tuple<&K, &K>, bool> {
+    /*
+     * Version history for the map_entry.EntryBuildError.Preflight public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Preflight { /*
+ * Version history for the map_entry.EntryBuildError.Preflight.reason public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public CollectionError reason; /*
+ * Version history for the map_entry.EntryBuildError.Preflight.entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public MapEntry<K, V, F> entry; };
+    /*
+     * Version history for the map_entry.EntryBuildError.Build public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Build { /*
+ * Version history for the map_entry.EntryBuildError.Build.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public E error; /*
+ * Version history for the map_entry.EntryBuildError.Build.entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public MapEntry<K, V, F> entry; };
+    /*
+     * Version history for the map_entry.EntryBuildError.Insertion public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Insertion { /*
+ * Version history for the map_entry.EntryBuildError.Insertion.reason public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public CollectionError reason; /*
+ * Version history for the map_entry.EntryBuildError.Insertion.entry public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public MapEntry<K, V, F> entry; /*
+ * Version history for the map_entry.EntryBuildError.Insertion.input public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public V input; };
+    /*
+     * Version history for the map_entry.EntryBuildError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) {
+        switch (*self) {
+            case Self.Preflight: return "MapEntry.Preflight"; break;
+            case Self.Build: return "MapEntry.BuilderFailed"; break;
+            case Self.Insertion: return "MapEntry.InsertionFailed"; break;
+        }
+    }
+    /*
+     * Version history for the map_entry.EntryBuildError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) { return "Lazy entry construction failed; inspect the variant to recover the live entry and remaining owners."; }
+};
+
+/*
+ * A linear exclusive loan of a map, its incoming key, and an owned comparator.
+ * The private Handle representation cannot be constructed or mutated by callers.
+ * No method exposes a mutable key. References cannot outlive the original map;
+ * returned value loans continue excluding conflicting map access after consumption.
+ * Expected lookup/insertion O(1), worst O(capacity), plus callback and Drop work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum MapEntry<K, V, F> where F implements Fn<Tuple<&K, &K>, bool> {
+    private Handle { &mut map.Map<K, V> owner; K incoming; F same; u64 code; bool occupied; usize slot; };
+
+    /*
+     * Version history for the map_entry.MapEntry.new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new(&mut map.Map<K, V> owner, K incoming, u64 code, F same)
+        where F implements Fn<Tuple<&K, &K>, bool> {
+        Tuple<bool, usize> position = owner.entry_slot_with<F>(&incoming, code, &same);
+        bool occupied = *Tuple.get<0>(&position);
+        usize slot = *Tuple.get<1>(&position);
+        return Self.Handle { owner = owner, incoming = incoming, same = same, code = code, occupied = occupied, slot = slot };
+    }
+
+    /* Test the cached lookup outcome; O(1), without another comparison or allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_occupied(&Self self) {
+        switch (*self) { case Self.Handle { bool occupied = occupied }: return occupied; break; }
+    }
+
+    /* Borrow the canonical stored key when occupied, or the incoming key when vacant; O(1).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public &K key(&Self self) {
+        switch (*self) {
+            case Self.Handle { & &mut map.Map<K, V> parent = owner, &K incoming = incoming, bool occupied = occupied, usize slot = slot }:
+                if (!occupied) return incoming;
+                Optional<Tuple<&K, &V>> pair = (**parent).entry_pair_at(slot);
+                switch (move pair) {
+                    case Optional<Tuple<&K, &V>>.Some { Tuple<&K, &V> item = value }: return *Tuple.get<0>(&item); break;
+                    case Optional<Tuple<&K, &V>>.None: Never.unreachable(); break;
+                }
+                break;
+        }
+    }
+
+    /* Borrow the occupied value; O(1), no allocation. Vacant entries return None.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&V> get(&Self self) {
+        switch (*self) {
+            case Self.Handle { & &mut map.Map<K, V> parent = owner, bool occupied = occupied, usize slot = slot }:
+                if (!occupied) return Optional.none();
+                Optional<Tuple<&K, &V>> pair = (**parent).entry_pair_at(slot);
+                switch (move pair) {
+                    case Optional<Tuple<&K, &V>>.Some { Tuple<&K, &V> item = value }: return Optional.some(*Tuple.get<1>(&item)); break;
+                    case Optional<Tuple<&K, &V>>.None: Never.unreachable(); break;
+                }
+                break;
+        }
+    }
+
+    /* Exclusively borrow the occupied value without exposing a mutable key; O(1).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&mut V> get_mut(&mut Self self) {
+        switch (&mut *self) {
+            case Self.Handle { &mut &mut map.Map<K, V> parent = &mut owner, bool occupied = occupied, usize slot = slot }:
+                if (!occupied) return Optional.none();
+                return (**parent).entry_value_at_mut(slot);
+                break;
+        }
+    }
+
+    private Result<unit, CollectionError> prepare(&mut Self self)
+        where F implements Fn<Tuple<&K, &K>, bool> {
+        switch (&mut *self) {
+            case Self.Handle { &mut &mut map.Map<K, V> parent = &mut owner, &K incoming = &incoming, &F same = &same, u64 code = code, &mut bool occupied = &mut occupied, &mut usize slot = &mut slot }:
+                (**parent).reserve(1)?;
+                Tuple<bool, usize> position = (**parent).entry_slot_with<F>(incoming, code, same);
+                *occupied = *Tuple.get<0>(&position);
+                *slot = *Tuple.get<1>(&position);
+                return Result.ok(Unit.value());
+                break;
+        }
+    }
+
+    private &mut V into_occupied(Self self) {
+        switch (move self) {
+            case Self.Handle { &mut map.Map<K, V> parent = owner, bool occupied = occupied, usize slot = slot }:
+                if (!occupied) Never.unreachable();
+                Optional<&mut V> found = parent.entry_value_at_mut(slot);
+                switch (move found) {
+                    case Optional<&mut V>.Some { &mut V value = value }: return value; break;
+                    case Optional<&mut V>.None: Never.unreachable(); break;
+                }
+                break;
+        }
+    }
+
+    /*
+     * Occupied: discard the incoming key and unused value, then return its stored value.
+     * Vacant: reserve before moving inputs; failure preserves both in EntryInputError.
+     * The returned value reference retains the original exclusive map loan.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<&mut V, EntryInputError<K, V, F>> or_insert(mut Self self, V value)
+        where F implements Fn<Tuple<&K, &K>, bool> {
+        if (self.is_occupied()) return Result.ok(self.into_occupied());
+        Result<unit, CollectionError> reserved = self.prepare();
+        switch (move reserved) {
+            case Result<unit, CollectionError>.Ok: break;
+            case Result<unit, CollectionError>.Err { CollectionError reason = error }:
+                return Result.err(EntryInputError<K, V, F>.Preflight { reason = reason, entry = self, input = value }); break;
+        }
+        if (self.is_occupied()) return Result.ok(self.into_occupied());
+        switch (move self) {
+            case Self.Handle { &mut map.Map<K, V> parent = owner, K incoming = incoming, F same = same, u64 code = code, usize slot = slot }:
+                Result<Optional<V>, InputError<map.Entry<K, V>>> added = parent.insert_with<F>(incoming, value, code, &same);
+                switch (move added) {
+                    case Result<Optional<V>, InputError<map.Entry<K, V>>>.Ok { Optional<V> previous = value }:
+                        { Optional<V> discarded = previous; }
+                        Optional<&mut V> found = parent.entry_value_at_mut(slot);
+                        switch (move found) {
+                            case Optional<&mut V>.Some { &mut V inserted = value }: return Result.ok(inserted); break;
+                            case Optional<&mut V>.None: Never.unreachable(); break;
+                        }
+                        break;
+                    case Result<Optional<V>, InputError<map.Entry<K, V>>>.Err { InputError<map.Entry<K, V>> problem = error }:
+                        mut bool allocation = false;
+                        mut Optional<map.Entry<K, V>> recovered = Optional.none();
+                        switch (move problem) {
+                            case InputError<map.Entry<K, V>>.AllocationFailure { map.Entry<K, V> input = input }: allocation = true; recovered = Optional.some(input); break;
+                            case InputError<map.Entry<K, V>>.SizeOverflow { map.Entry<K, V> input = input }: recovered = Optional.some(input); break;
+                            case InputError<map.Entry<K, V>>.OutOfBounds: Never.unreachable(); break;
+                        }
+                        switch (move recovered) {
+                            case Optional<map.Entry<K, V>>.Some { map.Entry<K, V> pair = value }:
+                                switch (move pair) {
+                                    case map.Entry<K, V>.Pair { K key = key, V unused = value }:
+                                        Self retry = Self.Handle { owner = parent, incoming = key, same = same, code = code, occupied = false, slot = slot };
+                                        CollectionError reason = allocation ? CollectionError.AllocationFailure : CollectionError.SizeOverflow;
+                                        return Result.err(EntryInputError<K, V, F>.Preflight { reason = reason, entry = retry, input = unused }); break;
+                                }
+                                break;
+                            case Optional<map.Entry<K, V>>.None: Never.unreachable(); break;
+                        }
+                        break;
+                }
+                break;
+        }
+    }
+
+    /* Replace an occupied value or insert a vacant one, returning the previous owner without cloning.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Optional<V>, EntryInputError<K, V, F>> insert(Self self, V value)
+        where F implements Fn<Tuple<&K, &K>, bool> {
+        if (self.is_occupied()) {
+            &mut V stored = self.into_occupied();
+            return Result.ok(Optional.some(memory.replace(stored, value)));
+        }
+        Result<&mut V, EntryInputError<K, V, F>> inserted = self.or_insert(value);
+        switch (move inserted) {
+            case Result<&mut V, EntryInputError<K, V, F>>.Ok: return Result.ok(Optional.none()); break;
+            case Result<&mut V, EntryInputError<K, V, F>>.Err { EntryInputError<K, V, F> problem = error }: return Result.err(problem); break;
+        }
+    }
+
+    /* Run a one-shot builder only for a vacant key, after successful reservation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<&mut V, EntryBuildError<K, V, F, unit>> or_insert_with<G>(mut Self self, mut G make)
+        where F implements Fn<Tuple<&K, &K>, bool>, G implements FnOnce<Tuple<>, V> {
+        if (self.is_occupied()) return Result.ok(self.into_occupied());
+        Result<unit, CollectionError> reserved = self.prepare();
+        switch (move reserved) {
+            case Result<unit, CollectionError>.Ok: break;
+            case Result<unit, CollectionError>.Err { CollectionError reason = error }:
+                return Result.err(EntryBuildError<K, V, F, unit>.Preflight { reason = reason, entry = self }); break;
+        }
+        if (self.is_occupied()) return Result.ok(self.into_occupied());
+        V created = make();
+        Result<&mut V, EntryInputError<K, V, F>> inserted = self.or_insert(created);
+        switch (move inserted) {
+            case Result<&mut V, EntryInputError<K, V, F>>.Ok { &mut V value = value }: return Result.ok(value); break;
+            case Result<&mut V, EntryInputError<K, V, F>>.Err { EntryInputError<K, V, F> problem = error }:
+                switch (move problem) {
+                    case EntryInputError<K, V, F>.Preflight { CollectionError reason = reason, Self retry = entry, V input = input }:
+                        return Result.err(EntryBuildError<K, V, F, unit>.Insertion { reason = reason, entry = retry, input = input }); break;
+                }
+                break;
+        }
+    }
+
+    /* A fallible one-shot builder returns its error and the still-vacant capability on failure.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<&mut V, EntryBuildError<K, V, F, E>> try_or_insert_with<E, G>(mut Self self, mut G make)
+        where F implements Fn<Tuple<&K, &K>, bool>, G implements FnOnce<Tuple<>, Result<V, E>> {
+        if (self.is_occupied()) return Result.ok(self.into_occupied());
+        Result<unit, CollectionError> reserved = self.prepare();
+        switch (move reserved) {
+            case Result<unit, CollectionError>.Ok: break;
+            case Result<unit, CollectionError>.Err { CollectionError reason = error }:
+                return Result.err(EntryBuildError<K, V, F, E>.Preflight { reason = reason, entry = self }); break;
+        }
+        if (self.is_occupied()) return Result.ok(self.into_occupied());
+        Result<V, E> built = make();
+        switch (move built) {
+            case Result<V, E>.Err { E problem = error }:
+                return Result.err(EntryBuildError<K, V, F, E>.Build { error = problem, entry = self }); break;
+            case Result<V, E>.Ok { V created = value }:
+                Result<&mut V, EntryInputError<K, V, F>> inserted = self.or_insert(created);
+                switch (move inserted) {
+                    case Result<&mut V, EntryInputError<K, V, F>>.Ok { &mut V value = value }: return Result.ok(value); break;
+                    case Result<&mut V, EntryInputError<K, V, F>>.Err { EntryInputError<K, V, F> problem = error }:
+                        switch (move problem) {
+                            case EntryInputError<K, V, F>.Preflight { CollectionError reason = reason, Self retry = entry, V input = input }:
+                                return Result.err(EntryBuildError<K, V, F, E>.Insertion { reason = reason, entry = retry, input = input }); break;
+                        }
+                        break;
+                }
+                break;
+        }
+    }
+
+    /* Run the synchronous mutation callback once only when occupied, then return this live capability.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self and_modify<G>(mut Self self, mut G update) where G implements FnOnce<Tuple<&mut V>, unit> {
+        Optional<&mut V> found = self.get_mut();
+        switch (move found) {
+            case Optional<&mut V>.Some { &mut V value = value }: update(value); break;
+            case Optional<&mut V>.None: break;
+        }
+        return self;
+    }
+
+    /* Remove the stored value, dropping the canonical and unused incoming keys exactly once.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<V> remove(Self self) {
+        Optional<map.Entry<K, V>> pair = self.remove_entry();
+        switch (move pair) {
+            case Optional<map.Entry<K, V>>.Some { map.Entry<K, V> owned = value }:
+                switch (move owned) { case map.Entry<K, V>.Pair { V value = value }: return Optional.some(value); break; }
+                break;
+            case Optional<map.Entry<K, V>>.None: return Optional.none(); break;
+        }
+    }
+
+    /* Remove both canonical stored owners; an unused incoming key is dropped rather than returned.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<map.Entry<K, V>> remove_entry(Self self) {
+        switch (move self) {
+            case Self.Handle { &mut map.Map<K, V> parent = owner, bool occupied = occupied, usize slot = slot }:
+                if (!occupied) return Optional.none();
+                return parent.entry_take_at(slot);
+                break;
+        }
+    }
+
+    /* Recover the original incoming key in either state, leaving the stored map entry unchanged; O(1).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public K into_incoming_key(Self self) {
+        switch (move self) { case Self.Handle { K incoming = incoming }: return incoming; break; }
+    }
+};
+
+/*
+ * Acquire a source-only MapEntry<K,V,F> and move the incoming key and comparator
+ * into its exclusive map loan. Equal keys must share the supplied hash code.
+ * The comparator must remain a stable equivalence relation while this view lives.
+ * Expected O(1), worst O(capacity); no capability allocation or implicit cloning.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public MapEntry<K, V, F> entry_with<K, V, F>(&mut map.Map<K, V> owner, K key, u64 code, F same)
+    where F implements Fn<Tuple<&K, &K>, bool> {
+    return MapEntry<K, V, F>.new(owner, key, code, same);
+}

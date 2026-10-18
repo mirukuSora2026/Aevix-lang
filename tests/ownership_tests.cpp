@@ -169,7 +169,9 @@ namespace
         invalid("borrow of by-value parameter cannot escape", owned("&Owner bad(Owner item) { return &item; }"), "local value");
         invalid("local reference assigned to outer binding", "i32 f() { &i32 view; { i32 x = 1; view = &x; } return *view; }", "outlive");
         invalid("reference-containing global storage is blocked before ownership", "i32 base = 0; mut &i32 saved = &base; void store(&i32 x) { saved = x; return; }", "AIR lowering: reference-containing global storage", false);
-        invalid("reference input cannot escape through output parameter", "void store(&mut &i32 out, &i32 value) { *out = value; return; }", "escaping storage");
+        valid("reference output helper has a checked storage summary", "void store(&mut &i32 out, &i32 value) { *out = value; return; }");
+        valid("reference output helper accepts a same-scope referent", "void store(&mut &i32 out, &i32 value) { *out = value; return; } i32 f() { i32 base = 1; i32 next = 2; mut &i32 out = &base; store(&mut out, &next); return *out; }");
+        invalid("reference output helper rejects a shorter-lived referent", "void store(&mut &i32 out, &i32 value) { *out = value; return; } i32 f() { i32 base = 1; mut &i32 out = &base; { i32 inner = 2; store(&mut out, &inner); } return *out; }", "outlive");
         invalid("method result borrows its receiver", "struct C { public i32 value; public &i32 get(&C self) { return &(*self).value; } }; i32 f() { mut C c = C { value = 1 }; &i32 r = c.get(); c.value = 2; return *r; }", "borrowed");
     }
 

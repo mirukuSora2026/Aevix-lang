@@ -1,0 +1,76 @@
+/*
+ * Generated matmul64: exact unsigned arithmetic, runtime inputs, no fast math.
+ * Initialization, input parsing, validation and output are outside clock calls.
+ * @module matmul64
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+import system;
+extern "C" u64 aevixbench_clock_ns();
+T success<T, E>(Result<T, E> input) {
+    switch (move input) {
+        case Result<T, E>.Ok { T output = value }: return output; break;
+        default: Never.unreachable(); break;
+    }
+}
+u64 read_seed() {
+    Optional<u64> input = success(system.input<u64>());
+    switch (input) {
+        case Optional<u64>.Some { u64 supplied = value }: return supplied % 97u64; break;
+        case Optional<u64>.None: Never.unreachable(); break;
+    }
+}
+
+void kernel(&Array<u64, 4096> left, &Array<u64, 4096> right, &mut Array<u64, 4096> output) {
+    for (mut usize row = 0usize; row < 64usize; row++) {
+        for (mut usize column = 0usize; column < 64usize; column++) {
+            mut u64 total = 0u64;
+            for (mut usize inner = 0usize; inner < 64usize; inner++) {
+                total += left[row * 64usize + inner] * right[inner * 64usize + column];
+            }
+            output[row * 64usize + column] = total;
+        }
+    }
+    return;
+}
+
+i32 main() {
+    u64 seeds[2] = [read_seed(), read_seed()];
+    mut u64 values[4096] = [0u64; 4096];
+    mut u64 right[4096] = [0u64; 4096];
+    mut u64 output[4096] = [0u64; 4096];
+    for (mut usize iteration = 0usize; iteration < 2usize; iteration++) {
+        u64 seed = seeds[iteration];
+        mut u64 initial = 0u64;
+        for (mut usize index = 0usize; index < 4096usize; index++) {
+            values[index] = (initial * 11u64 + seed * 13u64) % 17u64;
+            right[index] = (initial * 7u64 + seed * 3u64) % 19u64;
+            initial++;
+        }
+        for (mut usize index = 0usize; index < 4096usize; index++) output[index] = 0u64;
+        u64 started = aevixbench_clock_ns();
+        kernel(&values, &right, &mut output);
+        u64 stopped = aevixbench_clock_ns();
+        if (stopped < started) return 93;
+        if (iteration == 1usize) {
+            mut u64 sum = 0u64;
+            mut u64 weighted = 0u64;
+            mut u64 weight = 1u64;
+            for (mut usize index = 0usize; index < 4096usize; index++) {
+                sum += output[index];
+                weighted = (weighted + weight * output[index]) % 1000000007u64;
+                weight++;
+            }
+            success(system.printf("SAMPLE matmul64 serial 0 %u %u %u 1\n", stopped - started, sum, weighted));
+        }
+    }
+    success(system.print("VERIFY matmul64 serial "));
+    for (mut usize index = 0usize; index < 4096usize; index++) {
+        if (index != 0usize) success(system.print(","));
+        success(system.printf("%u", output[index]));
+    }
+    success(system.println(""));
+    success(system.flush());
+    return 0;
+}

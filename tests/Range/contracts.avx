@@ -1,0 +1,34 @@
+import range;
+T success<T,E>(Result<T,E> input){switch(move input){case Result<T,E>.Ok{T output=value}:return output;break;default:Never.unreachable();break;}}
+bool absent<T>(Optional<T> input){switch(move input){case Optional<T>.None:return true;break;default:return false;break;}}
+i32 main(){
+ Range<i32> padded=success(Range.with_step(Range.new(0i32,5i32),2u32));
+ Range<i32> tight=success(Range.with_step(Range.closed(0i32,4i32),2u32));
+ if(!range.sequence_equal(&padded,&tight)||range.equal(&padded,&tight))return 1;
+ Range<i32> suffix=range.skip(padded,1usize);
+ if(Range.end(&suffix)!=4i32||!Range.is_inclusive(&suffix))return 2;
+ Range<i32> prefix=range.take(padded,2usize);
+ if(Range.end(&prefix)!=2i32||!Range.is_inclusive(&prefix))return 3;
+ Range<i32> reversed=range.reverse(padded);Range<i32> restored=range.reverse(reversed);
+ if(!range.sequence_equal(&restored,&padded))return 4;
+ Range<i32> empty=range.empty<i32>();
+ switch(move range.step_by(empty,0u32)){
+  case Result<Range<i32>,range.RangeOperationError>.Err{range.RangeOperationError reason=error}:
+   switch(reason){case range.RangeOperationError.InvalidStep:if(!string.equals(reason.code(),"range.invalid_step_factor")||!string.equals(reason.message(),"The step factor must be positive."))return 5;break;default:return 6;break;}break;
+  default:return 7;break;
+ }
+ Range<i32> empty_large=success(Range.with_step(empty,4294967295u32));
+ switch(move range.step_by(empty_large,2u32)){
+  case Result<Range<i32>,range.RangeOperationError>.Err{range.RangeOperationError reason=error}:
+   switch(reason){case range.RangeOperationError.StepOverflow:break;default:return 8;break;}break;
+  default:return 9;break;
+ }
+ switch(move range.at(&empty,18446744073709551615usize)){
+  case Result<i32,range.RangeOperationError>.Err{range.RangeOperationError reason=error}:
+   switch(reason){case range.RangeOperationError.OutOfBounds{usize position=index}:if(position!=18446744073709551615usize||!string.equals(reason.code(),"range.ordinal_out_of_bounds")||!string.equals(reason.message(),"The ordinal is outside the finite range sequence."))return 10;break;default:return 11;break;}break;
+  default:return 12;break;
+ }
+ Tuple<Range<i32>,Range<i32>> split=success(range.split_at(padded,3usize));Range<i32> tail=*Tuple.get<1>(&split);
+ if(!absent(range.first(&tail))||!absent(range.last(&tail)))return 13;
+ return 0;
+}

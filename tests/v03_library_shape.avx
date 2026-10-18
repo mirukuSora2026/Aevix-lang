@@ -1,0 +1,57 @@
+import shape;
+
+Result<i32, shape.ShapeError> exercise() {
+    shape.Shape0 scalar = shape.Shape0.new();
+    shape.Shape1<7> line = shape.Shape1<7>.new();
+    shape.Shape2<2, 3> matrix = shape.Shape2<2, 3>.new();
+    shape.Shape3<2, 3, 4> cube = shape.Shape3<2, 3, 4>.new();
+    if (scalar.rank() != 0 || scalar.element_count()? != 1) return Result.ok(1);
+    Result<usize, shape.ShapeError> no_scalar_axis = scalar.dim(0);
+    if (Result.is_ok(&no_scalar_axis)) return Result.ok(16);
+    if (line.rank() != 1 || line.dim(0)? != 7 || line.element_count()? != 7) return Result.ok(2);
+    if (matrix.rank() != 2 || matrix.dim(0)? != 2 || matrix.dim(1)? != 3 || matrix.element_count()? != 6) return Result.ok(3);
+    if (cube.rank() != 3 || cube.dim(0)? != 2 || cube.dim(1)? != 3 || cube.dim(2)? != 4 || cube.element_count()? != 24) return Result.ok(4);
+    usize dimensions[3] = [2, 3, 4];
+    shape.DynamicShape<3> dynamic = shape.DynamicShape<3>.new(dimensions)?;
+    if (dynamic.rank() != 3 || dynamic.dim(1)? != 3 || dynamic.element_count()? != 24 || dynamic.as_slice()[2] != 4) return Result.ok(5);
+    Result<usize, shape.ShapeError> invalid_dynamic_axis = dynamic.dim(3);
+    if (Result.is_ok(&invalid_dynamic_axis)) return Result.ok(17);
+    usize no_dimensions[0] = [];
+    shape.DynamicShape<0> empty_rank = shape.DynamicShape<0>.new(no_dimensions)?;
+    if (empty_rank.element_count()? != 1 || Slice.len(empty_rank.as_slice()) != 0) return Result.ok(6);
+    usize zero_dimensions[3] = [18446744073709551615usize, 2, 0];
+    shape.DynamicShape<3> zero = shape.DynamicShape<3>.new(zero_dimensions)?;
+    if (zero.element_count()? != 0) return Result.ok(7);
+    shape.Shape3<18446744073709551615usize, 2, 0> static_zero = shape.Shape3<18446744073709551615usize, 2, 0>.new();
+    if (static_zero.element_count()? != 0) return Result.ok(8);
+    shape.Shape2<18446744073709551615usize, 2> static_overflow = shape.Shape2<18446744073709551615usize, 2>.new();
+    Result<usize, shape.ShapeError> overflow = static_overflow.element_count();
+    switch (overflow) {
+        case Result<usize, shape.ShapeError>.Ok: return Result.ok(9); break;
+        case Result<usize, shape.ShapeError>.Err { shape.ShapeError cause = error }:
+            switch (cause) { case shape.ShapeError.ElementCountOverflow: break; default: return Result.ok(10); break; }
+            break;
+    }
+    usize overflowing_dimensions[2] = [18446744073709551615usize, 2];
+    Result<shape.DynamicShape<2>, shape.ShapeError> dynamic_overflow = shape.DynamicShape<2>.new(overflowing_dimensions);
+    if (Result.is_ok(&dynamic_overflow)) return Result.ok(11);
+    Result<usize, shape.ShapeError> invalid_axis = matrix.dim(2);
+    switch (invalid_axis) {
+        case Result<usize, shape.ShapeError>.Ok: return Result.ok(12); break;
+        case Result<usize, shape.ShapeError>.Err { shape.ShapeError cause = error }:
+            switch (cause) { case shape.ShapeError.InvalidAxis { usize axis = axis }: if (axis != 2) return Result.ok(13); break; default: return Result.ok(14); break; }
+            break;
+    }
+    shape.DynamicShape<3> cloned = dynamic.clone()?;
+    if (cloned.dim(2)? != 4 || cloned.element_count()? != 24 || dynamic.dim(0)? != 2) return Result.ok(15);
+    shape.Shape0 scalar_copy = scalar.clone()?;
+    shape.Shape1<7> line_copy = line.clone()?;
+    shape.Shape2<2, 3> matrix_copy = matrix.clone()?;
+    shape.Shape3<2, 3, 4> cube_copy = cube.clone()?;
+    if (scalar_copy.element_count()? != 1 || line_copy.dim(0)? != 7 || matrix_copy.dim(1)? != 3 || cube_copy.dim(2)? != 4) return Result.ok(18);
+    return Result.ok(0);
+}
+i32 main() {
+    Result<i32, shape.ShapeError> checked = exercise();
+    switch (checked) { case Result<i32, shape.ShapeError>.Ok { i32 code = value }: return code; break; default: return 99; break; }
+}

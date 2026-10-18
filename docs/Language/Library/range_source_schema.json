@@ -1,0 +1,749 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "module": "range",
+  "source": "library/Collections/range.avx",
+  "namespace_boundary": "Explicit import range; range.* utilities. No canonical Range namespace or RangeError changes.",
+  "element_types": [
+    {
+      "type": "i8",
+      "bits": 8,
+      "signed": true
+    },
+    {
+      "type": "u8",
+      "bits": 8,
+      "signed": false
+    },
+    {
+      "type": "i16",
+      "bits": 16,
+      "signed": true
+    },
+    {
+      "type": "u16",
+      "bits": 16,
+      "signed": false
+    },
+    {
+      "type": "i32",
+      "bits": 32,
+      "signed": true
+    },
+    {
+      "type": "u32",
+      "bits": 32,
+      "signed": false
+    },
+    {
+      "type": "i64",
+      "bits": 64,
+      "signed": true
+    },
+    {
+      "type": "u64",
+      "bits": 64,
+      "signed": false
+    },
+    {
+      "type": "i128",
+      "bits": 128,
+      "signed": true
+    },
+    {
+      "type": "u128",
+      "bits": 128,
+      "signed": false
+    },
+    {
+      "type": "isize",
+      "bits": 64,
+      "signed": true
+    },
+    {
+      "type": "usize",
+      "bits": 64,
+      "signed": false
+    }
+  ],
+  "public_function_overloads": 29,
+  "distinct_function_names": [
+    "at",
+    "collect_vector",
+    "contains",
+    "direction",
+    "empty",
+    "equal",
+    "first",
+    "get",
+    "iter",
+    "last",
+    "rev_iter",
+    "reverse",
+    "sequence_equal",
+    "skip",
+    "split_at",
+    "step_by",
+    "take",
+    "to_array"
+  ],
+  "cursor": "range.Cursor<T>: independent Copy state, private fields, fused next/next_back",
+  "error_carrier": "range.RangeOperationError: OutOfBounds(index), InvalidStep, StepOverflow",
+  "materialization_error_carrier": "range.RangeArrayError: CountOverflow, LengthMismatch(expected, actual)",
+  "contracts": {
+    "RangeDirection": "The stored ascending or descending direction, independent of whether the sequence is empty.",
+    "RangeDirection.Ascending": "Values advance toward larger integers by a positive unsigned magnitude.",
+    "RangeDirection.Descending": "Values advance toward smaller integers by a positive unsigned magnitude.",
+    "RangeOperationError": "Failures of source-only ordinal and step helpers; distinct from canonical RangeError.",
+    "RangeOperationError.OutOfBounds": "The requested ordinal is outside the sequence, or a split index exceeds its cardinality.",
+    "RangeOperationError.OutOfBounds.index": "The original usize ordinal supplied by the caller.",
+    "RangeOperationError.InvalidStep": "A zero multiplicative step factor is invalid, including for empty descriptors.",
+    "RangeOperationError.StepOverflow": "The product of the current magnitude and factor does not fit the element unsigned magnitude type.",
+    "RangeOperationError.code": "Return a stable allocation-free code for this source error carrier.",
+    "RangeOperationError.message": "Return an allocation-free English description for this source error carrier.",
+    "empty": "Return the canonical ascending half-open zero-to-zero descriptor for an integer T.",
+    "direction": "Inspect the stored direction without enumerating values; emptiness does not erase the direction.",
+    "contains": "Check directional bounds and step divisibility in O(1), including signed numeric extremes.",
+    "equal": "Compare bounds, inclusion, unsigned magnitude and direction; descriptors can differ while yielding equal sequences.",
+    "first": "Return the first yielded integer, or None when the finite descriptor is empty.",
+    "get": "Return the integer at a zero-based usize ordinal, or None; validate the ordinal before multiplication.",
+    "last": "Return the last reachable integer in O(1), without forming a cardinality that can overflow u128.",
+    "at": "Return an ordinal value or RangeOperationError.OutOfBounds containing the unchanged caller index.",
+    "reverse": "Reverse the finite sequence using closed actual reached endpoints and the opposite direction; never negate a step.",
+    "take": "Keep at most count leading values in O(1); zero yields canonical empty and finite cuts use a reached closed endpoint.",
+    "skip": "Remove up to count leading values in O(1); cuts use actual reached closed endpoints and never form MAX+1.",
+    "split_at": "Return prefix and suffix descriptors when index is no greater than cardinality, without enumeration or count overflow.",
+    "sequence_equal": "Compare yielded sequences in O(1); all empty sequences compare equal and singleton step/direction differences are ignored.",
+    "Cursor": "An independent, copyable, allocation-free, double-ended fused cursor over a finite integer sequence.",
+    "Cursor.new": "Own a private cursor state initialized from a Copy descriptor; the caller can continue using its original descriptor.",
+    "Cursor.is_exhausted": "Report whether all values were consumed; exhaustion remains true after later next or next_back calls.",
+    "Cursor.next": "Yield from the front and advance only when another value remains; return None permanently after exhaustion.",
+    "Cursor.next_back": "Yield from the back, sharing remaining bounds with next; never advance beyond the final remaining value.",
+    "iter": "Create an independent forward cursor without borrowing or changing the original descriptor.",
+    "rev_iter": "Create an independent cursor over the reversed finite sequence without enumerating or allocating.",
+    "step_by": "Multiply the unsigned magnitude by a positive same-width factor; return InvalidStep or StepOverflow before arithmetic.",
+    "RangeArrayError": "Failures of fixed-array materialization; distinct from canonical RangeError, which is unchanged.",
+    "RangeArrayError.CountOverflow": "The finite range cardinality cannot be represented as usize, before any explicit output initialization.",
+    "RangeArrayError.LengthMismatch": "The representable range cardinality differs from the requested compile-time array extent.",
+    "RangeArrayError.LengthMismatch.expected": "The compile-time usize array extent supplied as the first generic argument.",
+    "RangeArrayError.LengthMismatch.actual": "The exact representable usize cardinality of the input sequence.",
+    "RangeArrayError.code": "Return the stable allocation-free code of this source array-materialization error.",
+    "RangeArrayError.message": "Return an allocation-free English description of this source array-materialization error.",
+    "collect_vector": "Materialize integer Copy values after exact cardinality and byte-size checks. Map count overflow to CollectionError.SizeOverflow; reserve output once, preserve the input descriptor and release owned output on failure. Empty output performs no allocation.",
+    "to_array": "Materialize exactly N integer Copy values into inline storage; N is the first const generic argument and T is inferred. Validate count before explicit repeated-array initialization. Return source RangeArrayError on count overflow or length mismatch. The current aggregate Result ABI still reserves/copies/zero-initializes O(N) storage even on an error; no heap buffer is allocated."
+  },
+  "records": [
+    {
+      "name": "range.RangeDirection",
+      "short_name": "RangeDirection",
+      "kind": "enum",
+      "signature": "public enum RangeDirection implements Copy",
+      "line": 25,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeDirection.Ascending",
+      "short_name": "Ascending",
+      "kind": "variant",
+      "signature": "Ascending",
+      "line": 31,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeDirection.Descending",
+      "short_name": "Descending",
+      "kind": "variant",
+      "signature": "Descending",
+      "line": 37,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeOperationError",
+      "short_name": "RangeOperationError",
+      "kind": "enum",
+      "signature": "public enum RangeOperationError implements Copy, Error",
+      "line": 44,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeOperationError.OutOfBounds",
+      "short_name": "OutOfBounds",
+      "kind": "variant",
+      "signature": "OutOfBounds",
+      "line": 51,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeOperationError.OutOfBounds.index",
+      "short_name": "index",
+      "kind": "field",
+      "signature": "public usize index",
+      "line": 57,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeOperationError.InvalidStep",
+      "short_name": "InvalidStep",
+      "kind": "variant",
+      "signature": "InvalidStep",
+      "line": 64,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeOperationError.StepOverflow",
+      "short_name": "StepOverflow",
+      "kind": "variant",
+      "signature": "StepOverflow",
+      "line": 71,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeOperationError.code",
+      "short_name": "code",
+      "kind": "method",
+      "signature": "public string_view code(&Self self)",
+      "line": 78,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeOperationError.message",
+      "short_name": "message",
+      "kind": "method",
+      "signature": "public string_view message(&Self self)",
+      "line": 91,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.empty",
+      "short_name": "empty",
+      "kind": "function",
+      "signature": "public Range<T> empty<T>() where T implements Copy",
+      "line": 221,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.direction",
+      "short_name": "direction",
+      "kind": "function",
+      "signature": "public RangeDirection direction<T>(&Range<T> descriptor) where T implements Copy",
+      "line": 231,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.contains",
+      "short_name": "contains",
+      "kind": "function",
+      "signature": "public bool contains<T>(&Range<T> descriptor,T value) where T implements Copy",
+      "line": 240,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.equal",
+      "short_name": "equal",
+      "kind": "function",
+      "signature": "public bool equal<T>(&Range<T> left,&Range<T> right) where T implements Copy",
+      "line": 256,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.first",
+      "short_name": "first",
+      "kind": "function",
+      "signature": "public Optional<T> first<T>(&Range<T> descriptor) where T implements Copy",
+      "line": 266,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.get",
+      "short_name": "get",
+      "kind": "function",
+      "signature": "public Optional<T> get<T>(&Range<T> descriptor,usize index) where T implements Copy",
+      "line": 276,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.last",
+      "short_name": "last",
+      "kind": "function",
+      "signature": "public Optional<T> last<T>(&Range<T> descriptor) where T implements Copy",
+      "line": 290,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.at",
+      "short_name": "at",
+      "kind": "function",
+      "signature": "public Result<T,RangeOperationError> at<T>(&Range<T> descriptor,usize index) where T implements Copy",
+      "line": 303,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.reverse",
+      "short_name": "reverse",
+      "kind": "function",
+      "signature": "public Range<T> reverse<T>(Range<T> descriptor) where T implements Copy",
+      "line": 315,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.take",
+      "short_name": "take",
+      "kind": "function",
+      "signature": "public Range<T> take<T>(Range<T> descriptor,usize count) where T implements Copy",
+      "line": 329,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.skip",
+      "short_name": "skip",
+      "kind": "function",
+      "signature": "public Range<T> skip<T>(Range<T> descriptor,usize count) where T implements Copy",
+      "line": 345,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.split_at",
+      "short_name": "split_at",
+      "kind": "function",
+      "signature": "public Result<Tuple<Range<T>,Range<T>>,RangeOperationError> split_at<T>(Range<T> descriptor,usize index) where T implements Copy",
+      "line": 362,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.sequence_equal",
+      "short_name": "sequence_equal",
+      "kind": "function",
+      "signature": "public bool sequence_equal<T>(&Range<T> left,&Range<T> right) where T implements Copy",
+      "line": 375,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.Cursor",
+      "short_name": "Cursor",
+      "kind": "struct",
+      "signature": "public struct Cursor<T> implements Copy where T implements Copy",
+      "line": 394,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.Cursor.new",
+      "short_name": "new",
+      "kind": "method",
+      "signature": "public Self new(Range<T> descriptor)",
+      "line": 407,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.Cursor.is_exhausted",
+      "short_name": "is_exhausted",
+      "kind": "method",
+      "signature": "public bool is_exhausted(&Self self)",
+      "line": 419,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.Cursor.next",
+      "short_name": "next",
+      "kind": "method",
+      "signature": "public Optional<T> next(&mut Self self)",
+      "line": 426,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.Cursor.next_back",
+      "short_name": "next_back",
+      "kind": "method",
+      "signature": "public Optional<T> next_back(&mut Self self)",
+      "line": 439,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.iter",
+      "short_name": "iter",
+      "kind": "function",
+      "signature": "public Cursor<T> iter<T>(Range<T> descriptor) where T implements Copy",
+      "line": 453,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.rev_iter",
+      "short_name": "rev_iter",
+      "kind": "function",
+      "signature": "public Cursor<T> rev_iter<T>(Range<T> descriptor) where T implements Copy",
+      "line": 460,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<i8>,RangeOperationError> step_by(Range<i8> descriptor,u8 factor)",
+      "line": 468,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<u8>,RangeOperationError> step_by(Range<u8> descriptor,u8 factor)",
+      "line": 480,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<i16>,RangeOperationError> step_by(Range<i16> descriptor,u16 factor)",
+      "line": 492,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<u16>,RangeOperationError> step_by(Range<u16> descriptor,u16 factor)",
+      "line": 504,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<i32>,RangeOperationError> step_by(Range<i32> descriptor,u32 factor)",
+      "line": 516,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<u32>,RangeOperationError> step_by(Range<u32> descriptor,u32 factor)",
+      "line": 528,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<i64>,RangeOperationError> step_by(Range<i64> descriptor,u64 factor)",
+      "line": 540,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<u64>,RangeOperationError> step_by(Range<u64> descriptor,u64 factor)",
+      "line": 552,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<i128>,RangeOperationError> step_by(Range<i128> descriptor,u128 factor)",
+      "line": 564,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<u128>,RangeOperationError> step_by(Range<u128> descriptor,u128 factor)",
+      "line": 576,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<isize>,RangeOperationError> step_by(Range<isize> descriptor,usize factor)",
+      "line": 588,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.step_by",
+      "short_name": "step_by",
+      "kind": "function",
+      "signature": "public Result<Range<usize>,RangeOperationError> step_by(Range<usize> descriptor,usize factor)",
+      "line": 600,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeArrayError",
+      "short_name": "RangeArrayError",
+      "kind": "enum",
+      "signature": "public enum RangeArrayError implements Copy, Error",
+      "line": 613,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeArrayError.CountOverflow",
+      "short_name": "CountOverflow",
+      "kind": "variant",
+      "signature": "CountOverflow",
+      "line": 620,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeArrayError.LengthMismatch",
+      "short_name": "LengthMismatch",
+      "kind": "variant",
+      "signature": "LengthMismatch",
+      "line": 627,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeArrayError.LengthMismatch.expected",
+      "short_name": "expected",
+      "kind": "field",
+      "signature": "public usize expected",
+      "line": 633,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeArrayError.LengthMismatch.actual",
+      "short_name": "actual",
+      "kind": "field",
+      "signature": "public usize actual",
+      "line": 639,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeArrayError.code",
+      "short_name": "code",
+      "kind": "method",
+      "signature": "public string_view code(&Self self)",
+      "line": 646,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.RangeArrayError.message",
+      "short_name": "message",
+      "kind": "method",
+      "signature": "public string_view message(&Self self)",
+      "line": 655,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.collect_vector",
+      "short_name": "collect_vector",
+      "kind": "function",
+      "signature": "public Result<Vector<T>,CollectionError> collect_vector<T>(Range<T> descriptor) where T implements Copy",
+      "line": 672,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    },
+    {
+      "name": "range.to_array",
+      "short_name": "to_array",
+      "kind": "function",
+      "signature": "public Result<Array<T,N>,RangeArrayError> to_array<const usize N,T>(Range<T> descriptor) where T implements Copy",
+      "line": 702,
+      "lifecycle": {
+        "since": "0.3.0",
+        "deprecated_at": "none",
+        "removed_at": "none"
+      }
+    }
+  ]
+}

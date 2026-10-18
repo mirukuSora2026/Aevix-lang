@@ -1,0 +1,97 @@
+import map { Map };
+import map_entry { MapEntry, EntryInputError, EntryBuildError };
+import map_entry;
+
+/* This program is linked only by the deterministic generated-IR allocator failure gate. */
+struct Key implements Drop { public i32 id; public &mut i32 drops; public void drop(&mut Self self) { *self.drops += 1; return; } };
+struct Value implements Drop { public i32 id; public &mut i32 drops; public void drop(&mut Self self) { *self.drops += 1; return; } };
+struct Watch implements Drop { public i32 id; public &mut i32 drops; public void drop(&mut Self self) { *self.drops += 1; return; } };
+Map<Key, Value> make_map() {
+    Result<Map<Key, Value>, CollectionError> made = Map<Key, Value>.new();
+    switch (move made) { case Result<Map<Key, Value>, CollectionError>.Ok { Map<Key, Value> value = value }: return value; break; case Result<Map<Key, Value>, CollectionError>.Err: Never.unreachable(); break; }
+}
+i32 regular<F>(&mut Map<Key, Value> owner, Key key, Value value, F same) where F implements Fn<Tuple<&Key, &Key>, bool> {
+    MapEntry<Key, Value, F> entry = map_entry.entry_with(owner, key, 1u64, same);
+    Result<&mut Value, EntryInputError<Key, Value, F>> result = entry.or_insert(value);
+    switch (move result) {
+        case Result<&mut Value, EntryInputError<Key, Value, F>>.Ok: return 1; break;
+        case Result<&mut Value, EntryInputError<Key, Value, F>>.Err { EntryInputError<Key, Value, F> problem = error }:
+            switch (move problem) {
+                case EntryInputError<Key, Value, F>.Preflight { CollectionError reason = reason, MapEntry<Key, Value, F> retry = entry, Value unused = input }:
+                    switch (reason) { case CollectionError.AllocationFailure: break; case CollectionError.SizeOverflow: return 2; break; }
+                    if (retry.is_occupied() || unused.id != 22) return 3;
+                    Key recovered = retry.into_incoming_key();
+                    return recovered.id == 11 ? 0 : 4;
+                    break;
+            }
+            break;
+    }
+}
+i32 lazy<F>(&mut Map<Key, Value> owner, Key key, F same, &mut i32 calls) where F implements Fn<Tuple<&Key, &Key>, bool> {
+    MapEntry<Key, Value, F> entry = map_entry.entry_with(owner, key, 1u64, same);
+    Result<&mut Value, EntryBuildError<Key, Value, F, unit>> result = entry.or_insert_with([calls]() -> Value { *calls += 1; Never.unreachable(); });
+    switch (move result) {
+        case Result<&mut Value, EntryBuildError<Key, Value, F, unit>>.Ok: return 5; break;
+        case Result<&mut Value, EntryBuildError<Key, Value, F, unit>>.Err { EntryBuildError<Key, Value, F, unit> problem = error }:
+            switch (move problem) {
+                case EntryBuildError<Key, Value, F, unit>.Preflight { MapEntry<Key, Value, F> retry = entry }:
+                    Key recovered = retry.into_incoming_key(); return recovered.id == 12 ? 0 : 6; break;
+                case EntryBuildError<Key, Value, F, unit>.Build: return 7; break;
+                case EntryBuildError<Key, Value, F, unit>.Insertion: return 8; break;
+            }
+            break;
+    }
+}
+i32 fallible_lazy<F>(&mut Map<Key, Value> owner, Key key, F same, &mut i32 calls) where F implements Fn<Tuple<&Key, &Key>, bool> {
+    MapEntry<Key, Value, F> entry = map_entry.entry_with(owner, key, 1u64, same);
+    Result<&mut Value, EntryBuildError<Key, Value, F, i32>> result = entry.try_or_insert_with<i32>([calls]() -> Result<Value, i32> { *calls += 1; return Result.err(77); });
+    switch (move result) {
+        case Result<&mut Value, EntryBuildError<Key, Value, F, i32>>.Ok: return 9; break;
+        case Result<&mut Value, EntryBuildError<Key, Value, F, i32>>.Err { EntryBuildError<Key, Value, F, i32> problem = error }:
+            switch (move problem) {
+                case EntryBuildError<Key, Value, F, i32>.Preflight { MapEntry<Key, Value, F> retry = entry }:
+                    Key recovered = retry.into_incoming_key(); return recovered.id == 13 ? 0 : 10; break;
+                case EntryBuildError<Key, Value, F, i32>.Build: return 11; break;
+                case EntryBuildError<Key, Value, F, i32>.Insertion: return 12; break;
+            }
+            break;
+    }
+}
+i32 main() {
+    /* A helper may insert its key on a successful allocation. Keep each possible
+     * stored key's exclusive Drop-counter loan distinct even though this harness
+     * injects failure externally, beyond the source type checker's knowledge.
+     */
+    mut i32 regular_key_drops = 0;
+    mut i32 lazy_key_drops = 0;
+    mut i32 fallible_key_drops = 0;
+    mut i32 value_drops = 0;
+    mut i32 comparator_drops = 0;
+    mut i32 calls = 0;
+    {
+        mut Map<Key, Value> owner = make_map();
+        {
+            Watch watch = Watch { id = 0, drops = &mut comparator_drops };
+            Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id == b.id && captures[0].id == 0; };
+            i32 code = regular(&mut owner, Key { id = 11, drops = &mut regular_key_drops }, Value { id = 22, drops = &mut value_drops }, same);
+            if (code != 0) return code;
+        }
+        {
+            Watch watch = Watch { id = 0, drops = &mut comparator_drops };
+            Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id == b.id && captures[0].id == 0; };
+            i32 code = lazy(&mut owner, Key { id = 12, drops = &mut lazy_key_drops }, same, &mut calls);
+            if (code != 0) return code;
+        }
+        {
+            Watch watch = Watch { id = 0, drops = &mut comparator_drops };
+            Watch captures[1] = [watch];
+                    rsn same = [captures](&Key a, &Key b) -> bool { return a.id == b.id && captures[0].id == 0; };
+            i32 code = fallible_lazy(&mut owner, Key { id = 13, drops = &mut fallible_key_drops }, same, &mut calls);
+            if (code != 0) return code;
+        }
+        if (!owner.is_empty() || calls != 0) return 13;
+    }
+    return regular_key_drops == 1 && lazy_key_drops == 1 && fallible_key_drops == 1 && value_drops == 1 && comparator_drops == 3 ? 0 : 14;
+}

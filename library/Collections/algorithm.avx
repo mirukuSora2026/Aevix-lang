@@ -1,0 +1,323 @@
+/*
+ * Lifecycle of the algorithm public module.
+ * @module algorithm
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * Slice algorithms do not own or allocate storage and expose callback and copy costs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool all<T, F>(Slice<T> values, &F predicate) where F implements Fn<Tuple<&T>, bool> {
+    mut usize index = 0;
+    while (index < Slice.len(values)) {
+        if (!predicate(&values[index])) return false;
+        index++;
+    }
+    return true;
+}
+/*
+ * Version history for the algorithm.any public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool any<T, F>(Slice<T> values, &F predicate) where F implements Fn<Tuple<&T>, bool> {
+    mut usize index = 0;
+    while (index < Slice.len(values)) {
+        if (predicate(&values[index])) return true;
+        index++;
+    }
+    return false;
+}
+/*
+ * Version history for the algorithm.none public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool none<T, F>(Slice<T> values, &F predicate) where F implements Fn<Tuple<&T>, bool> {
+    return !any(values, predicate);
+}
+/*
+ * Version history for the algorithm.count_if public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize count_if<T, F>(Slice<T> values, &F predicate) where F implements Fn<Tuple<&T>, bool> {
+    mut usize found = 0;
+    mut usize index = 0;
+    while (index < Slice.len(values)) {
+        if (predicate(&values[index])) found++;
+        index++;
+    }
+    return found;
+}
+/*
+ * Version history for the algorithm.find_index public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> find_index<T, F>(Slice<T> values, &F predicate) where F implements Fn<Tuple<&T>, bool> {
+    mut usize index = 0;
+    while (index < Slice.len(values)) {
+        if (predicate(&values[index])) return Optional.some(index);
+        index++;
+    }
+    return Optional.none();
+}
+/*
+ * Version history for the algorithm.find_last_index public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> find_last_index<T, F>(Slice<T> values, &F predicate) where F implements Fn<Tuple<&T>, bool> {
+    mut usize index = Slice.len(values);
+    while (index > 0) {
+        index--;
+        if (predicate(&values[index])) return Optional.some(index);
+    }
+    return Optional.none();
+}
+/*
+ * Version history for the algorithm.fold public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public A fold<T, A, F>(Slice<T> values, A initial, &F combine) where F implements Fn<Tuple<A, &T>, A> {
+    mut A accumulated = initial;
+    mut usize index = 0;
+    while (index < Slice.len(values)) {
+        accumulated = combine(accumulated, &values[index]);
+        index++;
+    }
+    return accumulated;
+}
+/*
+ * Version history for the algorithm.for_each public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit for_each<T, F>(Slice<T> values, &mut F observer) where F implements FnMut<Tuple<&T>, unit> {
+    mut usize index = 0;
+    while (index < Slice.len(values)) {
+        observer(&values[index]);
+        index++;
+    }
+    return Unit.value();
+}
+/*
+ * Version history for the algorithm.equal_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal_by<T, U, F>(Slice<T> left, Slice<U> right, &F equal) where F implements Fn<Tuple<&T, &U>, bool> {
+    if (Slice.len(left) != Slice.len(right)) return false;
+    mut usize index = 0;
+    while (index < Slice.len(left)) {
+        if (!equal(&left[index], &right[index])) return false;
+        index++;
+    }
+    return true;
+}
+/*
+ * Version history for the algorithm.starts_with_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool starts_with_by<T, U, F>(Slice<T> values, Slice<U> prefix, &F equal) where F implements Fn<Tuple<&T, &U>, bool> {
+    if (Slice.len(values) < Slice.len(prefix)) return false;
+    mut usize index = 0;
+    while (index < Slice.len(prefix)) {
+        if (!equal(&values[index], &prefix[index])) return false;
+        index++;
+    }
+    return true;
+}
+/*
+ * Version history for the algorithm.ends_with_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool ends_with_by<T, U, F>(Slice<T> values, Slice<U> suffix, &F equal) where F implements Fn<Tuple<&T, &U>, bool> {
+    if (Slice.len(values) < Slice.len(suffix)) return false;
+    usize offset = Slice.len(values) - Slice.len(suffix);
+    mut usize index = 0;
+    while (index < Slice.len(suffix)) {
+        if (!equal(&values[offset + index], &suffix[index])) return false;
+        index++;
+    }
+    return true;
+}
+/*
+ * Version history for the algorithm.lexicographical_compare_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 lexicographical_compare_by<T, U, F>(Slice<T> left, Slice<U> right, &F compare) where F implements Fn<Tuple<&T, &U>, i32> {
+    mut usize index = 0;
+    while (index < Slice.len(left) && index < Slice.len(right)) {
+        i32 order = compare(&left[index], &right[index]);
+        if (order < 0) return -1;
+        if (order > 0) return 1;
+        index++;
+    }
+    if (Slice.len(left) < Slice.len(right)) return -1;
+    if (Slice.len(left) > Slice.len(right)) return 1;
+    return 0;
+}
+/*
+ * Version history for the algorithm.is_sorted_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_sorted_by<T, F>(Slice<T> values, &F compare) where F implements Fn<Tuple<&T, &T>, i32> {
+    mut usize index = 1;
+    while (index < Slice.len(values)) {
+        if (compare(&values[index - 1], &values[index]) > 0) return false;
+        index++;
+    }
+    return true;
+}
+/*
+ * Version history for the algorithm.min_index_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> min_index_by<T, F>(Slice<T> values, &F compare) where F implements Fn<Tuple<&T, &T>, i32> {
+    if (Slice.len(values) == 0) return Optional.none();
+    mut usize chosen = 0;
+    mut usize index = 1;
+    while (index < Slice.len(values)) {
+        if (compare(&values[index], &values[chosen]) < 0) chosen = index;
+        index++;
+    }
+    return Optional.some(chosen);
+}
+/*
+ * Version history for the algorithm.max_index_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> max_index_by<T, F>(Slice<T> values, &F compare) where F implements Fn<Tuple<&T, &T>, i32> {
+    if (Slice.len(values) == 0) return Optional.none();
+    mut usize chosen = 0;
+    mut usize index = 1;
+    while (index < Slice.len(values)) {
+        if (compare(&values[index], &values[chosen]) > 0) chosen = index;
+        index++;
+    }
+    return Optional.some(chosen);
+}
+/*
+ * Binary-search operations require input already sorted by compare.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize lower_bound_by<T, U, F>(Slice<T> values, &U key, &F compare) where F implements Fn<Tuple<&T, &U>, i32> {
+    mut usize first = 0;
+    mut usize end = Slice.len(values);
+    while (first < end) {
+        usize middle = first + (end - first) / 2;
+        if (compare(&values[middle], key) < 0) first = middle + 1;
+        else end = middle;
+    }
+    return first;
+}
+/*
+ * Version history for the algorithm.upper_bound_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize upper_bound_by<T, U, F>(Slice<T> values, &U key, &F compare) where F implements Fn<Tuple<&T, &U>, i32> {
+    mut usize first = 0;
+    mut usize end = Slice.len(values);
+    while (first < end) {
+        usize middle = first + (end - first) / 2;
+        if (compare(&values[middle], key) <= 0) first = middle + 1;
+        else end = middle;
+    }
+    return first;
+}
+/*
+ * Version history for the algorithm.binary_search_by public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> binary_search_by<T, U, F>(Slice<T> values, &U key, &F compare) where F implements Fn<Tuple<&T, &U>, i32> {
+    usize index = lower_bound_by(values, key, compare);
+    if (index < Slice.len(values) && compare(&values[index], key) == 0) return Optional.some(index);
+    return Optional.none();
+}
+/*
+ * Version history for the algorithm.fill public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit fill<T>(MutSlice<T> values, T replacement) where T implements Copy {
+    mut usize index = 0;
+    while (index < Slice.len(&values)) {
+        values[index] = replacement;
+        index++;
+    }
+    return Unit.value();
+}
+/*
+ * Version history for the algorithm.reverse public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit reverse<T>(MutSlice<T> values) where T implements Copy {
+    mut usize first = 0;
+    mut usize end = Slice.len(&values);
+    while (first < end) {
+        end--;
+        if (first == end) break;
+        T saved = values[first];
+        values[first] = values[end];
+        values[end] = saved;
+        first++;
+    }
+    return Unit.value();
+}
+/*
+ * Stable insertion sort performs O(N²) comparisons and moves with no additional allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit sort_by<T, F>(MutSlice<T> values, &F compare) where T implements Copy, F implements Fn<Tuple<&T, &T>, i32> {
+    mut usize index = 1;
+    while (index < Slice.len(&values)) {
+        T saved = values[index];
+        mut usize position = index;
+        while (position > 0) {
+            if (compare(&values[position - 1], &saved) <= 0) break;
+            values[position] = values[position - 1];
+            position--;
+        }
+        values[position] = saved;
+        index++;
+    }
+    return Unit.value();
+}

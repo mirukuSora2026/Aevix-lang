@@ -1,0 +1,60 @@
+import map { Map, Entry };
+import map_entry { MapEntry, EntryInputError, EntryBuildError };
+import map_entry;
+
+/* Ordinary move-only string keys and values need no implicit clone or reference-bearing payload. */
+Map<string, string> make_map() {
+    Result<Map<string, string>, CollectionError> made = Map<string, string>.new();
+    switch (move made) { case Result<Map<string, string>, CollectionError>.Ok { Map<string, string> value = value }: return value; break; case Result<Map<string, string>, CollectionError>.Err: Never.unreachable(); break; }
+}
+Result<i32, TextError> add<F>(&mut Map<string, string> owner, F same) where F implements Fn<Tuple<&string, &string>, bool> {
+    string key = string.from_view("canonical")?;
+    string input = string.from_view("first")?;
+    MapEntry<string, string, F> entry = map_entry.entry_with(owner, key, 1u64, same);
+    Result<&mut string, EntryInputError<string, string, F>> inserted = entry.or_insert(input);
+    switch (move inserted) {
+        case Result<&mut string, EntryInputError<string, string, F>>.Ok { &mut string value = value }:
+            string.append(&mut *value, "!")?;
+            return Result.ok(string.equals(&*value, "first!") ? 0 : 1);
+            break;
+        case Result<&mut string, EntryInputError<string, string, F>>.Err: return Result.ok(2); break;
+    }
+}
+Result<i32, TextError> replace<F>(&mut Map<string, string> owner, F same) where F implements Fn<Tuple<&string, &string>, bool> {
+    string incoming = string.from_view("canonical")?;
+    string input = string.from_view("second")?;
+    mut MapEntry<string, string, F> entry = map_entry.entry_with(owner, incoming, 1u64, same);
+    if (!entry.is_occupied() || !string.equals(entry.key(), "canonical")) return Result.ok(3);
+    Optional<&string> old = entry.get();
+    switch (move old) { case Optional<&string>.Some { &string value = value }: if (!string.equals(&*value, "first!")) return Result.ok(4); break; case Optional<&string>.None: return Result.ok(5); break; }
+    Optional<&mut string> writable = entry.get_mut();
+    switch (move writable) { case Optional<&mut string>.Some { &mut string value = value }: string.append(&mut *value, "?")?; break; case Optional<&mut string>.None: return Result.ok(6); break; }
+    Result<Optional<string>, EntryInputError<string, string, F>> result = entry.insert(input);
+    switch (move result) {
+        case Result<Optional<string>, EntryInputError<string, string, F>>.Ok { Optional<string> previous = value }:
+            switch (move previous) { case Optional<string>.Some { string value = value }: return Result.ok(string.equals(&value, "first!?") ? 0 : 7); break; case Optional<string>.None: return Result.ok(8); break; }
+            break;
+        case Result<Optional<string>, EntryInputError<string, string, F>>.Err: return Result.ok(9); break;
+    }
+}
+Result<i32, TextError> take<F>(&mut Map<string, string> owner, F same) where F implements Fn<Tuple<&string, &string>, bool> {
+    string incoming = string.from_view("canonical")?;
+    MapEntry<string, string, F> entry = map_entry.entry_with(owner, incoming, 1u64, same);
+    Optional<Entry<string, string>> removed = entry.remove_entry();
+    switch (move removed) {
+        case Optional<Entry<string, string>>.Some { Entry<string, string> pair = value }:
+            switch (move pair) { case Entry<string, string>.Pair { string key = key, string value = value }: return Result.ok(string.equals(&key, "canonical") && string.equals(&value, "second") ? 0 : 10); break; }
+            break;
+        case Optional<Entry<string, string>>.None: return Result.ok(11); break;
+    }
+}
+Result<i32, TextError> exercise() {
+    mut Map<string, string> owner = make_map();
+    i32 first = add(&mut owner, [](&string a, &string b) -> bool { return string.equals(a, b); })?;
+    if (first != 0) return Result.ok(first);
+    i32 second = replace(&mut owner, [](&string a, &string b) -> bool { return string.equals(a, b); })?;
+    if (second != 0) return Result.ok(second);
+    i32 third = take(&mut owner, [](&string a, &string b) -> bool { return string.equals(a, b); })?;
+    return Result.ok(third == 0 && owner.is_empty() ? 0 : 12);
+}
+i32 main() { Result<i32, TextError> result = exercise(); switch (move result) { case Result<i32, TextError>.Ok { i32 code = value }: return code; break; case Result<i32, TextError>.Err: return 90; break; } }

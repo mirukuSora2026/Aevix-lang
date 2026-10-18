@@ -1,0 +1,5000 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "baseline_ir.json",
+  "description": {
+    "ko": "실행 없는 cpu4096 기준 LLVM·어셈블리 분석과 재현 명령 기록이다.",
+    "en": "Static cpu4096 baseline LLVM/assembly analysis and reproduction commands; no workload execution."
+  },
+  "analyzer": "benchmarks/Comparison/cpu4096/reports/analyze_ir",
+  "analyzer_sha256": "c06102659301f5b3da4c5928632ed265fbae216857742a3ee016e4430ad6aa47",
+  "analysis": "cpu4096 baseline IR; workload execution is outside this tool",
+  "measured_programs_executed_by_this_tool": false,
+  "compiler": "build/bench-cpu4096/baseline-14e539e9/bin/aevixc",
+  "compiler_sha256": "14e539e98708b8a0b3b8985574a66794d44329bf5c1f63c7e4baba49eeb96e16",
+  "compiler_version": "Aevix 0.2.0 (ORC JIT enabled)",
+  "spec": "benchmarks/Comparison/cpu4096/spec.json",
+  "spec_sha256": "ee8b5772bdfb7c85f342cf3dcdd070020ad72f27b03f9e48e91559a7def0e792",
+  "preparation_manifest": "build/bench-cpu4096/aevix/preparation.json",
+  "preparation_manifest_sha256": "b375781964ee547c07a2c47ad4888debaf83655f214425fedb2dd7dc94391e7e",
+  "clang": "/opt/homebrew/opt/llvm/bin/clang",
+  "clang_sha256": "305697d3868243dca6e4aabf4f628df7de135d701eb4fd78f6a5d7528fef4395",
+  "clang_version": "Homebrew clang version 22.1.8\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /opt/homebrew/Cellar/llvm/22.1.8/bin\nConfiguration file: /opt/homebrew/Cellar/llvm/22.1.8/etc/clang/arm64-apple-darwin27.cfg",
+  "opt": "/opt/homebrew/opt/llvm/bin/opt",
+  "opt_version": "Homebrew LLVM version 22.1.8\n  Optimized build.\n  Default target: arm64-apple-darwin27.0.0\n  Host CPU: apple-m4",
+  "target_argument": "arm64-apple-macosx",
+  "aot_compiler_source": "src/Backend/AOT/AOTCompiler.cpp",
+  "aot_compiler_source_sha256": "769d9332cef4910b26a3393e37c0044a667e02e3ae9a945daf9a61c4428aeccb",
+  "runtime_source": "runtime/Threading/ParallelRuntime.cpp",
+  "runtime_source_sha256": "de02d788b60fe700bf042dd40b8352a13786b7d600b52cac5929c563def2fb4f",
+  "runtime_archive_sha256": "ae46e345905ab78b8aa30b6b90fd28fd777c32851d5235a94779387d7ecf78d1",
+  "parallel_runtime_object_sha256": "4a751e706a66265ea8d2efaef36c53ba567c5cb1ec05d3ee5dacaf25e1e9f80c",
+  "analysis_limits": [
+    "Static instruction counts are not dynamic work, throughput, or elapsed time.",
+    "The timed envelope includes clock-wrapper success/failure handling; it is broader than hot loops.",
+    "LLVM remarks without debug locations are function-level evidence, not a unique source-loop attribution.",
+    "Original AOT runtime archives are linked separately; this is not LTO.",
+    "No new Aevix SCEV, LVI, or KnownBits integration is asserted.",
+    "Parallel workers retain an indirect callback per element in the frozen runtime object.",
+    "Configured worker count does not prove actual successful thread starts during fallback."
+  ],
+  "commands": [
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "--version"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/clang-version.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "--version"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/opt-version.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-###",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_1_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/driver-probe.s"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/driver-probe.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_1_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_1_serial.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_1_serial.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_1_serial.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_1_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_1_serial.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_1_serial.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_1_serial.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/lcg_1_serial.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_1_serial.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_1_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_1_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_256_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_256_serial.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_256_serial.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_256_serial.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_256_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_256_serial.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_256_serial.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_256_serial.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/lcg_256_serial.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_256_serial.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_256_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_256_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_16384_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_16384_serial.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_16384_serial.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_16384_serial.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_16384_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_16384_serial.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_16384_serial.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_16384_serial.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/lcg_16384_serial.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_16384_serial.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_16384_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/lcg_16384_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/prime_search_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/prime_search_serial.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/prime_search_serial.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/prime_search_serial.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/prime_search_serial.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/prime_search_serial.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/prime_search_serial.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/prime_search_serial.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/prime_search_serial.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/prime_search_serial.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/prime_search_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-emit-llvm",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.opt.ll",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.ir.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.ir.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/clang",
+        "-x",
+        "ir",
+        "build/bench-cpu4096/aevix/prime_search_parallel_fresh.raw.ll",
+        "-target",
+        "arm64-apple-macosx",
+        "-O2",
+        "-S",
+        "-o",
+        "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.O2.s",
+        "-Rpass=loop-vectorize|slp-vectorizer",
+        "-Rpass-missed=loop-vectorize|slp-vectorizer",
+        "-Rpass-analysis=loop-vectorize|slp-vectorizer",
+        "-fsave-optimization-record",
+        "-foptimization-record-file=build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.assembly.opt.yaml"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.assembly.remarks.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/opt",
+        "-passes=print<loops>",
+        "-disable-output",
+        "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.opt.ll"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.loops.txt"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/llvm-ar",
+        "p",
+        "build/bench-cpu4096/baseline-14e539e9/lib/aevix/libaevix_runtime.a",
+        "ParallelRuntime.cpp.o"
+      ],
+      "exit_code": 0,
+      "output": "build/bench-cpu4096/aevix-ir/ParallelRuntime.cpp.o"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/llvm/bin/llvm-objdump",
+        "--disassemble",
+        "--demangle",
+        "--no-show-raw-insn",
+        "build/bench-cpu4096/aevix-ir/ParallelRuntime.cpp.o"
+      ],
+      "exit_code": 0,
+      "log": "build/bench-cpu4096/aevix-ir/ParallelRuntime.disassembly.txt"
+    }
+  ],
+  "programs": [
+    {
+      "case": "lcg_1",
+      "mode": "serial",
+      "source": "benchmarks/Comparison/cpu4096/aevix/lcg_1_serial.avx",
+      "source_sha256": "15aae5cea03ca2af43ba0ab68247ed091e37042502ac4acfdfc8d83137f00624",
+      "binary": "build/bench-cpu4096/aevix/lcg_1_serial",
+      "binary_sha256": "3e09fb360491c198d38d7577de4f81b14c3573c7ad10097b435e3f5c73c7d3ea",
+      "raw_llvm": "build/bench-cpu4096/aevix/lcg_1_serial.raw.ll",
+      "raw_llvm_sha256": "1f229ca5969521c2435018643194abac5890fcaa63287925ccb980d1e12977b0",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/lcg_1_serial.opt.ll",
+      "optimized_llvm_sha256": "eea4173c2d2ecb21816e17dd5b218d7cbe67ba4afcdb401cbce95c9fe04b92ab",
+      "assembly": "build/bench-cpu4096/aevix-ir/lcg_1_serial.O2.s",
+      "assembly_sha256": "18c6058f0d05379ae653c870c5cbd08b607a78c2044526b928496c7e57ea8499",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 379,
+        "allocas": 6,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 4,
+        "trap_calls": 6,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 6,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 279,
+        "allocas": 0,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 0,
+        "trap_calls": 0,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {},
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 99,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 453
+        },
+        {
+          "block": "b24",
+          "line": 485
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 1,
+        "overflow_intrinsics": 0,
+        "trap_calls": 1,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.94.exit.i",
+        "b20",
+        "b24",
+        "guard0.i",
+        "guard53"
+      ],
+      "timed_natural_loops": [
+        {
+          "function": "aevix.fn.47",
+          "header": "guard53",
+          "blocks": [
+            "guard53"
+          ],
+          "depth": 2,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 1,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          }
+        }
+      ],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 28,
+        "static_instruction_lines": 21,
+        "normalized_instructions": [
+          "ldr\tx8, [x0]",
+          "mov\tx9, #5",
+          "movk\tx9, #2, lsl #32",
+          "umulh\tx9, x8, x9",
+          "sub\tx10, x8, x9",
+          "add\tx9, x9, x10, lsr #1",
+          "lsr\tx9, x9, #30",
+          "sub\tx9, x9, x9, lsl #31",
+          "add\tx8, x8, x9",
+          "mov\tw9, #48271",
+          "mov\tw10, #48272",
+          "madd\tx8, x8, x9, x10",
+          "mov\tx9, #1",
+          "movk\tx9, #2, lsl #16",
+          "movk\tx9, #1, lsl #48",
+          "umulh\tx9, x8, x9",
+          "lsr\tx9, x9, #15",
+          "sub\tx9, x9, x9, lsl #31",
+          "add\tx8, x8, x9",
+          "str\tx8, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 3,
+          "ldr": 1,
+          "lsr": 2,
+          "madd": 1,
+          "mov": 4,
+          "movk": 3,
+          "ret": 1,
+          "str": 1,
+          "sub": 3,
+          "umulh": 2
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_lcg_1_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_lcg": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 900,
+            "line_end": 929,
+            "static_instruction_lines": 25,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "mov\tw9, #48271",
+              "mov\tw10, #48272",
+              "madd\tx9, x8, x9, x10",
+              "mov\tx10, #5",
+              "movk\tx10, #2, lsl #32",
+              "umulh\tx11, x8, x10",
+              "sub\tx8, x8, x11",
+              "add\tx8, x11, x8, lsr #1",
+              "lsr\tx8, x8, #30",
+              "mov\tx11, #-48271",
+              "eor\tx11, x11, x11, lsl #31",
+              "mul\tx8, x8, x11",
+              "sub\tx11, x9, x8",
+              "umulh\tx10, x11, x10",
+              "sub\tx12, x11, x10",
+              "add\tx10, x10, x12, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x11, x9",
+              "add\tx9, x9, x10",
+              "add\tx8, x11, x8",
+              "sub\tx8, x9, x8",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "eor": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 5,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": false
+        },
+        "C++": {
+          "function": "_ZL20bench_lcg_1_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL9bench_lcgyy": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 900,
+            "line_end": 929,
+            "static_instruction_lines": 25,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "mov\tw9, #48271",
+              "mov\tw10, #48272",
+              "madd\tx9, x8, x9, x10",
+              "mov\tx10, #5",
+              "movk\tx10, #2, lsl #32",
+              "umulh\tx11, x8, x10",
+              "sub\tx8, x8, x11",
+              "add\tx8, x11, x8, lsr #1",
+              "lsr\tx8, x8, #30",
+              "mov\tx11, #-48271",
+              "eor\tx11, x11, x11, lsl #31",
+              "mul\tx8, x8, x11",
+              "sub\tx11, x9, x8",
+              "umulh\tx10, x11, x10",
+              "sub\tx12, x11, x10",
+              "add\tx10, x10, x12, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x11, x9",
+              "add\tx9, x9, x10",
+              "add\tx8, x11, x8",
+              "sub\tx8, x9, x8",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "eor": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 5,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": false
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "VectorizationNotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "InterleavingNotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.297"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.297"
+        }
+      ]
+    },
+    {
+      "case": "lcg_1",
+      "mode": "parallel_fresh",
+      "source": "benchmarks/Comparison/cpu4096/aevix/lcg_1_parallel_fresh.avx",
+      "source_sha256": "5eea11f2e003376e0124af7b7e03e0d527548ba1b3d50a901da122334275eed2",
+      "binary": "build/bench-cpu4096/aevix/lcg_1_parallel_fresh",
+      "binary_sha256": "d1a425285b10da98a22ea1721153b4cf019389628ae516873cdc2429a698701d",
+      "raw_llvm": "build/bench-cpu4096/aevix/lcg_1_parallel_fresh.raw.ll",
+      "raw_llvm_sha256": "8173b8a7591a080bb2d29efcfe1f9f3f73446aadb4eb97b2b5ac2b19b0904145",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.opt.ll",
+      "optimized_llvm_sha256": "c49fb89564899dcad5953fb3c8e09ffe054d3be661b3b0dd6013693bf6051e89",
+      "assembly": "build/bench-cpu4096/aevix-ir/lcg_1_parallel_fresh.O2.s",
+      "assembly_sha256": "5a3fbfe5550b08e2cbd645f846c9d7828c033bcf6f0561d39b3f0669499e41d2",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 379,
+        "allocas": 6,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 4,
+        "trap_calls": 6,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 6,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 279,
+        "allocas": 0,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 0,
+        "trap_calls": 0,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {},
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 95,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 459
+        },
+        {
+          "block": "guard0.i",
+          "line": 471
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 0,
+        "trap_calls": 1,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 0,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "aevix_parallel_for_each": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.94.exit.i",
+        "b20",
+        "guard0.i"
+      ],
+      "timed_natural_loops": [],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 28,
+        "static_instruction_lines": 21,
+        "normalized_instructions": [
+          "ldr\tx8, [x0]",
+          "mov\tx9, #5",
+          "movk\tx9, #2, lsl #32",
+          "umulh\tx9, x8, x9",
+          "sub\tx10, x8, x9",
+          "add\tx9, x9, x10, lsr #1",
+          "lsr\tx9, x9, #30",
+          "sub\tx9, x9, x9, lsl #31",
+          "add\tx8, x8, x9",
+          "mov\tw9, #48271",
+          "mov\tw10, #48272",
+          "madd\tx8, x8, x9, x10",
+          "mov\tx9, #1",
+          "movk\tx9, #2, lsl #16",
+          "movk\tx9, #1, lsl #48",
+          "umulh\tx9, x8, x9",
+          "lsr\tx9, x9, #15",
+          "sub\tx9, x9, x9, lsl #31",
+          "add\tx8, x8, x9",
+          "str\tx8, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 3,
+          "ldr": 1,
+          "lsr": 2,
+          "madd": 1,
+          "mov": 4,
+          "movk": 3,
+          "ret": 1,
+          "str": 1,
+          "sub": 3,
+          "umulh": 2
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_lcg_1_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_lcg": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 900,
+            "line_end": 929,
+            "static_instruction_lines": 25,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "mov\tw9, #48271",
+              "mov\tw10, #48272",
+              "madd\tx9, x8, x9, x10",
+              "mov\tx10, #5",
+              "movk\tx10, #2, lsl #32",
+              "umulh\tx11, x8, x10",
+              "sub\tx8, x8, x11",
+              "add\tx8, x11, x8, lsr #1",
+              "lsr\tx8, x8, #30",
+              "mov\tx11, #-48271",
+              "eor\tx11, x11, x11, lsl #31",
+              "mul\tx8, x8, x11",
+              "sub\tx11, x9, x8",
+              "umulh\tx10, x11, x10",
+              "sub\tx12, x11, x10",
+              "add\tx10, x10, x12, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x11, x9",
+              "add\tx9, x9, x10",
+              "add\tx8, x11, x8",
+              "sub\tx8, x9, x8",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "eor": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 5,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": false
+        },
+        "C++": {
+          "function": "_ZL20bench_lcg_1_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL9bench_lcgyy": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 900,
+            "line_end": 929,
+            "static_instruction_lines": 25,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "mov\tw9, #48271",
+              "mov\tw10, #48272",
+              "madd\tx9, x8, x9, x10",
+              "mov\tx10, #5",
+              "movk\tx10, #2, lsl #32",
+              "umulh\tx11, x8, x10",
+              "sub\tx8, x8, x11",
+              "add\tx8, x11, x8, lsr #1",
+              "lsr\tx8, x8, #30",
+              "mov\tx11, #-48271",
+              "eor\tx11, x11, x11, lsl #31",
+              "mul\tx8, x8, x11",
+              "sub\tx11, x9, x8",
+              "umulh\tx10, x11, x10",
+              "sub\tx12, x11, x10",
+              "add\tx10, x10, x12, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x11, x9",
+              "add\tx9, x9, x10",
+              "add\tx8, x11, x8",
+              "sub\tx8, x9, x8",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "eor": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 5,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": false
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.299"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.299"
+        }
+      ]
+    },
+    {
+      "case": "lcg_256",
+      "mode": "serial",
+      "source": "benchmarks/Comparison/cpu4096/aevix/lcg_256_serial.avx",
+      "source_sha256": "849196b09bbade63f889b9a4635d6a8f481b662e997aa93e5e76a91f7f25e3ad",
+      "binary": "build/bench-cpu4096/aevix/lcg_256_serial",
+      "binary_sha256": "66d5f8344b96385757d9652d0398a1890656fe21c2a479e353b48b0850795980",
+      "raw_llvm": "build/bench-cpu4096/aevix/lcg_256_serial.raw.ll",
+      "raw_llvm_sha256": "b719f448088bfbeb56938942bc5f787d00a1a7691a9369447fe03d9c32d8f6cc",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/lcg_256_serial.opt.ll",
+      "optimized_llvm_sha256": "e98ed2b52e4a45c95aed90ca40270e71c23a6a579782d5483253bbe73af88d11",
+      "assembly": "build/bench-cpu4096/aevix-ir/lcg_256_serial.O2.s",
+      "assembly_sha256": "2eb672d3b0db8d44bdcbb8eb6871a90ad5ea0f747d192fab683563f73c7c4aa7",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 379,
+        "allocas": 6,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 4,
+        "trap_calls": 6,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 6,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 290,
+        "allocas": 0,
+        "phi_instructions": 2,
+        "overflow_intrinsics": 0,
+        "trap_calls": 0,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {},
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 99,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 464
+        },
+        {
+          "block": "b24",
+          "line": 507
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 3,
+        "overflow_intrinsics": 0,
+        "trap_calls": 1,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.46.exit",
+        "aevix.fn.94.exit.i",
+        "b20",
+        "b24",
+        "guard0.i",
+        "guard5.i",
+        "guard53"
+      ],
+      "timed_natural_loops": [
+        {
+          "function": "aevix.fn.47",
+          "header": "guard53",
+          "blocks": [
+            "guard53",
+            "guard5.i",
+            "aevix.fn.46.exit"
+          ],
+          "depth": 2,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 3,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          }
+        },
+        {
+          "function": "aevix.fn.47",
+          "header": "guard5.i",
+          "blocks": [
+            "guard5.i"
+          ],
+          "depth": 3,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          }
+        }
+      ],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 34,
+        "static_instruction_lines": 24,
+        "normalized_instructions": [
+          "ldr\tx9, [x0]",
+          "mov\tx8, #5",
+          "movk\tx8, #2, lsl #32",
+          "umulh\tx10, x9, x8",
+          "sub\tx11, x9, x10",
+          "add\tx10, x10, x11, lsr #1",
+          "lsr\tx10, x10, #30",
+          "sub\tx10, x10, x10, lsl #31",
+          "add\tx9, x9, x10",
+          "add\tx11, x9, #1",
+          "mov\tw9, #256",
+          "mov\tw10, #48271",
+          "mov\tx12, #1",
+          "madd\tx11, x11, x10, x12",
+          "umulh\tx13, x11, x8",
+          "sub\tx14, x11, x13",
+          "add\tx13, x13, x14, lsr #1",
+          "lsr\tx13, x13, #30",
+          "sub\tx13, x13, x13, lsl #31",
+          "add\tx11, x11, x13",
+          "subs\tx9, x9, #1",
+          "b.ne\tLBB_X_1",
+          "str\tx11, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 5,
+          "b.ne": 1,
+          "ldr": 1,
+          "lsr": 2,
+          "madd": 1,
+          "mov": 4,
+          "movk": 1,
+          "ret": 1,
+          "str": 1,
+          "sub": 4,
+          "subs": 1,
+          "umulh": 2
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_lcg_256_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_lcg": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 931,
+            "line_end": 961,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #256",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        },
+        "C++": {
+          "function": "_ZL22bench_lcg_256_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL9bench_lcgyy": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 931,
+            "line_end": 961,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #256",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.297"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.297"
+        }
+      ]
+    },
+    {
+      "case": "lcg_256",
+      "mode": "parallel_fresh",
+      "source": "benchmarks/Comparison/cpu4096/aevix/lcg_256_parallel_fresh.avx",
+      "source_sha256": "fbdcdbea7fa70e5895c84e0df903dc30f5c6d90551b40e416103e8a5ac1f6b0f",
+      "binary": "build/bench-cpu4096/aevix/lcg_256_parallel_fresh",
+      "binary_sha256": "3b7be5f181708de7d9db1a9cdd12f392b9714b4e30daec8d4e169062930ecfee",
+      "raw_llvm": "build/bench-cpu4096/aevix/lcg_256_parallel_fresh.raw.ll",
+      "raw_llvm_sha256": "3eeca1ef64eff5cf98d9ced991c46afe9a05a04630b79da9faad39c84008254a",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.opt.ll",
+      "optimized_llvm_sha256": "2eafacd96ce786e096311846c0595875a8ecbd365be5450080bdb7b77f1ee5de",
+      "assembly": "build/bench-cpu4096/aevix-ir/lcg_256_parallel_fresh.O2.s",
+      "assembly_sha256": "d39804c16f67e4667791cc2339f2dd71e10c1971009c66439fbddcd603934719",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 379,
+        "allocas": 6,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 4,
+        "trap_calls": 6,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 6,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 290,
+        "allocas": 0,
+        "phi_instructions": 2,
+        "overflow_intrinsics": 0,
+        "trap_calls": 0,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {},
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 95,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 470
+        },
+        {
+          "block": "guard0.i",
+          "line": 482
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 0,
+        "trap_calls": 1,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 0,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "aevix_parallel_for_each": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.94.exit.i",
+        "b20",
+        "guard0.i"
+      ],
+      "timed_natural_loops": [],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 34,
+        "static_instruction_lines": 24,
+        "normalized_instructions": [
+          "ldr\tx9, [x0]",
+          "mov\tx8, #5",
+          "movk\tx8, #2, lsl #32",
+          "umulh\tx10, x9, x8",
+          "sub\tx11, x9, x10",
+          "add\tx10, x10, x11, lsr #1",
+          "lsr\tx10, x10, #30",
+          "sub\tx10, x10, x10, lsl #31",
+          "add\tx9, x9, x10",
+          "add\tx11, x9, #1",
+          "mov\tw9, #256",
+          "mov\tw10, #48271",
+          "mov\tx12, #1",
+          "madd\tx11, x11, x10, x12",
+          "umulh\tx13, x11, x8",
+          "sub\tx14, x11, x13",
+          "add\tx13, x13, x14, lsr #1",
+          "lsr\tx13, x13, #30",
+          "sub\tx13, x13, x13, lsl #31",
+          "add\tx11, x11, x13",
+          "subs\tx9, x9, #1",
+          "b.ne\tLBB_X_1",
+          "str\tx11, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 5,
+          "b.ne": 1,
+          "ldr": 1,
+          "lsr": 2,
+          "madd": 1,
+          "mov": 4,
+          "movk": 1,
+          "ret": 1,
+          "str": 1,
+          "sub": 4,
+          "subs": 1,
+          "umulh": 2
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_lcg_256_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_lcg": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 931,
+            "line_end": 961,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #256",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        },
+        "C++": {
+          "function": "_ZL22bench_lcg_256_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL9bench_lcgyy": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 931,
+            "line_end": 961,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #256",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.299"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.299"
+        }
+      ]
+    },
+    {
+      "case": "lcg_16384",
+      "mode": "serial",
+      "source": "benchmarks/Comparison/cpu4096/aevix/lcg_16384_serial.avx",
+      "source_sha256": "cba20a9f328b0dcebbc5721e81a17dff3ac28e0ae8709075088f1e5773700070",
+      "binary": "build/bench-cpu4096/aevix/lcg_16384_serial",
+      "binary_sha256": "8af8654d74cb0008f5b5914814bbb35344f9ad6e283da40f4b06865180f3ef0b",
+      "raw_llvm": "build/bench-cpu4096/aevix/lcg_16384_serial.raw.ll",
+      "raw_llvm_sha256": "64ae6c3d65e4b233050dbc6322f80cf27bdf9bea43a15e4e99d7ba2606785633",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/lcg_16384_serial.opt.ll",
+      "optimized_llvm_sha256": "81a5043ba5a16ef46bea1fb05678479e9e8941286b2dcd9ce700a3bf2a38c433",
+      "assembly": "build/bench-cpu4096/aevix-ir/lcg_16384_serial.O2.s",
+      "assembly_sha256": "1c7c8b3cdff4b1b0cdba7c2cbd3c8ddbd87be3beaa759db8d90d8c874dcebf49",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 379,
+        "allocas": 6,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 4,
+        "trap_calls": 6,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 6,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 290,
+        "allocas": 0,
+        "phi_instructions": 2,
+        "overflow_intrinsics": 0,
+        "trap_calls": 0,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {},
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 99,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 464
+        },
+        {
+          "block": "b24",
+          "line": 507
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 3,
+        "overflow_intrinsics": 0,
+        "trap_calls": 1,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.46.exit",
+        "aevix.fn.94.exit.i",
+        "b20",
+        "b24",
+        "guard0.i",
+        "guard5.i",
+        "guard53"
+      ],
+      "timed_natural_loops": [
+        {
+          "function": "aevix.fn.47",
+          "header": "guard53",
+          "blocks": [
+            "guard53",
+            "guard5.i",
+            "aevix.fn.46.exit"
+          ],
+          "depth": 2,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 3,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          }
+        },
+        {
+          "function": "aevix.fn.47",
+          "header": "guard5.i",
+          "blocks": [
+            "guard5.i"
+          ],
+          "depth": 3,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          }
+        }
+      ],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 34,
+        "static_instruction_lines": 24,
+        "normalized_instructions": [
+          "ldr\tx9, [x0]",
+          "mov\tx8, #5",
+          "movk\tx8, #2, lsl #32",
+          "umulh\tx10, x9, x8",
+          "sub\tx11, x9, x10",
+          "add\tx10, x10, x11, lsr #1",
+          "lsr\tx10, x10, #30",
+          "sub\tx10, x10, x10, lsl #31",
+          "add\tx9, x9, x10",
+          "add\tx11, x9, #1",
+          "mov\tw9, #16384",
+          "mov\tw10, #48271",
+          "mov\tx12, #1",
+          "madd\tx11, x11, x10, x12",
+          "umulh\tx13, x11, x8",
+          "sub\tx14, x11, x13",
+          "add\tx13, x13, x14, lsr #1",
+          "lsr\tx13, x13, #30",
+          "sub\tx13, x13, x13, lsl #31",
+          "add\tx11, x11, x13",
+          "subs\tx9, x9, #1",
+          "b.ne\tLBB_X_1",
+          "str\tx11, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 5,
+          "b.ne": 1,
+          "ldr": 1,
+          "lsr": 2,
+          "madd": 1,
+          "mov": 4,
+          "movk": 1,
+          "ret": 1,
+          "str": 1,
+          "sub": 4,
+          "subs": 1,
+          "umulh": 2
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_lcg_16384_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_lcg": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 963,
+            "line_end": 993,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #16384",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        },
+        "C++": {
+          "function": "_ZL24bench_lcg_16384_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL9bench_lcgyy": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 963,
+            "line_end": 993,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #16384",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.297"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.297"
+        }
+      ]
+    },
+    {
+      "case": "lcg_16384",
+      "mode": "parallel_fresh",
+      "source": "benchmarks/Comparison/cpu4096/aevix/lcg_16384_parallel_fresh.avx",
+      "source_sha256": "c0c583a15f5511332a0151e1efb275c7790c9b2451e773afdc5c176536d40aa7",
+      "binary": "build/bench-cpu4096/aevix/lcg_16384_parallel_fresh",
+      "binary_sha256": "a5644a9c113477ca5fcf7997c36e126f5b07df22035de9365072b9c01b01f56b",
+      "raw_llvm": "build/bench-cpu4096/aevix/lcg_16384_parallel_fresh.raw.ll",
+      "raw_llvm_sha256": "31c629987e756561b6c38a9e04e793efeff3178f33c18b5d642303b06f9fa827",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.opt.ll",
+      "optimized_llvm_sha256": "0f66c493af4defd27acd2c865aa51448d3172a3fd78ab6ba4f8097ecc1437845",
+      "assembly": "build/bench-cpu4096/aevix-ir/lcg_16384_parallel_fresh.O2.s",
+      "assembly_sha256": "f4363f947d1da8921568413c3a80253d4f199eafe7e73aceca5a6a7b083f5f33",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 379,
+        "allocas": 6,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 4,
+        "trap_calls": 6,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 6,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 290,
+        "allocas": 0,
+        "phi_instructions": 2,
+        "overflow_intrinsics": 0,
+        "trap_calls": 0,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {},
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 95,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 470
+        },
+        {
+          "block": "guard0.i",
+          "line": 482
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 0,
+        "trap_calls": 1,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 0,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "aevix_parallel_for_each": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.94.exit.i",
+        "b20",
+        "guard0.i"
+      ],
+      "timed_natural_loops": [],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 34,
+        "static_instruction_lines": 24,
+        "normalized_instructions": [
+          "ldr\tx9, [x0]",
+          "mov\tx8, #5",
+          "movk\tx8, #2, lsl #32",
+          "umulh\tx10, x9, x8",
+          "sub\tx11, x9, x10",
+          "add\tx10, x10, x11, lsr #1",
+          "lsr\tx10, x10, #30",
+          "sub\tx10, x10, x10, lsl #31",
+          "add\tx9, x9, x10",
+          "add\tx11, x9, #1",
+          "mov\tw9, #16384",
+          "mov\tw10, #48271",
+          "mov\tx12, #1",
+          "madd\tx11, x11, x10, x12",
+          "umulh\tx13, x11, x8",
+          "sub\tx14, x11, x13",
+          "add\tx13, x13, x14, lsr #1",
+          "lsr\tx13, x13, #30",
+          "sub\tx13, x13, x13, lsl #31",
+          "add\tx11, x11, x13",
+          "subs\tx9, x9, #1",
+          "b.ne\tLBB_X_1",
+          "str\tx11, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 5,
+          "b.ne": 1,
+          "ldr": 1,
+          "lsr": 2,
+          "madd": 1,
+          "mov": 4,
+          "movk": 1,
+          "ret": 1,
+          "str": 1,
+          "sub": 4,
+          "subs": 1,
+          "umulh": 2
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_lcg_16384_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_lcg": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 963,
+            "line_end": 993,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #16384",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        },
+        "C++": {
+          "function": "_ZL24bench_lcg_16384_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL9bench_lcgyy": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 2,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 963,
+            "line_end": 993,
+            "static_instruction_lines": 24,
+            "normalized_instructions": [
+              "ldr\tx9, [x0]",
+              "mov\tx8, #5",
+              "movk\tx8, #2, lsl #32",
+              "umulh\tx10, x9, x8",
+              "sub\tx11, x9, x10",
+              "add\tx10, x10, x11, lsr #1",
+              "lsr\tx10, x10, #30",
+              "sub\tx10, x10, x10, lsl #31",
+              "add\tx9, x9, x10",
+              "add\tx11, x9, #1",
+              "mov\tw9, #16384",
+              "mov\tw10, #48271",
+              "mov\tx12, #1",
+              "madd\tx11, x11, x10, x12",
+              "umulh\tx13, x11, x8",
+              "sub\tx14, x11, x13",
+              "add\tx13, x13, x14, lsr #1",
+              "lsr\tx13, x13, #30",
+              "sub\tx13, x13, x13, lsl #31",
+              "add\tx11, x11, x13",
+              "subs\tx9, x9, #1",
+              "b.ne\tLBB_X_1",
+              "str\tx11, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 5,
+              "b.ne": 1,
+              "ldr": 1,
+              "lsr": 2,
+              "madd": 1,
+              "mov": 4,
+              "movk": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 4,
+              "subs": 1,
+              "umulh": 2
+            }
+          },
+          "same_normalized_worker_instructions": true
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.299"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.299"
+        }
+      ]
+    },
+    {
+      "case": "prime_search",
+      "mode": "serial",
+      "source": "benchmarks/Comparison/cpu4096/aevix/prime_search_serial.avx",
+      "source_sha256": "e01b8f1298afb0097c6dceaf1e1c7acf507aab7ca25da25cb8a87162332a1e0a",
+      "binary": "build/bench-cpu4096/aevix/prime_search_serial",
+      "binary_sha256": "acafc5625561cc86206de21bf6b126092ea9d3693821ebb9ebd8cb46a4920479",
+      "raw_llvm": "build/bench-cpu4096/aevix/prime_search_serial.raw.ll",
+      "raw_llvm_sha256": "fdad7b5a9faaeb6a9b714ca04d189d1276eb7f931223ff2432c5b79f07cda7e8",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/prime_search_serial.opt.ll",
+      "optimized_llvm_sha256": "5cd8a8c329ce8edbc76ecd9367bd41a10c6501d59edb35d9e43e3d4923d9835a",
+      "assembly": "build/bench-cpu4096/aevix-ir/prime_search_serial.O2.s",
+      "assembly_sha256": "e20163151f93003f98113a312973cadd7e20d75cd2a6419d94f7276db1d0b06b",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 422,
+        "allocas": 8,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 5,
+        "trap_calls": 7,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 7,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 2
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 329,
+        "allocas": 0,
+        "phi_instructions": 3,
+        "overflow_intrinsics": 3,
+        "trap_calls": 3,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 1,
+        "direct_calls": {
+          "llvm.trap": 3,
+          "llvm.uadd.with.overflow.i64": 2,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 99,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 503
+        },
+        {
+          "block": "b24",
+          "line": 585
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 4,
+        "overflow_intrinsics": 3,
+        "trap_calls": 4,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 1,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 4,
+          "llvm.uadd.with.overflow.i64": 2,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.46.exit",
+        "aevix.fn.94.exit.i",
+        "b1.i",
+        "b11.i",
+        "b14.i",
+        "b20",
+        "b24",
+        "guard0.i",
+        "guard10.i",
+        "guard11.i",
+        "guard12.i",
+        "guard13.i",
+        "guard53",
+        "guard6.i",
+        "guard7.i",
+        "guard9.i"
+      ],
+      "timed_natural_loops": [
+        {
+          "function": "aevix.fn.47",
+          "header": "guard53",
+          "blocks": [
+            "guard53",
+            "b1.i",
+            "guard7.i",
+            "guard9.i",
+            "b11.i",
+            "guard11.i",
+            "b14.i",
+            "guard13.i",
+            "aevix.fn.46.exit"
+          ],
+          "depth": 2,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 4,
+            "overflow_intrinsics": 3,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {
+              "llvm.uadd.with.overflow.i64": 2,
+              "llvm.umul.with.overflow.i64": 1
+            },
+            "indirect_call_instructions": 0
+          }
+        },
+        {
+          "function": "aevix.fn.47",
+          "header": "b1.i",
+          "blocks": [
+            "b1.i",
+            "guard7.i",
+            "guard9.i",
+            "b11.i",
+            "guard11.i",
+            "b14.i",
+            "guard13.i"
+          ],
+          "depth": 3,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 3,
+            "overflow_intrinsics": 3,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {
+              "llvm.uadd.with.overflow.i64": 2,
+              "llvm.umul.with.overflow.i64": 1
+            },
+            "indirect_call_instructions": 0
+          }
+        },
+        {
+          "function": "aevix.fn.47",
+          "header": "guard7.i",
+          "blocks": [
+            "guard7.i",
+            "guard9.i",
+            "b11.i",
+            "guard11.i"
+          ],
+          "depth": 4,
+          "statistics": {
+            "allocas": 0,
+            "phi_instructions": 2,
+            "overflow_intrinsics": 2,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {
+              "llvm.uadd.with.overflow.i64": 1,
+              "llvm.umul.with.overflow.i64": 1
+            },
+            "indirect_call_instructions": 0
+          }
+        }
+      ],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 48,
+        "static_instruction_lines": 25,
+        "normalized_instructions": [
+          "ldr\tx8, [x0]",
+          "ubfiz\tx8, x8, #10, #12",
+          "mov\tw9, #51713",
+          "movk\tw9, #15258, lsl #16",
+          "add\tx8, x8, x9",
+          "mov\tw9, #3",
+          "mov\tw10, #9",
+          "cmp\tx10, x8",
+          "b.hi\tLBB_X_8",
+          "udiv\tx10, x8, x9",
+          "msub\tx10, x10, x9, x8",
+          "cbz\tx10, LBB_X_6",
+          "adds\tx10, x9, #2",
+          "b.hs\tLBB_X_7",
+          "umulh\tx11, x10, x10",
+          "mul\tx10, x10, x10",
+          "add\tx9, x9, #2",
+          "cmp\txzr, x11",
+          "b.eq\tLBB_X_2",
+          "b\tLBB_X_7",
+          "adds\tx8, x8, #2",
+          "b.lo\tLBB_X_1",
+          "brk\t#0x1",
+          "str\tx8, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 2,
+          "adds": 2,
+          "b": 1,
+          "b.eq": 1,
+          "b.hi": 1,
+          "b.hs": 1,
+          "b.lo": 1,
+          "brk": 1,
+          "cbz": 1,
+          "cmp": 2,
+          "ldr": 1,
+          "mov": 3,
+          "movk": 1,
+          "msub": 1,
+          "mul": 1,
+          "ret": 1,
+          "str": 1,
+          "ubfiz": 1,
+          "udiv": 1,
+          "umulh": 1
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_prime_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_prime": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 3,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 995,
+            "line_end": 1026,
+            "static_instruction_lines": 20,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "ubfiz\tx8, x8, #10, #12",
+              "mov\tw9, #51713",
+              "movk\tw9, #15258, lsl #16",
+              "add\tx8, x8, x9",
+              "mov\tw9, #5",
+              "sub\tx10, x9, #2",
+              "udiv\tx11, x8, x10",
+              "msub\tx10, x11, x10, x8",
+              "cbz\tx10, LBB_X_4",
+              "mul\tx10, x9, x9",
+              "add\tx9, x9, #2",
+              "cmp\tx10, x8",
+              "b.ls\tLBB_X_2",
+              "b\tLBB_X_5",
+              "add\tx8, x8, #2",
+              "cmp\tx8, #8",
+              "b.hi\tLBB_X_1",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 3,
+              "b": 1,
+              "b.hi": 1,
+              "b.ls": 1,
+              "cbz": 1,
+              "cmp": 2,
+              "ldr": 1,
+              "mov": 2,
+              "movk": 1,
+              "msub": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 1,
+              "ubfiz": 1,
+              "udiv": 1
+            }
+          },
+          "same_normalized_worker_instructions": false
+        },
+        "C++": {
+          "function": "_ZL20bench_prime_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL11bench_primey": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 3,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 995,
+            "line_end": 1026,
+            "static_instruction_lines": 20,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "ubfiz\tx8, x8, #10, #12",
+              "mov\tw9, #51713",
+              "movk\tw9, #15258, lsl #16",
+              "add\tx8, x8, x9",
+              "mov\tw9, #5",
+              "sub\tx10, x9, #2",
+              "udiv\tx11, x8, x10",
+              "msub\tx10, x11, x10, x8",
+              "cbz\tx10, LBB_X_4",
+              "mul\tx10, x9, x9",
+              "add\tx9, x9, #2",
+              "cmp\tx10, x8",
+              "b.ls\tLBB_X_2",
+              "b\tLBB_X_5",
+              "add\tx8, x8, #2",
+              "cmp\tx8, #8",
+              "b.hi\tLBB_X_1",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 3,
+              "b": 1,
+              "b.hi": 1,
+              "b.ls": 1,
+              "cbz": 1,
+              "cmp": 2,
+              "ldr": 1,
+              "mov": 2,
+              "movk": 1,
+              "msub": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 1,
+              "ubfiz": 1,
+              "udiv": 1
+            }
+          },
+          "same_normalized_worker_instructions": false
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CFGNotUnderstood",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CFGNotUnderstood",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.297"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.297"
+        }
+      ]
+    },
+    {
+      "case": "prime_search",
+      "mode": "parallel_fresh",
+      "source": "benchmarks/Comparison/cpu4096/aevix/prime_search_parallel_fresh.avx",
+      "source_sha256": "c261c45d6abf38ba4f1c44d3f0ead200f8e55b72b529974219d70a722f4e9638",
+      "binary": "build/bench-cpu4096/aevix/prime_search_parallel_fresh",
+      "binary_sha256": "b8645c2ebf1b6debca37f69ed8fa44ae6b5740a7e22856b8a89f06b1de834df7",
+      "raw_llvm": "build/bench-cpu4096/aevix/prime_search_parallel_fresh.raw.ll",
+      "raw_llvm_sha256": "2bc720547dea0ef0f4cf556e850a903ee7dbf99c3fda523f049371803c096b30",
+      "optimized_llvm": "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.opt.ll",
+      "optimized_llvm_sha256": "0c133c8a7402b186cdb7fe372b103942aed417e0d386f71b1342c5896b6a7316",
+      "assembly": "build/bench-cpu4096/aevix-ir/prime_search_parallel_fresh.O2.s",
+      "assembly_sha256": "4298d98c1b94c5fd55e935874c1ae40aa438d8e298f151ed12fd41542d27364d",
+      "raw_defined_functions": 67,
+      "optimized_defined_functions": 67,
+      "raw_kernel": {
+        "line_start": 286,
+        "line_end": 422,
+        "allocas": 8,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 5,
+        "trap_calls": 7,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 2,
+        "direct_calls": {
+          "llvm.trap": 7,
+          "llvm.uadd.with.overflow.i64": 3,
+          "llvm.umul.with.overflow.i64": 2
+        },
+        "indirect_call_instructions": 0
+      },
+      "optimized_kernel": {
+        "line_start": 270,
+        "line_end": 329,
+        "allocas": 0,
+        "phi_instructions": 3,
+        "overflow_intrinsics": 3,
+        "trap_calls": 3,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 1,
+        "direct_calls": {
+          "llvm.trap": 3,
+          "llvm.uadd.with.overflow.i64": 2,
+          "llvm.umul.with.overflow.i64": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "raw_main_allocas": 95,
+      "optimized_main_allocas": 18,
+      "clock_locations": [
+        {
+          "block": "b20",
+          "line": 509
+        },
+        {
+          "block": "guard0.i",
+          "line": 521
+        }
+      ],
+      "timed_envelope": {
+        "allocas": 0,
+        "phi_instructions": 0,
+        "overflow_intrinsics": 0,
+        "trap_calls": 1,
+        "vector_type_occurrences": 0,
+        "urem_instructions": 0,
+        "direct_calls": {
+          "aevix_os_error_kind": 1,
+          "aevix_os_last_error": 1,
+          "aevix_parallel_for_each": 1,
+          "llvm.lifetime.end.p0": 2,
+          "llvm.lifetime.start.p0": 1,
+          "llvm.trap": 1
+        },
+        "indirect_call_instructions": 0
+      },
+      "timed_envelope_blocks": [
+        "aevix.fn.94.exit.i",
+        "b20",
+        "guard0.i"
+      ],
+      "timed_natural_loops": [],
+      "worker_assembly": {
+        "line_start": 5,
+        "line_end": 48,
+        "static_instruction_lines": 25,
+        "normalized_instructions": [
+          "ldr\tx8, [x0]",
+          "ubfiz\tx8, x8, #10, #12",
+          "mov\tw9, #51713",
+          "movk\tw9, #15258, lsl #16",
+          "add\tx8, x8, x9",
+          "mov\tw9, #3",
+          "mov\tw10, #9",
+          "cmp\tx10, x8",
+          "b.hi\tLBB_X_8",
+          "udiv\tx10, x8, x9",
+          "msub\tx10, x10, x9, x8",
+          "cbz\tx10, LBB_X_6",
+          "adds\tx10, x9, #2",
+          "b.hs\tLBB_X_7",
+          "umulh\tx11, x10, x10",
+          "mul\tx10, x10, x10",
+          "add\tx9, x9, #2",
+          "cmp\txzr, x11",
+          "b.eq\tLBB_X_2",
+          "b\tLBB_X_7",
+          "adds\tx8, x8, #2",
+          "b.lo\tLBB_X_1",
+          "brk\t#0x1",
+          "str\tx8, [x0]",
+          "ret"
+        ],
+        "vector_instruction_lines": [],
+        "opcodes": {
+          "add": 2,
+          "adds": 2,
+          "b": 1,
+          "b.eq": 1,
+          "b.hi": 1,
+          "b.hs": 1,
+          "b.lo": 1,
+          "brk": 1,
+          "cbz": 1,
+          "cmp": 2,
+          "ldr": 1,
+          "mov": 3,
+          "movk": 1,
+          "msub": 1,
+          "mul": 1,
+          "ret": 1,
+          "str": 1,
+          "ubfiz": 1,
+          "udiv": 1,
+          "umulh": 1
+        }
+      },
+      "native_callback_comparisons": {
+        "C": {
+          "function": "bench_prime_callback",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "bench_prime": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 3,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 995,
+            "line_end": 1026,
+            "static_instruction_lines": 20,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "ubfiz\tx8, x8, #10, #12",
+              "mov\tw9, #51713",
+              "movk\tw9, #15258, lsl #16",
+              "add\tx8, x8, x9",
+              "mov\tw9, #5",
+              "sub\tx10, x9, #2",
+              "udiv\tx11, x8, x10",
+              "msub\tx10, x11, x10, x8",
+              "cbz\tx10, LBB_X_4",
+              "mul\tx10, x9, x9",
+              "add\tx9, x9, #2",
+              "cmp\tx10, x8",
+              "b.ls\tLBB_X_2",
+              "b\tLBB_X_5",
+              "add\tx8, x8, #2",
+              "cmp\tx8, #8",
+              "b.hi\tLBB_X_1",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 3,
+              "b": 1,
+              "b.hi": 1,
+              "b.ls": 1,
+              "cbz": 1,
+              "cmp": 2,
+              "ldr": 1,
+              "mov": 2,
+              "movk": 1,
+              "msub": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 1,
+              "ubfiz": 1,
+              "udiv": 1
+            }
+          },
+          "same_normalized_worker_instructions": false
+        },
+        "C++": {
+          "function": "_ZL20bench_prime_callbackPv",
+          "O0": {
+            "allocas": 1,
+            "phi_instructions": 0,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 0,
+            "direct_calls": {
+              "_ZL11bench_primey": 1
+            },
+            "indirect_call_instructions": 0
+          },
+          "O2": {
+            "allocas": 0,
+            "phi_instructions": 3,
+            "overflow_intrinsics": 0,
+            "trap_calls": 0,
+            "vector_type_occurrences": 0,
+            "urem_instructions": 1,
+            "direct_calls": {},
+            "indirect_call_instructions": 0
+          },
+          "assembly": {
+            "line_start": 995,
+            "line_end": 1026,
+            "static_instruction_lines": 20,
+            "normalized_instructions": [
+              "ldr\tx8, [x0]",
+              "ubfiz\tx8, x8, #10, #12",
+              "mov\tw9, #51713",
+              "movk\tw9, #15258, lsl #16",
+              "add\tx8, x8, x9",
+              "mov\tw9, #5",
+              "sub\tx10, x9, #2",
+              "udiv\tx11, x8, x10",
+              "msub\tx10, x11, x10, x8",
+              "cbz\tx10, LBB_X_4",
+              "mul\tx10, x9, x9",
+              "add\tx9, x9, #2",
+              "cmp\tx10, x8",
+              "b.ls\tLBB_X_2",
+              "b\tLBB_X_5",
+              "add\tx8, x8, #2",
+              "cmp\tx8, #8",
+              "b.hi\tLBB_X_1",
+              "str\tx8, [x0]",
+              "ret"
+            ],
+            "vector_instruction_lines": [],
+            "opcodes": {
+              "add": 3,
+              "b": 1,
+              "b.hi": 1,
+              "b.ls": 1,
+              "cbz": 1,
+              "cmp": 2,
+              "ldr": 1,
+              "mov": 2,
+              "movk": 1,
+              "msub": 1,
+              "mul": 1,
+              "ret": 1,
+              "str": 1,
+              "sub": 1,
+              "ubfiz": 1,
+              "udiv": 1
+            }
+          },
+          "same_normalized_worker_instructions": false
+        }
+      },
+      "vectorizer_records": [
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CFGNotUnderstood",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.46"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "NonReductionValueUsedOutsideLoop",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "TooManyUncountableEarlyExits",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "loop-vectorize",
+          "name": "Vectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "LoopContainsUnsupportedSwitch",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeLibcall",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "EarlyExitTooManySuccessors",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Analysis",
+          "pass": "loop-vectorize",
+          "name": "CantVectorizeInstruction",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "loop-vectorize",
+          "name": "MissedDetails",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Passed",
+          "pass": "slp-vectorizer",
+          "name": "StoresVectorized",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.47"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.83"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.84"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotPossible",
+          "function": "aevix.fn.299"
+        },
+        {
+          "kind": "!Missed",
+          "pass": "slp-vectorizer",
+          "name": "NotBeneficial",
+          "function": "aevix.fn.299"
+        }
+      ]
+    }
+  ],
+  "native": {
+    "manifest": "build/bench-cpu4096/native/build_commands.json",
+    "manifest_sha256": "5cb7a8cce5731436aa1cd85afd280454acfc00f48293ae57b1453e739d7673f8",
+    "compilers": {
+      "C": {
+        "executable": "/opt/homebrew/opt/llvm/bin/clang",
+        "version": "Homebrew clang version 22.1.8\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /opt/homebrew/Cellar/llvm/22.1.8/bin\nConfiguration file: /opt/homebrew/Cellar/llvm/22.1.8/etc/clang/arm64-apple-darwin27.cfg"
+      },
+      "C++": {
+        "executable": "/opt/homebrew/opt/llvm/bin/clang++",
+        "version": "Homebrew clang version 22.1.8\nTarget: arm64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: /opt/homebrew/Cellar/llvm/22.1.8/bin\nConfiguration file: /opt/homebrew/Cellar/llvm/22.1.8/etc/clang/arm64-apple-darwin27.cfg"
+      }
+    },
+    "source_sha256": {
+      "benchmarks/Comparison/cpu4096/native/bench_backend.h": "b4bf1a60841ac23bbf95665dea33c150df176dcde25d0ffa520c8d30fa1284e4",
+      "benchmarks/Comparison/cpu4096/native/bench_kernels.h": "17367e390824f852a1fffb3267e2e3935663184e7cd191ae9e0ee006d9dd42c6",
+      "benchmarks/Comparison/cpu4096/native/bench_runner.h": "0cb0aade6dc21cc66e7cfd97239422765d2c3c31ae582744da4ed82e9b5e594d",
+      "benchmarks/Comparison/cpu4096/native/c_main.c": "296f92528e842b8df38e1917b535efbeeaa94dcf0c9c14fc86eb6c782e2b38e7",
+      "benchmarks/Comparison/cpu4096/native/cpp_main.cpp": "f51d048a79a3aa73857c1a8067ad901d83885ac681b67f51bf116770d6674d42",
+      "benchmarks/Comparison/cpu4096/native/prepare": "316ff15beebe941b3c88a220b0c97df1cd2ff67a90f22644b7a814a5ac596707",
+      "benchmarks/Comparison/cpu4096/native/pthread_backend.c": "a4be6732ee8efdd7b7866c6ba2a14f7178b30bff83d6d74578b2035f4c4429b6",
+      "benchmarks/Comparison/cpu4096/native/thread_backend.cpp": "2a4e4c99be332166637e142653a3042c5c705c3cdf8486a1201cd2c17c2cd4a5"
+    },
+    "artifacts_sha256": {
+      "build/bench-cpu4096/native/c_bench": "a3d442b0e3b7eb0448fba2824c2c12c06b19a145c607b2a95922e1bda6c93611",
+      "build/bench-cpu4096/native/c_main.O0.ll": "94597a2349b90aeae6094b1b36d4bcc53c10f67b68b0664d8916f7f5d09e1152",
+      "build/bench-cpu4096/native/c_main.O2.ll": "22e1305adfb0856fd67abe325d7698916c36089cffcc5e6498134eb553ccc2a8",
+      "build/bench-cpu4096/native/c_main.O2.s": "6e3a89afeceeb2d87c780aee2cf20bc8665a50fc93b39f9f8adee8faf1dc5268",
+      "build/bench-cpu4096/native/cpp_bench": "666c51077d55721cbe068e51a293d7b4d8411bdd01fa0965b70f9232f0b6e76d",
+      "build/bench-cpu4096/native/cpp_main.O0.ll": "4886fcd14133d2d6b4c527da0fdeefb4c123653f1a90832d20b0ae98e8286744",
+      "build/bench-cpu4096/native/cpp_main.O2.ll": "f16aee0a65e1d024f384ca7e6911edc3b260689626d22b6e96ee0f6735af4b24",
+      "build/bench-cpu4096/native/cpp_main.O2.s": "a8e7dabdefaa592630926df6f568d613f9b6a15da4bf67ce7060bea9458b69b4",
+      "build/bench-cpu4096/native/pthread_backend.O0.ll": "b4aa4762c3f44e69fb6451986fd505ad9d1fc539d64a59f9e11adb6500dcc071",
+      "build/bench-cpu4096/native/pthread_backend.O2.ll": "1c009246f79ed17875ada58ba386a0d1d775aa0f2b4701250062f59361bb8ce0",
+      "build/bench-cpu4096/native/pthread_backend.O2.s": "c5bf16f1b76fd00fce6c1b9c4495641e4469834a1bb3ce6cb6373fd3eecbd69a",
+      "build/bench-cpu4096/native/thread_backend.O0.ll": "bfcd29ca6969ace608ed34156e30cc2dd2b0e4e5b27dc62ffcd15b1a7617519e",
+      "build/bench-cpu4096/native/thread_backend.O2.ll": "137a980245314ec2fdf9dfd6c2fb5566ad8c1e6d3a14b81e469b3d0075d1acb8",
+      "build/bench-cpu4096/native/thread_backend.O2.s": "dd9a28d0a0a2bb87e20be968d380c017cec29f2938994f6063ae0451fff39885"
+    }
+  }
+}

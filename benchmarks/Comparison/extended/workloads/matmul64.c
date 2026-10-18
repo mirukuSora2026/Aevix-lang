@@ -1,0 +1,52 @@
+// ========================
+//
+// Created By : miruku_sora2026
+//
+// File name : matmul64.c
+//
+// Description :
+//     Aevix와 동일한 정수 입력·커널·시계 경계를 사용하는 생성된 비교 프로그램.
+//     Generated C comparison with the same integer inputs, kernel, and clock boundaries.
+//
+// ========================
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "shared_timer.h"
+static void kernel(const uint64_t *left, const uint64_t *right, uint64_t *output) {
+    for (size_t row=0; row<64; ++row)
+        for (size_t column=0; column<64; ++column) {
+            uint64_t total=0;
+            for (size_t inner=0; inner<64; ++inner)
+                total += left[row*64+inner] * right[inner*64+column];
+            output[row*64+column]=total;
+        }
+}
+int main(void) {
+    uint64_t seeds[2];
+    if (scanf("%" SCNu64 "%" SCNu64, &seeds[0], &seeds[1]) != 2) return 91;
+    uint64_t values[4096]={0},right[4096]={0},output[4096]={0};
+    for (size_t iteration=0; iteration<2; ++iteration) {
+        uint64_t seed=seeds[iteration]%97;
+        for (size_t index=0; index<4096; ++index) {
+            values[index]=(index*11+seed*13)%17;
+            right[index]=(index*7+seed*3)%19;
+        }
+        for (size_t index=0; index<4096; ++index) output[index]=0;
+        uint64_t started=aevixbench_clock_ns();
+        kernel(values,right,output);
+        uint64_t stopped=aevixbench_clock_ns();
+        if (stopped<started) return 93;
+        if (iteration==1) {
+            uint64_t sum=0,weighted=0;
+            for(size_t index=0; index<4096; ++index) { sum+=output[index]; weighted=(weighted+(index+1)*output[index])%1000000007; }
+            printf("SAMPLE matmul64 serial 0 %" PRIu64 " %" PRIu64 " %" PRIu64 " 1\n",stopped-started,sum,weighted);
+        }
+    }
+    printf("VERIFY matmul64 serial ");
+    for(size_t index=0; index<4096; ++index) printf("%s%" PRIu64,index?",":"",output[index]);
+    puts("");
+    if (fflush(stdout)!=0) return 94;
+    return 0;
+}

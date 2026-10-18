@@ -1,0 +1,1819 @@
+/*
+ * Synchronous bounded byte operations. Integer and floating codecs use explicit little or big endian,
+ * accept unaligned positions, and validate the complete range before any write.
+ * byte remains distinct from u8. No operation accesses a raw pointer or native handle.
+ * Floating codecs preserve representation bits without numeric conversion or NaN canonicalization.
+ * Hex text is strict ASCII without prefixes, separators or whitespace.
+ * @module bytes
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public import ordering { Ordering };
+import error { Error };
+import encoding;
+
+/* Byte offsets and lengths identify the original input or destination buffer.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum ByteError implements Copy, Error {
+    /* The complete requested range is outside the initialized buffer. No write occurred.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    OutOfBounds { /*
+ * Version history for the bytes.ByteError.OutOfBounds.offset public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; /*
+ * Version history for the bytes.ByteError.OutOfBounds.width public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize width; /*
+ * Version history for the bytes.ByteError.OutOfBounds.length public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize length; };
+    /* Hex decoding requires an even length; parsing one byte requires exactly two digits.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidHexLength { /*
+ * Version history for the bytes.ByteError.InvalidHexLength.length public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize length; };
+    /* The first invalid ASCII hex byte, measured in UTF-8 input bytes.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidHexDigit { /*
+ * Version history for the bytes.ByteError.InvalidHexDigit.offset public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; };
+    /* Output allocation failed. Any temporary buffer has been cleaned.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /* The required output length is not representable.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+    /* The count is outside the supported 0..7 checked-shift range.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidShift { /*
+ * Version history for the bytes.ByteError.InvalidShift.count public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count; };
+    /* The bit index is outside 0..7. Bit zero is least significant.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidBitIndex { /*
+ * Version history for the bytes.ByteError.InvalidBitIndex.index public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 index; };
+    /* start must be at most 8 and width must be at most 8-start.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidBitRange { /*
+ * Version history for the bytes.ByteError.InvalidBitRange.start public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 start; /*
+ * Version history for the bytes.ByteError.InvalidBitRange.width public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 width; };
+    /* The right-aligned field does not fit in the requested width; it is never truncated.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    FieldOutOfRange { /*
+ * Version history for the bytes.ByteError.FieldOutOfRange.field public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte field; /*
+ * Version history for the bytes.ByteError.FieldOutOfRange.width public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 width; };
+    /* A nibble exceeds 15; position 0 denotes high and position 1 denotes low.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidNibble { /*
+ * Version history for the bytes.ByteError.InvalidNibble.value public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte value; /*
+ * Version history for the bytes.ByteError.InvalidNibble.position public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 position; };
+    /* Binary parsing requires exactly eight ASCII digits.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidBinaryLength { /*
+ * Version history for the bytes.ByteError.InvalidBinaryLength.length public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize length; };
+    /* The first byte outside ASCII 0/1, measured in UTF-8 input bytes.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidBinaryDigit { /*
+ * Version history for the bytes.ByteError.InvalidBinaryDigit.offset public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; };
+    /* Buffer extents require an ascending range with a unit step, even when empty.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NonContiguousRange;
+    /* An ascending iteration may be empty, but a reversed buffer extent is rejected as a likely mistake.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ReversedRange { /*
+ * Version history for the bytes.ByteError.ReversedRange.start public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize start; /*
+ * Version history for the bytes.ByteError.ReversedRange.end public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize end; };
+    /* Equal-length copy requires the full source to match the initialized destination length.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    LengthMismatch { /*
+ * Version history for the bytes.ByteError.LengthMismatch.expected public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize expected; /*
+ * Version history for the bytes.ByteError.LengthMismatch.actual public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize actual; };
+    /* A strict UTF-8 decoder reports the actual invalid or incomplete sequence byte position.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidUtf8 { /*
+ * Version history for the bytes.ByteError.InvalidUtf8.offset public API.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize offset; };
+    /* Return a static inspection code without allocating.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self) {
+        switch (*self) {
+            case ByteError.OutOfBounds: return "bytes.out_of_bounds"; break;
+            case ByteError.InvalidHexLength: return "bytes.invalid_hex_length"; break;
+            case ByteError.InvalidHexDigit: return "bytes.invalid_hex_digit"; break;
+            case ByteError.AllocationFailure: return "bytes.allocation_failure"; break;
+            case ByteError.SizeOverflow: return "bytes.size_overflow"; break;
+            case ByteError.InvalidShift: return "bytes.invalid_shift"; break;
+            case ByteError.InvalidBitIndex: return "bytes.invalid_bit_index"; break;
+            case ByteError.InvalidBitRange: return "bytes.invalid_bit_range"; break;
+            case ByteError.FieldOutOfRange: return "bytes.field_out_of_range"; break;
+            case ByteError.InvalidNibble: return "bytes.invalid_nibble"; break;
+            case ByteError.InvalidBinaryLength: return "bytes.invalid_binary_length"; break;
+            case ByteError.InvalidBinaryDigit: return "bytes.invalid_binary_digit"; break;
+            case ByteError.NonContiguousRange: return "bytes.non_contiguous_range"; break;
+            case ByteError.ReversedRange: return "bytes.reversed_range"; break;
+            case ByteError.LengthMismatch: return "bytes.length_mismatch"; break;
+            case ByteError.InvalidUtf8: return "bytes.invalid_utf8"; break;
+        }
+    }
+    /* Return a static description without retaining any input.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self) {
+        switch (*self) {
+            case ByteError.OutOfBounds: return "The complete byte range is outside the initialized buffer."; break;
+            case ByteError.InvalidHexLength: return "Hex input has an invalid number of ASCII digits."; break;
+            case ByteError.InvalidHexDigit: return "Hex input contains a byte outside ASCII 0-9, a-f and A-F."; break;
+            case ByteError.AllocationFailure: return "Byte output storage could not be allocated."; break;
+            case ByteError.SizeOverflow: return "Byte output exceeds the supported buffer length."; break;
+            case ByteError.InvalidShift: return "A checked byte shift count must be between zero and seven."; break;
+            case ByteError.InvalidBitIndex: return "A byte bit index must be between zero and seven."; break;
+            case ByteError.InvalidBitRange: return "The complete bit range must be contained in eight bits."; break;
+            case ByteError.FieldOutOfRange: return "The supplied field does not fit in the requested bit width."; break;
+            case ByteError.InvalidNibble: return "Both nibble inputs must fit in four bits."; break;
+            case ByteError.InvalidBinaryLength: return "Binary input must contain exactly eight ASCII digits."; break;
+            case ByteError.InvalidBinaryDigit: return "Binary input contains a byte other than ASCII zero or one."; break;
+            case ByteError.NonContiguousRange: return "A byte buffer extent must use an ascending range with a unit step."; break;
+            case ByteError.ReversedRange: return "A byte buffer extent must not end before it starts."; break;
+            case ByteError.LengthMismatch: return "Byte source and destination slices must have equal initialized lengths."; break;
+            case ByteError.InvalidUtf8: return "Byte input contains an invalid or incomplete UTF-8 sequence."; break;
+        }
+    }
+};
+
+T represent<T, U>(U value) {
+    Result<T, IntegerError> converted = Integer.convert<T>(value);
+    switch (move converted) {
+        case Result<T, IntegerError>.Ok { T output = value }: return output; break;
+        case Result<T, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+Result<unit, ByteError> check_range(usize length, usize offset, usize width) {
+    if (offset > length || width > length - offset)
+        return Result.err(ByteError.OutOfBounds { offset = offset, width = width, length = length });
+    return Result.ok(Unit.value());
+}
+Result<u64, ByteError> read_unsigned(Slice<byte> input, usize offset, usize width, bool little) {
+    check_range(Slice.len(input), offset, width)?;
+    mut u64 output = 0;
+    mut usize index = 0;
+    while (index < width) {
+        usize position = little ? offset + width - 1 - index : offset + index;
+        output = (output << 8) | represent<u64>(Byte.to_u8(input[position]));
+        index++;
+    }
+    return Result.ok(output);
+}
+Result<usize, ByteError> write_unsigned(MutSlice<byte> output, usize offset, usize width, u64 value, bool little) {
+    check_range(Slice.len(&output), offset, width)?;
+    mut u64 remaining = value;
+    mut usize index = 0;
+    while (index < width) {
+        usize position = little ? offset + index : offset + width - 1 - index;
+        output[position] = Byte.from_u8(represent<u8>(remaining & 255u64));
+        remaining = remaining >> 8;
+        index++;
+    }
+    return Result.ok(width);
+}
+Result<Vector<byte>, ByteError> allocate_capacity(usize capacity) {
+    Result<Vector<byte>, CollectionError> created = [];
+    switch (move created) {
+        case Result<Vector<byte>, CollectionError>.Ok { Vector<byte> empty = value }:
+            mut Vector<byte> output = empty;
+            Result<unit, CollectionError> reserved = Vector.reserve(&mut output, capacity);
+            switch (move reserved) {
+                case Result<unit, CollectionError>.Ok: return Result.ok(output); break;
+                case Result<unit, CollectionError>.Err { CollectionError reason = error }:
+                    switch (reason) {
+                        case CollectionError.AllocationFailure: return Result.err(ByteError.AllocationFailure); break;
+                        case CollectionError.SizeOverflow: return Result.err(ByteError.SizeOverflow); break;
+                    }
+                    break;
+            }
+            break;
+        case Result<Vector<byte>, CollectionError>.Err { CollectionError reason = error }:
+            switch (reason) {
+                case CollectionError.AllocationFailure: return Result.err(ByteError.AllocationFailure); break;
+                case CollectionError.SizeOverflow: return Result.err(ByteError.SizeOverflow); break;
+            }
+            break;
+    }
+}
+Result<unit, ByteError> append_byte(&mut Vector<byte> output, byte value) {
+    Result<unit, InputError<byte>> added = Vector.push(output, value);
+    switch (move added) {
+        case Result<unit, InputError<byte>>.Ok: return Result.ok(Unit.value()); break;
+        case Result<unit, InputError<byte>>.Err { InputError<byte> reason = error }:
+            switch (reason) {
+                case InputError<byte>.AllocationFailure: return Result.err(ByteError.AllocationFailure); break;
+                case InputError<byte>.SizeOverflow: return Result.err(ByteError.SizeOverflow); break;
+                case InputError<byte>.OutOfBounds: Never.unreachable(); break;
+            }
+            break;
+    }
+}
+Result<string, ByteError> ascii_string(Slice<byte> input) {
+    Result<string, TextError> converted = string.from_utf8(input);
+    switch (move converted) {
+        case Result<string, TextError>.Ok { string output = value }: return Result.ok(output); break;
+        case Result<string, TextError>.Err { TextError reason = error }:
+            switch (reason) {
+                case TextError.AllocationFailure: return Result.err(ByteError.AllocationFailure); break;
+                case TextError.SizeOverflow: return Result.err(ByteError.SizeOverflow); break;
+                default: Never.unreachable(); break;
+            }
+            break;
+    }
+}
+i32 hex_value(u8 value) {
+    if (value >= 48u8 && value <= 57u8) return represent<i32>(value - 48u8);
+    if (value >= 65u8 && value <= 70u8) return represent<i32>(value - 65u8) + 10;
+    if (value >= 97u8 && value <= 102u8) return represent<i32>(value - 97u8) + 10;
+    return -1;
+}
+byte hex_digit(u8 value, bool uppercase) {
+    if (value < 10u8) return Byte.from_u8(value + 48u8);
+    return Byte.from_u8(value - 10u8 + (uppercase ? 65u8 : 97u8));
+}
+bool matches_at(Slice<byte> input, Slice<byte> needle, usize offset) {
+    if (offset > Slice.len(input) || Slice.len(needle) > Slice.len(input) - offset) return false;
+    mut usize index = 0;
+    while (index < Slice.len(needle)) {
+        if (Byte.to_u8(input[offset + index]) != Byte.to_u8(needle[index])) return false;
+        index++;
+    }
+    return true;
+}
+
+/* Copy one byte value or return None for an invalid offset; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<byte> get(Slice<byte> input, usize offset) {
+    if (offset >= Slice.len(input)) return Optional.none();
+    return Optional.some(input[offset]);
+}
+/* Validate the offset before replacing one initialized byte; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> set(MutSlice<byte> output, usize offset, byte value) {
+    check_range(Slice.len(&output), offset, 1)?;
+    output[offset] = value;
+    return Result.ok(Unit.value());
+}
+/* Return initialized length; O(1), no allocation or ownership transfer.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize len(Slice<byte> input) { return Slice.len(input); }
+/* Test initialized length; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_empty(Slice<byte> input) { return Slice.len(input) == 0; }
+/* Fill the initialized exclusive view; O(n), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit fill(MutSlice<byte> output, byte value) {
+    mut usize index = 0;
+    while (index < Slice.len(&output)) { output[index] = value; index++; }
+    return Unit.value();
+}
+/* Return the first matching byte offset; O(n), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> find(Slice<byte> input, byte value) {
+    mut usize index = 0;
+    while (index < Slice.len(input)) {
+        if (Byte.to_u8(input[index]) == Byte.to_u8(value)) return Optional.some(index);
+        index++;
+    }
+    return Optional.none();
+}
+/* Return the first subsequence match; an empty needle matches zero.
+ * Worst-case O((n-m+1)*m) comparisons and O(1) extra storage; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> find_subsequence(Slice<byte> input, Slice<byte> needle) {
+    if (Slice.len(needle) > Slice.len(input)) return Optional.none();
+    usize last = Slice.len(input) - Slice.len(needle);
+    mut usize offset = 0;
+    while (true) {
+        if (matches_at(input, needle, offset)) return Optional.some(offset);
+        if (offset == last) return Optional.none();
+        offset++;
+    }
+}
+/* Test a byte prefix without interpreting UTF-8; O(m), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool starts_with(Slice<byte> input, Slice<byte> prefix) { return matches_at(input, prefix, 0); }
+/* Test a byte suffix without interpreting UTF-8; O(m), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool ends_with(Slice<byte> input, Slice<byte> suffix) {
+    if (Slice.len(suffix) > Slice.len(input)) return false;
+    return matches_at(input, suffix, Slice.len(input) - Slice.len(suffix));
+}
+
+/* Parse exactly two ASCII hex digits into one byte; O(1), no allocation.
+ * Invalid length takes precedence; otherwise report the first invalid byte offset.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> parse_hex(string_view text) {
+    Slice<byte> input = string.as_bytes(text);
+    if (Slice.len(input) != 2) return Result.err(ByteError.InvalidHexLength { length = Slice.len(input) });
+    i32 high = hex_value(Byte.to_u8(input[0]));
+    if (high < 0) return Result.err(ByteError.InvalidHexDigit { offset = 0 });
+    i32 low = hex_value(Byte.to_u8(input[1]));
+    if (low < 0) return Result.err(ByteError.InvalidHexDigit { offset = 1 });
+    return Result.ok(Byte.from_u8(represent<u8>(high * 16 + low)));
+}
+/* Decode an even number of ASCII hex digits. Validate the entire input before allocation.
+ * O(n) time and n/2 output bytes; no prefix, whitespace, separators or implicit text conversion.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, ByteError> decode_hex(string_view text) {
+    Slice<byte> input = string.as_bytes(text);
+    usize length = Slice.len(input);
+    if (length % 2 != 0) return Result.err(ByteError.InvalidHexLength { length = length });
+    mut usize index = 0;
+    while (index < length) {
+        if (hex_value(Byte.to_u8(input[index])) < 0) return Result.err(ByteError.InvalidHexDigit { offset = index });
+        index++;
+    }
+    mut Vector<byte> output = allocate_capacity(length / 2)?;
+    index = 0;
+    while (index < length) {
+        i32 high = hex_value(Byte.to_u8(input[index]));
+        i32 low = hex_value(Byte.to_u8(input[index + 1]));
+        append_byte(&mut output, Byte.from_u8(represent<u8>(high * 16 + low)))?;
+        index += 2;
+    }
+    return Result.ok(output);
+}
+/* Write two ASCII hex digits only after validating the full destination capacity.
+ * Return 2; leave trailing bytes unchanged; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> format_hex_into(byte value, MutSlice<byte> output, bool uppercase) {
+    check_range(Slice.len(&output), 0, 2)?;
+    u8 raw = Byte.to_u8(value);
+    output[0] = hex_digit(raw >> 4, uppercase);
+    output[1] = hex_digit(raw & 15u8, uppercase);
+    return Result.ok(2usize);
+}
+/* Allocate a two-digit ASCII string. Inline temporary bytes require no heap buffer.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, ByteError> format_hex(byte value, bool uppercase) {
+    mut byte output[2] = [Byte.from_u8(0u8), Byte.from_u8(0u8)];
+    format_hex_into(value, Slice.from_array_mut(&mut output), uppercase)?;
+    return ascii_string(Slice.from_array(&output));
+}
+/* Encode two ASCII digits per input byte after checking output length multiplication.
+ * O(n) time; explicitly allocate a temporary 2*n byte buffer and then the owned string.
+ * Both empty input and empty output are supported; no source buffer is retained.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, ByteError> encode_hex(Slice<byte> input, bool uppercase) {
+    usize length = Slice.len(input);
+    if (length > 9223372036854775807usize) return Result.err(ByteError.SizeOverflow);
+    mut Vector<byte> output = allocate_capacity(length * 2)?;
+    mut usize index = 0;
+    while (index < length) {
+        u8 raw = Byte.to_u8(input[index]);
+        append_byte(&mut output, hex_digit(raw >> 4, uppercase))?;
+        append_byte(&mut output, hex_digit(raw & 15u8, uppercase))?;
+        index++;
+    }
+    return ascii_string(Slice.from_vector(&output));
+}
+
+/* Read 1 unaligned unsigned byte; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u8, ByteError> read_u8(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 1, true)?;
+    return Result.ok(represent<u8>(raw));
+}
+/* Validate all 1 destination byte before writing unsigned representation.
+ * Return 1; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u8(MutSlice<byte> output, usize offset, u8 value) {
+    return write_unsigned(output, offset, 1, represent<u64>(value), true);
+}
+
+/* Read 1 unaligned two's-complement signed byte; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i8, ByteError> read_i8(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 1, true)?;
+    i128 wide = represent<i128>(raw);
+    return Result.ok(represent<i8>(wide >= 128i128 ? wide - 256i128 : wide));
+}
+/* Validate all 1 destination byte before writing two's-complement signed representation.
+ * Return 1; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i8(MutSlice<byte> output, usize offset, i8 value) {
+    i128 wide = represent<i128>(value);
+    return write_unsigned(output, offset, 1, represent<u64>(wide < 0i128 ? wide + 256i128 : wide), true);
+}
+
+/* Read 2 unaligned unsigned bytes in little endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16, ByteError> read_u16_le(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 2, true)?;
+    return Result.ok(represent<u16>(raw));
+}
+/* Validate all 2 destination bytes before writing unsigned representation in little endian.
+ * Return 2; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u16_le(MutSlice<byte> output, usize offset, u16 value) {
+    return write_unsigned(output, offset, 2, represent<u64>(value), true);
+}
+
+/* Read 2 unaligned unsigned bytes in big endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u16, ByteError> read_u16_be(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 2, false)?;
+    return Result.ok(represent<u16>(raw));
+}
+/* Validate all 2 destination bytes before writing unsigned representation in big endian.
+ * Return 2; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u16_be(MutSlice<byte> output, usize offset, u16 value) {
+    return write_unsigned(output, offset, 2, represent<u64>(value), false);
+}
+
+/* Read 2 unaligned two's-complement signed bytes in little endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16, ByteError> read_i16_le(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 2, true)?;
+    i128 wide = represent<i128>(raw);
+    return Result.ok(represent<i16>(wide >= 32768i128 ? wide - 65536i128 : wide));
+}
+/* Validate all 2 destination bytes before writing two's-complement signed representation in little endian.
+ * Return 2; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i16_le(MutSlice<byte> output, usize offset, i16 value) {
+    i128 wide = represent<i128>(value);
+    return write_unsigned(output, offset, 2, represent<u64>(wide < 0i128 ? wide + 65536i128 : wide), true);
+}
+
+/* Read 2 unaligned two's-complement signed bytes in big endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i16, ByteError> read_i16_be(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 2, false)?;
+    i128 wide = represent<i128>(raw);
+    return Result.ok(represent<i16>(wide >= 32768i128 ? wide - 65536i128 : wide));
+}
+/* Validate all 2 destination bytes before writing two's-complement signed representation in big endian.
+ * Return 2; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i16_be(MutSlice<byte> output, usize offset, i16 value) {
+    i128 wide = represent<i128>(value);
+    return write_unsigned(output, offset, 2, represent<u64>(wide < 0i128 ? wide + 65536i128 : wide), false);
+}
+
+/* Read 4 unaligned unsigned bytes in little endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32, ByteError> read_u32_le(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 4, true)?;
+    return Result.ok(represent<u32>(raw));
+}
+/* Validate all 4 destination bytes before writing unsigned representation in little endian.
+ * Return 4; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u32_le(MutSlice<byte> output, usize offset, u32 value) {
+    return write_unsigned(output, offset, 4, represent<u64>(value), true);
+}
+
+/* Read 4 unaligned unsigned bytes in big endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u32, ByteError> read_u32_be(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 4, false)?;
+    return Result.ok(represent<u32>(raw));
+}
+/* Validate all 4 destination bytes before writing unsigned representation in big endian.
+ * Return 4; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u32_be(MutSlice<byte> output, usize offset, u32 value) {
+    return write_unsigned(output, offset, 4, represent<u64>(value), false);
+}
+
+/* Read 4 unaligned two's-complement signed bytes in little endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32, ByteError> read_i32_le(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 4, true)?;
+    i128 wide = represent<i128>(raw);
+    return Result.ok(represent<i32>(wide >= 2147483648i128 ? wide - 4294967296i128 : wide));
+}
+/* Validate all 4 destination bytes before writing two's-complement signed representation in little endian.
+ * Return 4; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i32_le(MutSlice<byte> output, usize offset, i32 value) {
+    i128 wide = represent<i128>(value);
+    return write_unsigned(output, offset, 4, represent<u64>(wide < 0i128 ? wide + 4294967296i128 : wide), true);
+}
+
+/* Read 4 unaligned two's-complement signed bytes in big endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i32, ByteError> read_i32_be(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 4, false)?;
+    i128 wide = represent<i128>(raw);
+    return Result.ok(represent<i32>(wide >= 2147483648i128 ? wide - 4294967296i128 : wide));
+}
+/* Validate all 4 destination bytes before writing two's-complement signed representation in big endian.
+ * Return 4; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i32_be(MutSlice<byte> output, usize offset, i32 value) {
+    i128 wide = represent<i128>(value);
+    return write_unsigned(output, offset, 4, represent<u64>(wide < 0i128 ? wide + 4294967296i128 : wide), false);
+}
+
+/* Read 8 unaligned unsigned bytes in little endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64, ByteError> read_u64_le(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 8, true)?;
+    return Result.ok(represent<u64>(raw));
+}
+/* Validate all 8 destination bytes before writing unsigned representation in little endian.
+ * Return 8; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u64_le(MutSlice<byte> output, usize offset, u64 value) {
+    return write_unsigned(output, offset, 8, represent<u64>(value), true);
+}
+
+/* Read 8 unaligned unsigned bytes in big endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u64, ByteError> read_u64_be(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 8, false)?;
+    return Result.ok(represent<u64>(raw));
+}
+/* Validate all 8 destination bytes before writing unsigned representation in big endian.
+ * Return 8; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u64_be(MutSlice<byte> output, usize offset, u64 value) {
+    return write_unsigned(output, offset, 8, represent<u64>(value), false);
+}
+
+/* Read 8 unaligned two's-complement signed bytes in little endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64, ByteError> read_i64_le(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 8, true)?;
+    i128 wide = represent<i128>(raw);
+    return Result.ok(represent<i64>(wide >= 9223372036854775808i128 ? wide - 18446744073709551616i128 : wide));
+}
+/* Validate all 8 destination bytes before writing two's-complement signed representation in little endian.
+ * Return 8; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i64_le(MutSlice<byte> output, usize offset, i64 value) {
+    i128 wide = represent<i128>(value);
+    return write_unsigned(output, offset, 8, represent<u64>(wide < 0i128 ? wide + 18446744073709551616i128 : wide), true);
+}
+
+/* Read 8 unaligned two's-complement signed bytes in big endian; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i64, ByteError> read_i64_be(Slice<byte> input, usize offset) {
+    u64 raw = read_unsigned(input, offset, 8, false)?;
+    i128 wide = represent<i128>(raw);
+    return Result.ok(represent<i64>(wide >= 9223372036854775808i128 ? wide - 18446744073709551616i128 : wide));
+}
+/* Validate all 8 destination bytes before writing two's-complement signed representation in big endian.
+ * Return 8; no alignment requirement, allocation or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i64_be(MutSlice<byte> output, usize offset, i64 value) {
+    i128 wide = represent<i128>(value);
+    return write_unsigned(output, offset, 8, represent<u64>(wide < 0i128 ? wide + 18446744073709551616i128 : wide), false);
+}
+
+u128 wide_unsigned_max() { return 340282366920938463463374607431768211455u128; }
+Result<u128, ByteError> read_wide(Slice<byte> input, usize offset, bool little) {
+    check_range(Slice.len(input), offset, 16)?;
+    mut u128 output = 0;
+    mut usize index = 0;
+    while (index < 16) {
+        usize position = little ? offset + 15 - index : offset + index;
+        output = (output << 8) | represent<u128>(Byte.to_u8(input[position]));
+        index++;
+    }
+    return Result.ok(output);
+}
+Result<usize, ByteError> write_wide(MutSlice<byte> output, usize offset, u128 value, bool little) {
+    check_range(Slice.len(&output), offset, 16)?;
+    mut u128 remaining = value;
+    mut usize index = 0;
+    while (index < 16) {
+        usize position = little ? offset + index : offset + 15 - index;
+        output[position] = Byte.from_u8(represent<u8>(remaining & 255u128));
+        remaining = remaining >> 8;
+        index++;
+    }
+    return Result.ok(16usize);
+}
+i128 signed_wide(u128 raw) {
+    if (raw <= 170141183460469231731687303715884105727u128) return represent<i128>(raw);
+    i128 complement = represent<i128>(wide_unsigned_max() - raw);
+    return -complement - 1i128;
+}
+u128 unsigned_wide(i128 value) {
+    if (value >= 0i128) return represent<u128>(value);
+    i128 complement = -(value + 1i128);
+    return wide_unsigned_max() - represent<u128>(complement);
+}
+/* Read sixteen unaligned unsigned bytes in little endian.
+ * No allocation. Signed reconstruction includes i128 minimum without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128, ByteError> read_u128_le(Slice<byte> input, usize offset) {
+    u128 raw = read_wide(input, offset, true)?;
+    return Result.ok(raw);
+}
+/* Validate all sixteen bytes before writing unsigned little-endian representation.
+ * Return sixteen; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u128_le(MutSlice<byte> output, usize offset, u128 value) {
+    return write_wide(output, offset, value, true);
+}
+/* Read sixteen unaligned unsigned bytes in big endian.
+ * No allocation. Signed reconstruction includes i128 minimum without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<u128, ByteError> read_u128_be(Slice<byte> input, usize offset) {
+    u128 raw = read_wide(input, offset, false)?;
+    return Result.ok(raw);
+}
+/* Validate all sixteen bytes before writing unsigned big-endian representation.
+ * Return sixteen; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_u128_be(MutSlice<byte> output, usize offset, u128 value) {
+    return write_wide(output, offset, value, false);
+}
+/* Read sixteen unaligned signed two's-complement bytes in little endian.
+ * No allocation. Signed reconstruction includes i128 minimum without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128, ByteError> read_i128_le(Slice<byte> input, usize offset) {
+    u128 raw = read_wide(input, offset, true)?;
+    return Result.ok(signed_wide(raw));
+}
+/* Validate all sixteen bytes before writing signed two's-complement little-endian representation.
+ * Return sixteen; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i128_le(MutSlice<byte> output, usize offset, i128 value) {
+    return write_wide(output, offset, unsigned_wide(value), true);
+}
+/* Read sixteen unaligned signed two's-complement bytes in big endian.
+ * No allocation. Signed reconstruction includes i128 minimum without overflowing an intermediate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<i128, ByteError> read_i128_be(Slice<byte> input, usize offset) {
+    u128 raw = read_wide(input, offset, false)?;
+    return Result.ok(signed_wide(raw));
+}
+/* Validate all sixteen bytes before writing signed two's-complement big-endian representation.
+ * Return sixteen; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_i128_be(MutSlice<byte> output, usize offset, i128 value) {
+    return write_wide(output, offset, unsigned_wide(value), false);
+}
+
+/* Read 2 unaligned little-endian representation bytes as f16 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f16, ByteError> read_f16_le(Slice<byte> input, usize offset) {
+    u16 raw = read_u16_le(input, offset)?;
+    return Result.ok(Float.from_bits<f16>(raw));
+}
+/* Write the exact f16 representation as 2 little-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 2; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_f16_le(MutSlice<byte> output, usize offset, f16 value) {
+    return write_u16_le(output, offset, Float.to_bits(value));
+}
+
+/* Read 2 unaligned big-endian representation bytes as f16 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f16, ByteError> read_f16_be(Slice<byte> input, usize offset) {
+    u16 raw = read_u16_be(input, offset)?;
+    return Result.ok(Float.from_bits<f16>(raw));
+}
+/* Write the exact f16 representation as 2 big-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 2; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_f16_be(MutSlice<byte> output, usize offset, f16 value) {
+    return write_u16_be(output, offset, Float.to_bits(value));
+}
+
+/* Read 2 unaligned little-endian representation bytes as bf16 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bf16, ByteError> read_bf16_le(Slice<byte> input, usize offset) {
+    u16 raw = read_u16_le(input, offset)?;
+    return Result.ok(Float.from_bits<bf16>(raw));
+}
+/* Write the exact bf16 representation as 2 little-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 2; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_bf16_le(MutSlice<byte> output, usize offset, bf16 value) {
+    return write_u16_le(output, offset, Float.to_bits(value));
+}
+
+/* Read 2 unaligned big-endian representation bytes as bf16 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bf16, ByteError> read_bf16_be(Slice<byte> input, usize offset) {
+    u16 raw = read_u16_be(input, offset)?;
+    return Result.ok(Float.from_bits<bf16>(raw));
+}
+/* Write the exact bf16 representation as 2 big-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 2; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_bf16_be(MutSlice<byte> output, usize offset, bf16 value) {
+    return write_u16_be(output, offset, Float.to_bits(value));
+}
+
+/* Read 4 unaligned little-endian representation bytes as f32 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, ByteError> read_f32_le(Slice<byte> input, usize offset) {
+    u32 raw = read_u32_le(input, offset)?;
+    return Result.ok(Float.from_bits<f32>(raw));
+}
+/* Write the exact f32 representation as 4 little-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 4; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_f32_le(MutSlice<byte> output, usize offset, f32 value) {
+    return write_u32_le(output, offset, Float.to_bits(value));
+}
+
+/* Read 4 unaligned big-endian representation bytes as f32 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f32, ByteError> read_f32_be(Slice<byte> input, usize offset) {
+    u32 raw = read_u32_be(input, offset)?;
+    return Result.ok(Float.from_bits<f32>(raw));
+}
+/* Write the exact f32 representation as 4 big-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 4; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_f32_be(MutSlice<byte> output, usize offset, f32 value) {
+    return write_u32_be(output, offset, Float.to_bits(value));
+}
+
+/* Read 8 unaligned little-endian representation bytes as f64 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, ByteError> read_f64_le(Slice<byte> input, usize offset) {
+    u64 raw = read_u64_le(input, offset)?;
+    return Result.ok(Float.from_bits<f64>(raw));
+}
+/* Write the exact f64 representation as 8 little-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 8; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_f64_le(MutSlice<byte> output, usize offset, f64 value) {
+    return write_u64_le(output, offset, Float.to_bits(value));
+}
+
+/* Read 8 unaligned big-endian representation bytes as f64 without numeric conversion.
+ * Preserve every bit, including signed zero and NaN payload/signaling bits; no allocation.
+ * The complete input range is checked before any byte is read.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<f64, ByteError> read_f64_be(Slice<byte> input, usize offset) {
+    u64 raw = read_u64_be(input, offset)?;
+    return Result.ok(Float.from_bits<f64>(raw));
+}
+/* Write the exact f64 representation as 8 big-endian bytes without numeric conversion.
+ * Preserve signed zero and every NaN payload bit. Validate the entire range before mutation.
+ * Return 8; no allocation, alignment requirement or partial write on bounds failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> write_f64_be(MutSlice<byte> output, usize offset, f64 value) {
+    return write_u64_be(output, offset, Float.to_bits(value));
+}
+
+
+/* Intersect exact eight-bit patterns; O(1), no allocation or numeric arithmetic.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte bit_and(byte left, byte right) { return Byte.from_u8(Byte.to_u8(left) & Byte.to_u8(right)); }
+/* Union exact eight-bit patterns; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte bit_or(byte left, byte right) { return Byte.from_u8(Byte.to_u8(left) | Byte.to_u8(right)); }
+/* Toggle positions present in exactly one pattern; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte bit_xor(byte left, byte right) { return Byte.from_u8(Byte.to_u8(left) ^ Byte.to_u8(right)); }
+/* Invert exactly eight value bits; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte bit_not(byte value) { return Byte.from_u8(Byte.to_u8(value) ^ 255u8); }
+/* Keep left bits absent from right; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte bit_and_not(byte left, byte right) { return bit_and(left, bit_not(right)); }
+/* Return the zero pattern; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte zero() { return Byte.from_u8(0u8); }
+/* Return the all-one eight-bit pattern; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte ones() { return Byte.from_u8(255u8); }
+/* Return eight value bits; not a declaration of unrelated type ABI layouts.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_width() { return 8u32; }
+/* Return one storage byte for byte; not a universal ABI promise.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 byte_width() { return 1u32; }
+/* Test the zero pattern; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_zero(byte value) { return Byte.to_u8(value) == 0u8; }
+/* Test the all-one pattern; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_all_ones(byte value) { return Byte.to_u8(value) == 255u8; }
+/* Count set positions; at most eight iterations, no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_ones(byte value) {
+    mut u32 raw = represent<u32>(Byte.to_u8(value));
+    mut u32 count = 0;
+    while (raw != 0u32) { count += raw & 1u32; raw = raw >> 1; }
+    return count;
+}
+/* Count unset positions; zero has eight; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 count_zeros(byte value) { return 8u32 - count_ones(value); }
+/* Count high zero positions; zero has eight; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_zeros(byte value) {
+    mut u32 raw = represent<u32>(Byte.to_u8(value));
+    mut u32 count = 0;
+    while (count < 8u32 && (raw & 128u32) == 0u32) { raw = (raw << 1) & 255u32; count++; }
+    return count;
+}
+/* Count high one positions; the all-one pattern has eight; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 leading_ones(byte value) { return leading_zeros(bit_not(value)); }
+/* Count low zero positions; zero has eight; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_zeros(byte value) {
+    mut u32 raw = represent<u32>(Byte.to_u8(value));
+    mut u32 count = 0;
+    while (count < 8u32 && (raw & 1u32) == 0u32) { raw = raw >> 1; count++; }
+    return count;
+}
+/* Count low one positions; the all-one pattern has eight; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 trailing_ones(byte value) { return trailing_zeros(bit_not(value)); }
+/* Return zero for zero, otherwise the highest set position plus one; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u32 bit_length(byte value) { return 8u32 - leading_zeros(value); }
+/* Test odd set-bit parity; at most eight iterations, no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool parity_odd(byte value) { return count_ones(value) % 2u32 != 0u32; }
+/* Reverse eight bit positions, not byte order; exactly eight iterations, no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte reverse_bits(byte value) {
+    mut u32 raw = represent<u32>(Byte.to_u8(value));
+    mut u32 output = 0;
+    mut u32 count = 0;
+    while (count < 8u32) { output = (output << 1) | (raw & 1u32); raw = raw >> 1; count++; }
+    return Byte.from_u8(represent<u8>(output));
+}
+/* Rotate modulo eight and preserve displaced positions; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte rotate_left(byte value, u32 count) {
+    u32 shift = count % 8u32;
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    if (shift == 0u32) return value;
+    return Byte.from_u8(represent<u8>(((raw << shift) | (raw >> (8u32 - shift))) & 255u32));
+}
+/* Rotate modulo eight in the opposite direction; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte rotate_right(byte value, u32 count) {
+    u32 shift = count % 8u32;
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    if (shift == 0u32) return value;
+    return Byte.from_u8(represent<u8>(((raw >> shift) | (raw << (8u32 - shift))) & 255u32));
+}
+/* Require count 0..7, discard high bits, and fill low positions with zero; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> shift_left(byte value, u32 count) {
+    if (count >= 8u32) return Result.err(ByteError.InvalidShift { count = count });
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    return Result.ok(Byte.from_u8(represent<u8>((raw << count) & 255u32)));
+}
+/* Require count 0..7 and fill high positions with zero; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> shift_right(byte value, u32 count) {
+    if (count >= 8u32) return Result.err(ByteError.InvalidShift { count = count });
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    return Result.ok(Byte.from_u8(represent<u8>(raw >> count)));
+}
+/* Read bit index 0..7; index 0 is least significant; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, ByteError> test_bit(byte value, u32 index) {
+    if (index >= 8u32) return Result.err(ByteError.InvalidBitIndex { index = index });
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    return Result.ok((raw & (1u32 << index)) != 0u32);
+}
+/* Set bit index 0..7 in a copied pattern; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> set_bit(byte value, u32 index) {
+    if (index >= 8u32) return Result.err(ByteError.InvalidBitIndex { index = index });
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    return Result.ok(Byte.from_u8(represent<u8>(raw | (1u32 << index))));
+}
+/* Clear bit index 0..7 in a copied pattern; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> clear_bit(byte value, u32 index) {
+    if (index >= 8u32) return Result.err(ByteError.InvalidBitIndex { index = index });
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    return Result.ok(Byte.from_u8(represent<u8>(raw & (255u32 ^ (1u32 << index)))));
+}
+/* Toggle bit index 0..7 in a copied pattern; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> toggle_bit(byte value, u32 index) {
+    if (index >= 8u32) return Result.err(ByteError.InvalidBitIndex { index = index });
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    return Result.ok(Byte.from_u8(represent<u8>(raw ^ (1u32 << index))));
+}
+/* Assign bit index 0..7 from a boolean; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> with_bit(byte value, u32 index, bool bit) {
+    if (bit) return set_bit(value, index);
+    return clear_bit(value, index);
+}
+Result<unit, ByteError> check_bits(u32 start, u32 width) {
+    if (start > 8u32 || width > 8u32 - start)
+        return Result.err(ByteError.InvalidBitRange { start = start, width = width });
+    return Result.ok(Unit.value());
+}
+/* Right-align a contained bit range and clear all other positions; no allocation.
+ * A zero-width range is valid at start 0..8 and returns the zero pattern.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> extract_bits(byte value, u32 start, u32 width) {
+    check_bits(start, width)?;
+    u32 mask = (1u32 << width) - 1u32;
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    return Result.ok(Byte.from_u8(represent<u8>((raw >> start) & mask)));
+}
+/* Replace a contained bit range after validating range and field fit; no truncation or allocation.
+ * A zero-width range accepts only a zero field and returns the unchanged pattern.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> deposit_bits(byte value, u32 start, u32 width, byte field) {
+    check_bits(start, width)?;
+    u32 mask = (1u32 << width) - 1u32;
+    u32 incoming = represent<u32>(Byte.to_u8(field));
+    if (incoming > mask) return Result.err(ByteError.FieldOutOfRange { field = field, width = width });
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    u32 output = (raw & (255u32 ^ (mask << start))) | (incoming << start);
+    return Result.ok(Byte.from_u8(represent<u8>(output)));
+}
+/* Return the high four bits right-aligned; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte high_nibble(byte value) { return Byte.from_u8(Byte.to_u8(value) >> 4); }
+/* Return the low four bits and clear high positions; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte low_nibble(byte value) { return Byte.from_u8(Byte.to_u8(value) & 15u8); }
+/* Require both inputs 0..15; report the first invalid input before combining; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> join_nibbles(byte high, byte low) {
+    if (Byte.to_u8(high) > 15u8) return Result.err(ByteError.InvalidNibble { value = high, position = 0 });
+    if (Byte.to_u8(low) > 15u8) return Result.err(ByteError.InvalidNibble { value = low, position = 1 });
+    u32 output = (represent<u32>(Byte.to_u8(high)) << 4) | represent<u32>(Byte.to_u8(low));
+    return Result.ok(Byte.from_u8(represent<u8>(output)));
+}
+/* Parse exactly eight ASCII 0/1 digits; invalid length takes precedence, then first invalid byte.
+ * O(8), no allocation, prefix, whitespace or separators.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> parse_binary(string_view text) {
+    Slice<byte> input = string.as_bytes(text);
+    if (Slice.len(input) != 8) return Result.err(ByteError.InvalidBinaryLength { length = Slice.len(input) });
+    mut usize index = 0;
+    mut u32 output = 0;
+    while (index < 8) {
+        u8 digit = Byte.to_u8(input[index]);
+        if (digit != 48u8 && digit != 49u8) return Result.err(ByteError.InvalidBinaryDigit { offset = index });
+        output = (output << 1) | represent<u32>(digit - 48u8);
+        index++;
+    }
+    return Result.ok(Byte.from_u8(represent<u8>(output)));
+}
+/* Validate full capacity before writing eight ASCII digits; return 8, leave the tail unchanged.
+ * O(8), no allocation; a rejected destination is not partially modified.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize, ByteError> format_binary_into(byte value, MutSlice<byte> output) {
+    check_range(Slice.len(&output), 0, 8)?;
+    u32 raw = represent<u32>(Byte.to_u8(value));
+    mut u32 mask = 128;
+    mut usize index = 0;
+    while (index < 8) {
+        output[index] = Byte.from_u8((raw & mask) != 0u32 ? 49u8 : 48u8);
+        mask = mask >> 1;
+        index++;
+    }
+    return Result.ok(8usize);
+}
+/* Allocate exactly eight ASCII binary digits; the inline temporary does not allocate.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, ByteError> format_binary(byte value) {
+    mut byte output[8] = [Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(0u8), Byte.from_u8(0u8)];
+    format_binary_into(value, Slice.from_array_mut(&mut output))?;
+    return ascii_string(Slice.from_array(&output));
+}
+/* Compare exact eight-bit patterns; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(byte left, byte right) { return Byte.to_u8(left) == Byte.to_u8(right); }
+/* Order unsigned patterns with the shared ordering.Ordering type; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering compare_bits(byte left, byte right) {
+    if (Byte.to_u8(left) < Byte.to_u8(right)) return Ordering.Less;
+    if (Byte.to_u8(left) > Byte.to_u8(right)) return Ordering.Greater;
+    return Ordering.Equal;
+}
+/* Compare unsigned bytes then lengths; O(min(n,m)), no text collation or allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering compare_lexicographic(Slice<byte> left, Slice<byte> right) {
+    mut usize index = 0;
+    while (index < Slice.len(left) && index < Slice.len(right)) {
+        if (Byte.to_u8(left[index]) < Byte.to_u8(right[index])) return Ordering.Less;
+        if (Byte.to_u8(left[index]) > Byte.to_u8(right[index])) return Ordering.Greater;
+        index++;
+    }
+    if (Slice.len(left) < Slice.len(right)) return Ordering.Less;
+    if (Slice.len(left) > Slice.len(right)) return Ordering.Greater;
+    return Ordering.Equal;
+}
+
+
+/* Copy an initialized byte extent inside one exclusive buffer, allowing overlap; O(n), no allocation.
+ * Require an ascending, unit-step descriptor and start <= end. Descriptor errors precede bounds errors.
+ * Half-open [length,length) is empty; a closed endpoint must name an existing element before adding one.
+ * Validate source and destination completely before any write. A rejected call leaves all bytes unchanged.
+ * Successful empty copies allow destination == length. No native byte order or pointer access is involved.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> copy_within(MutSlice<byte> buffer, Range<usize> source, usize destination) {
+    if (Range.is_descending(&source) || Range.step_magnitude(&source) != 1usize)
+        return Result.err(ByteError.NonContiguousRange);
+    usize start = Range.start(&source);
+    usize end = Range.end(&source);
+    if (start > end) return Result.err(ByteError.ReversedRange { start = start, end = end });
+    usize length = Slice.len(&buffer);
+    if (start > length) return Result.err(ByteError.OutOfBounds { offset = start, width = 0, length = length });
+    mut usize stop = end;
+    if (Range.is_inclusive(&source)) {
+        if (end >= length) return Result.err(ByteError.OutOfBounds { offset = end, width = 1, length = length });
+        stop = end + 1;
+    } else {
+        if (end > length) return Result.err(ByteError.OutOfBounds { offset = start, width = end - start, length = length });
+    }
+    usize width = stop - start;
+    check_range(length, destination, width)?;
+    if (width == 0 || destination == start) return Result.ok(Unit.value());
+    if (destination > start && destination < stop) {
+        mut usize remaining = width;
+        while (remaining > 0) { remaining--; buffer[destination + remaining] = buffer[start + remaining]; }
+    } else {
+        mut usize index = 0;
+        while (index < width) { buffer[destination + index] = buffer[start + index]; index++; }
+    }
+    return Result.ok(Unit.value());
+}
+
+
+Result<unit, ByteError> collection_status(Result<unit, CollectionError> input) {
+    switch (move input) {
+        case Result<unit, CollectionError>.Ok: return Result.ok(Unit.value()); break;
+        case Result<unit, CollectionError>.Err { CollectionError reason = error }:
+            switch (reason) {
+                case CollectionError.AllocationFailure: return Result.err(ByteError.AllocationFailure); break;
+                case CollectionError.SizeOverflow: return Result.err(ByteError.SizeOverflow); break;
+            }
+            break;
+    }
+}
+/* Reserve capacity for an empty owning byte buffer. Spare capacity is never readable data.
+ * Allocation failure returns no owner; capacity zero performs no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, ByteError> with_capacity(usize capacity) { return allocate_capacity(capacity); }
+/* Allocate length initialized zero bytes; O(length), with one reserved byte buffer.
+ * Reserving the complete size precedes initialization and failure releases temporary storage.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, ByteError> allocate(usize length) {
+    mut Vector<byte> output = allocate_capacity(length)?;
+    mut usize index = 0;
+    while (index < length) { append_byte(&mut output, Byte.from_u8(0u8))?; index++; }
+    return Result.ok(output);
+}
+/* Allocate an independent byte copy; O(n), source ownership and contents are unchanged on failure.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, ByteError> from_slice(Slice<byte> input) {
+    mut Vector<byte> output = allocate_capacity(Slice.len(input))?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) { append_byte(&mut output, input[index])?; index++; }
+    return Result.ok(output);
+}
+/* Inspect reserved byte capacity without moving or changing the owner; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize capacity(&Vector<byte> input) { return Vector.capacity(input); }
+/* Reserve length plus additional before any logical change; allocation/size failure preserves the owner.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> reserve(&mut Vector<byte> buffer, usize additional) {
+    return collection_status(Vector.reserve(&mut *buffer, additional));
+}
+/* Append one initialized Copy byte; allocation/size failure leaves contents and length unchanged.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> push(&mut Vector<byte> buffer, byte value) { return append_byte(&mut *buffer, value); }
+/* Remove and return the last byte, or None for an empty owner; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<byte> pop(&mut Vector<byte> buffer) { return Vector.pop(buffer); }
+/* Clear initialized bytes while retaining capacity; no allocation or cryptographic erasure promise.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public unit clear(&mut Vector<byte> buffer) { return Vector.clear(buffer); }
+/* Insert through length, shifting the initialized suffix; validate before allocating or mutating.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> insert(&mut Vector<byte> buffer, usize offset, byte value) {
+    usize length = Vector.len(&*buffer);
+    check_range(length, offset, 0)?;
+    Result<unit, InputError<byte>> inserted = Vector.insert(&mut *buffer, offset, value);
+    switch (move inserted) {
+        case Result<unit, InputError<byte>>.Ok: return Result.ok(Unit.value()); break;
+        case Result<unit, InputError<byte>>.Err { InputError<byte> reason = error }:
+            switch (reason) {
+                case InputError<byte>.AllocationFailure: return Result.err(ByteError.AllocationFailure); break;
+                case InputError<byte>.SizeOverflow: return Result.err(ByteError.SizeOverflow); break;
+                case InputError<byte>.OutOfBounds: return Result.err(ByteError.OutOfBounds { offset = offset, width = 0, length = length }); break;
+            }
+            break;
+    }
+}
+/* Remove an initialized byte and shift its suffix; validate first, then perform no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<byte, ByteError> remove(&mut Vector<byte> buffer, usize offset) {
+    usize length = Vector.len(&*buffer);
+    check_range(length, offset, 1)?;
+    Result<byte, BoundsError> removed = Vector.remove(&mut *buffer, offset);
+    switch (move removed) {
+        case Result<byte, BoundsError>.Ok { byte value = value }: return Result.ok(value); break;
+        case Result<byte, BoundsError>.Err: return Result.err(ByteError.OutOfBounds { offset = offset, width = 1, length = length }); break;
+    }
+}
+/* Require length no greater than the initialized length, then discard the suffix; no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> truncate(&mut Vector<byte> buffer, usize length) {
+    usize current = Vector.len(&*buffer);
+    check_range(current, length, 0)?;
+    Vector.truncate(&mut *buffer, length);
+    return Result.ok(Unit.value());
+}
+/* Copy initialized bytes only when complete lengths match; O(n), no allocation or partial error write.
+ * The exclusive destination and readonly source cannot be conflicting aliases.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> copy_from(MutSlice<byte> destination, Slice<byte> source) {
+    usize expected = Slice.len(&destination);
+    usize actual = Slice.len(source);
+    if (expected != actual) return Result.err(ByteError.LengthMismatch { expected = expected, actual = actual });
+    mut usize index = 0;
+    while (index < actual) { destination[index] = source[index]; index++; }
+    return Result.ok(Unit.value());
+}
+/* Reserve the entire appended length before copying; O(n), with at most one buffer growth.
+ * A failed reserve leaves length, capacity and contents unchanged. Input cannot alias a live mutation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> extend(&mut Vector<byte> buffer, Slice<byte> input) {
+    reserve(&mut *buffer, Slice.len(input))?;
+    mut usize index = 0;
+    while (index < Slice.len(input)) { append_byte(&mut *buffer, input[index])?; index++; }
+    return Result.ok(Unit.value());
+}
+/* Grow with initialized fill bytes or truncate. Reserve complete growth before changing logical contents.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> resize(&mut Vector<byte> buffer, usize length, byte fill) {
+    usize current = Vector.len(&*buffer);
+    if (length <= current) { Vector.truncate(&mut *buffer, length); return Result.ok(Unit.value()); }
+    reserve(&mut *buffer, length - current)?;
+    mut usize index = current;
+    while (index < length) { append_byte(&mut *buffer, fill)?; index++; }
+    return Result.ok(Unit.value());
+}
+/* Append Copy bytes and empty the independent source only after the full destination copy commits.
+ * A failed reserve preserves both owners and their capacities; source capacity is retained on success.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> append(&mut Vector<byte> destination, &mut Vector<byte> source) {
+    usize length = Vector.len(&*source);
+    reserve(&mut *destination, length)?;
+    mut usize index = 0;
+    while (index < length) { append_byte(&mut *destination, source[index])?; index++; }
+    Vector.clear(&mut *source);
+    return Result.ok(Unit.value());
+}
+/* Allocate an independent owning tail, then truncate the source only after that copy succeeds.
+ * Offset through length is allowed; a failing bounds/allocation check leaves the original owner unchanged.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, ByteError> split_off(&mut Vector<byte> buffer, usize offset) {
+    usize length = Vector.len(&*buffer);
+    check_range(length, offset, 0)?;
+    mut Vector<byte> tail = allocate_capacity(length - offset)?;
+    mut usize index = offset;
+    while (index < length) { append_byte(&mut tail, buffer[index])?; index++; }
+    Vector.truncate(&mut *buffer, offset);
+    return Result.ok(tail);
+}
+Result<Tuple<usize, usize>, ByteError> extent(Range<usize> range, usize length) {
+    if (Range.is_descending(&range) || Range.step_magnitude(&range) != 1usize)
+        return Result.err(ByteError.NonContiguousRange);
+    usize start = Range.start(&range);
+    usize end = Range.end(&range);
+    if (start > end) return Result.err(ByteError.ReversedRange { start = start, end = end });
+    if (start > length) return Result.err(ByteError.OutOfBounds { offset = start, width = 0, length = length });
+    if (Range.is_inclusive(&range)) {
+        if (end >= length) return Result.err(ByteError.OutOfBounds { offset = end, width = 1, length = length });
+        return Result.ok(Tuple.make(start, end + 1));
+    }
+    if (end > length) return Result.err(ByteError.OutOfBounds { offset = start, width = end - start, length = length });
+    return Result.ok(Tuple.make(start, end));
+}
+/* Borrow a checked extent without copying bytes or extending the original owner lifetime; no allocation.
+ * Open/closed ascending unit-step bounds follow copy_within; reversed extents are rejected.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Slice<byte>, ByteError> slice(Slice<byte> input, Range<usize> range) {
+    Tuple<usize, usize> bounds = extent(range, Slice.len(input))?;
+    usize start = *Tuple.get<0>(&bounds);
+    usize end = *Tuple.get<1>(&bounds);
+    Result<Slice<byte>, BoundsError> outcome = Slice.slice(input, start, end);
+    switch (move outcome) {
+        case Result<Slice<byte>, BoundsError>.Ok { Slice<byte> value = value }: return Result.ok(value); break;
+        case Result<Slice<byte>, BoundsError>.Err: return Result.err(ByteError.OutOfBounds { offset = start, width = end - start, length = Slice.len(input) }); break;
+    }
+}
+/* Borrow an exclusive checked extent; returned views retain the original buffer loan through Result.
+ * No allocation or byte copy; conflicting parent access remains suspended until the sub-borrow ends.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<MutSlice<byte>, ByteError> slice_mut(MutSlice<byte> input, Range<usize> range) {
+    usize length = Slice.len(&input);
+    Tuple<usize, usize> bounds = extent(range, length)?;
+    usize start = *Tuple.get<0>(&bounds);
+    usize end = *Tuple.get<1>(&bounds);
+    Result<MutSlice<byte>, BoundsError> outcome = Slice.slice_mut(input, start, end);
+    switch (move outcome) {
+        case Result<MutSlice<byte>, BoundsError>.Ok { MutSlice<byte> value = value }: return Result.ok(value); break;
+        case Result<MutSlice<byte>, BoundsError>.Err: return Result.err(ByteError.OutOfBounds { offset = start, width = end - start, length = length }); break;
+    }
+}
+
+
+/* Only strict UTF-8 validation and owned UTF-8 decoding call this domain-specific adapter.
+ * Other encoding domains are internal contract violations, never fabricated UTF-8 offsets.
+ */
+ByteError utf8_error(encoding.EncodingError reason) {
+    switch (reason) {
+        case encoding.EncodingError.InvalidUtf8 { usize offset = offset }: return ByteError.InvalidUtf8 { offset = offset }; break;
+        case encoding.EncodingError.AllocationFailure: return ByteError.AllocationFailure; break;
+        case encoding.EncodingError.SizeOverflow: return ByteError.SizeOverflow; break;
+        default: Never.unreachable(); break;
+    }
+}
+/* Strictly validate all input bytes without allocation; preserve the actual byte error offset.
+ * Reject overlong encodings, surrogates, values above U+10FFFF and incomplete sequences.
+ * BOM, embedded NUL, unassigned scalars and noncharacters remain valid Unicode content.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit, ByteError> utf8_validate(Slice<byte> input) {
+    Result<usize, encoding.EncodingError> validated = encoding.validate_utf8(input);
+    switch (move validated) {
+        case Result<usize, encoding.EncodingError>.Ok: return Result.ok(Unit.value()); break;
+        case Result<usize, encoding.EncodingError>.Err { encoding.EncodingError reason = error }: return Result.err(utf8_error(reason)); break;
+    }
+}
+/* Validate and copy complete UTF-8 into an independent owned string; report byte offsets before allocation.
+ * O(n) validation plus owned copying; the underlying string.from_utf8 validates again, so input can be scanned twice.
+ * No temporary scalar vector, normalization, replacement, implicit BOM or terminator is added.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, ByteError> decode_utf8(Slice<byte> input) {
+    Result<string, encoding.EncodingError> decoded = encoding.decode_utf8(input);
+    switch (move decoded) {
+        case Result<string, encoding.EncodingError>.Ok { string text = value }: return Result.ok(text); break;
+        case Result<string, encoding.EncodingError>.Err { encoding.EncodingError reason = error }: return Result.err(utf8_error(reason)); break;
+    }
+}
+/* Allocate an independent copy of validated text bytes, without a trailing NUL or implicit BOM.
+ * O(n) byte copying with one reserved buffer; source text ownership and contents remain unchanged.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<byte>, ByteError> encode_utf8(string_view input) { return from_slice(string.as_bytes(input)); }

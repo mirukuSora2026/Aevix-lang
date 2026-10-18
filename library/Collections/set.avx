@@ -1,0 +1,1194 @@
+/*
+ * Lifecycle of the set public module.
+ * @module set
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import map;
+import hash;
+
+/*
+ * An owning hashed set backed by Map<T,unit>, with immutable stored representatives.
+ * Expected membership/insert/remove is O(1), worst O(capacity), plus key work.
+ * Default hashing is deterministic and noncryptographic. No operation implicitly clones members.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Set<T> {
+    map.Map<T, unit> storage;
+
+/*
+     * Create an empty set, preserving explicit fallible initialization; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public Result<Self, CollectionError> new() {
+        map.Map<T, unit> storage = map.Map<T, unit>.new()?;
+        return Result.ok(Self { storage = storage });
+    }
+
+/*
+     * Create an empty set with an explicit deterministic placement seed; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public Result<Self, CollectionError> with_seed(u64 seed) {
+        map.Map<T, unit> storage = map.Map<T, unit>.with_seed(seed)?;
+        return Result.ok(Self { storage = storage });
+    }
+
+/*
+     * Return the number of stored representatives; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public usize len(&Self self) { return self.storage.len(); }
+
+/*
+     * Test whether no representatives are stored; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public bool is_empty(&Self self) { return self.storage.is_empty(); }
+
+/*
+     * Return the entry limit before the next table growth/compaction check; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public usize capacity(&Self self) { return self.storage.capacity(); }
+
+/*
+     * Reserve additional member capacity without consuming members. Failure preserves entries; O(capacity) on rehash.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public Result<unit, CollectionError> reserve(&mut Self self, usize additional) { return self.storage.reserve(additional); }
+
+/*
+     * Drop every representative exactly once while retaining bucket storage; O(capacity) plus Drop work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public unit clear(&mut Self self) { return self.storage.clear(); }
+
+/*
+     * Explicit hash/equality membership. Equal query/member keys must use equal stable codes; expected O(1), worst O(capacity).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public bool contains_with<F>(&Self self, &T query, u64 code, &F same) where F implements Fn<Tuple<&T, &T>, bool> {
+        return self.storage.contains_key_with(query, code, same);
+    }
+
+/*
+     * Borrow the canonical immutable representative with explicit compatible hash/equality; expected O(1), worst O(capacity).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public Optional<&T> get_with<F>(&Self self, &T query, u64 code, &F same) where F implements Fn<Tuple<&T, &T>, bool> {
+        return self.storage.get_key_with(query, code, same);
+    }
+
+/*
+     * Insert an owned member. Duplicate success keeps the stored representative and drops the incoming member.
+     * Failure returns the original member in InputError<T>; expected amortized O(1), worst O(capacity).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public Result<bool, InputError<T>> insert_with<F>(&mut Self self, T value, u64 code, &F same) where F implements Fn<Tuple<&T, &T>, bool> {
+        Result<Optional<unit>, InputError<map.Entry<T, unit>>> inserted = self.storage.insert_with(value, Unit.value(), code, same);
+        switch (move inserted) {
+            case Result<Optional<unit>, InputError<map.Entry<T, unit>>>.Ok { Optional<unit> previous = value }:
+                return Result.ok(Optional.is_none(&previous));
+                break;
+            case Result<Optional<unit>, InputError<map.Entry<T, unit>>>.Err { InputError<map.Entry<T, unit>> problem = error }:
+                switch (move problem) {
+                    case InputError<map.Entry<T, unit>>.AllocationFailure { map.Entry<T, unit> entry = input }:
+                        switch (move entry) {
+                            case map.Entry<T, unit>.Pair { T recovered = key }:
+                                return Result.err(InputError<T>.AllocationFailure { input = recovered });
+                                break;
+                        }
+                        break;
+                    case InputError<map.Entry<T, unit>>.SizeOverflow { map.Entry<T, unit> entry = input }:
+                        switch (move entry) {
+                            case map.Entry<T, unit>.Pair { T recovered = key }:
+                                return Result.err(InputError<T>.SizeOverflow { input = recovered });
+                                break;
+                        }
+                        break;
+                    // This path only delegates to push/rehash, which never reports an index error.
+                    case InputError<map.Entry<T, unit>>.OutOfBounds: Never.unreachable(); break;
+                }
+                break;
+        }
+    }
+
+/*
+     * Remove an equivalent member, dropping its stored owner once; expected O(1), worst O(capacity).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public bool remove_with<F>(&mut Self self, &T query, u64 code, &F same) where F implements Fn<Tuple<&T, &T>, bool> {
+        Optional<unit> removed = self.storage.remove_with(query, code, same);
+        return Optional.is_some(&removed);
+    }
+
+/*
+     * Remove and return the canonical member without cloning; expected O(1), worst O(capacity).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public Optional<T> take_with<F>(&mut Self self, &T query, u64 code, &F same) where F implements Fn<Tuple<&T, &T>, bool> {
+        Optional<map.Entry<T, unit>> removed = self.storage.remove_entry_with(query, code, same);
+        switch (move removed) {
+            case Optional<map.Entry<T, unit>>.Some { map.Entry<T, unit> entry = value }:
+                switch (move entry) { case map.Entry<T, unit>.Pair { T member = key }: return Optional.some(member); break; }
+                break;
+            case Optional<map.Entry<T, unit>>.None: return Optional.none(); break;
+        }
+    }
+
+/*
+     * Explicitly copy members into a new Vector, preserving this set; O(capacity), with fallible allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+    public Result<Vector<T>, CollectionError> values_copy(&Self self) where T implements Copy { return self.storage.keys_copy(); }
+};
+
+/*
+ * contains for i8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<i8> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for i8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i8> get(& Set<i8> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for i8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i8>> insert(&mut Set<i8> table, i8 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for i8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<i8> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for i8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i8> take(&mut Set<i8> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for i16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<i16> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for i16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i16> get(& Set<i16> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for i16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i16>> insert(&mut Set<i16> table, i16 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for i16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<i16> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for i16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i16> take(&mut Set<i16> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for i32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<i32> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for i32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i32> get(& Set<i32> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for i32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i32>> insert(&mut Set<i32> table, i32 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for i32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<i32> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for i32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i32> take(&mut Set<i32> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for i64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<i64> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for i64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i64> get(& Set<i64> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for i64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i64>> insert(&mut Set<i64> table, i64 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for i64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<i64> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for i64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i64> take(&mut Set<i64> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for i128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<i128> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for i128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i128> get(& Set<i128> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for i128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i128>> insert(&mut Set<i128> table, i128 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for i128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<i128> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for i128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i128> take(&mut Set<i128> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for isize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<isize> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for isize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&isize> get(& Set<isize> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for isize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<isize>> insert(&mut Set<isize> table, isize value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for isize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<isize> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for isize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<isize> take(&mut Set<isize> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for u8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<u8> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for u8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u8> get(& Set<u8> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for u8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u8>> insert(&mut Set<u8> table, u8 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for u8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<u8> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for u8 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u8> take(&mut Set<u8> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for u16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<u16> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for u16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u16> get(& Set<u16> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for u16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u16>> insert(&mut Set<u16> table, u16 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for u16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<u16> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for u16 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u16> take(&mut Set<u16> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for u32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<u32> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for u32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u32> get(& Set<u32> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for u32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u32>> insert(&mut Set<u32> table, u32 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for u32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<u32> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for u32 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u32> take(&mut Set<u32> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for u64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<u64> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for u64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u64> get(& Set<u64> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for u64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u64>> insert(&mut Set<u64> table, u64 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for u64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<u64> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for u64 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u64> take(&mut Set<u64> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for u128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<u128> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for u128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u128> get(& Set<u128> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for u128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u128>> insert(&mut Set<u128> table, u128 value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for u128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<u128> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for u128 members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u128> take(&mut Set<u128> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for usize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<usize> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for usize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&usize> get(& Set<usize> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for usize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<usize>> insert(&mut Set<usize> table, usize value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for usize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<usize> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for usize members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> take(&mut Set<usize> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for bool members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<bool> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for bool members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&bool> get(& Set<bool> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for bool members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<bool>> insert(&mut Set<bool> table, bool value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for bool members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<bool> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for bool members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<bool> take(&mut Set<bool> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for byte members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<byte> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for byte members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&byte> get(& Set<byte> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for byte members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<byte>> insert(&mut Set<byte> table, byte value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for byte members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<byte> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for byte members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<byte> take(&mut Set<byte> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for string members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<string> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for string members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&string> get(& Set<string> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for string members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<string>> insert(&mut Set<string> table, string value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for string members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<string> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for string members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<string> take(&mut Set<string> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for string_view members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(& Set<string_view> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for string_view members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&string_view> get(& Set<string_view> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for string_view members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<string_view>> insert(&mut Set<string_view> table, string_view value) {
+    u64 code = hash.value(&value);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for string_view members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut Set<string_view> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for string_view members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<string_view> take(&mut Set<string_view> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}
+
+/*
+ * contains for custom Hash/Eq members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains<T>(& Set<T> table, &T query) where T implements hash.Hash, T implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&T left, &T right) -> bool { return hash.equal(left, right); };
+    return table.contains_with(query, code, &same);
+}
+
+/*
+ * get for custom Hash/Eq members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> get<T>(& Set<T> table, &T query) where T implements hash.Hash, T implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&T left, &T right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * insert for custom Hash/Eq members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<T>> insert<T>(&mut Set<T> table, T value) where T implements hash.Hash, T implements hash.Eq {
+    u64 code = hash.value(&value);
+    rsn same = [](&T left, &T right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(value, code, &same);
+}
+
+/*
+ * remove for custom Hash/Eq members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove<T>(&mut Set<T> table, &T query) where T implements hash.Hash, T implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&T left, &T right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * take for custom Hash/Eq members. Expected O(1), worst O(capacity), plus key work. No hidden clone.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> take<T>(&mut Set<T> table, &T query) where T implements hash.Hash, T implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&T left, &T right) -> bool { return hash.equal(left, right); };
+    return table.take_with(query, code, &same);
+}

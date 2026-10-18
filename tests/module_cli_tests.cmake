@@ -88,4 +88,26 @@ check_module_cli(package_missing_separator 2 "<empty>" ".+"
 check_module_cli(missing_root_argument 2 "<empty>" ".+" --check --source-root)
 check_module_cli(missing_entry 2 "<empty>" ".+"
     --check --source-root "${TEST_DIR}/src" "${TEST_DIR}/src/absent.avx")
-message(STATUS "Module CLI checks=12 passed")
+
+# 소스와 무관한 끊어진 링크는 무시하지만 끊어진 소스 링크는 진단한다.
+# Ignore unrelated dangling links, but diagnose dangling source links.
+set(module_cli_checks 12)
+if(UNIX)
+    file(CREATE_LINK "${TEST_DIR}/missing-data" "${TEST_DIR}/src/dangling.bin" SYMBOLIC
+        RESULT data_link_result)
+    if(NOT data_link_result STREQUAL "0")
+        message(FATAL_ERROR "Cannot create dangling data link: ${data_link_result}")
+    endif()
+    check_module_cli(ignore_dangling_data_link 0 "Type checking succeeded" "<empty>"
+        --check --source-root "${TEST_DIR}/src" "${TEST_DIR}/src/main.avx")
+    file(CREATE_LINK "${TEST_DIR}/missing-source" "${TEST_DIR}/src/dangling.avx" SYMBOLIC
+        RESULT source_link_result)
+    if(NOT source_link_result STREQUAL "0")
+        message(FATAL_ERROR "Cannot create dangling source link: ${source_link_result}")
+    endif()
+    check_module_cli(diagnose_dangling_source_link 1 "<empty>" "Cannot inspect module path:.*dangling.avx"
+        --check --source-root "${TEST_DIR}/src" "${TEST_DIR}/src/main.avx")
+    file(REMOVE "${TEST_DIR}/src/dangling.bin" "${TEST_DIR}/src/dangling.avx")
+    math(EXPR module_cli_checks "${module_cli_checks} + 2")
+endif()
+message(STATUS "Module CLI checks=${module_cli_checks} passed")

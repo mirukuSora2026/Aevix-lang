@@ -1,0 +1,624 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : run
+#
+# Description :
+#     결정적 CPU 차등 퍼징과 변형 관계를 검사하고 재현 소스 및 실행 기록을 보존한다.
+#     Check deterministic CPU differential fuzzing and metamorphic relations, retaining reproducible inputs and logs.
+#
+# ========================
+"""A bounded correctness experiment, never a timing or whole-language proof."""
+import argparse
+import base64
+from collections import Counter
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import random
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[4]
+TYPES = [(name, bits, signed) for bits in (8, 16, 32, 64, 128)
+         for name, signed in ((f'i{bits}', True), (f'u{bits}', False))]
+TYPES += [('isize', 64, True), ('usize', 64, False)]
+SUCCESS = '''T success<T,E>(Result<T,E> input) {
+    switch (move input) {
+        case Result<T,E>.Ok { T value = value }: return value; break;
+        default: Never.unreachable(); break;
+    }
+}
+'''
+
+
+def sha(raw):
+    return hashlib.sha256(raw).hexdigest()
+
+
+def save_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8', newline='\n')
+
+
+def write_source(path, source):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding='utf-8', newline='\n')
+
+
+def module_providers(compiler, installed_language_dir):
+    """Record file providers, in ModuleLoader::registerLibraryModule order.
+
+    This is an inventory of candidate standard modules, not a claim that every
+    file is imported. The generated corpus imports integer -> error on disk;
+    memory, system, parallel and the implicit core are embedded in the compiler.
+    Custom compiler builds must identify their compiled install directory.
+    """
+    development = compiler.parent / 'share/aevix/library'
+    configured = compiler.parent.parent / installed_language_dir
+    fallback = compiler.parent.parent / 'share/aevix/library'
+    providers = {}
+    for source in sorted((ROOT / 'library').rglob('*.avx')):
+        relative = source.relative_to(ROOT / 'library')
+        candidates = [development / relative, configured / relative, fallback / relative]
+        selected = next((path for path in candidates[:2] if path.is_file()), candidates[2])
+        providers[relative.as_posix()] = {
+            'candidates_in_order': [str(path) for path in candidates],
+            'selected_file': str(selected.resolve()),
+            'selected_provider_root': str(selected.parent.parent.resolve()),
+            'exists': selected.is_file(),
+            'sha256': sha(selected.read_bytes()) if selected.is_file() else None,
+        }
+    return {
+        'selection_basis': 'Current ModuleLoader.cpp file lookup order; not a compiler import trace. '
+                           'The first existing development candidate is unconditional. Other selections '
+                           'assume the recorded compiled install directory is correct.',
+        'expected_compiled_install_language_dir': str(installed_language_dir),
+        'known_corpus_disk_imports': ['Math/integer.avx', 'Core/error.avx'],
+        'compiler_embedded_imports': ['$core', 'system', 'memory', 'parallel'],
+        'providers': providers,
+    }
+
+
+def timeout_capabilities():
+    return {
+        'posix_process_group': os.name == 'posix',
+        'strategy': 'New session, SIGKILL to process group, bounded output drain and direct-child reap'
+                    if os.name == 'posix' else 'Direct-child kill only; no Windows job-object containment',
+        'post_kill_drain_seconds': 2.0,
+        'limits': 'Descendants that deliberately create another session/process group can escape. '
+                  'Pipe closure and direct-child reap do not prove that all external work has stopped. '
+                  'No global memory/output-size cap is implemented; OS process creation and kill latency '
+                  'are not hard real-time bounds.',
+    }
+
+
+def numeric(seed, index):
+    name, bits, signed = TYPES[(index // 2) % len(TYPES)]
+    variation = index % 2
+    rng = random.Random(int(sha(f'{seed}:{name}:{index // 24}'.encode()), 16))
+    low, high = (-(1 << (bits - 1)), (1 << (bits - 1)) - 1) if signed else (0, (1 << bits) - 1)
+    # Keep every ordinary operation in-domain, including multiplication at i8.
+    a, b = rng.randint(1, 6), rng.randint(1, 6)
+    if signed and rng.randrange(2):
+        a = -a
+    literal = lambda value: f'{value}{name}'
+    expression = 'a + b' if not variation else 'b + a'
+    expected = [low, high, low + 1, high - 1, a + b, a, a, 1, 1]
+    source = f'''import integer;
+import system;
+i32 main() {{
+    {name} a = {literal(a)};
+    {name} b = {literal(b)};
+    {name} combined = {expression};
+    {name} restored = combined - b;
+    {name} involution = (a ^ b) ^ b;
+    if (restored != a || involution != a) return 11;
+    if (a * b != b * a) return 12;
+    {name} smallest = {literal(low)};
+    {name} largest = {literal(high)};
+    rsn overflow = integer.checked_add(largest, {literal(1)});
+    rsn divide_zero = integer.checked_div(a, {literal(0)});
+    if (!Result.is_err(&overflow) || !Result.is_err(&divide_zero)) return 13;
+    if ((smallest + {literal(1)}) - {literal(1)} != smallest) return 14;
+    if ((largest - {literal(1)}) + {literal(1)} != largest) return 15;
+    system.println(smallest);
+    system.println(largest);
+    system.println(smallest + {literal(1)});
+    system.println(largest - {literal(1)});
+    system.println(combined);
+    system.println(restored);
+    system.println(involution);
+    system.println(1);
+    system.println(1);
+    return 0;
+}}
+'''
+    return {'name': f'integer_{index:03d}_{name}_{variation}', 'kind': 'generated_integer',
+            'integer_type': name, 'bits': bits, 'signed': signed,
+            'metamorphic_group': f'{name}_{index // 24}',
+            'relations': ['addition commutativity', '(a+b)-b=a without overflow',
+                          '(a xor b) xor b=a', 'multiplication commutativity without overflow'],
+            'oracle': 'Python arbitrary-precision integers; explicit typed min/max; checked errors inspected as values',
+            'expected_stdout': ''.join(f'{v}\n' for v in expected), 'source': source}
+
+
+def targets():
+    memory = '''import memory { Box };
+import system;
+''' + SUCCESS + '''struct Tracked implements Drop {
+    public &mut i32 drops;
+    public i32 value;
+    public void drop(&mut Self self) { *self.drops += 1; return; }
+};
+i32 main() {
+    mut i32 drops = 0;
+    {
+        Box<Tracked> owner = success(Box.new(Tracked { drops = &mut drops, value = 37 }));
+        Tracked moved = Box.into_inner(owner);
+        if (moved.value != 37) return 21;
+    }
+    system.println(drops);
+    return drops == 1 ? 0 : 22;
+}
+'''
+    nested = '''import memory { Box };
+import system;
+''' + SUCCESS + '''i32 main() {
+    Box<i128> first = success(Box.new(170141183460469231731687303715884105727i128));
+    Box<Box<i128>> second = success(Box.new(first));
+    Box<i128> inner = Box.into_inner(second);
+    i128 output = Box.into_inner(inner);
+    system.println(output);
+    return output == 170141183460469231731687303715884105727i128 ? 0 : 23;
+}
+'''
+    array = '''import system;
+i32 main() {
+    mut i32 values[8] = [1, 2, 3, 4, 5, 6, 7, 8];
+    { &mut i32 selected = &mut values[3]; *selected += 10; }
+    mut i32 total = 0;
+    for (i32 value : values) { total += value; }
+    system.println(total);
+    return total == 46 ? 0 : 24;
+}
+'''
+    # Only disjoint element writes; no address, worker count, timing or order output.
+    parallel = '''import parallel;
+import system;
+void transform(&mut i32 item) { *item = (*item * 3) + 1; return; }
+i32 main() {
+    mut i32 serial[1025] = [2; 1025];
+    mut i32 threaded[1025] = [2; 1025];
+    for (mut usize i = 0; i < 1025; ++i) { serial[i] = serial[i] * 3 + 1; }
+    parallel.for_each(Slice.from_array_mut(&mut threaded), transform);
+    mut i32 total = 0;
+    for (mut usize j = 0; j < 1025; ++j) {
+        if (serial[j] != threaded[j]) return 25;
+        total += threaded[j];
+    }
+    system.println(total);
+    return total == 7175 ? 0 : 26;
+}
+'''
+    return [dict(name=name, kind=kind, expected_stdout=output, source=source, sanitize=sanitize)
+            for name, kind, source, output, sanitize in [
+                ('memory_drop_move', 'ownership', memory, '1\n', True),
+                ('nested_box_i128', 'ownership', nested, '170141183460469231731687303715884105727\n', True),
+                ('array_loans', 'array', array, '46\n', True),
+                ('parallel_disjoint', 'parallel', parallel, '7175\n', False)]]
+
+
+def negatives():
+    prefix = 'import memory { Box };\n' + SUCCESS
+    entries = [
+        ('box_use_after_move', prefix + 'i32 main(){Box<i32> a=success(Box.new(7)); i32 b=Box.into_inner(a); return Box.into_inner(a);}', r'moved|unavailable'),
+        ('box_live_read', prefix + 'i32 main(){Box<i32> a=success(Box.new(7)); &i32 view=Box.as_ref(&a); i32 b=Box.into_inner(a); return *view;}', r'borrow|loan'),
+        ('array_live_read', 'i32 main(){mut i32 a[2]=[1,2]; &i32 view=&a[0]; a[0]=3; return *view;}', r'borrow|loan'),
+        ('array_alias_mut', 'i32 main(){mut i32 a[2]=[1,2]; &mut i32 first=&mut a[0]; &mut i32 second=&mut a[0]; *first=3; return *second;}', r'borrow|loan|overlap'),
+        ('drop_partial_move', prefix + 'struct R implements Drop {public Box<i32> item; public void drop(&mut Self self){return;}}; i32 main(){R r=R{item=success(Box.new(7))}; Box<i32> b=r.item; return Box.into_inner(b);}', r'partial|field|Drop|move'),
+        ('parallel_global_write', 'import parallel; mut i32 total=0; void work(&mut i32 item){total+=*item;return;} i32 main(){mut i32 a[2]=[1,2]; parallel.for_each(Slice.from_array_mut(&mut a),work);return 0;}', r'global|Parallel|parallel'),
+    ]
+    return [dict(name=name, source=source + '\n', diagnostic_pattern=pattern) for name, source, pattern in entries]
+
+
+def generate(directory, seed, count):
+    cases = [numeric(seed, i) for i in range(count)] + targets()
+    for case in cases:
+        raw = case.pop('source').encode()
+        path = directory / 'inputs' / (case['name'] + '.avx')
+        write_source(path, raw.decode())
+        case.update(source=path.relative_to(directory).as_posix(), source_sha256=sha(raw))
+    invalid = negatives()
+    for case in invalid:
+        raw = case.pop('source').encode()
+        path = directory / 'negative' / (case['name'] + '.avx')
+        write_source(path, raw.decode())
+        case.update(source=path.relative_to(directory).as_posix(), source_sha256=sha(raw))
+    manifest = {'schema_version': 1, 'seed': seed, 'generated_cases': count,
+                'pointer_bits': 64, 'cases': cases, 'negative_check_only': invalid,
+                'scope': 'Exact integer, ownership and disjoint-write CPU cases; no float, address, scheduling, RSS or timing equality assertions.'}
+    save_json(directory / 'manifest.json', manifest)
+    return manifest
+
+
+def signature(result, stderr=True):
+    return (result['status'], result['timeout'], result['stdout_base64'], result['stderr_base64'] if stderr else '')
+
+
+def difference(left, right):
+    if signature(left) == signature(right):
+        return None
+    return 'diagnostic_only_difference' if signature(left, False) == signature(right, False) else 'output_or_status_difference'
+
+
+class Runner:
+    def __init__(self, args, directory):
+        self.args, self.directory = args, directory
+        self.count = 0
+        self.records = []
+
+    def capture(self, label, command, env=None):
+        if self.count >= self.args.max_invocations:
+            raise RuntimeError('invocation budget exhausted; run is incomplete')
+        self.count += 1
+        prefix = self.directory / 'logs' / f'{self.count:04d}-{label}'
+        prefix.parent.mkdir(parents=True, exist_ok=True)
+        started = time.monotonic()
+        cleanup = None
+        process = subprocess.Popen([str(v) for v in command], stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+                                   start_new_session=os.name == 'posix')
+        try:
+            out, err = process.communicate(input=b'', timeout=self.args.timeout)
+            status, timeout = process.returncode, False
+        except subprocess.TimeoutExpired as error:
+            status, out, err, timeout = None, error.stdout or b'', error.stderr or b'', True
+            cleanup = {'process_group': process.pid if os.name == 'posix' else None,
+                       'group_kill_requested': False, 'direct_child_reaped': False,
+                       'output_drain_complete': False}
+            try:
+                if os.name == 'posix':
+                    os.killpg(process.pid, signal.SIGKILL)
+                    cleanup['group_kill_requested'] = True
+                else:
+                    process.kill()
+            except ProcessLookupError:
+                cleanup['group_already_gone'] = True
+            except OSError as kill_error:
+                cleanup['kill_error'] = str(kill_error)
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+            try:
+                out, err = process.communicate(timeout=2.0)
+                cleanup['output_drain_complete'] = True
+            except subprocess.TimeoutExpired as drain_error:
+                out, err = drain_error.stdout or out, drain_error.stderr or err
+                # Avoid an unbounded communicate when an escaped child retains a pipe.
+                # POSIX communicate has no reader threads, so closing here is bounded.
+                if os.name == 'posix':
+                    process.stdout.close()
+                    process.stderr.close()
+            try:
+                process.wait(timeout=2.0)
+                cleanup['direct_child_reaped'] = True
+            except subprocess.TimeoutExpired:
+                cleanup['reap_timeout'] = True
+            cleanup['direct_child_status'] = process.returncode
+        prefix.with_suffix('.stdout').write_bytes(out)
+        prefix.with_suffix('.stderr').write_bytes(err)
+        record = dict(label=label, command=[str(v) for v in command], status=status, timeout=timeout,
+                      elapsed_seconds=time.monotonic()-started,
+                      stdout_base64=base64.b64encode(out).decode(), stderr_base64=base64.b64encode(err).decode(),
+                      stdout_sha256=sha(out), stderr_sha256=sha(err),
+                      stdout_file=prefix.with_suffix('.stdout').relative_to(self.directory).as_posix(),
+                      stderr_file=prefix.with_suffix('.stderr').relative_to(self.directory).as_posix())
+        if cleanup is not None:
+            record['timeout_cleanup'] = cleanup
+        self.records.append(record)
+        save_json(self.directory / 'executions.json', self.records)
+        if cleanup and (not cleanup['direct_child_reaped'] or not cleanup['output_drain_complete']
+                        or (os.name == 'posix' and 'kill_error' in cleanup)):
+            raise RuntimeError('Timeout cleanup is incomplete; stop rather than continue with unknown descendant activity')
+        return record
+
+    def command(self, source, mode):
+        backend, level = mode.split('-')
+        result = [self.args.compiler, '--run' if backend == 'aot' else '--jit', '-' + level]
+        if self.args.proof_opt:
+            result.append('--proof-opt')
+        if backend == 'aot' and self.args.clang:
+            result += ['--clang', self.args.clang]
+        if backend == 'aot':
+            result += ['--runtime', self.args.runtime]
+        return result + [source]
+
+    def llvm(self, source, folder):
+        flags = ['--proof-opt'] if self.args.proof_opt else []
+        result = self.capture('emit-llvm', [self.args.compiler, '--emit-llvm', *flags, source])
+        if result['status'] == 0 and not result['timeout']:
+            folder.mkdir(parents=True, exist_ok=True)
+            raw = base64.b64decode(result['stdout_base64'])
+            (folder / 'raw.ll').write_bytes(raw)
+            return raw
+        return None
+
+
+def discover(args, runner):
+    help_result = runner.capture('help', [args.compiler, '--help'])
+    version = runner.capture('version', [args.compiler, '--version'])
+    help_text = base64.b64decode(help_result['stdout_base64']).decode('utf-8', 'replace')
+    version_text = base64.b64decode(version['stdout_base64']).decode('utf-8', 'replace')
+    if args.proof_opt and '--proof-opt' not in help_text:
+        save_json(runner.directory / 'unsupported.json', {
+            'status': 'unsupported', 'feature': '--proof-opt',
+            'reason': 'The selected compiler does not advertise the requested experimental pass.',
+            'compiler_sha256': sha(args.compiler.read_bytes())})
+        raise ValueError('Requested --proof-opt is not supported by the selected compiler')
+    levels = [f'O{i}' for i in range(4) if f'-O{i}' in help_text]
+    modes = [f'aot-{level}' for level in levels] if '--run' in help_text else []
+    skipped = []
+    if 'ORC JIT enabled' in version_text and '--jit' in help_text:
+        modes += [f'jit-{level}' for level in levels]
+    else:
+        skipped.append({'feature': 'JIT', 'reason': 'Not advertised enabled by this compiler build.'})
+    data = {'compiler_sha256': sha(args.compiler.read_bytes()), 'version': version_text.strip(),
+            'requested_backend_flags': ['--proof-opt'] if args.proof_opt else [],
+            'advertised_modes': modes, 'execution_probes': 'not yet run', 'skipped': skipped,
+            'host': {'system': platform.system(), 'machine': platform.machine(), 'pointer_bits': 64 if sys.maxsize > 2**32 else 32},
+            'clang': str(args.clang) if args.clang else None,
+            'clang_selection': 'explicit --clang for AOT' if args.clang else 'compiler default; exact selection not separately probed',
+            'runtime': str(args.runtime),
+            'runtime_sha256': sha(args.runtime.read_bytes()) if args.runtime.exists() else None,
+            'runtime_selection': {
+                'aot': 'Explicit --runtime argument on every AOT execution, including reproduction/reduction.',
+                'sanitizer': 'The same archive is explicitly linked by the generated-IR sanitizer stage.',
+                'jit': 'Compiler-embedded runtime; covered by compiler_sha256, not the external archive hash.',
+            },
+            'timeout_capabilities': timeout_capabilities(),
+            'selected_module_providers': module_providers(args.compiler, args.installed_language_dir),
+            'library_file_sha256': {p.relative_to(ROOT).as_posix(): sha(p.read_bytes()) for p in sorted((ROOT/'library').rglob('*.avx'))}}
+    save_json(runner.directory / 'discovery.json', data)
+    return data
+
+
+def shrink(runner, source, modes, folder):
+    # Reproduction precedes reduction. Every candidate must pass --check first.
+    original = source.read_text(encoding='utf-8')
+    observations = []
+    for repeat in range(3):
+        observations.append([runner.capture(f'reproduce-{repeat}-{mode}', runner.command(source, mode)) for mode in modes])
+    if any(difference(pair[0], pair[1]) != 'output_or_status_difference' for pair in observations):
+        save_json(folder / 'reduction.json', {'status': 'not_reproduced_three_times; no reduction attempted'})
+        return
+    if any(signature(pair[n]) != signature(observations[0][n]) for pair in observations for n in (0, 1)):
+        save_json(folder / 'reduction.json', {'status': 'unstable_observations; no reduction attempted'})
+        return
+    lines = original.splitlines(keepends=True)
+    attempts = 0
+    for index in range(len(lines)-1, -1, -1):
+        if attempts >= 16 or len(lines) <= 3:
+            break
+        attempts += 1
+        candidate = folder / 'candidate.avx'
+        write_source(candidate, ''.join(lines[:index]+lines[index+1:]))
+        check = runner.capture('shrink-check', [runner.args.compiler, '--check', candidate])
+        if check['status'] != 0 or check['timeout']:
+            continue
+        pair = [runner.capture('shrink-'+mode, runner.command(candidate, mode)) for mode in modes]
+        if difference(pair[0], pair[1]) == 'output_or_status_difference' and all(signature(pair[n]) == signature(observations[0][n]) for n in (0, 1)):
+            lines.pop(index)
+    write_source(folder / 'reduced.avx', ''.join(lines))
+    save_json(folder / 'reduction.json', {'status': 'reproduced_then_bounded_line_reduction', 'attempts': attempts,
+                                        'original_lines': len(original.splitlines()), 'reduced_lines': len(lines),
+                                        'minimality': 'Not a proof of global minimality; at most 16 deletion candidates.'})
+
+
+def sanitizer(runner, manifest):
+    args = runner.args
+    if not args.sanitize:
+        return {'status': 'skipped', 'reason': 'Enable --sanitize for verified generated-IR ASan instrumentation.'}
+    if not args.clang or not args.runtime.exists() or platform.system() not in ('Darwin', 'Linux'):
+        return {'status': 'skipped', 'reason': 'Requires explicit available Clang, matching runtime archive and a macOS/Linux host.'}
+    directory = runner.directory / 'sanitizer'; directory.mkdir(exist_ok=True)
+    probe = directory / 'probe.cpp'; write_source(probe, 'int main(){return 0;}\n')
+    executable = directory / 'probe'
+    flags = ['--driver-mode=g++', '-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+    built = runner.capture('sanitizer-toolchain-probe', [args.clang, *flags, probe, '-o', executable])
+    if built['status'] != 0:
+        return {'status': 'skipped', 'reason': 'Sanitizer toolchain probe failed; full logs retained.'}
+    environment = dict(os.environ, ASAN_OPTIONS='detect_leaks=0:halt_on_error=1', UBSAN_OPTIONS='halt_on_error=1')
+    ran = runner.capture('sanitizer-probe-run', [executable], env=environment)
+    if ran['status'] != 0:
+        return {'status': 'skipped', 'reason': 'Sanitizer runtime probe failed; full logs retained.'}
+    checks = []
+    for case in manifest['cases']:
+        if not case.get('sanitize'):
+            continue
+        folder = directory / case['name']; raw = runner.llvm(runner.directory / case['source'], folder)
+        if raw is None:
+            checks.append({'case': case['name'], 'status': 'IR emission failed'}); continue
+        # Explicitly instrument emitted definitions, not only the C++ runtime archive.
+        instrumented, count = re.subn(rb'(?m)^(define[^\n]*?)\s*\{\s*$', rb'\1 sanitize_address {', raw)
+        ir = folder / 'instrumented.ll'; ir.write_bytes(instrumented)
+        for level in (0, 2):
+            obj = folder / f'O{level}.o'; binary = folder / f'O{level}'
+            compiled = runner.capture('asan-compile', [args.clang, f'-O{level}', '-g', *flags[1:], '-c', ir, '-o', obj])
+            evidence = {'case': case['name'], 'optimization': level, 'instrumented_definitions': count}
+            if compiled['status'] != 0:
+                evidence['status'] = 'generated IR compilation failed'; checks.append(evidence); continue
+            nm = shutil.which('nm')
+            if not nm:
+                evidence['status'] = 'skipped: nm unavailable; actual instrumentation not verified'; checks.append(evidence); continue
+            symbols = runner.capture('asan-object-symbols', [nm, '-u', obj])
+            if symbols['status'] != 0 or symbols['timeout'] or b'__asan_report_' not in base64.b64decode(symbols['stdout_base64']):
+                evidence['status'] = 'instrumentation not observed'; checks.append(evidence); continue
+            standard = '-lc++' if platform.system() == 'Darwin' else '-lstdc++'
+            linked = runner.capture('asan-link', [args.clang, *flags, obj, args.runtime, '-pthread', standard, '-o', binary])
+            if linked['status'] != 0:
+                evidence['status'] = 'sanitizer link failed'; checks.append(evidence); continue
+            result = runner.capture('asan-run', [binary], env=environment)
+            evidence['status'] = 'passed' if result['status'] == 0 and not result['timeout'] and base64.b64decode(result['stdout_base64']) == case['expected_stdout'].encode() and not base64.b64decode(result['stderr_base64']) else 'failed'
+            checks.append(evidence)
+    return {'status': 'passed' if checks and all(v['status']=='passed' for v in checks) else 'incomplete_or_failed',
+            'checks': checks, 'leak_sanitizer': 'disabled; not claimed',
+            'generated_ir_ubsan': 'Not established. UBSan flags link its runtime, but this emitted-IR path does not establish UBSan instrumentation of Aevix operations.',
+            'zero_size': 'These nonzero-sized ownership/array fixtures avoid the separately recorded zero-byte ASan O0 limitation.'}
+
+
+def execute(args, directory, smoke=False):
+    runner = Runner(args, directory)
+    manifest = generate(directory, args.seed, args.cases)
+    discovery = discover(args, runner)
+    requested = args.modes.split(',') if args.modes else discovery['advertised_modes']
+    unavailable = [m for m in requested if m not in discovery['advertised_modes']]
+    modes = [m for m in requested if m in discovery['advertised_modes']]
+    report = {'status': 'running', 'seed': args.seed, 'compiler_sha256': discovery['compiler_sha256'],
+              'modes': modes, 'skipped_modes': unavailable, 'cases': [], 'failures': [],
+              'metamorphic_pairs': [], 'negative_checks': [], 'sanitizer': {'status':'not requested'}}
+    save_json(directory/'report.json', report)
+    if not modes or unavailable or discovery['host']['pointer_bits'] != 64:
+        report['status']='incomplete: requested modes unavailable or pointer width unsupported'; save_json(directory/'report.json',report);return 2
+    cases = manifest['cases']
+    if args.case_pattern and not smoke:
+        cases = [case for case in cases if re.search(args.case_pattern, case['name'])]
+        if not cases:
+            raise ValueError('No cases match --case-pattern')
+    report['selected_case_names'] = [case['name'] for case in cases]
+    if smoke:
+        # Tiny function and output smoke; no integer library or heavy workload.
+        source = 'import system; i32 twice(i32 input){return input*2;} i32 main(){system.println(twice(21));return 0;}\n'
+        path = directory/'inputs/smoke.avx';write_source(path,source)
+        cases=[dict(name='smoke',source='inputs/smoke.avx',expected_stdout='42\n',kind='smoke')]
+        report['selected_case_names']=['smoke']
+    group_outputs = {}
+    try:
+        for case in cases:
+            source=directory/case['source']
+            check=runner.capture(case['name']+'-check',[args.compiler,'--check',source])
+            if check['status']!=0 or check['timeout']:
+                report['failures'].append({'case':case['name'],'kind':'source_rejected_before_execution','evidence':check})
+                if len(report['failures'])>=args.max_failures:break
+                continue
+            source_hash_before=sha(source.read_bytes())
+            results=[]
+            for mode in modes:
+                for repeat in range(args.parallel_repeats if case['kind']=='parallel' else 1):
+                    result=runner.capture(f"{case['name']}-{mode}-{repeat}",runner.command(source,mode))
+                    results.append((mode,result))
+            issues=[]
+            if sha(source.read_bytes())!=source_hash_before:
+                issues.append({'kind':'input_changed_during_matrix; invalidate comparison'})
+            for mode,result in results:
+                if result['timeout']:
+                    issues.append({'mode':mode,'kind':'timeout; not a semantic mismatch'})
+                elif result['status']!=0 or base64.b64decode(result['stdout_base64'])!=case['expected_stdout'].encode() or base64.b64decode(result['stderr_base64']):
+                    issues.append({'mode':mode,'kind':'independent_oracle_or_diagnostic_failure'})
+                diff=difference(results[0][1],result)
+                if diff:issues.append({'mode':mode,'kind':diff})
+            report['cases'].append({'case':case['name'],'mode_executions':len(results),'status':'passed' if not issues else 'failed','issues':issues})
+            if 'metamorphic_group' in case:
+                group=case['metamorphic_group']
+                if group in group_outputs:
+                    consistent=all(difference(previous[1],now[1]) is None for previous,now in zip(group_outputs[group],results))
+                    report['metamorphic_pairs'].append({'group':group,'passed':consistent})
+                    if not consistent:issues.append({'kind':'metamorphic_pair_difference'})
+                else:group_outputs[group]=results
+            if issues:
+                folder=directory/'mismatches'/case['name'];folder.mkdir(parents=True,exist_ok=True)
+                shutil.copyfile(source,folder/'original.avx');runner.llvm(source,folder)
+                save_json(folder/'mismatch.json',{'seed':args.seed,'case':case,'issues':issues,'results':results,'compiler_sha256':discovery['compiler_sha256']})
+                report['failures'].append({'case':case['name'],'issues':issues,'artifact':folder.relative_to(directory).as_posix()})
+                if args.shrink:
+                    other=next((mode for mode,res in results if difference(results[0][1],res)=='output_or_status_difference'),None)
+                    if other:shrink(runner,source,[results[0][0],other],folder)
+            save_json(directory/'report.json',report)
+            if len(report['failures'])>=args.max_failures:break
+        if not smoke:
+            for case in manifest['negative_check_only']:
+                result=runner.capture(case['name']+'-negative',[args.compiler,'--check',directory/case['source']])
+                diagnostics=base64.b64decode(result['stdout_base64'])+base64.b64decode(result['stderr_base64'])
+                accepted=result['status']==1 and not result['timeout'] and re.search(case['diagnostic_pattern'],diagnostics.decode('utf-8','replace'),re.I) is not None
+                report['negative_checks'].append({'case':case['name'],'passed':accepted,'policy':'check only; never executed'})
+                if not accepted:report['failures'].append({'case':case['name'],'kind':'unexpected negative-check result'})
+            report['sanitizer']=sanitizer(runner,manifest)
+    except (RuntimeError,OSError) as error:
+        report['incomplete_reason']=str(error)
+    report['compiler_unchanged']=sha(args.compiler.read_bytes())==discovery['compiler_sha256']
+    report['runtime_unchanged']=(sha(args.runtime.read_bytes()) if args.runtime.exists() else None)==discovery['runtime_sha256']
+    report['library_unchanged']={p.relative_to(ROOT).as_posix():sha(p.read_bytes()) for p in sorted((ROOT/'library').rglob('*.avx'))}==discovery['library_file_sha256']
+    report['selected_module_providers_unchanged']=module_providers(args.compiler,args.installed_language_dir)==discovery['selected_module_providers']
+    complete=len(report['cases'])==len(cases) and all(c['status']=='passed' for c in report['cases'])
+    if not smoke:complete=complete and len(report['negative_checks'])==len(manifest['negative_check_only']) and all(v['passed'] for v in report['negative_checks'])
+    report['status']='passed' if complete and not report['failures'] and report['compiler_unchanged'] and report['runtime_unchanged'] and report['library_unchanged'] and report['selected_module_providers_unchanged'] and 'incomplete_reason' not in report and report['sanitizer']['status'] not in ('failed','incomplete_or_failed') else 'failed_or_incomplete'
+    report['invocations']=runner.count
+    report['scope']='Bounded generated cases, not exhaustive verification. No performance measurements; requested compiler optimization flags are recorded explicitly.'
+    report['proof_opt']=args.proof_opt
+    save_json(directory/'report.json',report)
+    print(json.dumps({'report':str(directory/'report.json'),'status':report['status'],'invocations':runner.count}))
+    return 0 if report['status']=='passed' else 1
+
+
+def self_test():
+    first=[numeric(123,i) for i in range(24)]
+    assert first==[numeric(123,i) for i in range(24)]
+    assert first!=[numeric(124,i) for i in range(24)]
+    assert {v['integer_type'] for v in first}=={v[0] for v in TYPES}
+    for i in range(0,24,2):assert first[i]['expected_stdout']==first[i+1]['expected_stdout']
+    sample=dict(status=0,timeout=False,stdout_base64='NDIK',stderr_base64='')
+    assert difference(sample,dict(sample)) is None
+    assert difference(sample,dict(sample,stdout_base64='NDMK'))=='output_or_status_difference'
+    assert difference(sample,dict(sample,status=1))=='output_or_status_difference'
+    assert difference(sample,dict(sample,stderr_base64='d2Fybgo='))=='diagnostic_only_difference'
+    assert difference(sample,dict(sample,timeout=True))=='output_or_status_difference'
+    assert all('float' not in v['source'] for v in first)
+    assert len(negatives())==6 and len(targets())==4
+    print('Self-checks passed: deterministic seeds, 12 widths, 12 metamorphic pairs, injected output/status/diagnostic/timeout differences, bounded fixtures.')
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command',choices=['generate','discover','self-test','smoke','run'])
+    parser.add_argument('--compiler',type=Path,default=ROOT/'build/aevixc')
+    parser.add_argument('--artifacts',type=Path,default=ROOT/'build/bench-cpu4096/fuzz')
+    parser.add_argument('--seed',type=lambda value:int(value,0),default=0xAE7103)
+    parser.add_argument('--cases',type=int,default=24)
+    parser.add_argument('--case-pattern',help='Optional regex selecting a bounded positive-case subset; negatives still checked.')
+    parser.add_argument('--modes',help='Comma-separated advertised modes, e.g. aot-O0,jit-O0')
+    parser.add_argument('--parallel-repeats',type=int,default=3)
+    parser.add_argument('--timeout',type=float,default=90)
+    parser.add_argument('--max-invocations',type=int,default=400)
+    parser.add_argument('--max-failures',type=int,default=2)
+    parser.add_argument('--clang',type=Path,default=None)
+    parser.add_argument('--runtime',type=Path,default=ROOT/'build/runtime-payload/libaevix_runtime.a')
+    parser.add_argument('--installed-language-dir',type=Path,default=Path('share/aevix/library'),
+                        help='Expected compiled AEVIX_INSTALL_LANGUAGE_DIR for file-provider provenance; custom builds must match it.')
+    parser.add_argument('--sanitize',action='store_true')
+    parser.add_argument('--proof-opt',action='store_true',help='Test the experimental pass only if this compiler advertises --proof-opt; frontend-only rejection checks remain unmodified.')
+    parser.add_argument('--shrink',action='store_true',help='After stable 3x reproduction, attempt at most 16 line deletions.')
+    args=parser.parse_args()
+    if args.command=='self-test':self_test();return 0
+    if not 1<=args.cases<=240 or not 1<=args.parallel_repeats<=10 or args.timeout<=0 or args.max_invocations<1 or args.max_failures<1:parser.error('Invalid bounded budget')
+    args.compiler=args.compiler.resolve();args.runtime=args.runtime.resolve()
+    if args.clang:args.clang=args.clang.resolve()
+    directory=args.artifacts.resolve()/f'{args.command}-{args.seed:016x}-{time.time_ns()}'
+    directory.mkdir(parents=True,exist_ok=False)
+    if args.command=='generate':
+        manifest=generate(directory,args.seed,args.cases);print(json.dumps({'manifest':str(directory/'manifest.json'),'positive_cases':len(manifest['cases']),'negative_check_only':len(manifest['negative_check_only'])}));return 0
+    if args.command=='discover':print(json.dumps(discover(args,Runner(args,directory)),indent=2));return 0
+    if args.command=='smoke' and not args.modes:args.modes='aot-O0,jit-O0'
+    return execute(args,directory,smoke=args.command=='smoke')
+
+if __name__=='__main__':
+    try:sys.exit(main())
+    except (OSError,ValueError,AssertionError) as error:print(f'fuzz: {error}',file=sys.stderr);sys.exit(2)

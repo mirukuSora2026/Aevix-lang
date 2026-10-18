@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "box_extraction_checkpoint.json",
+  "description": {
+    "en": "Separate Box.into_inner private prototype execution evidence from the later active Ready plus Box compiler build; preserve allocation, ownership and zero-size sanitizer limits.",
+    "ko": "Box.into_inner 비공개 시안 실행 증거와 이후 Ready 및 Box 통합 컴파일러 빌드를 구분하고 할당, 소유권, 크기 0 정리 검사 경계를 보존한다."
+  },
+  "recorded_date": "2026-10-18",
+  "status": "active_source_integrated_registered_full_suite_passed_cpu_catalog_incomplete",
+  "contract": {
+    "source_api": "Box.into_inner(Box<T> owner) -> T",
+    "since": "0.3",
+    "deprecated_at": null,
+    "removed_at": null,
+    "ownership": "Consume one complete owned Box<T>, move the exact T payload to the result, and release only the outer allocation exactly once. The returned owner is responsible for payload Drop.",
+    "supported_payloads": "Preserve the inhabited sized payload domain already accepted by Box.new; do not introduce a new Function-only exclusion or new unsafe callback support.",
+    "unsized": "Direct Box<dyn Interface> extraction is rejected; this does not reject an outer Box whose sized payload is itself a Box<dyn Interface>.",
+    "loans": "Preserve external payload reference loans, retained exclusive loans and hidden TaskScope provenance after stripping only the logical outer Box payload prefix.",
+    "unchanged": [
+      "Box.new, Box.into_dyn, Box.as_ref and Box.as_mut behavior and storage ABI",
+      "Ordinary projected field moves and custom Drop field-move restrictions",
+      "Allocation failure preserves accepted input according to existing Box.new contracts"
+    ],
+    "air": "BoxExtract is appended to the opcode enumeration. Shared exact-shape validation is used by strict AIR validation, BorrowChecker, ThreadSafetyAnalysis and LLVM generation. Extraction requires a fresh hidden whole-owner local immediately initialized before the operation."
+  },
+  "private_prototype": {
+    "boundary": "Ignored isolated compiler and matching library; these execution results do not establish execution success of the later active compiler.",
+    "base_compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+    "compiler_sha256": "316e11750fbe2bf4e47e7111660189f7239f1d76bedd0e1c32e6205147cb05a2",
+    "gates": {
+      "both_git_apply_check": true,
+      "git_diff_check": true,
+      "strict_air_checks": 48,
+      "positive_fixture_modes": 70,
+      "negative_check_only": 27,
+      "aot_fault_stage_executions": 6,
+      "jit_fault_stage_executions": 6,
+      "asan_ubsan_fault_stage_executions": 6,
+      "additional_generated_code_asan_executions": 10,
+      "minimal_no_helper_modes": 10
+    },
+    "positive_modes": [
+      "check",
+      "AOT O0",
+      "AOT O2",
+      "ORC JIT O0",
+      "ORC JIT O2"
+    ],
+    "positive_fixture_count": 14,
+    "negative_policy": "Rejected sources were checked only and were never executed.",
+    "positive_fixture_groups": [
+      "scalars_zero_simd",
+      "nested_owners",
+      "external_loans",
+      "own_drop_and_early_failure",
+      "drop_with_external_loan",
+      "borrow_replace_composition",
+      "source_shadow_identity",
+      "closure_payload",
+      "task_roots_and_worker",
+      "type_alias_owner",
+      "transferred_source_type",
+      "existing_views_and_dyn"
+    ],
+    "independent_inference": {
+      "user_helper_or_generic_declarations": false,
+      "fixtures": [
+        "direct Box.new followed by Box.into_inner",
+        "cross-module inferred Box return followed by inferred Box.into_inner"
+      ],
+      "mode_executions": 10,
+      "all_exit_codes_zero": true
+    },
+    "fault_stages": {
+      "0": "Both allocations succeed: attempts=2, frees=2, live=0.",
+      "1": "First allocation fails: attempts=1, frees=0, live=0; the retained unboxed payload is dropped once.",
+      "2": "Second allocation fails: attempts=2, frees=1, live=0; the retained inner Box is extracted and its payload is dropped once."
+    },
+    "sanitizer": "Actual emitted LLVM received sanitize_address attributes; instrumented objects were checked for __asan_report_ references. AddressSanitizer and UndefinedBehaviorSanitizer used halt_on_error=1. detect_leaks=0 means this is not LeakSanitizer coverage; fault hooks independently require live allocation count zero.",
+    "private_evidence": {
+      "readiness_sha256": "5f98ee738f94ee65c2045d0332bb2bef3c2aab90239aedb514fbd89e19a10f82",
+      "gate_log_sha256": "8cab5909dd7cecc84f5411c15989a1b102accf6743f88ea7016275baeee11b48",
+      "minimal_inference_sha256": "d86f411d64e5218b12053ed1cfff7cdfe727e72f9ff93f5db09f959a0b29e9d5",
+      "zero_size_baseline_sha256": "5cdab03db76669b1a2fa84350dbb22247873a12797dd99b7e8cd4a46b04042ff"
+    }
+  },
+  "zero_size_sanitizer_boundary": {
+    "status": "observed_existing_baseline_limitation; upstream_cause_not_proven",
+    "platform": "macOS ARM64",
+    "clang": "Homebrew clang 22.1.8",
+    "records": [
+      {
+        "name": "baseline_unit",
+        "compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+        "source_sha256": "5dbfe0cce395965e9e5fb827276c16f66dcedcac3d07070a5d4a6147617d5c98",
+        "raw_llvm_sha256": "afb368811dc39b06f86e92f45e64fc0e3b0bc0ce8ea7a8a35d3087a75fd145a6",
+        "instrumented_llvm_sha256": "eb14d0381cc732a3a419360b5b3fe1dcff01286ea2d374a36de5ce890d8341cf",
+        "asan_ubsan_runs": [
+          {
+            "optimization": 0,
+            "exit_code": 1
+          },
+          {
+            "optimization": 1,
+            "exit_code": 0
+          },
+          {
+            "optimization": 2,
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "name": "baseline_zero",
+        "compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+        "source_sha256": "1355e73ae8077e0e633c96cde171667a6ce9528209b861f97927b5d2c60cf972",
+        "raw_llvm_sha256": "90e0271e5d54aec951615a2e6b932587ddd9c50dfb2f2c398f6189aaf780b3f4",
+        "instrumented_llvm_sha256": "c2cff132f6e0cd59494c95d600f9bbede79245c71656b9d44f84d3d3c391164d",
+        "asan_ubsan_runs": [
+          {
+            "optimization": 0,
+            "exit_code": 1
+          },
+          {
+            "optimization": 1,
+            "exit_code": 0
+          },
+          {
+            "optimization": 2,
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "name": "extraction_unit",
+        "compiler_sha256": "316e11750fbe2bf4e47e7111660189f7239f1d76bedd0e1c32e6205147cb05a2",
+        "source_sha256": "25c536429144478ec4effffd07f5317d814480f082456f60e7888fbc489208bc",
+        "raw_llvm_sha256": "66667fa64968797a89c51b50eaa966400a8ef49dd5f1470142c36c4df9fbb0e8",
+        "instrumented_llvm_sha256": "66f83b62c5ec67e5e3ad3606602086039c95b27d04192de540d88f349e574262",
+        "asan_ubsan_runs": [
+          {
+            "optimization": 0,
+            "exit_code": 1
+          },
+          {
+            "optimization": 1,
+            "exit_code": 0
+          },
+          {
+            "optimization": 2,
+            "exit_code": 0
+          }
+        ]
+      },
+      {
+        "name": "extraction_zero",
+        "compiler_sha256": "316e11750fbe2bf4e47e7111660189f7239f1d76bedd0e1c32e6205147cb05a2",
+        "source_sha256": "b0d5566739ccefcf1dadd3a35e3bf3d031c089901226826d4d19d99c7dddcc6f",
+        "raw_llvm_sha256": "3e954a64d8626847594928b777a0d08cb56a5121ecb44baea92e329c726ff800",
+        "instrumented_llvm_sha256": "599d4df00ce477c4ebf8a2a22fe9c813d0c20faacd00ba259faa9ee45a446745",
+        "asan_ubsan_runs": [
+          {
+            "optimization": 0,
+            "exit_code": 1
+          },
+          {
+            "optimization": 1,
+            "exit_code": 0
+          },
+          {
+            "optimization": 2,
+            "exit_code": 0
+          }
+        ]
+      }
+    ],
+    "observation": "All four retained raw-LLVM cases fail under ASan O0 and pass under O1/O2, including unchanged Box.new(unit) and Box.new(Array<i32,0>) baselines without extraction. Ordinary extraction AOT/JIT O0/O2 passes.",
+    "diagnostic": "AddressSanitizer: DEADLYSIGNAL; nested bug in the same thread, aborting.",
+    "scope": "Zero-size scalars and an empty-capture Task closure are tested with ASan O1/O2. Other selected accepted fixtures retain O0/O2 sanitizer coverage. No production LLVM zero-byte rewrite or performance optimization was applied."
+  },
+  "active_integration": {
+    "approval": "Approved feature and CMake delta application after the independent minimal inference and final 70-mode private gate.",
+    "patch_sha256": {
+      "box_into_inner.patch": "4a1d293300d1b2c58ded2c4477651f1c7d329bc4de2cc74cda669e6141ed7d75",
+      "cmake-registration.patch": "50a0049b2d0176434e5bceda5de4fdc9babafde48b91a2c048c8b6c7589ec91e"
+    },
+    "patch_paths": [
+      "src/Frontend/Modules/ModuleLoader.cpp",
+      "src/Frontend/Sema/GenericResolver.cpp",
+      "src/Frontend/Sema/TypeChecker.cpp",
+      "include/aevix/Frontend/Sema/TypeChecker.hpp",
+      "include/aevix/IR/AIR/Module.hpp",
+      "src/IR/AIR/Module.cpp",
+      "src/IR/Lowering/ASTLowering.cpp",
+      "src/Frontend/Ownership/BorrowChecker.cpp",
+      "src/Frontend/Ownership/ThreadSafetyAnalysis.cpp",
+      "src/Backend/LLVM/LLVMCodeGen.cpp",
+      "tests/v03_box_extract_air_tests.cpp",
+      "tests/v03_box_extract_cli_tests.cmake",
+      "tests/v03_box_extract_fault_harness.cpp",
+      "CMakeLists.txt"
+    ],
+    "both_git_apply_check_passed": true,
+    "git_diff_check_passed": true,
+    "ready_taskid_range_changes_preserved": true,
+    "all_targets_build": "passed, reported by root after Ready plus Box integration",
+    "observed_compiler_sha256": "14e539e98708b8a0b3b8985574a66794d44329bf5c1f63c7e4baba49eeb96e16",
+    "applied_delta_paths_still_match_record": true,
+    "active_targeted_execution": "passed as part of the integrated154-test suite",
+    "full_coherent_execution": "passed154/154 on b87fb39d; historical private evidence remains separately recorded",
+    "integrated_full_suite": {
+      "compiler_sha256": "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc",
+      "ctest_passed": 154,
+      "ctest_total": 154,
+      "elapsed_seconds": 1209.0799842919987,
+      "source_inputs_unchanged_during_run": true,
+      "selected_source_input_files": 345,
+      "result": "build/checkpoints/proof-b87fb39d/result.json",
+      "result_sha256": "33df676b3d8381ee39eb0b5d239b2222b422033d71d2c1c4e964dda88d2df480",
+      "log": "build/checkpoints/proof-b87fb39d/LastTest.log",
+      "log_sha256": "75461ad7f3ea553e8c39f41f78455376096e0a7ed14cffec21ee4acc0d451362",
+      "boundary": "Registered local macOS ARM64 suite, including dedicated Ready/Box/Range materialization/proof gates; not every CPU catalog API or cross-target execution."
+    },
+    "coherent_gate_status": "passed_registered154_of154",
+    "dedicated_registered_tests": "v03_box_extract_air and v03_box_extract_cli passed in the full suite."
+  },
+  "reproduction": {
+    "public_test_sources": [
+      "tests/v03_box_extract_air_tests.cpp",
+      "tests/v03_box_extract_cli_tests.cmake",
+      "tests/v03_box_extract_fault_harness.cpp"
+    ],
+    "registered_ctest_names": [
+      "v03_box_extract_air",
+      "v03_box_extract_cli"
+    ],
+    "cli_timeout_seconds": 300,
+    "note": "Regular tests use the configured compiler, Clang, runtime and JIT probe; private build artifacts are supplementary evidence and are not required test inputs."
+  },
+  "limits": [
+    "The canonical Box catalog still contains other unresolved contracts; this checkpoint adds one whole-owner extraction primitive.",
+    "No new cross-platform execution, all-library completion or performance improvement is claimed.",
+    "Claude final optimization review remains on hold; no optimization was implemented as part of this feature."
+  ],
+  "historical_status_before_integrated_suite": "active_delta_applied_and_all_targets_built; active_targeted_and_full_coherent_execution_pending"
+}

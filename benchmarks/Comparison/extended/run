@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : run
+#
+# Description :
+#     균형 잡힌 무작위 실행 순서와 정확한 출력 검증으로 독립 프로세스 표본을 수집한다.
+#     Collect independent-process observations with balanced randomized order and exact output checks.
+#
+# ========================
+"""Serialize C/AOT/JIT measurements; retain every observation and failed input."""
+from pathlib import Path
+import argparse
+import hashlib
+import itertools
+import json
+import os
+import platform
+import random
+import resource
+import runpy
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[3]
+HERE = Path(__file__).resolve().parent
+VARIANTS = ('C', 'AOT', 'JIT')
+
+
+def sha(path):
+    result = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            result.update(block)
+    return result.hexdigest()
+
+
+def absolute(value):
+    value = Path(value)
+    return value if value.is_absolute() else ROOT / value
+
+
+def save(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    temporary.replace(path)
+
+
+def schedule(keys, blocks, seed):
+    if blocks < 30 or blocks % 6:
+        raise ValueError('Use at least30 blocks, divisible by6, to balance every permutation.')
+    generator = random.Random(seed)
+    choices = {}
+    for key in sorted(keys):
+        orders = list(itertools.permutations(VARIANTS)) * (blocks // 6)
+        generator.shuffle(orders)
+        choices[key] = orders
+    jobs = []
+    for block in range(blocks):
+        cases = list(keys)
+        generator.shuffle(cases)
+        for case in cases:
+            order = choices[case][block]
+            for position, variant in enumerate(order):
+                jobs.append({'round': block, 'case_key': case, 'variant': variant,
+                             'position': position + 1, 'order': list(order)})
+    return jobs
+
+
+def checksum(values):
+    return sum(values), sum((index + 1) * value for index, value in enumerate(values)) % 1000000007
+
+
+def parse(stdout, case, mode, expected):
+    text = stdout.decode('utf-8', 'strict')
+    lines = text.splitlines()
+    if len(lines) != 2:
+        raise ValueError('Expected one SAMPLE and one VERIFY line, without extra output.')
+    sample = lines[0].split()
+    if len(sample) != 8 or sample[:4] != ['SAMPLE', case, mode, '0']:
+        raise ValueError('Unexpected sample identity, field count, or sample index.')
+    elapsed, total, weighted, workers = map(int, sample[4:])
+    if elapsed < 0 or workers < 1:
+        raise ValueError('Negative elapsed time or invalid configured participant count.')
+    parts = lines[1].split(' ', 3)
+    if len(parts) != 4 or parts[:3] != ['VERIFY', case, mode]:
+        raise ValueError('Missing full-output verification.')
+    actual = [int(value) for value in parts[3].split(',')] if parts[3] else []
+    if actual != expected:
+        first = next((index for index, pair in enumerate(zip(actual, expected)) if pair[0] != pair[1]), None)
+        raise ValueError(f'Full output differs: lengths{len(actual)}/{len(expected)}, first difference{first}.')
+    if (total, weighted) != checksum(expected):
+        raise ValueError('Sample checksum differs from the independent expected output.')
+    return {'elapsed_ns': elapsed, 'sum': total, 'weighted': weighted,
+            'configured_participants': workers, 'exact_values_compared': len(actual)}
+
+
+def capture(argv, stdin, timeout, prefix):
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    before = resource.getrusage(resource.RUSAGE_CHILDREN)
+    started = time.perf_counter_ns()
+    child = subprocess.Popen([str(value) for value in argv], cwd=ROOT,
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             start_new_session=(os.name == 'posix'))
+    timed_out = False
+    try:
+        output, error = child.communicate(stdin, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        if os.name == 'posix':
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        else:
+            child.kill()
+        try:
+            output, error = child.communicate(timeout=5)
+        except subprocess.TimeoutExpired as partial:
+            output, error = partial.output or b'', partial.stderr or b''
+            prefix.with_suffix('.stdout').write_bytes(output)
+            prefix.with_suffix('.stderr').write_bytes(error)
+            raise RuntimeError('Descendant escaped the bounded output drain; abort experiment.')
+    wall = time.perf_counter_ns() - started
+    after = resource.getrusage(resource.RUSAGE_CHILDREN)
+    out = prefix.with_suffix('.stdout'); err = prefix.with_suffix('.stderr')
+    out.write_bytes(output); err.write_bytes(error)
+    return {'argv': [str(value) for value in argv], 'status': child.returncode,
+            'timeout': timed_out, 'whole_process_wall_ns': wall,
+            'reaped_children_user_seconds_delta': after.ru_utime - before.ru_utime,
+            'reaped_children_system_seconds_delta': after.ru_stime - before.ru_stime,
+            'reaped_children_voluntary_switches_delta': after.ru_nvcsw - before.ru_nvcsw,
+            'reaped_children_involuntary_switches_delta': after.ru_nivcsw - before.ru_nivcsw,
+            'stdout': str(out), 'stderr': str(err), 'stdout_sha256': sha(out),
+            'stderr_sha256': sha(err)}, output, error
+
+
+def self_test():
+    jobs = schedule(['first', 'second'], 42, 0xAE20261018)
+    assert jobs == schedule(['first', 'second'], 42, 0xAE20261018)
+    assert jobs != schedule(['first', 'second'], 42, 0xAE20261019)
+    for key in ['first', 'second']:
+        for variant in VARIANTS:
+            selected = [row for row in jobs if row['case_key'] == key and row['variant'] == variant]
+            assert len(selected) == 42
+            assert all(sum(row['position'] == position for row in selected) == 14 for position in [1, 2, 3])
+        orders = [tuple(row['order']) for row in jobs if row['case_key'] == key and row['position'] == 1]
+        assert all(orders.count(order) == 7 for order in itertools.permutations(VARIANTS))
+    good = b'SAMPLE tiny serial 0 20 6 14 1\nVERIFY tiny serial 1,2,3\n'
+    assert parse(good, 'tiny', 'serial', [1, 2, 3])['elapsed_ns'] == 20
+    for bad in [good.replace(b'1,2,3', b'1,2,4'), good + b'extra\n',
+                good.replace(b'20 6', b'20 7'), good.replace(b'serial 0', b'serial 1')]:
+        try:
+            parse(bad, 'tiny', 'serial', [1, 2, 3])
+        except ValueError:
+            continue
+        raise AssertionError('Injected protocol/oracle difference was accepted.')
+    print('PASS balanced42-block schedule,14 positions per variant,7 copies of each order, exact output/rejected injected differences.')
+
+
+def run(args):
+    if os.name != 'posix':
+        raise ValueError('This runner currently requires POSIX process/resource controls; Windows measurement unimplemented.')
+    prepared_path = args.prepared.resolve()
+    prepared_bytes = prepared_path.read_bytes()
+    prepared_digest = hashlib.sha256(prepared_bytes).hexdigest()
+    prepared = json.loads(prepared_bytes)
+    programs = prepared['programs']
+    keyed = {row['case'] + '/' + row['mode']: row for row in programs}
+    if len(keyed) != len(programs):
+        raise ValueError('Duplicate case/mode in prepared programs.')
+    selected = [key for key in keyed if not args.case_pattern or __import__('re').search(args.case_pattern, key)]
+    if not selected:
+        raise ValueError('No cases selected.')
+    jobs = schedule(selected, args.blocks, args.seed)
+    if len(jobs) > args.max_jobs:
+        raise ValueError('Requested schedule exceeds invocation budget.')
+    out = args.artifacts.resolve()
+    out.mkdir(parents=True, exist_ok=False)
+    (out / 'prepared.json').write_bytes(prepared_bytes)
+    observer_path = HERE / 'audit/host_state'
+    snapshot = runpy.run_path(str(observer_path), run_name='benchmark_observer')['snapshot']
+    save(out / 'schedule.json', jobs)
+    fingerprints = prepared['fingerprints']
+    def unchanged():
+        try:
+            return sha(prepared_path) == prepared_digest and all(
+                sha(absolute(row['path'])) == row['sha256'] for row in fingerprints)
+        except OSError:
+            return False
+    if not unchanged():
+        raise ValueError('Prepared compiler, runtime, source, or executable fingerprints changed.')
+    receipt = {'schema_version': 1, 'created_by': 'miruku_sora2026', 'file_name': 'run.json',
+               'description': 'Balanced randomized independent-process native measurements with full oracle checks.',
+               'status': 'running', 'prepared': str(prepared_path), 'prepared_sha256': prepared_digest,
+               'runner_sha256': sha(Path(__file__)), 'observer_sha256': sha(observer_path),
+               'blocks': args.blocks, 'order_seed': args.seed, 'variants': VARIANTS,
+               'host': platform.system(), 'architecture': platform.machine(),
+               'selected_cases': selected, 'planned_jobs': len(jobs), 'completed_jobs': 0,
+               'failures': [], 'states': [], 'fingerprints_stable': None,
+               'limits': ['One warmup and one sample in each new process; cold JIT compilation occurs before the source kernel timer.',
+                          'Whole-process wall/CPU/context-switch deltas include startup, JIT compilation where applicable and verification I/O.',
+                          'State snapshots bracket global rounds, not every kernel; no observer runs during a timed child process.',
+                          'No affinity/QoS/frequency/power settings are changed. Temperature/current-clock/core-placement may remain unknown.',
+                          'Configured compute participants do not prove successful OS thread creation.',
+                          'Every observation is retained. Timeouts or output differences abort the run and preserve logs.']}
+    save(out / 'run.json', receipt)
+    current_round = None
+    previous_variant = None
+    try:
+        with (out / 'observations.jsonl').open('w', encoding='utf-8') as stream:
+            for index, job in enumerate(jobs):
+                if current_round != job['round']:
+                    if current_round is not None:
+                        receipt['states'].append(snapshot(f'round{current_round}-after'))
+                    current_round = job['round']
+                    receipt['states'].append(snapshot(f'round{current_round}-before'))
+                    save(out / 'run.json', receipt)
+                program = keyed[job['case_key']]
+                record, output, error = capture(program['commands'][job['variant']], program['stdin'].encode(),
+                                                args.timeout, out / 'logs' / f'{index:05d}')
+                row = dict(job, **record, previous_global_variant=previous_variant)
+                previous_variant = job['variant']
+                issue = None
+                if record['timeout'] or record['status'] != 0 or error:
+                    issue = 'timeout, nonzero exit, or diagnostic output'
+                else:
+                    try:
+                        row.update(parse(output, program['case'], program['mode'], program['expected']))
+                        expected_workers = program.get('profile', {}).get('expected_workers')
+                        if expected_workers is not None and row['configured_participants'] != expected_workers:
+                            raise ValueError('Configured participant count differs from prepared contract.')
+                    except (ValueError, UnicodeError) as problem:
+                        issue = str(problem)
+                row['passed'] = issue is None
+                if issue:
+                    row['issue'] = issue
+                stream.write(json.dumps(row, ensure_ascii=False) + '\n'); stream.flush()
+                receipt['completed_jobs'] += 1
+                if issue:
+                    receipt['failures'].append(row)
+                    raise RuntimeError('Invalid observation; full logs and exact prepared inputs retained.')
+                if (index + 1) % (len(selected) * 3) == 0:
+                    print(f"Completed round{job['round'] + 1}/{args.blocks}: {index + 1}/{len(jobs)} observations", flush=True)
+            receipt['states'].append(snapshot(f'round{current_round}-after'))
+    except (RuntimeError, OSError, ValueError) as problem:
+        receipt['error'] = str(problem)
+    receipt['fingerprints_stable'] = unchanged()
+    receipt['status'] = 'passed' if receipt['completed_jobs'] == len(jobs) and not receipt['failures'] and receipt['fingerprints_stable'] and 'error' not in receipt else 'failed_or_incomplete'
+    receipt['observations_sha256'] = sha(out / 'observations.jsonl')
+    save(out / 'run.json', receipt)
+    print(json.dumps({'run': str(out / 'run.json'), 'status': receipt['status'], 'completed': receipt['completed_jobs']}))
+    return 0 if receipt['status'] == 'passed' else 1
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=['self-test', 'run'])
+    parser.add_argument('--prepared', type=Path)
+    parser.add_argument('--artifacts', type=Path)
+    parser.add_argument('--blocks', type=int, default=42)
+    parser.add_argument('--seed', type=lambda value: int(value, 0), default=0xAE20261018)
+    parser.add_argument('--timeout', type=float, default=60)
+    parser.add_argument('--max-jobs', type=int, default=3000)
+    parser.add_argument('--case-pattern')
+    args = parser.parse_args()
+    if args.command == 'self-test':
+        self_test(); return 0
+    if args.prepared is None or args.artifacts is None or args.timeout <= 0:
+        parser.error('run requires --prepared, fresh --artifacts and a positive timeout')
+    return run(args)
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except (OSError, ValueError) as problem:
+        print('randomized benchmark: ' + str(problem), file=sys.stderr)
+        sys.exit(2)

@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "task_ready_checkpoint.json",
+  "description": {
+    "en": "Record promoted workerless Task.ready source, private evidence, historical smoke gates and the later integrated154-test gate without claiming complete CPU coverage."
+  },
+  "recorded_date": "2026-10-18",
+  "status": "active_source_integrated_registered_full_suite_passed_cpu_catalog_incomplete",
+  "source": {
+    "files": {
+      "include/aevix/Native/TaskOperation.hpp": "3465f792e822e5044113431ceeaed49af2022b12e07f6a826451f8a449f07bbf",
+      "include/aevix/Frontend/Modules/TaskModuleSource.hpp": "d5723f6a9b99e61fa3f8ca562d4a8c23142d62a421f6a8b81c0aa9fe085cb441",
+      "include/aevix/Frontend/Ownership/ThreadSafetyAnalysis.hpp": "af198daac32b619c43e151e6555a2f9548ba0a400505c8b9ad8d4a93346c427e",
+      "include/aevix/Runtime/TaskRuntime.hpp": "746b227d1f1ebabb8e9fcf2f000e5c1a9042e446056638aad00fa78fb9de9ff5",
+      "include/aevix/Runtime/TaskScopeRuntime.hpp": "cd5e47181599d21470f4301def6640035bd3e1c9d20a58b3d2d40e33ec1eecc4",
+      "src/Frontend/Sema/GenericResolver.cpp": "c9d3c8f3a0404c870414088b3d59abc16d70f934df5b205e597f4610fbc44ac1",
+      "src/Frontend/Sema/TypeChecker.cpp": "240898ca522202021d2baaa0d36e971f2ba2cb2acae1ef57730a26357f6fa9ed",
+      "src/Frontend/Ownership/ThreadSafetyAnalysis.cpp": "cc63038beeaa1df9cfc8b254c13f4a910728c139222d6ea9b12848803f6a97cd",
+      "src/IR/AIR/Module.cpp": "2a92c3d39aabea3dee8c757f3bbc2d00bf99bb95a6d315c36e4e1ef225b0ecda",
+      "src/Backend/LLVM/LLVMCodeGen.cpp": "35df31bace45bb2865a0b94db333e397ea00bbb4f992b809d3b8d0fd13732e20",
+      "src/JIT/ORC/ORCJIT.cpp": "92a5891153e4cd1d6f241a2efece5940f03cd6a18ed6c88b05c4f0ce8d24e81e",
+      "runtime/Threading/TaskRuntime.cpp": "7c95178e6c67ecf4ac4b22e049518a6485120f89976202af0fc1132155df654b",
+      "tests/v03_task_air_tests.cpp": "16cc00bf9eb601e8059c60c6ed4882481507906a12d190e713defe255962ca0e",
+      "tests/v03_task_ready_cli_tests.cmake": "cc3cde3bd23c4d81c336ddab17f7322895896a468137701a047d3f78b0ce1d4b",
+      "tests/v03_task_ready_fault_cli_tests.cmake": "9bccf06ed633223ff2b41f152c4be7e3b5fd579ca61956914019e0fa6e840624",
+      "tests/v03_task_ready_jit_tests.cpp": "cd24b488c73dcc943d846e5411a1bae977240c4baa0dc2b4cb661c558dea2df8",
+      "tests/v03_task_ready_runtime_tests.cpp": "679bb599915b6bbb212f9af2e598b672feba5b4a77e236cf501303945359113a"
+    },
+    "CMakeLists_sha256": "774ec0b80157dea192fc76d7abd3daa02aa7836703ccf8b3d76b8f9322b9cd0c",
+    "promoted_bytes_match_private_draft": true,
+    "active_application": "Applied by root as bounded unified deltas; BorrowChecker and ModuleLoader were not changed by this batch."
+  },
+  "contract": {
+    "source_api": [
+      "Task.ready(&TaskScope scope, T value) -> Result<Task<T>,SpawnError>",
+      "Task<T>.ready(&TaskScope scope, T value) -> Result<Task<T>,SpawnError>"
+    ],
+    "execution": "A precomputed owned value is published as Completed without scheduling a callback, creating a Task worker or entering OS reaping.",
+    "ownership": "The observation retains the existing Task-to-Scope loan. The Scope owns an unclaimed result until observation or cleanup. This initial profile requires owned data and compiler-approved cleanup; borrowed values and hidden Task loans are rejected.",
+    "failure": "The by-value source input is consumed and cleaned once if preparation fails. The native prepare ABI itself does not read or move caller-owned input. A successful typed move is followed by allocation-free publication.",
+    "admission": "Prepared Ready counts as active; closing new admission after preparation preserves the accepted transaction. Publication makes it terminal, with remaining cleanup still tracked.",
+    "diagnostic_identity": "Ready uses the same non-recycled TaskId serial domain and preserves identity after observation consumption. Exhaustion is a constructor failure.",
+    "JIT": "Ready emits real result Drop callbacks and retains existing module-level lifecycle residency. No new per-Control JIT resource pin is claimed.",
+    "worker_permissions_changed": false,
+    "remaining_separate_features": [
+      "Task.failed with exact stored TaskError",
+      "borrowed-child root provenance",
+      "downward cancellation hierarchy",
+      "async/await",
+      "GPU support",
+      "performance optimization"
+    ]
+  },
+  "executed_private_prototype": {
+    "boundary": "All results below were obtained from an ignored private overlay and dedicated standalone programs. They do not establish a passing active compiler after root promotion.",
+    "base_compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+    "overlay_compiler_sha256": "6e15183c7237e05869ccb79b080d17a6cf01a3b41b645eb5be21d2642f2c214f",
+    "host": {
+      "system": "Darwin",
+      "machine": "arm64"
+    },
+    "gates": {
+      "source_positive_mode_executions": 30,
+      "source_negative_programs": 12,
+      "source_modes": [
+        "check",
+        "AOT O0",
+        "AOT O2",
+        "ORC JIT O0",
+        "ORC JIT O2"
+      ],
+      "actually_instrumented_emitted_asan_programs": 6,
+      "source_fresh_fault_processes": 22,
+      "fault_modes": [
+        "O0",
+        "O2"
+      ],
+      "fault_stages": "Fresh allocation budgets 0..7, closure of admission after preparation, thread/reap fault injection and already-closed Scope. Every successful/failed by-value input has exact cleanup and Task-runtime worker creation/native reap counters remain zero.",
+      "native_asan_ubsan_checks": 95,
+      "native_exhaustion_checks": 14,
+      "air_checks": 431,
+      "repeated_JIT_cleanup_residency_and_prepare_admission_checks": 76,
+      "legacy_native": {
+        "task_checks": 865,
+        "task_cancellation_races": 100,
+        "scope_checks": 1341,
+        "cancellation_checks": 1370,
+        "cancellation_clone_query_release_iterations": 4000,
+        "cancellation_derivation_cleanup_races": 200
+      },
+      "legacy_source_gates": [
+        {
+          "test": "v03_task_generic_cli_tests",
+          "status": "passed",
+          "log": "build/task-ready-preview/v03_task_generic_cli_tests.log",
+          "log_sha256": "39d4327533dca5863f1252a4da6463add41cbbd2d530792cc03c84522b9740c6"
+        },
+        {
+          "test": "v03_task_ownership_cli_tests",
+          "status": "passed",
+          "log": "build/task-ready-preview/v03_task_ownership_cli_tests.log",
+          "log_sha256": "eb0a5156dc69fb4cec76f51cc0e0cb29e4ab6d7503f32934a8c2141432449401"
+        },
+        {
+          "test": "v03_task_convenience_cli_tests",
+          "status": "passed",
+          "log": "build/task-ready-preview/v03_task_convenience_cli_tests.log",
+          "log_sha256": "1051b7998ce001ca2828384f2f37583dd97dd9899a0a1564d218ae1d9c243e7c"
+        },
+        {
+          "test": "v03_closure_consume_cli_tests",
+          "status": "passed",
+          "log": "build/task-ready-preview/v03_closure_consume_cli_tests.log",
+          "log_sha256": "761486550c6cb81014f5e4c421a447a60ec94d47679e95ba7f251f16fe7386cc"
+        }
+      ]
+    },
+    "integrity": {
+      "active_overlay_input_paths_unchanged": 100,
+      "active_draft_base_files_unchanged": 14,
+      "active_compiler_unchanged": true
+    },
+    "local_checkpoint": "build/task-ready-preview/ready_private_checkpoint.json",
+    "local_checkpoint_sha256": "d872bd3ae5feb69038cff7f222ebb91cb07a8b174424ea3394124efdb119bc68",
+    "logs": {
+      "source": "build/task-ready-preview/source-cli.log",
+      "source_sha256": "02554e6d7786b69f53fb5d23ecf3000e5c980266af7d15889ee9e222087604e8",
+      "source_fault": "build/task-ready-preview/source-fault.log",
+      "source_fault_sha256": "485ffe07c4f4fa67ae2bad0c79028d8df40f937dedf0ebef1023306514382345",
+      "legacy_native": "build/task-ready-preview/legacy-native-report.json"
+    },
+    "log_availability": "Evidence paths under build/ are local ignored artifacts, not published repository downloads."
+  },
+  "active_integration": {
+    "source_applied": true,
+    "coherent_gate_status": "passed_registered154_of154",
+    "active_ready_compiler_sha256": "0db46b557ed7eccfc0ce9b48b37644b045871e72e1b4a8b84a9a5f6436a4163e",
+    "active_ready_tests_passed": 3,
+    "registered_gate_names": [
+      "v03_task_ready_runtime",
+      "v03_task_ready_exhaustion",
+      "v03_task_ready_cli",
+      "v03_task_ready_fault_cli",
+      "v03_task_ready_jit"
+    ],
+    "expanded_existing_gate": "v03_task_air passed in the full suite; historical431 assertion count belongs to the private AIR probe.",
+    "prior_checkpoint_preserved": "docs/Language/Library/task_identity_checkpoint.json",
+    "targeted_smoke": {
+      "tests_passed": 3,
+      "tests_total": 3,
+      "elapsed_seconds": 0.69,
+      "host": "macOS ARM64",
+      "scope": "v03_task_ready_runtime, v03_task_ready_exhaustion, v03_task_ready_jit only",
+      "result": "build/checkpoints/task-ready-integration-smoke/result.json",
+      "result_sha256": "c3c2deff12b5aa6473e1c5611f85d7226778267558d71f76b976f0136994627f",
+      "log": "build/checkpoints/task-ready-integration-smoke/LastTest.log",
+      "log_sha256": "43823558063523d7761fb0ecb61486d6685cd45ff93183746ee687924daa602b",
+      "full_suite": false,
+      "boundary": "Root built the promoted Ready implementation and ran only the native runtime, exhaustion, and JIT gates. This is not an active source CLI, fault CLI, AIR, or coherent/full-suite result."
+    },
+    "prior_task_identity_compiler_sha256": "7d2c5ce7a2e11c9d8858185174678581c2af48a92dbcab8b93d8390ec290c450",
+    "integrated_full_suite": {
+      "compiler_sha256": "b87fb39dd145f003844ce77362f0ac4f235960c99ddc033ab5458377aa5c69dc",
+      "ctest_passed": 154,
+      "ctest_total": 154,
+      "elapsed_seconds": 1209.0799842919987,
+      "source_inputs_unchanged_during_run": true,
+      "selected_source_input_files": 345,
+      "result": "build/checkpoints/proof-b87fb39d/result.json",
+      "result_sha256": "33df676b3d8381ee39eb0b5d239b2222b422033d71d2c1c4e964dda88d2df480",
+      "log": "build/checkpoints/proof-b87fb39d/LastTest.log",
+      "log_sha256": "75461ad7f3ea553e8c39f41f78455376096e0a7ed14cffec21ee4acc0d451362",
+      "boundary": "Registered local macOS ARM64 suite, including dedicated Ready/Box/Range materialization/proof gates; not every CPU catalog API or cross-target execution."
+    }
+  },
+  "limits": [
+    "The historical Ready smoke gate passed three tests; its source CLI, fault CLI, AIR and integrated154-test suite have since passed on b87fb39d, with remaining CPU catalog contracts still unresolved.",
+    "Private execution is local macOS ARM64 evidence; Linux and Windows require their own gates.",
+    "Task-runtime creation/reap counters establish zero Task worker creation/reaping. They are not a claim that compiler, JIT or test processes have no unrelated OS threads.",
+    "macOS LeakSanitizer is unavailable. Actually instrumented ASan programs and explicit native live-resource counters provide separate evidence.",
+    "The initial owned-data and approved-cleanup restriction is explicit; Ready does not run a worker.",
+    "This partial checkpoint does not establish all CPU library completion, Task.failed support, borrowed-child support or cancellation hierarchy."
+  ],
+  "historical_status_before_integrated_suite": "source_promoted_active_smoke_passed_coherent_gate_pending"
+}

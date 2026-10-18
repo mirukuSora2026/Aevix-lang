@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : collect_phases
+#
+# Description :
+#     고정 ORC 세션을 순차 수집하고 입력 해시·보정·오라클을 검사하며 프로세스 단위로 집계한다.
+#     Collect fixed-ORC sessions sequentially, validate hashes/calibration/oracles, and summarize process-level units.
+#
+# ========================
+"""Run only after the coordinating benchmark runner declares the host quiet."""
+import argparse
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import runpy
+import statistics
+import sys
+
+ROOT = Path(__file__).resolve().parents[4]
+HERE = Path(__file__).resolve().parent
+CAPTURE_HELPER = HERE.parent / 'run'
+PHASE_KEYS = ('engine_create', 'add_module_combined', 'first_invoke_combined', 'teardown')
+OUTPUT_KEYS = {'schema_version', 'fixed_optimization', 'tiering', 'seed', 'rounds',
+               'expected_lcg_state', 'verified_calls', 'all_returned_zero', 'functional_only',
+               'clock', 'untimed_setup', 'phases_ns', 'warm_invocations_ns'}
+MAX_U64 = (1 << 64) - 1
+
+
+def sha(path):
+    result = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            result.update(block)
+    return result.hexdigest()
+
+
+def absolute(path):
+    path = Path(path)
+    return (path if path.is_absolute() else ROOT / path).resolve()
+
+
+def save(path, data):
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    temporary.write_text(json.dumps(data, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+    temporary.replace(path)
+
+
+def strict_json(raw):
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError('Duplicate JSON member: ' + key)
+            result[key] = value
+        return result
+    def nonfinite(value):
+        raise ValueError('Nonfinite JSON token: ' + value)
+    return json.loads(raw.decode('utf-8', 'strict'), object_pairs_hook=unique, parse_constant=nonfinite)
+
+
+def ns(value):
+    if type(value) is not int or not 0 <= value <= MAX_U64:
+        raise ValueError('Nanosecond duration must be a nonnegative uint64 integer')
+    return value
+
+
+def parse_session(raw, expected_state):
+    result = strict_json(raw)
+    if type(result) is not dict or set(result) != OUTPUT_KEYS:
+        raise ValueError('Unexpected fixed-ORC output members')
+    exact = {'schema_version': 1, 'fixed_optimization': 2, 'seed': 3,
+             'rounds': 65536, 'expected_lcg_state': expected_state, 'verified_calls': 41}
+    for key, value in exact.items():
+        if type(result[key]) is not int or result[key] != value:
+            raise ValueError('Unexpected fixed-ORC identity/oracle: ' + key)
+    if result['tiering'] is not False or result['functional_only'] is not False:
+        raise ValueError('Expected measured fixed-level, non-tiering session')
+    if result['all_returned_zero'] is not True:
+        raise ValueError('An invocation did not validate its zero-return oracle')
+    if result['clock'] != 'CLOCK_MONOTONIC_RAW from shared aevixbench_clock_ns':
+        raise ValueError('Unexpected shared-clock identity')
+    if result['untimed_setup'] != ['read raw IR', 'define opaque seed symbol']:
+        raise ValueError('Unexpected phase setup boundary')
+    if type(result['phases_ns']) is not dict or set(result['phases_ns']) != set(PHASE_KEYS):
+        raise ValueError('Unexpected phase timing keys')
+    for key in PHASE_KEYS:
+        ns(result['phases_ns'][key])
+    warm = result['warm_invocations_ns']
+    if type(warm) is not list or len(warm) != 40:
+        raise ValueError('Expected exactly40 verified warm invocation times')
+    for value in warm:
+        ns(value)
+    return result
+
+
+def parse_calibration(raw, advertised_resolution=None):
+    lines = raw.decode('ascii', 'strict').splitlines()
+    if len(lines) != 2:
+        raise ValueError('Calibration must contain exactly CLOCK and DELTAS lines')
+    header = lines[0].split()
+    if len(header) != 4 or header[:2] != ['CLOCK', 'CLOCK_MONOTONIC_RAW'] or header[3] != '4096':
+        raise ValueError('Unexpected native calibration header')
+    if not header[2].isdigit():
+        raise ValueError('Advertised clock resolution is not an integer')
+    resolution = ns(int(header[2]))
+    if resolution == 0:
+        raise ValueError('Advertised native clock resolution must be positive')
+    if advertised_resolution is not None and resolution != advertised_resolution:
+        raise ValueError('Native calibration resolution differs from prepared/previous resolution')
+    if not lines[1].startswith('DELTAS '):
+        raise ValueError('Native calibration DELTAS record is missing')
+    tokens = lines[1][7:].split(',')
+    if len(tokens) != 4096 or any(not token.isdigit() for token in tokens):
+        raise ValueError('Expected exactly4096 nonnegative integer calibration deltas')
+    deltas = [ns(int(token)) for token in tokens]
+    return {'clock': 'CLOCK_MONOTONIC_RAW', 'advertised_resolution_ns': resolution,
+            'pairs': 4096, 'deltas_ns': deltas}
+
+
+def percentile(values, probability):
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * probability
+    low = math.floor(position)
+    high = math.ceil(position)
+    return ordered[low] + (ordered[high] - ordered[low]) * (position - low)
+
+
+def describe(values):
+    if not values or any(isinstance(value, bool) or not isinstance(value, (int, float))
+                         or not math.isfinite(value) or value < 0 for value in values):
+        raise ValueError('Statistics require finite nonnegative observations')
+    mean = statistics.mean(values)
+    deviation = statistics.stdev(values) if len(values) > 1 else 0.0
+    return {'n': len(values), 'median_ns': statistics.median(values),
+            'p05_ns': percentile(values, .05), 'p95_ns': percentile(values, .95),
+            'mean_ns': mean, 'sample_sd_ns': deviation,
+            'cv': deviation / mean if mean else None,
+            'cv_boundary': 'sample SD / mean; null for an all-zero sample',
+            'percentile_method': 'linear interpolation at (n-1)*p (type7)'}
+
+
+def fingerprints(phase, timer_prepared, phase_path, timer_path):
+    expected = {}
+    def add(path, digest):
+        if type(digest) is not str or len(digest) != 64 or any(c not in '0123456789abcdef' for c in digest):
+            raise ValueError('Invalid SHA256 fingerprint')
+        path = str(absolute(path))
+        if path in expected and expected[path] != digest:
+            raise ValueError('Conflicting prepared fingerprints for the same input')
+        expected[path] = digest
+    for path, digest in phase['input_sha256'].items():
+        add(path, digest)
+    command = phase['phase_program']
+    if type(command) is not list or len(command) != 2 or not all(type(value) is str and value for value in command):
+        raise ValueError('Expected exact program/raw-IR phase argument vector')
+    add(command[0], phase['program_sha256'])
+    add(command[1], phase['raw_ir_sha256'])
+    if absolute(command[1]) != absolute(phase['raw_ir']):
+        raise ValueError('Phase raw-IR path and executable arguments differ')
+    if phase.get('fixed_optimization') != 2 or phase.get('proof_opt') is not False or phase.get('tiering') is not False:
+        raise ValueError('Prepared harness must be fixed O2, proof-off and non-tiering')
+    oracle = phase['oracle']
+    if oracle != {'seed': 3, 'initial': 4, 'rounds': 65536, 'multiplier': 48271,
+                  'increment': 1, 'modulus': 2147483647, 'expected': 1919892339,
+                  'independent_checks': ['Python arbitrary-precision recurrence', 'Binary affine-composition modulo oracle']}:
+        raise ValueError('Unexpected prepared independent LCG oracle')
+    for row in timer_prepared['fingerprints']:
+        add(row['path'], row['sha256'])
+    timer = timer_prepared['timer']
+    timer_file = str(absolute(timer['path']))
+    if phase['input_sha256'].get(timer_file) != timer['sha256']:
+        raise ValueError('Phase harness and native calibration do not pin the same timer library')
+    add(timer_file, timer['sha256'])
+    if timer.get('clock') != 'CLOCK_MONOTONIC_RAW' or timer.get('symbol') != 'aevixbench_clock_ns':
+        raise ValueError('Unexpected prepared native timer ABI')
+    calibration = timer_prepared['calibration']
+    command = calibration['command']
+    if calibration.get('pairs') != 4096 or type(command) is not list or not command:
+        raise ValueError('Unexpected native calibration command/size')
+    if not all(type(value) is str and value and '\0' not in value for value in command):
+        raise ValueError('Invalid native calibration argument')
+    if str(absolute(command[0])) not in expected:
+        raise ValueError('Calibration executable is not fingerprinted in prepared inputs')
+    for path in (phase_path, timer_path, Path(__file__), CAPTURE_HELPER):
+        add(path, sha(path))
+    return expected
+
+
+def check_fingerprints(expected):
+    records = []
+    for path, digest in expected.items():
+        try:
+            actual = sha(path)
+        except OSError:
+            actual = None
+        records.append({'path': path, 'expected': digest, 'actual': actual, 'matches': actual == digest})
+    return {'all_match': all(row['matches'] for row in records), 'files': records}
+
+
+def run(args):
+    if os.name != 'posix':
+        raise ValueError('This collector requires the existing POSIX capture/process-group implementation')
+    output = args.artifacts.resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    receipt = {'schema_version': 1, 'created_by': 'miruku_sora2026', 'file_name': 'run.json',
+        'description': 'Sequential fixed-O2 ORC session observations with pre/post native calibration and immutable-input checks.',
+        'status': 'initializing', 'planned_sessions': args.sessions, 'completed_sessions': 0,
+        'calibrations': [], 'failures': [], 'fingerprints_before': None, 'fingerprints_after': None,
+        'statistical_unit': 'One process;40 warm invokes are summarized by their per-session median',
+        'all_observations_retained': True}
+    save(output/'run.json', receipt)
+    expected, observations, pre_calibration = {}, [], None
+    observations_path = output/'observations.jsonl'
+    observations_path.touch()
+    try:
+        phase_path, timer_path = args.prepared.resolve(), args.timer_prepared.resolve()
+        phase_bytes, timer_bytes = phase_path.read_bytes(), timer_path.read_bytes()
+        (output/'phase_prepared.json').write_bytes(phase_bytes)
+        (output/'timer_prepared.json').write_bytes(timer_bytes)
+        phase, timer_prepared = strict_json(phase_bytes), strict_json(timer_bytes)
+        expected = fingerprints(phase, timer_prepared, phase_path, timer_path)
+        # 실제 해석한 메타데이터 바이트를 기준으로 잡아 읽기 직후 교체도 탐지한다.
+        # Pin the bytes actually parsed, so replacement immediately after reading is detectable.
+        expected[str(phase_path)] = hashlib.sha256(phase_bytes).hexdigest()
+        expected[str(timer_path)] = hashlib.sha256(timer_bytes).hexdigest()
+        receipt['fingerprints_before'] = check_fingerprints(expected)
+        if not receipt['fingerprints_before']['all_match']:
+            raise ValueError('Prepared inputs have changed; no measurement is accepted')
+        (output/'capture_helper_snapshot').write_bytes(CAPTURE_HELPER.read_bytes())
+        (output/'collector_snapshot').write_bytes(Path(__file__).read_bytes())
+        capture = runpy.run_path(str(CAPTURE_HELPER), run_name='phase_capture_helper')['capture']
+        receipt['status'] = 'running'
+        save(output/'run.json', receipt)
+        def observe(label, command):
+            receipt['current_attempt'] = {'label': label, 'command': command}
+            save(output/'run.json', receipt)
+            record, raw, error = capture(command, b'', args.timeout, output/'logs'/label)
+            record['label'] = label
+            return record, raw, error
+        calibration_command = timer_prepared['calibration']['command']
+        record, raw, error = observe('calibration-before', calibration_command)
+        calibration_entry = {'position': 'before', 'record': record, 'passed': False}
+        receipt['calibrations'].append(calibration_entry)
+        if record['timeout'] or record['status'] != 0 or error:
+            raise ValueError('Pre-calibration process failed, timed out or produced diagnostics')
+        pre_calibration = parse_calibration(raw, timer_prepared['timer'].get('resolution_ns'))
+        calibration_entry.update(parsed=pre_calibration, passed=True)
+        save(output/'run.json', receipt)
+        with observations_path.open('w', encoding='utf-8') as stream:
+            for index in range(args.sessions):
+                record, raw, error = observe(f'session-{index:03d}', phase['phase_program'])
+                row = {'session': index, 'process': record, 'passed': False}
+                issue = None
+                try:
+                    ns(record['whole_process_wall_ns'])
+                    if record['timeout'] or record['status'] != 0 or error:
+                        raise ValueError('Session process failed, timed out or produced diagnostics')
+                    parsed = parse_session(raw, phase['oracle']['expected'])
+                    row.update(parsed=parsed, warm_median_ns=statistics.median(parsed['warm_invocations_ns']), passed=True)
+                except (ValueError, UnicodeError, KeyError, TypeError) as failure:
+                    issue = str(failure)
+                    row['issue'] = issue
+                stream.write(json.dumps(row, allow_nan=False)+'\n')
+                stream.flush()
+                observations.append(row)
+                receipt['completed_sessions'] += 1
+                save(output/'run.json', receipt)
+                if issue:
+                    raise ValueError('Invalid session observation retained; remaining sessions are not collected')
+                print(f'Completed fixed-ORC session{index+1}/{args.sessions}', flush=True)
+        record, raw, error = observe('calibration-after', calibration_command)
+        calibration_entry = {'position': 'after', 'record': record, 'passed': False}
+        receipt['calibrations'].append(calibration_entry)
+        if record['timeout'] or record['status'] != 0 or error:
+            raise ValueError('Post-calibration process failed, timed out or produced diagnostics')
+        post_calibration = parse_calibration(raw, pre_calibration['advertised_resolution_ns'])
+        calibration_entry.update(parsed=post_calibration, passed=True)
+    except (OSError, ValueError, RuntimeError, UnicodeError, KeyError, TypeError, KeyboardInterrupt) as failure:
+        receipt['failures'].append({'type': type(failure).__name__, 'message': str(failure)})
+    finally:
+        if expected:
+            receipt['fingerprints_after'] = check_fingerprints(expected)
+        stable = bool(receipt['fingerprints_before'] and receipt['fingerprints_before']['all_match']
+                      and receipt['fingerprints_after'] and receipt['fingerprints_after']['all_match'])
+        passed = (stable and not receipt['failures'] and len(observations) == args.sessions
+                  and all(row['passed'] for row in observations)
+                  and len(receipt['calibrations']) == 2 and all(row['passed'] for row in receipt['calibrations']))
+        receipt['status'] = 'passed' if passed else 'failed_or_incomplete'
+        receipt['fingerprints_stable'] = stable
+        receipt['observations_sha256'] = sha(observations_path)
+        if passed:
+            receipt.pop('current_attempt', None)
+        save(output/'run.json', receipt)
+        summary = {'schema_version': 1, 'created_by': 'miruku_sora2026', 'file_name': 'summary.json',
+            'description': 'Fixed-level ORC independent-process summary; no tier upgrade claim.',
+            'status': receipt['status'], 'planned_sessions': args.sessions,
+            'retained_session_observations': len(observations), 'valid_sessions': sum(row['passed'] for row in observations),
+            'failures_count': len(receipt['failures']), 'fingerprints_stable': stable,
+            'fixed_optimization': 2, 'tiering': False, 'warm_calls_per_session': 40,
+            'unit': 'process session; warm distribution uses one40-call median per process',
+            'observations_sha256': receipt['observations_sha256'], 'statistics': None,
+            'calibration': None,
+            'limits': ['Sessions execute sequentially; changing host state can correlate their durations.',
+                'Each session is a new process; OS/page/CPU caches can remain warm across sessions.',
+                'No invalid observation is dropped or silently retried; any failure rejects the complete summary.',
+                'Within-session40-call observations are retained but are not1680 independent samples.',
+                'Whole-process wall time uses the existing Python collector clock and includes startup/output/teardown.',
+                'Internal phase intervals use the common native CLOCK_MONOTONIC_RAW helper.',
+                'Native calibration deltas are reported separately; no timer-overhead subtraction is applied.',
+                'Cold first invoke combines initialization, lookup/materialization and execution; it is not isolated compilation.',
+                'No hardware state is sampled during measured sessions; no thermal/frequency/placement causal claim.']}
+        if passed:
+            summary['statistics'] = {key: describe([row['parsed']['phases_ns'][key] for row in observations]) for key in PHASE_KEYS}
+            summary['statistics']['whole_process_wall'] = describe([row['process']['whole_process_wall_ns'] for row in observations])
+            summary['statistics']['warm_per_process_median'] = describe([row['warm_median_ns'] for row in observations])
+            summary['calibration'] = [{'position': row['position'],
+                'advertised_resolution_ns': row['parsed']['advertised_resolution_ns'],
+                'pairs': 4096, 'deltas': describe(row['parsed']['deltas_ns'])} for row in receipt['calibrations']]
+        save(output/'summary.json', summary)
+    print(json.dumps({'status': receipt['status'], 'completed_sessions': len(observations),
+                      'summary': 'summary.json', 'receipt': 'run.json'}))
+    return 0 if receipt['status'] == 'passed' else 1
+
+
+def self_test():
+    # 합성 데이터만 사용하며 프로세스·시계·파일 조회나 실제 측정을 수행하지 않는다.
+    # Use synthetic data only; do not launch processes, query clocks/files, or take actual measurements.
+    good = {'schema_version':1,'fixed_optimization':2,'tiering':False,'seed':3,'rounds':65536,
+        'expected_lcg_state':1919892339,'verified_calls':41,'all_returned_zero':True,'functional_only':False,
+        'clock':'CLOCK_MONOTONIC_RAW from shared aevixbench_clock_ns',
+        'untimed_setup':['read raw IR','define opaque seed symbol'],
+        'phases_ns':dict.fromkeys(PHASE_KEYS,10),'warm_invocations_ns':list(range(40))}
+    encode = lambda value: json.dumps(value).encode()
+    assert parse_session(encode(good),1919892339) == good
+    bad = [dict(good,tiering=True),dict(good,verified_calls=40),dict(good,functional_only=True),
+           dict(good,warm_invocations_ns=[0]*39),dict(good,warm_invocations_ns=[0]*39+[-1]),
+           dict(good,warm_invocations_ns=[0]*39+[True]),dict(good,warm_invocations_ns=[0]*39+[float('nan')]),
+           dict(good,phases_ns=dict.fromkeys(PHASE_KEYS,float('inf'))),dict(good,seed=True),dict(good,extra=1)]
+    for value in bad:
+        try:
+            parse_session(encode(value),1919892339)
+        except ValueError:
+            continue
+        raise AssertionError('Injected invalid session was accepted')
+    try:
+        strict_json(b'{"seed":3,"seed":4}')
+        raise AssertionError('Duplicate JSON key accepted')
+    except ValueError:
+        pass
+    calibration = b'CLOCK CLOCK_MONOTONIC_RAW 1 4096\nDELTAS ' + b','.join([b'0']*4096) + b'\n'
+    assert parse_calibration(calibration,1)['pairs'] == 4096
+    for value in [calibration.replace(b'RAW 1',b'RAW 0'),calibration.replace(b'4096',b'4095'),
+                  calibration+b'extra\n',calibration.replace(b'DELTAS 0',b'DELTAS -1',1)]:
+        try:
+            parse_calibration(value,1)
+        except ValueError:
+            continue
+        raise AssertionError('Injected invalid calibration was accepted')
+    stats = describe([0,10,20,30,40])
+    assert stats['n']==5 and stats['median_ns']==20 and stats['p05_ns']==2 and stats['p95_ns']==38
+    assert math.isclose(stats['cv'],statistics.stdev([0,10,20,30,40])/20)
+    assert describe([0]*42)['cv'] is None
+    synthetic_process_warm_medians=[statistics.median([index]*40) for index in range(42)]
+    assert describe(synthetic_process_warm_medians)['n']==42
+    print('PASS synthetic strict JSON/oracle/calibration, invalid-data rejection, type7 percentiles/CV, and42 process-level warm units; no subprocess/clock measurements.')
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--prepared',type=Path)
+    parser.add_argument('--timer-prepared',type=Path)
+    parser.add_argument('--artifacts',type=Path)
+    parser.add_argument('--sessions',type=int,default=42)
+    parser.add_argument('--timeout',type=float,default=30)
+    parser.add_argument('--self-test',action='store_true')
+    args=parser.parse_args()
+    if args.self_test:
+        self_test();return 0
+    if args.prepared is None or args.timer_prepared is None or args.artifacts is None:
+        parser.error('Require --prepared, --timer-prepared and fresh --artifacts')
+    if not 30<=args.sessions<=1000 or not math.isfinite(args.timeout) or not 0<args.timeout<=300:
+        parser.error('Use30..1000 sessions and a finite timeout in (0,300]seconds')
+    return run(args)
+
+
+if __name__=='__main__':
+    try:
+        sys.exit(main())
+    except (OSError,ValueError) as failure:
+        print('Phase collector: '+str(failure),file=sys.stderr)
+        sys.exit(2)

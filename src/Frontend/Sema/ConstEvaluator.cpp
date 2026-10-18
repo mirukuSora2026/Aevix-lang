@@ -11,6 +11,7 @@
 // ========================
 
 #include "aevix/Frontend/Sema/ConstEvaluator.hpp"
+#include "aevix/Frontend/Lexer/LiteralText.hpp"
 #include "aevix/Frontend/Sema/NumericLiteral.hpp"
 
 #include <algorithm>
@@ -215,9 +216,9 @@ namespace aevix
                     result.kind = ConstantKind::Boolean; result.boolean = node.value == "true"; result.type = types_.builtin("bool");
                     return value(std::move(result));
                 }
-                if (node.value.starts_with('"') || node.value.starts_with('\''))
+                if (isStringLiteralSpelling(node.value) || node.value.starts_with('\''))
                 {
-                    result.kind = node.value.starts_with('"') ? ConstantKind::String : ConstantKind::Character;
+                    result.kind = isStringLiteralSpelling(node.value) ? ConstantKind::String : ConstantKind::Character;
                     result.type = types_.builtin(result.kind == ConstantKind::String ? "string_view" : "char");
                     result.text = node.value;
                     if (result.kind == ConstantKind::Character)

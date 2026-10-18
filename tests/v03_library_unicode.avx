@@ -1,0 +1,112 @@
+import unicode;
+import ordering;
+import encoding;
+import error { AnyError, Error };
+T success<T,E>(Result<T,E> input){switch(move input){case Result<T,E>.Ok {T value=value}:return value;break;default:Never.unreachable();break;}}
+T represent<T,U>(U input){return success(Integer.convert<T>(input));}
+unicode.UnicodeError failed<T>(Result<T,unicode.UnicodeError> input){switch(move input){case Result<T,unicode.UnicodeError>.Err {unicode.UnicodeError value=error}:return value;break;default:Never.unreachable();break;}}
+u32 lower_code(u32 code){return code>=65u32&&code<=90u32?code+32u32:code;}
+i32 ascii_cases(){
+    mut u32 raw=0u32;
+    while(raw<256u32){
+        char c=success(Char.from_u32(raw));
+        bool ascii=raw<128u32;bool upper=raw>=65u32&&raw<=90u32;bool lower=raw>=97u32&&raw<=122u32;
+        bool alpha=upper||lower;bool digit=raw>=48u32&&raw<=57u32;bool graphic=raw>=33u32&&raw<=126u32;
+        if(unicode.ascii_is_alphabetic(c)!=alpha||unicode.ascii_is_alphanumeric(c)!=(alpha||digit))return 1;
+        if(unicode.ascii_is_uppercase(c)!=upper||unicode.ascii_is_lowercase(c)!=lower||unicode.ascii_is_digit(c)!=digit)return 2;
+        if(unicode.ascii_is_binary_digit(c)!=(raw==48u32||raw==49u32)||unicode.ascii_is_octal_digit(c)!=(raw>=48u32&&raw<=55u32))return 3;
+        if(unicode.ascii_is_hex_digit(c)!=(digit||(raw>=65u32&&raw<=70u32)||(raw>=97u32&&raw<=102u32)))return 4;
+        if(unicode.ascii_is_blank(c)!=(raw==32u32||raw==9u32)||unicode.ascii_is_sign(c)!=(raw==43u32||raw==45u32))return 5;
+        if(unicode.ascii_is_control(c)!=(raw<32u32||raw==127u32)||unicode.ascii_is_whitespace(c)!=(raw==32u32||raw==9u32||raw==10u32||raw==12u32||raw==13u32))return 6;
+        if(unicode.ascii_is_graphic(c)!=graphic||unicode.ascii_is_printable(c)!=(raw>=32u32&&raw<=126u32)||unicode.ascii_is_punctuation(c)!=(graphic&&!alpha&&!digit))return 7;
+        u32 lowered=unicode.to_u32(unicode.ascii_to_lowercase(c));u32 raised=unicode.to_u32(unicode.ascii_to_uppercase(c));
+        if(lowered!=lower_code(raw)||raised!=(lower?raw-32u32:raw))return 8;
+        byte byte_value=Byte.from_u8(represent<u8>(raw));
+        if(ascii){if(unicode.to_u32(success(unicode.ascii_from_u8(represent<u8>(raw))))!=raw||unicode.to_u32(success(unicode.ascii_decode(byte_value)))!=raw||success(unicode.ascii_encode(c))!=byte_value)return 9;}
+        else {unicode.UnicodeError error=failed(unicode.ascii_encode(c));switch(error){case unicode.UnicodeError.InvalidAscii {u32 value=value}:if(value!=raw)return 10;break;default:return 11;break;}}
+        mut u32 right=0u32;
+        while(right<256u32){
+            char other=success(Char.from_u32(right));u32 a=lower_code(raw);u32 b=lower_code(right);
+            i32 order=a<b?-1:(a>b?1:0);
+            if(ordering.to_i32(unicode.ascii_compare_ignore_case(c,other))!=order||unicode.ascii_equal_ignore_case(c,other)!=(order==0))return 12;
+            right++;
+        }
+        mut u32 radix=2u32;
+        while(radix<=36u32){
+            Optional<u32> found=success(unicode.ascii_digit_value(c,radix));
+            u32 value=digit?raw-48u32:(upper?raw-65u32+10u32:(lower?raw-97u32+10u32:36u32));
+            switch(found){case Optional<u32>.Some {u32 actual=value}:if(value>=radix||actual!=value)return 13;break;case Optional<u32>.None:if(value<radix)return 14;break;}
+            radix++;
+        }
+        raw++;
+    }
+    if(unicode.ascii_is_whitespace('\u{b}'))return 15;
+    return 0;
+}
+i32 codec_errors(){
+    byte incomplete8[2]=[Byte.from_u8(226u8),Byte.from_u8(130u8)];
+    unicode.UnicodeError error8=failed(unicode.decode_utf8_at(Slice.from_array(&incomplete8),0usize));
+    switch(error8){case unicode.UnicodeError.IncompleteUtf8 {usize position=offset,usize width=expected,usize count=available}:if(position!=0usize||width!=3usize||count!=2usize)return 1;break;default:return 2;break;}
+    byte invalid8[2]=[Byte.from_u8(226u8),Byte.from_u8(65u8)];
+    unicode.UnicodeError malformed=failed(unicode.from_utf8(Slice.from_array(&invalid8)));
+    switch(malformed){case unicode.UnicodeError.Encoding {encoding.EncodingError nested=reason}:switch(nested){case encoding.EncodingError.InvalidUtf8 {usize position=offset}:if(position!=1usize)return 3;break;default:return 4;break;}break;default:return 5;break;}
+    u16 incomplete16[1]=[55296u16];
+    unicode.UnicodeError error16=failed(unicode.from_utf16(Slice.from_array(&incomplete16)));
+    switch(error16){case unicode.UnicodeError.IncompleteUtf16 {usize position=offset,usize width=expected,usize count=available}:if(position!=0usize||width!=2usize||count!=1usize)return 6;break;default:return 7;break;}
+    byte prefix[3]=[Byte.from_u8(65u8),Byte.from_u8(194u8),Byte.from_u8(162u8)];
+    Tuple<char,usize> decoded=success(unicode.decode_utf8_at(Slice.from_array(&prefix),1usize));
+    if(*Tuple.get<0>(&decoded)!='¢'||*Tuple.get<1>(&decoded)!=2usize)return 8;
+    unicode.UnicodeError trailing=failed(unicode.from_utf8(Slice.from_array(&prefix)));
+    switch(trailing){case unicode.UnicodeError.TrailingInput {usize position=offset}:if(position!=1usize)return 9;break;default:return 10;break;}
+    u16 prefix16[3]=[65u16,55357u16,56832u16];
+    Tuple<char,usize> decoded16=success(unicode.decode_utf16_at(Slice.from_array(&prefix16),1usize));
+    if(*Tuple.get<0>(&decoded16)!='😀'||*Tuple.get<1>(&decoded16)!=2usize)return 11;
+    byte empty[0]=[];
+    unicode.UnicodeError empty_error=failed(unicode.from_utf8(Slice.from_array(&empty)));
+    if(!string.equals(empty_error.code(),"unicode.empty_input"))return 12;
+    unicode.UnicodeError beyond=failed(unicode.decode_utf8_at(Slice.from_array(&prefix),4usize));
+    switch(beyond){case unicode.UnicodeError.Encoding {encoding.EncodingError nested=reason}:switch(nested){case encoding.EncodingError.OffsetOutOfBounds {usize position=offset,usize length=length}:if(position!=4usize||length!=3usize)return 13;break;default:return 14;break;}break;default:return 15;break;}
+    return 0;
+}
+i32 bounded_outputs(){
+    mut byte short8[3]=[Byte.from_u8(90u8),Byte.from_u8(90u8),Byte.from_u8(90u8)];
+    unicode.UnicodeError error=failed(unicode.encode_utf8_into('😀',Slice.from_array_mut(&mut short8)));
+    switch(error){case unicode.UnicodeError.BufferTooSmall {usize width=required,usize count=available}:if(width!=4usize||count!=3usize)return 1;break;default:return 2;break;}
+    if(Byte.to_u8(short8[0])!=90u8||Byte.to_u8(short8[1])!=90u8||Byte.to_u8(short8[2])!=90u8)return 3;
+    mut u16 short16[1]=[90u16];
+    failed(unicode.encode_utf16_into('😀',Slice.from_array_mut(&mut short16)));
+    if(short16[0]!=90u16)return 4;
+    mut byte buffer8[5]=[Byte.from_u8(90u8),Byte.from_u8(90u8),Byte.from_u8(90u8),Byte.from_u8(90u8),Byte.from_u8(90u8)];
+    if(success(unicode.encode_utf8_into('😀',Slice.from_array_mut(&mut buffer8)))!=4usize||Byte.to_u8(buffer8[0])!=240u8||Byte.to_u8(buffer8[1])!=159u8||Byte.to_u8(buffer8[2])!=152u8||Byte.to_u8(buffer8[3])!=128u8||Byte.to_u8(buffer8[4])!=90u8)return 5;
+    buffer8[0]=Byte.from_u8(1u8);
+    mut u16 buffer16[3]=[90u16,90u16,90u16];
+    if(success(unicode.encode_utf16_into('😀',Slice.from_array_mut(&mut buffer16)))!=2usize||buffer16[0]!=55357u16||buffer16[1]!=56832u16||buffer16[2]!=90u16)return 6;
+    return 0;
+}
+i32 text_errors(){
+    if(success(unicode.ascii_parse("A"))!='A'||success(unicode.parse_scalar("한"))!='한'||success(unicode.parse_uplus("U+1f600"))!='😀')return 1;
+    if(success(unicode.parse_escape("\\u{1F600}"))!='😀'||success(unicode.parse_escape("\\0"))!='\0'||success(unicode.parse_escape("한"))!='한')return 2;
+    unicode.UnicodeError syntax=failed(unicode.parse_uplus("U+00x1"));
+    switch(syntax){case unicode.UnicodeError.InvalidSyntax {usize position=offset}:if(position!=4usize)return 3;break;default:return 4;break;}
+    unicode.UnicodeError invalid=failed(unicode.parse_escape("\\u{d800}"));
+    switch(invalid){case unicode.UnicodeError.Scalar {CharError original=reason}:switch(original){case CharError.InvalidScalar {u32 raw=value}:if(raw!=55296u32)return 5;break;}break;default:return 6;break;}
+    unicode.UnicodeError radix=failed(unicode.ascii_digit_value('1',4294967295u32));
+    switch(radix){case unicode.UnicodeError.InvalidRadix {u32 value=radix}:if(value!=4294967295u32)return 7;break;default:return 8;break;}
+    return 0;
+}
+string owned_text(){return success(unicode.to_string('😀'));}
+AnyError erased_error(){return success(AnyError.pack(unicode.UnicodeError.BufferTooSmall {required=4usize,available=1usize}));}
+i32 owned_values(){
+    string text=owned_text();if(!string.equals(string.view(&text),"😀")||string.scalar_count(string.view(&text))!=1usize)return 1;
+    string escaped=success(unicode.escape_unicode('😀'));if(!string.equals(string.view(&escaped),"\\u{1f600}"))return 2;
+    string defaulted=success(unicode.escape_default('\n'));if(!string.equals(string.view(&defaulted),"\\n"))return 3;
+    string debug=success(unicode.escape_debug('한'));if(!string.equals(string.view(&debug),"\\u{d55c}"))return 4;
+    string ascii=success(unicode.ascii_escape('\0'));if(!string.equals(string.view(&ascii),"\\0"))return 5;
+    AnyError owner=erased_error();&dyn Error view=owner.as_error();
+    if(!string.equals(view.code(),"unicode.buffer_too_small")||string.byte_len(view.message())==0usize)return 6;
+    if(unicode.min_value()!='\0'||unicode.max_value()!='\u{10ffff}'||unicode.replacement()!='\u{fffd}')return 7;
+    return 0;
+}
+i32 main(){
+    if(ascii_cases()!=0)return 1;if(codec_errors()!=0)return 2;if(bounded_outputs()!=0)return 3;if(text_errors()!=0)return 4;if(owned_values()!=0)return 5;return 0;
+}

@@ -1,0 +1,8 @@
+import unicode;
+import task {Task,TaskScope,Executor,ScopeOptions};
+T success<T,E>(Result<T,E> input){switch(move input){case Result<T,E>.Ok {T value=value}:return value;break;default:Never.unreachable();break;}}
+i32 main(){
+    Executor executor=Executor.native_threads();TaskScope scope=success(Task.open_scope(&executor,ScopeOptions.defaults()));
+    Task<Result<string,unicode.UnicodeError>> child=success(Task.spawn_owned(&scope,[]()->Result<string,unicode.UnicodeError>{if(!unicode.is_alphabetic('한')||!unicode.is_uppercase('Σ'))Never.unreachable();return unicode.to_uppercase('ß');}));
+    string value=success(success(Task.join(child)));success(Task.close_scope(scope));return string.equals(string.view(&value),"SS")?0:1;
+}

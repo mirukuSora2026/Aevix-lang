@@ -11,7 +11,13 @@
 // ========================
 
 #include "aevix/Frontend/Sema/TypeChecker.hpp"
+#include "aevix/Frontend/Lexer/LiteralText.hpp"
 #include "aevix/Frontend/Sema/NumericLiteral.hpp"
+#include "aevix/Native/OsOperation.hpp"
+#include "aevix/Native/AtomicOperation.hpp"
+#include "aevix/Native/TaskOperation.hpp"
+#include "aevix/Native/RangeOperation.hpp"
+#include "aevix/Native/SyncOperation.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -34,6 +40,13 @@ namespace aevix
             for (const auto& item : node.children)
                 if (item->kind == kind) return item.get();
             return nullptr;
+        }
+
+        TypeKind syncMarker(const Node& node)
+        {
+            return child(node, "CompilerMutex") ? TypeKind::Mutex : child(node, "CompilerRwLock") ? TypeKind::RwLock
+                : child(node, "CompilerMutexGuard") ? TypeKind::MutexGuard : child(node, "CompilerReadGuard") ? TypeKind::RwLockReadGuard
+                : child(node, "CompilerWriteGuard") ? TypeKind::RwLockWriteGuard : TypeKind::Error;
         }
 
         bool flag(const Node& node, std::string_view value)
@@ -144,10 +157,42 @@ namespace aevix
                         result_.symbolTypes[symbol.id] = result_.types.nominal(symbol.id, symbol.name);
                 }
                 for (const auto& symbol : names_.symbols)
-                    if (symbol.declaration && !erased_.contains(symbol.declaration) && child(*symbol.declaration, "CompilerBox"))
+                    if (symbol.declaration && !erased_.contains(symbol.declaration))
+                    {
+                        if (child(*symbol.declaration,"CompilerTaskScope")) result_.symbolTypes[symbol.id] = result_.types.taskOwner(TypeKind::TaskScope,symbol.id,symbol.name);
+                        else if (child(*symbol.declaration,"CompilerTask"))
+                        {
+                            const Node* payload = nullptr;
+                            bool valid = symbol.module < graph_.modules.size() && graph_.modules[symbol.module]->package == "$task"
+                                && graph_.modules[symbol.module]->name == "task";
+                            for (const auto& field : symbol.declaration->children) if (field->kind == "Variable")
+                            {
+                                valid = valid && !payload && field->value == "result_type" && field->children.size() == 2
+                                    && field->children[1]->kind == "ArraySuffixes" && field->children[1]->children.empty()
+                                    && !flag(*field,"public") && !flag(*field,"persist") && !flag(*field,"mut");
+                                if (!field->children.empty()) payload = field->children[0].get();
+                            }
+                            if (!valid || !payload) error(*symbol.declaration,"The sealed Task declaration requires exactly one private application-result metadata field.");
+                            else result_.symbolTypes[symbol.id] = result_.types.taskOwner(TypeKind::Task,symbol.id,symbol.name,resolveType(*payload));
+                        }
+                    }
+                for (const auto& symbol : names_.symbols)
+                    if (symbol.declaration && !erased_.contains(symbol.declaration)
+                        && (child(*symbol.declaration, "CompilerCancellationSource") || child(*symbol.declaration, "CompilerCancellationToken")))
+                        result_.symbolTypes[symbol.id] = result_.types.cancellation(symbol.id, symbol.name, child(*symbol.declaration, "CompilerCancellationToken") != nullptr);
+                for (const auto& symbol : names_.symbols)
+                    if (symbol.declaration && !erased_.contains(symbol.declaration) && (child(*symbol.declaration, "CompilerBox") || child(*symbol.declaration, "CompilerShared") || child(*symbol.declaration, "CompilerWeak") || child(*symbol.declaration, "CompilerAtomic")))
                         for (const auto& field : symbol.declaration->children)
                             if (field->kind == "Variable" && !field->children.empty())
-                                result_.symbolTypes[symbol.id] = result_.types.boxed(symbol.id, symbol.name, resolveType(*field->children[0]));
+                                result_.symbolTypes[symbol.id] = child(*symbol.declaration, "CompilerBox")
+                                    ? result_.types.boxed(symbol.id, symbol.name, resolveType(*field->children[0]))
+                                    : child(*symbol.declaration, "CompilerAtomic") ? result_.types.atomic(symbol.id, symbol.name, resolveType(*field->children[0]))
+                                    : result_.types.shared(symbol.id, symbol.name, resolveType(*field->children[0]), child(*symbol.declaration, "CompilerWeak") != nullptr);
+                for (const auto& symbol : names_.symbols)
+                    if (symbol.declaration && !erased_.contains(symbol.declaration) && syncMarker(*symbol.declaration) != TypeKind::Error)
+                        for (const auto& field : symbol.declaration->children)
+                            if (field->kind == "Variable" && !field->children.empty())
+                                result_.symbolTypes[symbol.id] = result_.types.sync(syncMarker(*symbol.declaration), symbol.id, symbol.name, resolveType(*field->children[0]));
                 for (const auto& symbol : names_.symbols)
                 {
                     if (!symbol.declaration || erased_.contains(symbol.declaration)) continue;
@@ -163,17 +208,19 @@ namespace aevix
                     if (declaration.kind == "Function") signature(symbol.id);
                     else if (declaration.kind == "Variable" || declaration.kind == "Parameter")
                     {
-                        if (owners_.contains(&declaration) && owners_.at(&declaration) && child(*owners_.at(&declaration), "CompilerBox")) continue;
+                        if (owners_.contains(&declaration) && owners_.at(&declaration) && (syncMarker(*owners_.at(&declaration)) != TypeKind::Error || child(*owners_.at(&declaration), "CompilerTask") || child(*owners_.at(&declaration), "CompilerTaskScope") || child(*owners_.at(&declaration), "CompilerCancellationSource") || child(*owners_.at(&declaration), "CompilerCancellationToken") || child(*owners_.at(&declaration), "CompilerBox") || child(*owners_.at(&declaration), "CompilerShared") || child(*owners_.at(&declaration), "CompilerWeak") || child(*owners_.at(&declaration), "CompilerAtomic"))) continue;
                         if (!declaration.children.empty() && declaration.children[0]->kind != "InferredType")
                             result_.symbolTypes[symbol.id] = declaredType(declaration);
                     }
                 }
                 registerEnums();
+                registerDropMethods();
                 registerCarriers();
                 for (const auto& module : graph_.modules)
                     for (const auto& declaration : module->ast->children)
                         checkDeclaration(*declaration);
                 validateParallelWorkers();
+                validateTaskGlobals();
                 if (diagnostics_.size() == initialErrors_)
                 {
                     TypeLayout layout(result_.types, names_, result_.symbolTypes);
@@ -208,6 +255,8 @@ namespace aevix
                     }
                     std::sort(information.targets.begin(), information.targets.end());
                     information.targets.erase(std::unique(information.targets.begin(), information.targets.end()), information.targets.end());
+                    if (std::any_of(information.targets.begin(), information.targets.end(), [&](SymbolId id) { return dropMethod(id); }))
+                        error(*call, "Drop cleanup methods cannot be called explicitly through dyn interfaces.");
                 }
                 result_.succeeded = diagnostics_.size() == initialErrors_;
                 return std::move(result_);
@@ -309,6 +358,20 @@ namespace aevix
                 return {};
             }
 
+            bool builtinMember(const Node& callee, std::string_view expected) const
+            {
+                if (callee.kind != "Member" || callee.children.size() != 1
+                    || callee.children[0]->kind != "Name" || callee.children[0]->value != expected) return false;
+                // 전체 호출 경로가 사용자 함수면 같은 철자의 내장 소유자를 무시한다.
+                // An exact user-function binding takes precedence over an identically spelled builtin owner.
+                if (!references(callee).empty()) return false;
+                const auto ids = references(*callee.children[0]);
+                if (ids.size() != 1 || ids[0] >= names_.symbols.size()) return false;
+                const auto& symbol = names_.symbols[ids[0]];
+                return !symbol.declaration && symbol.module == InvalidModuleId && symbol.name == expected
+                    && (symbol.kind == SymbolKind::Type || symbol.kind == SymbolKind::Intrinsic);
+            }
+
             ConstEvaluation evaluate(const Node& node, TypeId expected = InvalidTypeId)
             {
                 return ConstEvaluator(names_, result_.types, result_.nodeTypes, result_.symbolTypes).evaluate(node, expected);
@@ -385,6 +448,12 @@ namespace aevix
                 {
                     if (node.children.size() != 1) return unsupported(node, "malformed dynamic interface");
                     const auto ids = references(*node.children[0]);
+                    if (ids.size() == 1 && ids[0] < names_.symbols.size()
+                        && !names_.symbols[ids[0]].declaration && names_.symbols[ids[0]].name == "Drop")
+                    {
+                        error(node, "Drop is a lifecycle marker and cannot form dyn Drop or Box<dyn Drop>.");
+                        return remember(node, result_.types.error());
+                    }
                     if (ids.size() == 1 && ids[0] < names_.symbols.size() && names_.symbols[ids[0]].declaration
                         && names_.symbols[ids[0]].declaration->kind == "Interface")
                         return remember(node, result_.types.dynamic(ids[0], names_.symbols[ids[0]].name));
@@ -508,7 +577,7 @@ namespace aevix
                     unsupported(node, "generic struct declarations");
                 if (const auto* interfaces = child(node, "Implements"))
                     for (const auto& type : interfaces->children)
-                        if ((type->value != "Copy" || !type->children.empty())
+                        if (((type->value != "Copy" && type->value != "Drop") || !type->children.empty())
                             && !child(node, "CompilerInterfacesValidated")) unsupported(*type, "unvalidated interface implementation");
                 if (child(node, "Constraint")) unsupported(node, "generic constraints");
                 for (const auto& member : node.children)
@@ -558,6 +627,75 @@ namespace aevix
                 return signatures_.at(id);
             }
 
+            bool implementsDrop(const Node& owner) const
+            {
+                const auto* implemented = child(owner, "Implements");
+                return implemented && std::any_of(implemented->children.begin(), implemented->children.end(),
+                    [](const auto& marker) { return marker->value == "Drop"; });
+            }
+
+            bool dropMethod(SymbolId id) const
+            {
+                if (id >= names_.symbols.size()) return false;
+                const auto* method = names_.symbols[id].declaration;
+                if (!method || method->kind != "Function" || method->value != "drop") return false;
+                const auto owner = owners_.find(method);
+                return owner != owners_.end() && owner->second && implementsDrop(*owner->second);
+            }
+
+            void registerDropMethods()
+            {
+                // 구체 타입의 정리 훅을 본문 검사 전에 고정하여 직접 호출도 차단한다.
+                // Register concrete cleanup hooks before checking bodies, including direct-call rejection.
+                for (const auto& owner : names_.symbols)
+                {
+                    if (!owner.declaration || erased_.contains(owner.declaration)
+                        || (owner.declaration->kind != "Struct" && owner.declaration->kind != "Enum")
+                        || !implementsDrop(*owner.declaration)) continue;
+                    const auto& declaration = *owner.declaration;
+                    const auto ownerType = symbolType(owner.id);
+                    const auto* implemented = child(declaration, "Implements");
+                    std::size_t markers = 0;
+                    for (const auto& marker : implemented->children)
+                    {
+                        if (marker->value == "Copy") error(declaration, "A type cannot implement both Copy and Drop.");
+                        if (marker->value == "Drop")
+                        {
+                            ++markers;
+                            if (!marker->children.empty()) error(*marker, "Drop is a lifecycle marker without type arguments.");
+                        }
+                    }
+                    if (markers != 1) error(declaration, "A type must list the Drop lifecycle marker exactly once.");
+                    std::vector<SymbolId> methods;
+                    for (const auto& member : declaration.children)
+                        if (member->kind == "Function" && member->value == "drop") methods.push_back(declarationId(*member));
+                    if (methods.size() != 1)
+                    {
+                        error(declaration, "Drop requires exactly one public void drop(&mut Self self) method.");
+                        continue;
+                    }
+                    const auto id = methods[0];
+                    const auto function = signature(id);
+                    const auto& method = *function.node;
+                    bool valid = function.supported && flag(method, "public") && !flag(method, "private")
+                        && !flag(method, "override") && !flag(method, "mut") && !flag(method, "const")
+                        && !flag(method, "persist") && !flag(method, "extern") && !child(method, "Constraint")
+                        && child(method, "Block") && function.result == result_.types.builtin("void")
+                        && !function.variadic && function.parameters.size() == 1
+                        && function.declarations.size() == 1;
+                    if (const auto* generics = child(method, "GenericParameters"); generics && !generics->children.empty()) valid = false;
+                    if (valid)
+                    {
+                        const auto& self = *function.declarations[0];
+                        valid = self.kind == "Parameter" && self.value == "self"
+                            && !child(self, "Default") && !child(self, "ArraySuffixes") && !child(self, "Modifier")
+                            && function.parameters[0] == result_.types.reference(ownerType, true);
+                    }
+                    if (!valid) error(method, "Drop requires the exact public void drop(&mut Self self) contract without generic, variadic, default, or extra parameters.");
+                    else result_.dropMethods[ownerType] = id;
+                }
+            }
+
             bool fitsInteger(const Node& node, TypeId type, bool negative = false) const
             {
                 const auto* literal = numericLiteral(node);
@@ -602,7 +740,7 @@ namespace aevix
             TypeId literal(const Node& node, TypeId expected, bool negative = false)
             {
                 if (node.value == "true" || node.value == "false") return remember(node, result_.types.builtin("bool"));
-                if (node.value.starts_with('"')) return remember(node, result_.types.builtin("string_view"));
+                if (isStringLiteralSpelling(node.value)) return remember(node, result_.types.builtin("string_view"));
                 if (node.value.starts_with('\'')) return remember(node, result_.types.builtin("char"));
                 const bool floating = floatingSpelling(node.value);
                 TypeId type = floating ? result_.types.builtin("f64") : result_.types.builtin("i32");
@@ -744,6 +882,22 @@ namespace aevix
                 return false;
             }
 
+            bool readOnlyProjection(const Node& node)
+            {
+                // 읽기 대여를 거쳐 얻은 수정 참조는 다시 쓰기 권한을 부여하지 않는다.
+                // A mutable reference reached through a shared loan cannot restore write authority.
+                if (node.kind == "Group" && !node.children.empty()) return readOnlyProjection(*node.children[0]);
+                if ((node.kind == "Prefix" && node.value == "*") || node.kind == "Member" || node.kind == "Index")
+                {
+                    if (node.children.empty()) return false;
+                    const auto& base = *node.children[0];
+                    const auto& type = result_.types.get(expression(base));
+                    if ((type.kind == TypeKind::Reference || type.kind == TypeKind::Slice) && !type.isMutable) return true;
+                    return readOnlyProjection(base);
+                }
+                return false;
+            }
+
             bool writable(const Node& node)
             {
                 if (node.kind == "Group") return writable(*node.children[0]);
@@ -751,7 +905,8 @@ namespace aevix
                 {
                     const auto type = expression(*node.children[0]);
                     const auto& reference = result_.types.get(type);
-                    return reference.kind == TypeKind::Reference && reference.isMutable;
+                    return reference.kind == TypeKind::Reference && reference.isMutable
+                        && !readOnlyProjection(*node.children[0]);
                 }
                 if (node.kind == "Member" || node.kind == "Index")
                 {
@@ -764,8 +919,8 @@ namespace aevix
                     if (node.children.empty()) return false;
                     const auto type = expression(*node.children[0]);
                     const auto& reference = result_.types.get(type);
-                    if (reference.kind == TypeKind::Slice) return reference.isMutable;
-                    if (reference.kind == TypeKind::Reference) return reference.isMutable;
+                    if (reference.kind == TypeKind::Slice) return reference.isMutable && !readOnlyProjection(*node.children[0]);
+                    if (reference.kind == TypeKind::Reference) return reference.isMutable && !readOnlyProjection(*node.children[0]);
                     return writable(*node.children[0]);
                 }
                 const auto ids = references(node);
@@ -823,6 +978,11 @@ namespace aevix
                 const auto ids = references(node);
                 if (!ids.empty())
                 {
+                    if (std::any_of(ids.begin(), ids.end(), [&](SymbolId id) { return dropMethod(id); }))
+                    {
+                        error(node, "Drop cleanup methods cannot be referenced or called explicitly.");
+                        return remember(node, result_.types.error());
+                    }
                     if (ids.size() > 1)
                     {
                         error(node, "An overloaded function needs a call to select a signature.");
@@ -914,7 +1074,7 @@ namespace aevix
             bool copyType(TypeId type, std::unordered_set<TypeId>& visiting)
             {
                 const auto& item = result_.types.get(type);
-                if (item.kind == TypeKind::String || item.kind == TypeKind::Tuple || item.kind == TypeKind::Array || item.kind == TypeKind::Vector || item.kind == TypeKind::Box || item.kind == TypeKind::Void) return false;
+                if (taskOwner(item.kind) || cancellationOwner(item.kind) || syncOwner(item.kind) || syncGuard(item.kind) || item.kind == TypeKind::String || item.kind == TypeKind::Tuple || item.kind == TypeKind::Array || item.kind == TypeKind::Vector || item.kind == TypeKind::Box || item.kind == TypeKind::Shared || item.kind == TypeKind::Weak || item.kind == TypeKind::Atomic || item.kind == TypeKind::Void) return false;
                 if (item.kind == TypeKind::Reference || item.kind == TypeKind::Slice) return !item.isMutable;
                 if (item.kind != TypeKind::Nominal) return item.kind != TypeKind::Error;
                 const auto* declaration = nominalDeclaration(type);
@@ -922,6 +1082,7 @@ namespace aevix
                 if (!implemented || !visiting.insert(type).second) return false;
                 bool marker = false;
                 for (const auto& interface : implemented->children) marker = marker || interface->value == "Copy";
+                if (implementsDrop(*declaration)) marker = false;
                 if (marker)
                     for (const auto& field : declaration->children)
                     {
@@ -974,6 +1135,83 @@ namespace aevix
                 return remember(declaration, type);
             }
 
+            const CancellationOperationInfo* cancellationBinding(SymbolId id) const
+            {
+                if (id >= names_.symbols.size()) return nullptr;
+                const auto& symbol = names_.symbols[id];
+                const auto* marker = symbol.declaration ? child(*symbol.declaration, "CompilerCancellation") : nullptr;
+                if (!marker || symbol.module >= graph_.modules.size() || graph_.modules[symbol.module]->package != "$task") return nullptr;
+                return cancellationOperation(marker->value);
+            }
+            bool cancellationSignature(const Signature& signature, const CancellationOperationInfo& operation)
+            {
+                if (signature.variadic || signature.parameters.size() != operation.operands) return false;
+                if (operation.operands)
+                {
+                    const auto& input = result_.types.get(signature.parameters[0]);
+                    if (input.kind != TypeKind::Reference || input.isMutable || result_.types.get(input.element).kind != operation.input) return false;
+                }
+                auto output = signature.result;
+                if (operation.fallible)
+                {
+                    const auto carrier = result_.carriers.find(output);
+                    if (carrier == result_.carriers.end() || carrier->second.optional || !standardNominal(carrier->second.error,"CancellationError","$task")) return false;
+                    output = carrier->second.value;
+                }
+                const auto kind = result_.types.get(output).kind;
+                return operation.result == CancellationResult::Source ? kind == TypeKind::CancellationSource
+                    : operation.result == CancellationResult::Token ? kind == TypeKind::CancellationToken
+                    : operation.result == CancellationResult::Boolean ? kind == TypeKind::Bool
+                    : standardNominal(output,"CancelRequest","$task");
+            }
+
+            const OsOperation* osBinding(SymbolId id) const
+            {
+                if (id >= names_.symbols.size()) return nullptr;
+                const auto& symbol = names_.symbols[id];
+                const auto* marker = symbol.declaration ? child(*symbol.declaration, "CompilerOs") : nullptr;
+                if (!marker || symbol.module >= graph_.modules.size()) return nullptr;
+                const auto* operation = osOperation(marker->value);
+                return operation && graph_.modules[symbol.module]->package == "$" + std::string(operation->module)
+                    ? operation : nullptr;
+            }
+            TypeId osPayloadType(const OsOperation& operation)
+            {
+                if (operation.tokenResult) return result_.types.builtin("u64");
+                switch (operation.payload)
+                {
+                    case OsResultKind::Progress: return result_.types.builtin("usize");
+                    case OsResultKind::Text: return result_.types.builtin("string");
+                    case OsResultKind::SignedTime: return result_.types.builtin("i64");
+                    case OsResultKind::Exit: return result_.types.tuple({result_.types.builtin("i32"), result_.types.builtin("i32")});
+                    case OsResultKind::Metadata: return result_.types.tuple({result_.types.builtin("usize"),
+                        result_.types.builtin("i64"), result_.types.builtin("u32"), result_.types.builtin("u32")});
+                }
+                return result_.types.error();
+            }
+            bool osValueType(TypeId id, OsValueKind expected) const
+            {
+                const auto& type = result_.types.get(id);
+                switch (expected)
+                {
+                    case OsValueKind::U64: return id == result_.types.builtin("u64");
+                    case OsValueKind::U32: return id == result_.types.builtin("u32");
+                    case OsValueKind::I64: return id == result_.types.builtin("i64");
+                    case OsValueKind::Usize: return id == result_.types.builtin("usize");
+                    case OsValueKind::Text: return type.kind == TypeKind::StringView;
+                    case OsValueKind::Arguments: return type.kind == TypeKind::Slice && !type.isMutable
+                        && type.element == result_.types.builtin("string_view");
+                    case OsValueKind::Bytes: return type.kind == TypeKind::Slice && !type.isMutable
+                        && type.element == result_.types.builtin("byte");
+                    case OsValueKind::MutableBytesLoan:
+                    {
+                        const auto& view = result_.types.get(type.element);
+                        return type.kind == TypeKind::Reference && type.isMutable && view.kind == TypeKind::Slice
+                            && view.isMutable && view.element == result_.types.builtin("byte");
+                    }
+                }
+                return false;
+            }
             TypeId call(const Node& node)
             {
                 const auto& callee = *node.children[0];
@@ -986,6 +1224,11 @@ namespace aevix
                     receiver = callee.children[0].get();
                     receiverType = expression(*receiver);
                     candidates = members(receiverType, callee.value);
+                }
+                if (std::any_of(candidates.begin(), candidates.end(), [&](SymbolId id) { return dropMethod(id); }))
+                {
+                    error(node, "Drop cleanup methods cannot be called explicitly.");
+                    return remember(node, result_.types.error());
                 }
                 const auto receiverBase = result_.types.get(receiverType).kind == TypeKind::Reference ? result_.types.get(receiverType).element : receiverType;
                 const bool boxReceiver = result_.types.get(receiverBase).kind == TypeKind::Box;
@@ -1017,7 +1260,7 @@ namespace aevix
                 {
                     if (candidate >= names_.symbols.size()) continue;
                     const auto* declaration = names_.symbols[candidate].declaration;
-                    if (declaration && erased_.contains(declaration) && !dynamicCall) continue;
+                    if (declaration && erased_.contains(declaration) && !dynamicCall && !osBinding(candidate) && !cancellationBinding(candidate)) continue;
                     if (!declaration || declaration->kind != "Function") continue;
                     const auto function = signature(candidate);
                     if (!function.supported) continue;
@@ -1038,7 +1281,7 @@ namespace aevix
                             auto base = actual.kind == TypeKind::Reference ? actual.element : receiverType;
                             if (result_.types.get(base).kind == TypeKind::Box) base = result_.types.get(base).element;
                             accepts = base == target.element && (!target.isMutable
-                                || (actual.kind == TypeKind::Reference ? actual.isMutable : writable(*receiver)));
+                                || (actual.kind == TypeKind::Reference ? actual.isMutable && !readOnlyProjection(*receiver) : writable(*receiver)));
                             if (actual.kind != TypeKind::Reference) accepts = accepts && lvalue(*receiver);
                         }
                         if (!accepts) continue;
@@ -1100,6 +1343,9 @@ namespace aevix
                     const auto wanted = function.variadic && slot + 1 == function.parameters.size()
                         ? result_.types.get(function.parameters[slot]).element : function.parameters[slot];
                     expression(value, wanted);
+                    const auto& parameterType = result_.types.get(wanted);
+                    if (parameterType.kind == TypeKind::Reference && parameterType.isMutable && readOnlyProjection(value))
+                        error(value, "Cannot reborrow a mutable reference through a read-only projection.");
                     remember(*node.children[index], wanted);
                 }
                 if (dynamicCall)
@@ -1110,6 +1356,25 @@ namespace aevix
                     result_.dynCalls[&node] = {interfaceType, static_cast<std::size_t>(found - methods.begin()), {}};
                 }
                 result_.calls[&node] = best->symbol;
+                if (const auto* operation = cancellationBinding(best->symbol))
+                {
+                    if (!cancellationSignature(function, *operation)) error(node, "Trusted cancellation operation differs from its closed owner/result signature.");
+                    else result_.valueIntrinsics[&node] = "cancel." + std::string(operation->name);
+                }
+                if (const auto* operation = osBinding(best->symbol))
+                {
+                    bool validSignature = !function.variadic && function.parameters.size() == operation->parameterCount;
+                    for (std::size_t index = 0; validSignature && index < function.parameters.size(); ++index)
+                        validSignature = osValueType(function.parameters[index], operation->parameters[index]);
+                    const auto& returned = result_.types.get(function.result);
+                    if (operation->unitResult) validSignature = validSignature && returned.kind == TypeKind::Unit;
+                    else validSignature = validSignature && returned.kind == TypeKind::Tuple
+                        && returned.parameters == std::vector<TypeId>{result_.types.builtin("i32"),
+                            osPayloadType(*operation),
+                            result_.types.builtin("i32"), result_.types.builtin("i32")};
+                    if (!validSignature) error(node, "Trusted OS operation differs from its closed native signature.");
+                    else result_.valueIntrinsics[&node] = "os." + std::string(operation->name);
+                }
                 if (function.variadic)
                 {
                     const auto count = std::count(best->binding.begin(), best->binding.end(), function.parameters.size() - 1);
@@ -1204,7 +1469,8 @@ namespace aevix
                                     const auto& bound = result_.types.get(bindingType);
                                     const bool explicitBorrow = fieldNode->value.starts_with("&");
                                     const bool explicitMutable = fieldNode->value.starts_with("&mut ");
-                                    if (bound.kind == TypeKind::Reference)
+                                    const bool borrowedBinding = bound.kind == TypeKind::Reference && (explicitBorrow || bindingType != fieldType);
+                                    if (borrowedBinding)
                                     {
                                         require(fieldType, bound.element, *binding, "Borrowed payload binding");
                                         if (bound.isMutable && !writable) error(*binding, "A mutable payload binding requires switch (&mut value).");
@@ -1221,7 +1487,7 @@ namespace aevix
                                     }
                                     result_.symbolTypes[declarationId(*binding)] = bindingType;
                                     remember(*binding, bindingType);
-                                    result_.enumBindings[binding.get()] = {ids[0], fieldIds[0], consuming, writable};
+                                    result_.enumBindings[binding.get()] = {ids[0], fieldIds[0], consuming, writable, borrowedBinding};
                                 }
                         }
                     }
@@ -1247,6 +1513,10 @@ namespace aevix
                 if (declaration && declaration->kind == "Variant")
                     return enumInitializer(node, ids[0]);
                 if (!declaration || declaration->kind != "Struct") return unsupported(node, "non-struct named initializers");
+                if (child(*declaration,"CompilerTask") || child(*declaration,"CompilerTaskScope") || child(*declaration,"CompilerTaskId") || child(*declaration, "CompilerCancellationSource") || child(*declaration, "CompilerCancellationToken"))
+                { error(node, "Compiler-owned Task, Scope, diagnostic, and cancellation identities cannot be constructed with field initializers."); return remember(node, result_.types.error()); }
+                if (syncMarker(*declaration) != TypeKind::Error)
+                { error(node, "Compiler-owned Sync state and guards cannot be constructed with field initializers."); return remember(node, result_.types.error()); }
                 if (const auto* generics = child(*declaration, "GenericParameters"); generics && !generics->children.empty())
                     return unsupported(node, "generic struct initialization");
                 const auto type = result_.types.nominal(ids[0], declaration->value);
@@ -1377,6 +1647,27 @@ namespace aevix
                 if (description.kind == TypeKind::Reference) return parallelScalar(description.element);
                 return false;
             }
+            bool containsDrop(TypeId type, std::unordered_set<TypeId>& visiting)
+            {
+                if (result_.dropMethods.contains(type)) return true;
+                if (!visiting.insert(type).second) return false;
+                const auto& value = result_.types.get(type);
+                if (value.kind == TypeKind::Array || value.kind == TypeKind::Vector || value.kind == TypeKind::Box
+                    || value.kind == TypeKind::Range || value.kind == TypeKind::Reference || value.kind == TypeKind::Slice)
+                    return containsDrop(value.element, visiting);
+                if (value.kind == TypeKind::Tuple)
+                    for (const auto element : value.parameters) if (containsDrop(element, visiting)) return true;
+                if (value.kind == TypeKind::Nominal)
+                    if (const auto* owner = nominalDeclaration(type))
+                        for (const auto& field : owner->children)
+                        {
+                            if (field->kind == "Variable" && containsDrop(symbolType(declarationId(*field)), visiting)) return true;
+                            if (field->kind == "Variant")
+                                for (const auto& payload : field->children)
+                                    if (payload->kind == "Variable" && containsDrop(symbolType(declarationId(*payload)), visiting)) return true;
+                        }
+                return false;
+            }
             void validateParallelWorkers()
             {
                 std::unordered_set<SymbolId> visited;
@@ -1408,6 +1699,12 @@ namespace aevix
                     collect(*declaration);
                     std::function<void(const Node&)> inspect = [&](const Node& node)
                     {
+                        if (const auto type = result_.nodeTypes.find(&node); type != result_.nodeTypes.end())
+                        {
+                            std::unordered_set<TypeId> visiting;
+                            if (containsDrop(type->second, visiting))
+                                error(node, "Parallel workers cannot create or use values with custom Drop cleanup in the current CPU parallel profile.");
+                        }
                         if (node.kind == "Name" || node.kind == "Member")
                             for (const auto id : references(node))
                                 if (id < names_.symbols.size() && names_.symbols[id].kind == SymbolKind::Value
@@ -1432,6 +1729,16 @@ namespace aevix
                 return input.kind == TypeKind::StringView || (input.kind == TypeKind::Reference
                     && (result_.types.get(input.element).kind == TypeKind::String || result_.types.get(input.element).kind == TypeKind::StringView));
             }
+            // AEVIX_API_LIFECYCLE_BEGIN:array
+            /*
+             * 고정 배열을 읽기 대여하여 Copy 원소를 새 인라인 배열에 복사한다.
+             * Borrow a fixed-size array and copy its Copy elements into a new inline array; arrays remain move-only.
+             * @api Array.from_copy
+             * @since 0.3
+             * @deprecated_at none
+             * @removed_at none
+             */
+            // AEVIX_API_LIFECYCLE_END:array
             std::optional<TypeId> valueIntrinsic(const Node& node, TypeId expected)
             {
                 if (node.children.empty()) return std::nullopt;
@@ -1440,9 +1747,8 @@ namespace aevix
                 if (callee->kind == "GenericName") { arguments = child(*callee, "TypeArguments"); callee = callee->children[0].get(); }
                 if (callee->kind != "Member" || callee->children.size() != 1 || callee->children[0]->kind != "Name") return std::nullopt;
                 const auto& owner = *callee->children[0];
-                const auto ids = references(owner);
-                if (ids.size() != 1 || ids[0] >= names_.symbols.size() || names_.symbols[ids[0]].declaration) return std::nullopt;
-                if (owner.value != "Tuple" && owner.value != "string" && owner.value != "Slice" && owner.value != "Byte") return std::nullopt;
+                if (!builtinMember(*callee, owner.value)) return std::nullopt;
+                if (owner.value != "Tuple" && owner.value != "Array" && owner.value != "string" && owner.value != "Slice" && owner.value != "Byte") return std::nullopt;
                 const auto& method = callee->value;
                 const auto argument = [&](std::size_t index, TypeId context = InvalidTypeId)
                 {
@@ -1452,11 +1758,45 @@ namespace aevix
                 };
                 const auto done = [&](TypeId type, std::string operation)
                 { result_.valueIntrinsics[&node] = std::move(operation); return type; };
+                if (owner.value == "Array")
+                {
+                    if (method != "from_copy") return std::nullopt;
+                    if (arguments || node.children.size() != 2)
+                    { error(node, "Array.from_copy requires one explicit array borrow and no type arguments."); return result_.types.error(); }
+                    if (!node.children[1]->value.empty())
+                        error(node, "Array.from_copy requires one positional array borrow.");
+                    const auto& reference = result_.types.get(argument(1));
+                    const auto& array = result_.types.get(reference.element);
+                    if (reference.kind != TypeKind::Reference || array.kind != TypeKind::Array)
+                    { error(node, "Array.from_copy requires a borrowed fixed array."); return result_.types.error(); }
+                    std::unordered_set<TypeId> visiting;
+                    if (!copyType(array.element, visiting))
+                        error(node, "Array.from_copy requires its element type to implement Copy.");
+                    // 배열 자체는 이동 타입으로 유지하고 명시적인 원소 복사만 허용한다.
+                    // Keep arrays move-only while permitting this explicit element-copy operation.
+                    return done(reference.element, "array.copy");
+                }
+                /*
+                 * Preserve all eight bits while constructing the distinct byte type from u8.
+                 * @api Byte.from_u8
+                 * @since 0.2
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Return the exact unsigned octet without allocation or numeric reinterpretation.
+                 * @api Byte.to_u8
+                 * @since 0.2
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
                 if (owner.value == "Byte")
                 {
                     if (method != "from_u8" && method != "to_u8") return std::nullopt;
                     if (arguments || node.children.size() != 2)
                     { error(node, "Byte conversion requires one value and no type arguments."); return result_.types.error(); }
+                    if (!node.children[1]->value.empty() && node.children[1]->value != "value")
+                    { error(node, "Unknown Byte conversion argument name; use value."); return result_.types.error(); }
                     const auto input = result_.types.builtin(method == "from_u8" ? "u8" : "byte");
                     require(argument(1, input), input, node, "Byte conversion");
                     return done(result_.types.builtin(method == "from_u8" ? "byte" : "u8"), "byte." + method);
@@ -1547,6 +1887,65 @@ namespace aevix
                 const auto result = resolveType(*node.children[0]);
                 const auto carrier = result_.carriers.find(result);
                 if (carrier == result_.carriers.end()) { error(node, "Missing text Result specialization."); return result_.types.error(); }
+                if (node.value.starts_with("system."))
+                {
+                    const auto method = node.value.substr(7);
+                    if (method == "input")
+                    {
+                        const auto optional = result_.carriers.find(carrier->second.value);
+                        if (node.children.size() != 1 || optional == result_.carriers.end() || !optional->second.optional)
+                            error(node, "system.input requires a Result<Optional<T>, ReadError> carrier and no arguments.");
+                    }
+                    else for (std::size_t index = 1; index < node.children.size(); ++index)
+                    {
+                        const auto& part = *node.children[index];
+                        const auto& source = part.kind == "CompilerFormatValue" || part.kind == "CompilerSystemArgument" ? *part.children[0] : part;
+                        const auto actual = expression(source);
+                        const auto& type = result_.types.get(actual);
+                        const bool text = textInput(actual) || type.kind == TypeKind::String;
+                        if (method == "log" && part.value == "level")
+                        {
+                            bool level = false;
+                            for (const auto& symbol : names_.symbols)
+                                if (symbol.declaration && symbol.declaration->kind == "Enum" && symbol.name == "LogLevel"
+                                    && symbol.module < graph_.modules.size() && graph_.modules[symbol.module]->package == "$system"
+                                    && symbolType(symbol.id) == actual) level = true;
+                            if (!level) error(source, "system.log requires a system.LogLevel value.");
+                            continue;
+                        }
+                        if (method == "log" && part.value == "code" && !text)
+                            error(source, "system.log code must be text.");
+                        if (!(text || type.kind == TypeKind::Integer || type.kind == TypeKind::Bool || type.kind == TypeKind::Char
+                            || type.kind == TypeKind::Byte || (type.kind == TypeKind::Float && (type.bits == 32 || type.bits == 64))))
+                            error(source, "system output supports text and scalar integer, f32/f64, bool, char, or byte values.");
+                        if (type.kind == TypeKind::String) result_.systemBorrows[&source] = result_.types.reference(actual, false);
+                        if (part.kind == "CompilerFormatValue")
+                        {
+                            const auto spec = part.value;
+                            const bool matches = spec == "s" ? text : spec == "d" ? type.kind == TypeKind::Integer && type.isSigned
+                                : spec == "u" ? type.kind == TypeKind::Integer && !type.isSigned
+                                : spec == "f" || spec == "g" ? type.kind == TypeKind::Float && (type.bits == 32 || type.bits == 64)
+                                : spec == "c" ? type.kind == TypeKind::Char : spec == "b" && type.kind == TypeKind::Bool;
+                            if (!matches) error(source, "system.printf argument type does not match %" + spec + ".");
+                            remember(part, actual);
+                        }
+                        if (part.kind == "CompilerSystemArgument") remember(part, actual);
+                    }
+                    result_.valueIntrinsics[&node] = node.value;
+                    return remember(node, result);
+                }
+                if (node.value == "parse")
+                {
+                    if (node.children.size() != 2) { error(node, "Type.parse requires one text argument."); return result_.types.error(); }
+                    const auto input = expression(*node.children[1]);
+                    if (!textInput(input)) error(node, "Type.parse requires string_view or an explicit string borrow.");
+                    const auto& target = result_.types.get(carrier->second.value);
+                    if (!(target.kind == TypeKind::Integer || target.kind == TypeKind::Bool || target.kind == TypeKind::Char
+                        || target.kind == TypeKind::Byte || (target.kind == TypeKind::Float && (target.bits == 32 || target.bits == 64))))
+                        error(node, "Type.parse has an unsupported scalar destination.");
+                    result_.valueIntrinsics[&node] = "text.parse";
+                    return remember(node, result);
+                }
                 const bool mutation = node.value == "append" || node.value == "push_char";
                 const auto expectedCount = node.value == "slice_bytes" ? 4u : mutation ? 3u : 2u;
                 if (node.children.size() != expectedCount) { error(node, "Incorrect argument count for string." + node.value + "."); return result_.types.error(); }
@@ -1577,8 +1976,7 @@ namespace aevix
                 const auto* callee = node.children.empty() ? nullptr : node.children[0].get();
                 if (!callee || callee->kind != "Member" || callee->children.size() != 1 || callee->children[0]->kind != "Name") return std::nullopt;
                 const auto& owner = *callee->children[0];
-                const auto ids = references(owner);
-                if (ids.size() != 1 || names_.symbols[ids[0]].declaration) return std::nullopt;
+                if (!builtinMember(*callee, owner.value)) return std::nullopt;
                 if (owner.value == "Slice" && callee->value == "len")
                 {
                     if (node.children.size() != 2) { error(node, "Slice.len requires one view."); return result_.types.error(); }
@@ -1626,6 +2024,224 @@ namespace aevix
                 return result_.types.range(start);
             }
 
+            // AEVIX_API_LIFECYCLE_BEGIN:simd
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.SimdMask.all
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.SimdMask.and
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.SimdMask.any
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.SimdMask.lanes
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.SimdMask.not
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.SimdMask.or
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.SimdMask.xor
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.add
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.div
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.eq
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.extract
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.from_array
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.ge
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.gt
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.lanes
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.le
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.load
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.lt
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.mul
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.ne
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.select
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.splat
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.sqrt
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.store
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.sub
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.sum
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            /*
+             * 프로필 제한이 있는 공개 SIMD 내장 연산.
+             * Public SIMD intrinsic subject to the implemented element/lane profile.
+             * @api simd.Simd.to_array
+             * @since 0.2
+             * @deprecated_at none
+             * @removed_at none
+             */
+            // AEVIX_API_LIFECYCLE_END:simd
             std::optional<TypeId> simdIntrinsic(const Node& node, TypeId expected)
             {
                 if (node.children.empty()) return std::nullopt;
@@ -1634,6 +2250,7 @@ namespace aevix
                 if (callee->kind == "GenericName" && callee->children.size() == 2)
                 { arguments = callee->children[1].get(); callee = callee->children[0].get(); }
                 if (callee->kind != "Member" || callee->children.empty()) return std::nullopt;
+                if (!references(*callee).empty()) return std::nullopt;
                 const auto namespaceIds = references(*callee->children[0]);
                 if (namespaceIds.size() != 1 || namespaceIds[0] >= names_.symbols.size()) return std::nullopt;
                 const auto* declaration = names_.symbols[namespaceIds[0]].declaration;
@@ -1756,6 +2373,299 @@ namespace aevix
                 result_.propagations[&node] = {operand, returnType_};
                 return remember(node, carrier->second.value);
             }
+            bool atomicScalar(TypeId type) const
+            {
+                const auto& item = result_.types.get(type);
+                return item.kind == TypeKind::Bool || (item.kind == TypeKind::Integer
+                    && (item.bits == 8 || item.bits == 16 || item.bits == 32 || item.bits == 64));
+            }
+            bool standardNominal(TypeId type, std::string_view name, std::string_view package) const
+            {
+                const auto& item = result_.types.get(type);
+                if (item.kind != TypeKind::Nominal || item.declaration >= names_.symbols.size()) return false;
+                const auto& symbol = names_.symbols[item.declaration];
+                return symbol.name == name && symbol.module < graph_.modules.size() && graph_.modules[symbol.module]->package == package;
+            }
+            std::optional<std::size_t> atomicOrderConstant(const Node& node, std::set<const Node*>& visiting)
+            {
+                if (!visiting.insert(&node).second) return std::nullopt;
+                if (node.kind == "Group" && !node.children.empty()) return atomicOrderConstant(*node.children[0], visiting);
+                if (const auto found = result_.enumConstructors.find(&node); found != result_.enumConstructors.end())
+                    if (const auto variant = result_.enumVariants.find(found->second); variant != result_.enumVariants.end()) return variant->second.tag;
+                const auto symbols = references(node);
+                if (symbols.size() == 1 && symbols[0] < names_.symbols.size())
+                    if (const auto* declaration = names_.symbols[symbols[0]].declaration;
+                        declaration && declaration->kind == "Variable" && !flag(*declaration, "mut") && declaration->children.size() > 1)
+                        return atomicOrderConstant(*declaration->children.back(), visiting);
+                return std::nullopt;
+            }
+            TypeId syncExpression(const Node& node)
+            {
+                const auto* operation = syncOperation(node.value);
+                if (!operation || node.children.size() != operation->operands + 2)
+                { error(node, "Invalid compiler Sync operation shape."); return remember(node, result_.types.error()); }
+                const auto output = resolveType(*node.children[0]);
+                const auto payload = resolveType(*node.children[1]); remember(*node.children[1], payload);
+                const auto kind = result_.types.get(payload).kind;
+                if (kind == TypeKind::Error || kind == TypeKind::Void || kind == TypeKind::Never || kind == TypeKind::Dynamic)
+                    error(node, "Inline lock payload requires a concrete storable value type.");
+                for (std::size_t index = 0; index < operation->operands; ++index)
+                {
+                    const auto& argument = *node.children[index + 2];
+                    const auto actual = expression(argument, operation->access == SyncAccess::None && index == 0 ? payload : InvalidTypeId);
+                    if (index == 0 && operation->access != SyncAccess::None)
+                    {
+                        auto receiver = actual;
+                        if (operation->access != SyncAccess::Value)
+                        {
+                            const auto& borrow = result_.types.get(actual);
+                            if (borrow.kind != TypeKind::Reference || (operation->access == SyncAccess::Exclusive && !borrow.isMutable))
+                                error(argument, "Sync operation requires an explicit compatible owner or guard borrow.");
+                            if (operation->access == SyncAccess::Exclusive && readOnlyProjection(argument))
+                                error(argument, "Cannot mutate a Sync guard or unique owner through a read-only projection.");
+                            receiver = borrow.element;
+                        }
+                        const auto& owning = result_.types.get(receiver);
+                        if (operation->kind == SyncKind::Poisoned)
+                        {
+                            const auto* declaration = nominalDeclaration(receiver);
+                            bool valid = owning.kind == TypeKind::Nominal && declaration && child(*declaration, "CompilerPoisoned");
+                            std::size_t fields = 0;
+                            if (declaration) for (const auto& field : declaration->children) if (field->kind == "Variable")
+                            { ++fields; valid = valid && symbolType(declarationId(*field)) == payload; }
+                            if (!valid || fields != 1) error(argument, "Poison recovery requires the sealed Poisoned<T> carrier.");
+                        }
+                        else if (owning.kind != syncTypeKind(operation->kind) || owning.element != payload)
+                            error(argument, "Sync operation receiver or payload does not match its sealed capability type.");
+                    }
+                    else if (operation->timed)
+                    { if (!standardNominal(actual, "Duration", "$time")) error(argument, "Sync timeout requires time.Duration."); }
+                    else if (index == 1)
+                    { if (!standardNominal(actual, "PoisonPolicy", "$sync")) error(argument, "Sync policy requires sync.PoisonPolicy."); }
+                    else require(actual, payload, argument, "Sync input");
+                }
+                return remember(node, output);
+            }
+            TypeId taskExpression(const Node& node)
+            {
+                const auto* operation = taskOperation(node.value);
+                const auto* invoke = child(node,"CompilerTaskInvoke");
+                if (!operation || node.children.size() != 3 + operation->operands + (operation->worker ? 1u : 0u)
+                    || static_cast<bool>(invoke) != operation->worker)
+                { error(node,"Invalid closed Task operation shape."); return remember(node,result_.types.error()); }
+                const auto output = resolveType(*node.children[0]), payload = resolveType(*node.children[1]), callable = resolveType(*node.children[2]);
+                const bool scopeAction = !operation->worker && operation->preparation == TaskPreparation::None && (operation->access == TaskAccess::None || operation->access == TaskAccess::ScopeValue || operation->access == TaskAccess::ScopeShared);
+                if ((scopeAction || operation->access == TaskAccess::CancellationShared) && payload != result_.types.builtin("unit")) error(node,"Scope and cancellation checkpoints require unit payload metadata.");
+                if (!operation->worker && callable != result_.types.builtin("unit")) error(node,"Non-worker Task operation has unexpected callable metadata.");
+                for (std::size_t i = 0; i < operation->operands; ++i)
+                {
+                    const auto& argument = *node.children[3+i];
+                    const auto actual = expression(argument, i == 1 && operation->preparation == TaskPreparation::Ready ? payload : InvalidTypeId);
+                    if (i == 0 && operation->access != TaskAccess::None)
+                    {
+                        const bool byValue = operation->access == TaskAccess::ScopeValue || operation->access == TaskAccess::TaskValue;
+                        const auto& borrow = result_.types.get(actual);
+                        const auto receiver = byValue ? actual : borrow.element;
+                        if (!byValue && (borrow.kind != TypeKind::Reference || (operation->access == TaskAccess::TaskExclusive && !borrow.isMutable)))
+                            error(argument,"Task operation requires an explicit compatible scope or task borrow.");
+                        if (operation->access == TaskAccess::TaskExclusive && readOnlyProjection(argument)) error(argument,"Cannot take a Task result through a read-only projection.");
+                        const auto& owner = result_.types.get(receiver);
+                        const bool scope = operation->access == TaskAccess::ScopeShared || operation->access == TaskAccess::ScopeValue;
+                        const bool checkpoint = operation->access == TaskAccess::CancellationShared;
+                        if (owner.kind != (checkpoint ? TypeKind::CancellationToken : scope ? TypeKind::TaskScope : TypeKind::Task) || (!scope && !checkpoint && owner.element != payload))
+                            error(argument,"Task operation owner kind or application result does not match its metadata.");
+                    }
+                    else if (operation->worker) require(actual,callable,argument,"Task work capture");
+                    else if (operation->preparation == TaskPreparation::Ready) require(actual,payload,argument,"Task ready value");
+                    else if (node.value == "scope_open")
+                    {
+                        const auto& ref = result_.types.get(actual);
+                        if (i == 0 ? ref.kind != TypeKind::Reference || !standardNominal(ref.element,"Executor","$task")
+                            : !standardNominal(actual,"ScopeOptions","$task"))
+                            error(argument,"Task.open_scope requires a borrowed task.Executor and task.ScopeOptions.");
+                    }
+                    else if (node.value == "wait_timeout" && !standardNominal(actual,"Duration","$time")) error(argument,"Task timeout requires time.Duration.");
+                }
+                if (operation->worker)
+                {
+                    const auto* declaration = nominalDeclaration(callable);
+                    const auto ids = invoke && invoke->children.size() == 1 ? references(*invoke->children[0]) : std::vector<SymbolId>{};
+                    bool valid = declaration && child(*declaration,"CompilerClosure") && ids.size() == 1 && ids[0] < names_.symbols.size();
+                    if (valid)
+                    {
+                        const auto& target = signature(ids[0]);
+                        const auto owner = owners_.find(target.node);
+                        valid = target.node && target.node->value == "__invoke" && child(*target.node,"Block")
+                            && owner != owners_.end() && owner->second == declaration && target.result == payload && target.parameters.size() == 1;
+                        if (valid)
+                        {
+                            const auto& self = result_.types.get(target.parameters[0]);
+                            valid = target.parameters[0] == callable || (self.kind == TypeKind::Reference && self.element == callable);
+                        }
+                        if (valid) result_.taskInvokes[&node] = ids[0];
+                    }
+                    if (!valid) error(node,"Owned Task work requires an exact concrete zero-argument compiler closure __invoke implementation.");
+                }
+                auto value = output;
+                const bool fallible = taskFallible(operation->result);
+                if (fallible)
+                {
+                    const auto carrier = result_.carriers.find(output);
+                    if (carrier == result_.carriers.end() || carrier->second.optional)
+                    { error(node,"Task operation requires an owned Result output."); return remember(node,result_.types.error()); }
+                    value = carrier->second.value;
+                    const auto expected = operation->result == TaskResult::Scope || operation->result == TaskResult::Spawn ? "SpawnError"
+                        : operation->result == TaskResult::Close || operation->result == TaskResult::CloseAdmission ? "ScopeError" : operation->result == TaskResult::CheckCancel ? "Cancelled" : "TaskError";
+                    if (!standardNominal(carrier->second.error,expected,expected == std::string_view("TaskError") ? "$error" : "$task")) error(node,"Task operation has the wrong canonical failure type.");
+                }
+                bool valid = true;
+                switch (operation->result)
+                {
+                    case TaskResult::Scope: valid = result_.types.get(value).kind == TypeKind::TaskScope; break;
+                    case TaskResult::Spawn: valid = result_.types.get(value).kind == TypeKind::Task && result_.types.get(value).element == payload; break;
+                    case TaskResult::Join: valid = value == payload; break;
+                    case TaskResult::TryTake: { const auto optional = result_.carriers.find(value); valid = optional != result_.carriers.end() && optional->second.optional && optional->second.value == payload; break; }
+                    case TaskResult::Discard: valid = value == result_.types.builtin("unit"); break;
+                    case TaskResult::Status: valid = standardNominal(value,"TaskStatus","$task"); break;
+                    case TaskResult::Boolean: valid = value == result_.types.builtin("bool"); break;
+                    case TaskResult::Token:
+                    {
+                        const auto& token = result_.types.get(value);
+                        valid = token.kind == TypeKind::CancellationToken && token.declaration < names_.symbols.size();
+                        if (valid)
+                        {
+                            const auto& declaration = names_.symbols[token.declaration];
+                            valid = declaration.name == "CancellationToken" && declaration.module < graph_.modules.size()
+                                && graph_.modules[declaration.module]->package == "$task" && declaration.declaration
+                                && child(*declaration.declaration,"CompilerCancellationToken");
+                        }
+                        break;
+                    }
+                    case TaskResult::Executor: valid = standardNominal(value,"ExecutorId","$task"); break;
+                    case TaskResult::Identity:
+                    {
+                        valid = standardNominal(value,"TaskId","$task");
+                        const auto* identity = valid ? nominalDeclaration(value) : nullptr;
+                        valid = valid && identity && child(*identity,"CompilerTaskId");
+                        std::size_t fields = 0, markers = 0;
+                        if (identity) for (const auto& member : identity->children) if (member->kind == "CompilerTaskId")
+                        { ++markers; valid = valid && member->value.empty() && member->children.empty(); }
+                        if (identity) for (const auto& field : identity->children) if (field->kind == "Variable")
+                        {
+                            ++fields; valid = valid && field->value == "serial" && field->children.size() == 2
+                                && field->children[0]->kind == "Type" && field->children[0]->value == "u64" && field->children[0]->children.empty()
+                                && field->children[1]->kind == "ArraySuffixes" && field->children[1]->children.empty() && !flag(*field,"public") && !flag(*field,"persist")
+                                && !flag(*field,"mut") && symbolType(declarationId(*field)) == result_.types.builtin("u64");
+                        }
+                        valid = valid && fields == 1 && markers == 1; break;
+                    }
+                    case TaskResult::CloseAdmission: valid = value == result_.types.builtin("unit"); break;
+                    case TaskResult::ActiveCount: valid = value == result_.types.builtin("usize"); break;
+                    case TaskResult::ScopeState: valid = standardNominal(value,"ScopeStatus","$task"); break;
+                    case TaskResult::Completion: case TaskResult::CheckCancel: valid = value == result_.types.builtin("unit"); break;
+                    case TaskResult::Wait: valid = standardNominal(value,"WaitStatus","$task"); break;
+                    case TaskResult::Request: valid = standardNominal(value,"TaskCancelRequest","$task"); break;
+                    case TaskResult::Close: valid = standardNominal(value,"ScopeReport","$task"); break;
+                }
+                if (!valid) error(node,"Task operation output differs from its closed application-result contract.");
+                return remember(node,output);
+            }
+            bool containsTaskStorage(TypeId type, std::unordered_set<TypeId>& seen)
+            {
+                if (!seen.insert(type).second) return false;
+                const auto& item = result_.types.get(type);
+                if (taskOwner(item.kind)) return true;
+                if (item.element != InvalidTypeId && containsTaskStorage(item.element,seen)) return true;
+                for (const auto field : item.parameters) if (containsTaskStorage(field,seen)) return true;
+                if (const auto* declaration = nominalDeclaration(type))
+                    for (const auto& field : declaration->children)
+                    {
+                        if (field->kind == "Variable" && containsTaskStorage(symbolType(declarationId(*field)),seen)) return true;
+                        if (field->kind == "Variant") for (const auto& member : field->children)
+                            if (member->kind == "Variable" && containsTaskStorage(symbolType(declarationId(*member)),seen)) return true;
+                    }
+                if (item.kind == TypeKind::Dynamic)
+                {
+                    for (const auto& [node,view] : result_.boxDynViews) { (void)node; if (view.interfaceType == type && containsTaskStorage(view.concreteType,seen)) return true; }
+                    for (const auto& [node,view] : result_.dynViews) { (void)node; if (view.interfaceType == type && containsTaskStorage(view.concreteType,seen)) return true; }
+                }
+                return false;
+            }
+            void validateTaskGlobals()
+            {
+                const auto walk = [&](const auto& self, const Node& node, bool function, bool record) -> void
+                {
+                    if (node.kind == "Variable" && (flag(node,"persist") || (!function && !record)))
+                    {
+                        // 등록된 저장 타입을 검사하며 컴파일러 제공 상수의 초기화식을 다시 실행하지 않는다.
+                        // Inspect registered storage types without rechecking compiler-provided constant initializers.
+                        const auto id = declarationId(node);
+                        const auto registered = result_.symbolTypes.find(id);
+                        const auto storage = registered != result_.symbolTypes.end() ? registered->second
+                            : !node.children.empty() && node.children[0]->kind != "InferredType" ? declaredType(node) : symbolType(id);
+                        std::unordered_set<TypeId> seen;
+                        if (containsTaskStorage(storage,seen)) error(node,"Task and TaskScope, including nested owners or views, cannot use global or persist storage in the owned-worker profile.");
+                    }
+                    const bool nestedFunction = function || node.kind == "Function";
+                    const bool nestedRecord = record || node.kind == "Struct" || node.kind == "Enum" || node.kind == "Variant";
+                    for (const auto& nested : node.children) self(self,*nested,nestedFunction,nestedRecord);
+                };
+                for (const auto& module : graph_.modules) walk(walk,*module->ast,false,false);
+            }
+            TypeId atomicExpression(const Node& node)
+            {
+                const auto* operation = atomicOperation(node.value);
+                if (!operation || node.children.size() != operation->operands + 2)
+                { error(node, "Invalid compiler Atomic operation shape."); return remember(node, result_.types.error()); }
+                const auto output = resolveType(*node.children[0]);
+                const auto scalar = resolveType(*node.children[1]); remember(*node.children[1], scalar);
+                const bool query = operation->result == AtomicResult::Boolean || operation->result == AtomicResult::Alignment;
+                if (!query && node.value != "fence" && node.value != "compiler_fence" && !atomicScalar(scalar))
+                    error(node, "Atomic supports only bool and 8/16/32/64-bit CPU integers; no implicit emulation is provided.");
+                if (operation->integerOnly && result_.types.get(scalar).kind != TypeKind::Integer)
+                    error(node, "This Atomic arithmetic operation requires an integer cell.");
+                for (std::size_t index = 0; index < operation->operands; ++index)
+                {
+                    const auto& argument = *node.children[index + 2];
+                    const bool order = static_cast<int>(index) == operation->order || static_cast<int>(index) == operation->failure;
+                    const bool cell = operation->cell && index == 0;
+                    const bool timeout = node.value == "wait_timeout" && index == 2;
+                    const auto actual = expression(argument, !order && !cell && !timeout ? scalar : InvalidTypeId);
+                    if (cell)
+                    {
+                        auto cellType = actual;
+                        if (node.value != "into_inner")
+                        {
+                            const auto& reference = result_.types.get(actual);
+                            if (reference.kind != TypeKind::Reference || (node.value == "get_mut" && !reference.isMutable))
+                                error(argument, "Atomic access requires an explicit compatible cell borrow.");
+                            if (node.value == "get_mut" && readOnlyProjection(argument)) error(argument, "Cannot exclusively access Atomic through a read-only projection.");
+                            cellType = reference.element;
+                        }
+                        const auto& owning = result_.types.get(cellType);
+                        if (owning.kind != TypeKind::Atomic || owning.element != scalar)
+                            error(argument, "Atomic cell scalar does not match the selected operation.");
+                    }
+                    else if (order)
+                    {
+                        if (!standardNominal(actual, "MemoryOrder", "$atomic")) error(argument, "Atomic order requires atomic.MemoryOrder.");
+                        std::set<const Node*> visiting;
+                        if (const auto constant = atomicOrderConstant(argument, visiting))
+                        {
+                            const bool load = node.value == "load" || node.value == "wait" || node.value == "wait_timeout" || static_cast<int>(index) == operation->failure;
+                            const bool store = node.value == "store";
+                            const bool fence = node.value == "fence" || node.value == "compiler_fence";
+                            if (*constant > 4 || (load && *constant != 0 && *constant != 1 && *constant != 4)
+                                || (store && *constant != 0 && *constant != 2 && *constant != 4) || (fence && *constant == 0))
+                                error(argument, "Known invalid MemoryOrder for this Atomic operation.");
+                        }
+                    }
+                    else if (timeout)
+                    { if (!standardNominal(actual, "Duration", "$time")) error(argument, "Atomic.wait_timeout requires time.Duration."); }
+                    else require(actual, scalar, argument, "Atomic scalar operand");
+                }
+                return remember(node, output);
+            }
             TypeId expression(const Node& node, TypeId expected = InvalidTypeId)
             {
                 // 같은 표현식의 재방문은 호출 선택과 진단을 반복하지 않지만 리터럴 문맥은 먼저 결정한다.
@@ -1765,8 +2675,177 @@ namespace aevix
                     const auto existing = result_.nodeTypes.find(&node);
                     if (existing != result_.nodeTypes.end()) return adaptDynamic(node, existing->second, expected);
                 }
+                if (node.kind == "CompilerTaskExpression") return taskExpression(node);
+                if (node.kind == "CompilerAtomicExpression") return atomicExpression(node);
+                if (node.kind == "CompilerSyncExpression") return syncExpression(node);
                 if (node.kind == "CompilerSliceExpression") return sliceExpression(node);
                 if (node.kind == "CompilerTextExpression") return textExpression(node);
+                if (node.kind == "CompilerMemoryExpression")
+                {
+                    if (node.children.size() != 3 || (node.value != "replace" && node.value != "swap"))
+                    { error(node, "Invalid compiler memory operation."); return remember(node, result_.types.error()); }
+                    const auto element = resolveType(*node.children[0]);
+                    const auto elementKind = result_.types.get(element).kind;
+                    if (elementKind == TypeKind::Error || elementKind == TypeKind::Void || elementKind == TypeKind::Never
+                        || elementKind == TypeKind::Dynamic || elementKind == TypeKind::Function)
+                        error(node, "memory operations require a concrete storable element type.");
+                    const auto reference = result_.types.reference(element, true);
+                    std::unordered_set<std::string> roles;
+                    for (std::size_t index = 1; index < node.children.size(); ++index)
+                    {
+                        const auto& argument = *node.children[index];
+                        const bool value = node.value == "replace" && argument.value == "replacement";
+                        const auto required = value ? element : reference;
+                        if (!roles.insert(argument.value).second || argument.children.size() != 1
+                            || (node.value == "replace" ? argument.value != "target" && argument.value != "replacement"
+                                : argument.value != "left" && argument.value != "right"))
+                        { error(argument, "Invalid compiler memory argument."); continue; }
+                        require(expression(*argument.children[0], required), required, argument, "memory operation argument");
+                    }
+                    return remember(node, node.value == "replace" ? element : result_.types.builtin("unit"));
+                }
+                // 반복 커서는 원본 설명자의 복사본이므로 이 조회는 원래 경계를 보존한다.
+                // Iteration uses a copied cursor, so these inspections preserve original descriptor bounds.
+                /*
+                 * Return the original start bound, including when the descriptor is empty.
+                 * @api Range.start
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Return the original end bound; inclusion is queried separately.
+                 * @api Range.end
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Return the positive unsigned same-width magnitude without encoding direction in its sign.
+                 * @api Range.step_magnitude
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Alias of step_magnitude with the same unsigned return type.
+                 * @api Range.step
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Report whether the end bound is inclusive when reached exactly.
+                 * @api Range.is_inclusive
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Report the declared direction independently of whether the range is empty.
+                 * @api Range.is_descending
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Test directional bounds and inclusion without iteration or count arithmetic.
+                 * @api Range.is_empty
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                if (node.kind == "CompilerRangeInspectExpression")
+                {
+                    const auto* operation = rangeInspectOperation(node.value);
+                    if (!operation || node.children.size() != 2)
+                    { error(node,"Invalid closed Range descriptor inspection."); return remember(node,result_.types.error()); }
+                    const auto output = resolveType(*node.children[0]);
+                    const auto input = expression(*node.children[1]);
+                    const auto& reference = result_.types.get(input);
+                    const auto& descriptor = result_.types.get(reference.element);
+                    const auto& element = result_.types.get(descriptor.element);
+                    if (reference.kind != TypeKind::Reference || descriptor.kind != TypeKind::Range || element.kind != TypeKind::Integer)
+                    { error(node,"Range inspection requires an explicit borrow of an integer Range descriptor."); return remember(node,result_.types.error()); }
+                    const auto expected = operation->result == RangeInspectResult::Element ? descriptor.element
+                        : operation->result == RangeInspectResult::Magnitude ? result_.types.builtin(element.name == "isize" || element.name == "usize" ? "usize" : "u" + std::to_string(element.bits))
+                        : result_.types.builtin("bool");
+                    require(output,expected,node,"Range inspection output");
+                    return remember(node,output);
+                }
+                // 부동소수 표현의 모든 비트를 고정 폭 부호 없는 정수로 보존한다.
+                /*
+                 * Preserve every bit of a floating representation in its fixed-width unsigned counterpart.
+                 * @api Float.to_bits
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                // 명시한 부동소수 형식으로 같은 폭의 비트를 산술·할당 없이 복원한다.
+                /*
+                 * Restore same-width bits into an explicitly selected float format without arithmetic or allocation.
+                 * @api Float.from_bits
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Convert an unsigned Unicode code point to a scalar, preserving rejected values in CharError.
+                 * Surrogates and values above U+10FFFF fail; NUL and noncharacters remain valid.
+                 * @api Char.from_u32
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                /*
+                 * Return the exact unsigned scalar value without allocation or normalization.
+                 * @api Char.to_u32
+                 * @since 0.3
+                 * @deprecated_at none
+                 * @removed_at none
+                 */
+                if (node.kind == "CompilerCharScalarExpression")
+                {
+                    if (node.children.size() != 2 || (node.value != "Char.from_u32" && node.value != "Char.to_u32"))
+                    { error(node,"Invalid closed Char scalar conversion."); return remember(node,result_.types.error()); }
+                    const bool from = node.value == "Char.from_u32";
+                    const auto output = resolveType(*node.children[0]);
+                    const auto inputType = result_.types.builtin(from ? "u32" : "char");
+                    require(expression(*node.children[1],inputType),inputType,node,"Char scalar input");
+                    if (!from) require(output,result_.types.builtin("u32"),node,"Char scalar output");
+                    else
+                    {
+                        const auto carrier = result_.carriers.find(output);
+                        bool valid = carrier != result_.carriers.end() && !carrier->second.optional
+                            && carrier->second.value == result_.types.builtin("char");
+                        if (valid)
+                        {
+                            const auto& errors = result_.types.get(carrier->second.error);
+                            valid = errors.kind == TypeKind::Nominal && errors.name == "CharError"
+                                && errors.declaration < names_.symbols.size()
+                                && names_.symbols[errors.declaration].module < graph_.modules.size()
+                                && graph_.modules[names_.symbols[errors.declaration].module]->name == "$core";
+                        }
+                        if (!valid) error(node,"Char.from_u32 requires the canonical Result<char,CharError> carrier.");
+                    }
+                    return remember(node,output);
+                }
+                if (node.kind == "CompilerFloatBitsExpression")
+                {
+                    if (node.children.size() != 2 || (node.value != "Float.to_bits" && node.value != "Float.from_bits"))
+                    { error(node,"Invalid closed floating-point bit reinterpretation."); return remember(node,result_.types.error()); }
+                    const auto output = resolveType(*node.children[0]);
+                    const auto input = expression(*node.children[1]);
+                    const bool toBits = node.value == "Float.to_bits";
+                    const auto floating = toBits ? input : output;
+                    const auto integer = toBits ? output : input;
+                    const auto& format = result_.types.get(floating);
+                    const auto counterpart = format.kind == TypeKind::Float && (format.bits == 16 || format.bits == 32 || format.bits == 64)
+                        ? result_.types.builtin("u" + std::to_string(format.bits)) : result_.types.error();
+                    if (format.kind != TypeKind::Float || counterpart == result_.types.error() || integer != counterpart)
+                        error(node,"Float bit reinterpretation requires f16/bf16 with u16, f32 with u32, or f64 with u64; no numeric conversion is performed.");
+                    return remember(node,output);
+                }
                 if (node.kind == "CompilerNumericExpression")
                 {
                     const auto result = resolveType(*node.children[0]);
@@ -1786,8 +2865,51 @@ namespace aevix
                     }
                     return remember(node, result);
                 }
+                if (node.kind == "CompilerSharedExpression")
+                {
+                    const auto output = resolveType(*node.children[0]);
+                    const bool weak = node.value.starts_with("weak.");
+                    const auto method = node.value.substr(node.value.find('.') + 1);
+                    if (weak && method == "new")
+                    { if (result_.types.get(output).kind != TypeKind::Weak) error(node, "Weak.new has an invalid payload type."); return remember(node, output); }
+                    TypeId wanted = InvalidTypeId;
+                    if (method == "new")
+                    {
+                        const auto carrier = result_.carriers.find(output);
+                        if (carrier == result_.carriers.end() || result_.types.get(carrier->second.value).kind != TypeKind::Shared)
+                        { error(node, "Shared.new requires Result<Shared<T>, InputError<T>>."); return remember(node, result_.types.error()); }
+                        wanted = result_.types.get(carrier->second.value).element;
+                        const auto kind = result_.types.get(wanted).kind;
+                        if (kind == TypeKind::Void || kind == TypeKind::Never || kind == TypeKind::Error || kind == TypeKind::Function || kind == TypeKind::Dynamic)
+                            error(node, "Shared payload requires a concrete storable value type.");
+                    }
+                    const auto input = expression(*node.children[1], wanted);
+                    if (method == "new") require(input, wanted, node, "Shared input");
+                    else
+                    {
+                        auto ownerType = input;
+                        if (method != "try_unwrap")
+                        {
+                            const auto& reference = result_.types.get(input);
+                            if (reference.kind != TypeKind::Reference || ((method == "get_mut" || method == "clear") && !reference.isMutable))
+                                error(node, "Shared/Weak access requires a compatible explicit owner borrow.");
+                            ownerType = reference.element;
+                        }
+                        if (result_.types.get(ownerType).kind != (weak ? TypeKind::Weak : TypeKind::Shared))
+                            error(node, "Shared/Weak owner kind does not match the selected operation.");
+                        if (method == "ptr_equal")
+                        {
+                            const auto other = expression(*node.children[2]);
+                            if (result_.types.get(other).kind != TypeKind::Reference || result_.types.get(other).element != ownerType)
+                                error(node, "Allocation identity requires borrows of the same Shared/Weak payload type.");
+                        }
+                    }
+                    return remember(node, output);
+                }
                 if (node.kind == "CompilerBoxExpression")
                 {
+                    if (node.value == "into_inner" && node.children.size() != 2)
+                    { error(node, "Box.into_inner requires exact result and owner metadata."); return remember(node, result_.types.error()); }
                     const auto result = resolveType(*node.children[0]);
                     TypeId expectedInput = InvalidTypeId;
                     if (node.value == "new")
@@ -1801,6 +2923,15 @@ namespace aevix
                         if (carrier == result_.carriers.end() || result_.types.get(carrier->second.value).kind != TypeKind::Box)
                             error(node, "Box.new has no valid Result<Box<T>, InputError<T>> result type.");
                         else require(input, result_.types.get(carrier->second.value).element, *node.children[1], "Box input");
+                    }
+                    else if (node.value == "into_inner")
+                    {
+                        const auto& owner = result_.types.get(input);
+                        const auto kind = result_.types.get(owner.element).kind;
+                        if (owner.kind != TypeKind::Box || result != owner.element
+                            || kind == TypeKind::Error || kind == TypeKind::Void || kind == TypeKind::Never || kind == TypeKind::Dynamic)
+                            error(node, "Box.into_inner requires a sized owned Box<T> and returns exactly T; Box<dyn> cannot be extracted.");
+                        else result_.boxExtractions[&node] = {input, owner.element};
                     }
                     else if (node.value == "into_dyn")
                     {
@@ -1833,6 +2964,11 @@ namespace aevix
                         return remember(node, result_.types.error());
                     }
                     if (ids[0] >= names_.symbols.size()) return remember(node, result_.types.error());
+                    if (dropMethod(ids[0]))
+                    {
+                        error(node, "Drop cleanup methods cannot be referenced or called explicitly.");
+                        return remember(node, result_.types.error());
+                    }
                     if (names_.symbols[ids[0]].kind == SymbolKind::Type)
                     {
                         error(node, "A type name cannot be used as a runtime value.");
@@ -1850,7 +2986,7 @@ namespace aevix
                     if (const auto intrinsic = simdIntrinsic(node, expected)) return remember(node, *intrinsic);
                     if (const auto intrinsic = parallelIntrinsic(node)) return remember(node, *intrinsic);
                     if (node.children.size() == 1 && node.children[0]->kind == "Member"
-                        && node.children[0]->value == "unreachable" && node.children[0]->children.size() == 1)
+                        && node.children[0]->value == "unreachable" && builtinMember(*node.children[0], "Never"))
                     {
                         const auto namespaceIds = references(*node.children[0]->children[0]);
                         if (namespaceIds.size() == 1 && namespaceIds[0] < names_.symbols.size())
@@ -1866,7 +3002,7 @@ namespace aevix
                     if (const auto intrinsic = valueIntrinsic(node, expected)) return remember(node, *intrinsic);
                     if (const auto intrinsic = collectionIntrinsic(node, expected)) return remember(node, *intrinsic);
                     if (node.children.size() == 1 && node.children[0]->kind == "Member" && node.children[0]->value == "value"
-                        && node.children[0]->children.size() == 1 && node.children[0]->children[0]->kind == "Name" && node.children[0]->children[0]->value == "Unit")
+                        && builtinMember(*node.children[0], "Unit"))
                     {
                         const auto namespaceIds = references(*node.children[0]->children[0]);
                         if (namespaceIds.size() == 1 && namespaceIds[0] < names_.symbols.size())
@@ -1883,15 +3019,22 @@ namespace aevix
                         const auto& borrowed = result_.types.get(receiver);
                         const auto& vector = result_.types.get(borrowed.element);
                         if (borrowed.kind != TypeKind::Reference || !borrowed.isMutable || vector.kind != TypeKind::Vector)
-                            error(node, "Vector growth requires an explicit exclusive &mut Vector borrow.");
-                        const auto wanted = callee.value == "push" ? vector.element : result_.types.builtin("usize");
-                        require(expression(*node.children[2]->children[0], wanted), wanted, node, "Vector growth input");
-                        if (!node.children[1]->value.empty() || !node.children[2]->value.empty()) error(node, "Core Vector growth currently uses positional arguments.");
+                            error(node, "Vector mutation requires an explicit exclusive &mut Vector borrow.");
+                        const bool input = callee.value == "push" || callee.value == "insert";
+                        for (std::size_t i = 1; i + 1 < node.children.size(); ++i)
+                        {
+                            const auto& argument = *node.children[i];
+                            if (!argument.value.empty()) error(argument, "Core Vector mutation currently uses positional arguments.");
+                            if (i == 1) continue;
+                            const auto wanted = input && i + 2 == node.children.size() ? vector.element : result_.types.builtin("usize");
+                            require(expression(*argument.children[0], wanted), wanted, node, "Vector mutation input");
+                        }
                         result_.collectionCalls[&node] = callee.value;
                         return remember(node, resolveType(*marker->children[0]));
                     }
                     const auto* collectionCallee = node.children.empty() ? nullptr : node.children[0].get();
-                    if (collectionCallee && collectionCallee->kind == "Member" && (collectionCallee->value == "len" || collectionCallee->value == "capacity") && !collectionCallee->children.empty())
+                    if (collectionCallee && collectionCallee->kind == "Member" && (collectionCallee->value == "len" || collectionCallee->value == "capacity")
+                        && (builtinMember(*collectionCallee, "Vector") || builtinMember(*collectionCallee, "Slice")))
                     {
                         const auto owner = references(*collectionCallee->children[0]);
                         if (owner.size() == 1 && !names_.symbols[owner[0]].declaration
@@ -2035,7 +3178,11 @@ namespace aevix
                     require(expression(rightNode), boolean, rightNode, "Logical operand");
                     return remember(node, boolean);
                 }
-                TypeId target = numeric(expected) ? expected : InvalidTypeId;
+                const bool equality = operation == "==" || operation == "!=";
+                const bool ordering = operation == "<" || operation == "<=" || operation == ">" || operation == ">=";
+                // 비교 결과의 bool을 받을 정수 타입이 비교 피연산자의 리터럴 폭을 좁히지 않게 한다.
+                // An integer destination for a bool comparison must not narrow its numeric literal operands.
+                TypeId target = !equality && !ordering && numeric(expected) ? expected : InvalidTypeId;
                 if (numericLiteral(leftNode) && !numericLiteral(rightNode)) target = expression(rightNode);
                 else if (!numericLiteral(leftNode)) target = expression(leftNode);
                 const auto left = expression(leftNode, target);
@@ -2051,8 +3198,6 @@ namespace aevix
                     return remember(node, left);
                 }
                 require(right, left, node, "Binary operands");
-                const bool equality = operation == "==" || operation == "!=";
-                const bool ordering = operation == "<" || operation == "<=" || operation == ">" || operation == ">=";
                 const auto kind = result_.types.get(left).kind;
                 if (equality || ordering)
                 {
@@ -2118,6 +3263,10 @@ namespace aevix
                     {
                         const auto value = expression(*node.children[0], returnType_);
                         if (result.kind == TypeKind::Void) error(node, "A void function cannot return a value.");
+                        // 이 적응은 반환 경계에만 기록하며 bool 표현식의 타입과 일반 호환성을 바꾸지 않는다.
+                        // Record adaptation only at the return boundary, preserving bool typing and general compatibility.
+                        else if (result.kind == TypeKind::Integer && result_.types.get(value).kind == TypeKind::Bool)
+                            result_.returnConversions[&node] = returnType_;
                         else require(value, returnType_, node, "Return value");
                     }
                     return;
@@ -2207,7 +3356,7 @@ namespace aevix
 
             void checkDeclaration(const Node& declaration)
             {
-                if (erased_.contains(&declaration) || child(declaration, "CompilerBox")) return;
+                if (erased_.contains(&declaration) || child(declaration,"CompilerTask") || child(declaration,"CompilerTaskScope") || child(declaration, "CompilerCancellationSource") || child(declaration, "CompilerCancellationToken") || syncMarker(declaration) != TypeKind::Error || child(declaration, "CompilerBox") || child(declaration, "CompilerShared") || child(declaration, "CompilerWeak") || child(declaration, "CompilerAtomic")) return;
                 if (declaration.kind == "Import" || declaration.kind == "Modifier") return;
                 if (declaration.kind == "TypeAlias") { if (!declaration.children.empty()) resolveType(*declaration.children[0]); return; }
                 if (declaration.kind == "Variable") { checkVariable(declaration); return; }

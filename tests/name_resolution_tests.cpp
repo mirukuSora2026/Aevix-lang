@@ -152,12 +152,12 @@ void preludeTests() {
     }
     {
         Fixture test;
-        test.write("src/main.avx", "import tensor { Tensor }; i32 main() { Tensor value; return 0; }");
-        test.write("src/tensor.avx", "public struct Tensor { public i32 size; };");
+        test.write("src/main.avx", "import custom_tensor { Tensor }; i32 main() { Tensor value; return 0; }");
+        test.write("src/custom_tensor.avx", "public struct Tensor { public i32 size; };");
         test.requireSuccess("imported specialized type becomes available");
         bool linked = false;
         if (test.resolution && test.graph) {
-            const auto module = test.graph->find("tensor");
+            const auto module = test.graph->find("custom_tensor");
             for (const auto& symbol : test.resolution->symbols) {
                 if (symbol.name != "Tensor" || symbol.module != module || !symbol.isPublic)
                     continue;
@@ -169,6 +169,16 @@ void preludeTests() {
             }
         }
         expect(linked, "type reference links to original exported Tensor symbol");
+    }
+    {
+        Fixture test;
+        test.write("src/main.avx", "import tensor; i32 main() { return 0; }");
+        test.write("src/tensor.avx", "public struct Tensor {};");
+        test.requireFailure("project and standard module paths do not silently shadow each other");
+        bool ambiguous = false;
+        for (const auto& diagnostic : test.diagnostics)
+            ambiguous |= diagnostic.message.find("Ambiguous module path 'tensor'") != std::string::npos;
+        expect(ambiguous, "standard tensor collision identifies the ambiguous module path");
     }
 }
 

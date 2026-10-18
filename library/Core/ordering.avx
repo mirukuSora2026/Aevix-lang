@@ -1,0 +1,117 @@
+/*
+ * A shared three-way comparison result, imported explicitly rather than added to the prelude.
+ * Helpers are pure, do not allocate, and preserve a canonical -1/0/1 integer representation.
+ * @module ordering
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+/* One of the three relative comparison outcomes; independent of numeric enum discriminants.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum Ordering implements Copy {
+    /* The left value sorts before the right value.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Less;
+    /* The compared values are equivalent under the selected comparison.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Equal;
+    /* The left value sorts after the right value.
+     * @since 0.3.0
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Greater;
+};
+
+/* Return -1, 0 or 1 without depending on enum layout.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 to_i32(Ordering value) {
+    switch (value) {
+        case Ordering.Less: return -1; break;
+        case Ordering.Equal: return 0; break;
+        case Ordering.Greater: return 1; break;
+    }
+}
+/* Classify the sign of an integer; no narrowing or absolute-value overflow occurs.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering from_i32(i32 value) {
+    if (value < 0) return Ordering.Less;
+    if (value > 0) return Ordering.Greater;
+    return Ordering.Equal;
+}
+/* Test equivalence; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_eq(Ordering value) { return to_i32(value) == 0; }
+/* Test nonequivalence; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_ne(Ordering value) { return to_i32(value) != 0; }
+/* Test strictly less; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_lt(Ordering value) { return to_i32(value) < 0; }
+/* Test less or equivalent; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_le(Ordering value) { return to_i32(value) <= 0; }
+/* Test strictly greater; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_gt(Ordering value) { return to_i32(value) > 0; }
+/* Test greater or equivalent; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_ge(Ordering value) { return to_i32(value) >= 0; }
+/* Reverse the comparison direction; O(1), no allocation.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering reverse(Ordering value) {
+    switch (value) {
+        case Ordering.Less: return Ordering.Greater; break;
+        case Ordering.Equal: return Ordering.Equal; break;
+        case Ordering.Greater: return Ordering.Less; break;
+    }
+}
+/* Use next only when first is Equal. Both arguments are already evaluated by the caller.
+ * @since 0.3.0
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering then(Ordering first, Ordering next) {
+    switch (first) {
+        case Ordering.Less: return Ordering.Less; break;
+        case Ordering.Equal: return next; break;
+        case Ordering.Greater: return Ordering.Greater; break;
+    }
+}

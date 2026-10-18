@@ -45,11 +45,11 @@ namespace aevix
     };
     enum class AIROpcode
     {
-        Constant, Read, Move, Write, BorrowShared, BorrowMut,
+        Constant, Read, Move, Write, BorrowShared, BorrowMut, ClosureConsume,
         Unary, Binary, Call, Aggregate, EnumConstruct, EnumTag, EnsurePersist, ScopeBegin, ScopeEnd, Drop,
         RangeConstruct, RangeTest, RangeNext, RangeValue, RangeWithStep, RangeCount, RangeCountFits, SliceConstruct, SliceLength,
         VectorAllocate, VectorAvailable, VectorAppend, VectorLength, VectorReserve, NumericStatus, NumericConvert, Simd,
-        ArrayRepeat, TextIntrinsic, ParallelIntrinsic, SliceSubview, ComplexIntrinsic
+        ArrayRepeat, TextIntrinsic, ParallelIntrinsic, SliceSubview, ComplexIntrinsic, ParseIntrinsic, SystemIntrinsic, MemoryIntrinsic, OsIntrinsic, VectorTake, VectorTruncate, VectorInsert, SharedIntrinsic, AtomicIntrinsic, SyncIntrinsic, CancellationIntrinsic, TaskIntrinsic, RangeInspect, CharScalar, BoxExtract
     };
     struct AIRInstruction final
     {
@@ -62,6 +62,24 @@ namespace aevix
         std::string operation;
         std::vector<SymbolId> dynamicTargets;
         TypeId dynamicSignature = InvalidTypeId;
+        // 닫힌 원자 연산의 스칼라 타입이며 소스 주소나 임의 ABI를 나타내지 않는다.
+        // Scalar type of a closed atomic operation; this carries no source pointer or arbitrary ABI.
+        TypeId atomicElement = InvalidTypeId;
+        // 잠금의 실제 T이며 원시 상태나 위조 가능한 소스 토큰이 아니다.
+        // The actual lock payload T, never raw state or a forgeable source token.
+        TypeId syncElement = InvalidTypeId;
+        // 작업 결과·캡처 타입과 검증된 구체 __invoke 대상이며 원시 콜백 주소가 아니다.
+        // Concrete task result/capture types and verified __invoke identity, never a source callback address.
+        TypeId taskElement = InvalidTypeId;
+        TypeId taskCallable = InvalidTypeId;
+        SymbolId taskInvoke = InvalidSymbolId;
+        // FnOnce 환경 전체를 한 번에 받는 지역 목록이며 일반 필드 이동 권한이 아니다.
+        // Locals receiving one complete FnOnce environment, never permission for general field moves.
+        std::vector<AIRLocalId> closureLocals;
+        // 추출할 Box 소유자와 실제 결과 T이며 임의 포인터나 필드 이동 권한이 아니다.
+        // Exact extracting Box owner and resulting T, never a raw pointer or permission for field moves.
+        TypeId boxOwner = InvalidTypeId;
+        TypeId boxElement = InvalidTypeId;
         AIRScopeId scope = 0;
         const Node* source = nullptr;
         SourceRange range{};
@@ -143,6 +161,7 @@ namespace aevix
         std::vector<TypeId> fieldTypes;
         bool isEnum = false;
         std::vector<EnumVariantInfo> variants;
+        const Node* source = nullptr;
     };
     struct AIRModule final
     {
@@ -154,5 +173,6 @@ namespace aevix
         std::vector<SymbolId> initializationOrder;
     };
     std::string dumpAIR(const AIRModule& module, const TypeContext& types);
+    bool validBoxExtractionShape(const AIRFunction& function, const AIRInstruction& instruction, const TypeContext& types);
     bool verifyAIR(const AIRModule& module, const TypeContext& types, Diagnostics& diagnostics);
 }

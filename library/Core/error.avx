@@ -1,0 +1,2285 @@
+/*
+ * Lifecycle of the error public module.
+ * @module error
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import memory { Box, RefCountError };
+
+/*
+ * Inspection borrows an owner and returns static codes and summaries; erasure is explicit.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public interface Error {
+    /*
+     * Version history for the error.Error.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&Self self);
+    /*
+     * Version history for the error.Error.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&Self self);
+};
+
+/*
+ * Version history for the error.IoError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum IoError implements Copy, Error {
+    /*
+     * Version history for the error.IoError.ReadFailed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ReadFailed { /*
+ * Version history for the error.IoError.ReadFailed.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; /*
+ * Version history for the error.IoError.ReadFailed.progress public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize progress; };
+    /*
+     * Version history for the error.IoError.WriteFailed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    WriteFailed { /*
+ * Version history for the error.IoError.WriteFailed.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; /*
+ * Version history for the error.IoError.WriteFailed.progress public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize progress; };
+    /*
+     * Version history for the error.IoError.FlushFailed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    FlushFailed { /*
+ * Version history for the error.IoError.FlushFailed.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.IoError.Interrupted public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Interrupted;
+    /*
+     * Version history for the error.IoError.WouldBlock public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    WouldBlock;
+    /*
+     * Version history for the error.IoError.Closed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Closed;
+    /*
+     * Version history for the error.IoError.InvalidUtf8 public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidUtf8;
+    /*
+     * Version history for the error.IoError.InputTooLong public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InputTooLong;
+    /*
+     * Version history for the error.IoError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.IoError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+    /*
+     * Version history for the error.IoError.Unsupported public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Unsupported;
+
+    /*
+     * Version history for the error.IoError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&IoError self) {
+        switch (*self) {
+            case IoError.ReadFailed:
+                return "io.read_failed";
+                break;
+            case IoError.WriteFailed:
+                return "io.write_failed";
+                break;
+            case IoError.FlushFailed:
+                return "io.flush_failed";
+                break;
+            case IoError.Interrupted:
+                return "io.interrupted";
+                break;
+            case IoError.WouldBlock:
+                return "io.would_block";
+                break;
+            case IoError.Closed:
+                return "io.closed";
+                break;
+            case IoError.InvalidUtf8:
+                return "io.invalid_utf8";
+                break;
+            case IoError.InputTooLong:
+                return "io.input_too_long";
+                break;
+            case IoError.AllocationFailure:
+                return "io.allocation_failure";
+                break;
+            case IoError.SizeOverflow:
+                return "io.size_overflow";
+                break;
+            case IoError.Unsupported:
+                return "io.unsupported";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.IoError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&IoError self) {
+        switch (*self) {
+            case IoError.ReadFailed:
+                return "The input operation failed after the reported byte progress.";
+                break;
+            case IoError.WriteFailed:
+                return "The output operation failed after the reported byte progress.";
+                break;
+            case IoError.FlushFailed:
+                return "Buffered output could not be flushed.";
+                break;
+            case IoError.Interrupted:
+                return "The operation was interrupted before it could complete.";
+                break;
+            case IoError.WouldBlock:
+                return "The operation would block on a nonblocking resource.";
+                break;
+            case IoError.Closed:
+                return "The stream or resource is closed.";
+                break;
+            case IoError.InvalidUtf8:
+                return "Input bytes are not a valid UTF-8 sequence.";
+                break;
+            case IoError.InputTooLong:
+                return "Input exceeds the configured byte limit.";
+                break;
+            case IoError.AllocationFailure:
+                return "Memory for the IO operation could not be allocated.";
+                break;
+            case IoError.SizeOverflow:
+                return "The requested IO size is not representable.";
+                break;
+            case IoError.Unsupported:
+                return "The operation is not supported by this resource or target.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.FormatError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum FormatError implements Copy, Error {
+    /*
+     * Version history for the error.FormatError.InvalidFormat public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidFormat;
+    /*
+     * Version history for the error.FormatError.MissingArgument public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    MissingArgument;
+    /*
+     * Version history for the error.FormatError.UnexpectedArgument public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    UnexpectedArgument;
+    /*
+     * Version history for the error.FormatError.TypeMismatch public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    TypeMismatch;
+    /*
+     * Version history for the error.FormatError.InvalidWidth public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidWidth;
+    /*
+     * Version history for the error.FormatError.InvalidPrecision public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidPrecision;
+    /*
+     * Version history for the error.FormatError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.FormatError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+
+    /*
+     * Version history for the error.FormatError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&FormatError self) {
+        switch (*self) {
+            case FormatError.InvalidFormat:
+                return "format.invalid_format";
+                break;
+            case FormatError.MissingArgument:
+                return "format.missing_argument";
+                break;
+            case FormatError.UnexpectedArgument:
+                return "format.unexpected_argument";
+                break;
+            case FormatError.TypeMismatch:
+                return "format.type_mismatch";
+                break;
+            case FormatError.InvalidWidth:
+                return "format.invalid_width";
+                break;
+            case FormatError.InvalidPrecision:
+                return "format.invalid_precision";
+                break;
+            case FormatError.AllocationFailure:
+                return "format.allocation_failure";
+                break;
+            case FormatError.SizeOverflow:
+                return "format.size_overflow";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.FormatError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&FormatError self) {
+        switch (*self) {
+            case FormatError.InvalidFormat:
+                return "The format description is invalid.";
+                break;
+            case FormatError.MissingArgument:
+                return "The format requires an argument that was not provided.";
+                break;
+            case FormatError.UnexpectedArgument:
+                return "An argument is not used by the format.";
+                break;
+            case FormatError.TypeMismatch:
+                return "An argument type does not match its format conversion.";
+                break;
+            case FormatError.InvalidWidth:
+                return "The requested format width is invalid.";
+                break;
+            case FormatError.InvalidPrecision:
+                return "The requested format precision is invalid.";
+                break;
+            case FormatError.AllocationFailure:
+                return "Storage for formatted output could not be allocated.";
+                break;
+            case FormatError.SizeOverflow:
+                return "Formatted output exceeds the representable size.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.FileError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum FileError implements Copy, Error {
+    /*
+     * Version history for the error.FileError.NotFound public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NotFound { /*
+ * Version history for the error.FileError.NotFound.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.FileError.AlreadyExists public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AlreadyExists { /*
+ * Version history for the error.FileError.AlreadyExists.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.FileError.PermissionDenied public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    PermissionDenied { /*
+ * Version history for the error.FileError.PermissionDenied.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.FileError.InvalidHandle public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidHandle;
+    /*
+     * Version history for the error.FileError.NotRegularFile public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NotRegularFile;
+    /*
+     * Version history for the error.FileError.Unsupported public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Unsupported;
+    /*
+     * Version history for the error.FileError.Io public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Io { /*
+ * Version history for the error.FileError.Io.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public IoError error; };
+
+    /*
+     * Version history for the error.FileError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&FileError self) {
+        switch (*self) {
+            case FileError.NotFound:
+                return "file.not_found";
+                break;
+            case FileError.AlreadyExists:
+                return "file.already_exists";
+                break;
+            case FileError.PermissionDenied:
+                return "file.permission_denied";
+                break;
+            case FileError.InvalidHandle:
+                return "file.invalid_handle";
+                break;
+            case FileError.NotRegularFile:
+                return "file.not_regular";
+                break;
+            case FileError.Unsupported:
+                return "file.unsupported";
+                break;
+            case FileError.Io:
+                return "file.io";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.FileError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&FileError self) {
+        switch (*self) {
+            case FileError.NotFound:
+                return "The requested file does not exist.";
+                break;
+            case FileError.AlreadyExists:
+                return "The destination already exists.";
+                break;
+            case FileError.PermissionDenied:
+                return "The requested file access was denied.";
+                break;
+            case FileError.InvalidHandle:
+                return "The file handle is closed or invalid.";
+                break;
+            case FileError.NotRegularFile:
+                return "The resource is not a regular file.";
+                break;
+            case FileError.Unsupported:
+                return "The requested file operation is unsupported.";
+                break;
+            case FileError.Io:
+                return "The file operation failed while performing IO.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.PathError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum PathError implements Copy, Error {
+    /*
+     * Version history for the error.PathError.InvalidEncoding public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidEncoding;
+    /*
+     * Version history for the error.PathError.EmbeddedNull public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    EmbeddedNull;
+    /*
+     * Version history for the error.PathError.InvalidComponent public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidComponent;
+    /*
+     * Version history for the error.PathError.NotAbsolute public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NotAbsolute;
+    /*
+     * Version history for the error.PathError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.PathError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+    /*
+     * Version history for the error.PathError.Os public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Os { /*
+ * Version history for the error.PathError.Os.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+
+    /*
+     * Version history for the error.PathError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&PathError self) {
+        switch (*self) {
+            case PathError.InvalidEncoding:
+                return "path.invalid_encoding";
+                break;
+            case PathError.EmbeddedNull:
+                return "path.embedded_null";
+                break;
+            case PathError.InvalidComponent:
+                return "path.invalid_component";
+                break;
+            case PathError.NotAbsolute:
+                return "path.not_absolute";
+                break;
+            case PathError.AllocationFailure:
+                return "path.allocation_failure";
+                break;
+            case PathError.SizeOverflow:
+                return "path.size_overflow";
+                break;
+            case PathError.Os:
+                return "path.os";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.PathError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&PathError self) {
+        switch (*self) {
+            case PathError.InvalidEncoding:
+                return "The path cannot be represented in the requested encoding.";
+                break;
+            case PathError.EmbeddedNull:
+                return "A native path cannot contain an embedded NUL.";
+                break;
+            case PathError.InvalidComponent:
+                return "The path contains an invalid component.";
+                break;
+            case PathError.NotAbsolute:
+                return "The operation requires an absolute path.";
+                break;
+            case PathError.AllocationFailure:
+                return "Storage for the path could not be allocated.";
+                break;
+            case PathError.SizeOverflow:
+                return "The path length is not representable.";
+                break;
+            case PathError.Os:
+                return "The operating system rejected the path operation.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.ProcessError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum ProcessError implements Copy, Error {
+    /*
+     * The OS rejected a forced child termination request; the child remains owned.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    TerminationFailed { /*
+ * Version history for the error.ProcessError.TerminationFailed.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.ProcessError.SpawnFailed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SpawnFailed { /*
+ * Version history for the error.ProcessError.SpawnFailed.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.ProcessError.WaitFailed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    WaitFailed { /*
+ * Version history for the error.ProcessError.WaitFailed.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.ProcessError.InvalidArgument public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidArgument;
+    /*
+     * Version history for the error.ProcessError.AlreadyReaped public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AlreadyReaped;
+    /*
+     * Version history for the error.ProcessError.TimedOut public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    TimedOut;
+    /*
+     * Version history for the error.ProcessError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.ProcessError.Unsupported public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Unsupported;
+
+    /*
+     * Version history for the error.ProcessError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&ProcessError self) {
+        switch (*self) {
+            case ProcessError.TerminationFailed:
+                return "process.termination_failed";
+                break;
+            case ProcessError.SpawnFailed:
+                return "process.spawn_failed";
+                break;
+            case ProcessError.WaitFailed:
+                return "process.wait_failed";
+                break;
+            case ProcessError.InvalidArgument:
+                return "process.invalid_argument";
+                break;
+            case ProcessError.AlreadyReaped:
+                return "process.already_reaped";
+                break;
+            case ProcessError.TimedOut:
+                return "process.timed_out";
+                break;
+            case ProcessError.AllocationFailure:
+                return "process.allocation_failure";
+                break;
+            case ProcessError.Unsupported:
+                return "process.unsupported";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.ProcessError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&ProcessError self) {
+        switch (*self) {
+            case ProcessError.TerminationFailed:
+                return "The operating system rejected the child termination request.";
+                break;
+            case ProcessError.SpawnFailed:
+                return "The child process could not be started.";
+                break;
+            case ProcessError.WaitFailed:
+                return "The child process status could not be collected.";
+                break;
+            case ProcessError.InvalidArgument:
+                return "A process argument or environment entry is invalid.";
+                break;
+            case ProcessError.AlreadyReaped:
+                return "The child process status has already been collected.";
+                break;
+            case ProcessError.TimedOut:
+                return "The process did not finish before the deadline.";
+                break;
+            case ProcessError.AllocationFailure:
+                return "Storage for the process operation could not be allocated.";
+                break;
+            case ProcessError.Unsupported:
+                return "The process operation is unavailable on this target.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.EnvError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum EnvError implements Copy, Error {
+    /*
+     * Version history for the error.EnvError.NotFound public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NotFound;
+    /*
+     * Version history for the error.EnvError.InvalidName public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidName;
+    /*
+     * Version history for the error.EnvError.InvalidEncoding public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidEncoding;
+    /*
+     * Version history for the error.EnvError.EmbeddedNull public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    EmbeddedNull;
+    /*
+     * Version history for the error.EnvError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.EnvError.Os public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Os { /*
+ * Version history for the error.EnvError.Os.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+
+    /*
+     * Version history for the error.EnvError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&EnvError self) {
+        switch (*self) {
+            case EnvError.NotFound:
+                return "env.not_found";
+                break;
+            case EnvError.InvalidName:
+                return "env.invalid_name";
+                break;
+            case EnvError.InvalidEncoding:
+                return "env.invalid_encoding";
+                break;
+            case EnvError.EmbeddedNull:
+                return "env.embedded_null";
+                break;
+            case EnvError.AllocationFailure:
+                return "env.allocation_failure";
+                break;
+            case EnvError.Os:
+                return "env.os";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.EnvError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&EnvError self) {
+        switch (*self) {
+            case EnvError.NotFound:
+                return "The requested environment value is absent.";
+                break;
+            case EnvError.InvalidName:
+                return "The environment name is empty or contains a forbidden character.";
+                break;
+            case EnvError.InvalidEncoding:
+                return "The environment value cannot be represented in the requested encoding.";
+                break;
+            case EnvError.EmbeddedNull:
+                return "The native environment name or value contains an embedded NUL.";
+                break;
+            case EnvError.AllocationFailure:
+                return "Storage for the environment value could not be allocated.";
+                break;
+            case EnvError.Os:
+                return "The operating system rejected the environment operation.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.TimeError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum TimeError implements Copy, Error {
+    /*
+     * Version history for the error.TimeError.OutOfRange public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    OutOfRange;
+    /*
+     * Version history for the error.TimeError.InvalidDuration public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidDuration;
+    /*
+     * Version history for the error.TimeError.ClockUnavailable public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ClockUnavailable;
+    /*
+     * Version history for the error.TimeError.Interrupted public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Interrupted;
+    /*
+     * Version history for the error.TimeError.Os public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Os { /*
+ * Version history for the error.TimeError.Os.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+
+    /*
+     * Version history for the error.TimeError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&TimeError self) {
+        switch (*self) {
+            case TimeError.OutOfRange:
+                return "time.out_of_range";
+                break;
+            case TimeError.InvalidDuration:
+                return "time.invalid_duration";
+                break;
+            case TimeError.ClockUnavailable:
+                return "time.clock_unavailable";
+                break;
+            case TimeError.Interrupted:
+                return "time.interrupted";
+                break;
+            case TimeError.Os:
+                return "time.os";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.TimeError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&TimeError self) {
+        switch (*self) {
+            case TimeError.OutOfRange:
+                return "The time or duration is outside the supported range.";
+                break;
+            case TimeError.InvalidDuration:
+                return "The duration is invalid for this operation.";
+                break;
+            case TimeError.ClockUnavailable:
+                return "The requested clock is unavailable.";
+                break;
+            case TimeError.Interrupted:
+                return "The wait was interrupted.";
+                break;
+            case TimeError.Os:
+                return "The operating system rejected the clock or wait operation.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.SyncError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum SyncError implements Copy, Error {
+    /*
+     * Version history for the error.SyncError.Poisoned public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Poisoned;
+    /*
+     * Version history for the error.SyncError.WouldBlock public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    WouldBlock;
+    /*
+     * Version history for the error.SyncError.TimedOut public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    TimedOut;
+    /*
+     * Version history for the error.SyncError.Closed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Closed;
+    /*
+     * Version history for the error.SyncError.ResourceExhausted public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ResourceExhausted;
+    /*
+     * Version history for the error.SyncError.Unsupported public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Unsupported;
+    /*
+     * Version history for the error.SyncError.Os public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Os { /*
+ * Version history for the error.SyncError.Os.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+
+    /*
+     * Version history for the error.SyncError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&SyncError self) {
+        switch (*self) {
+            case SyncError.Poisoned:
+                return "sync.poisoned";
+                break;
+            case SyncError.WouldBlock:
+                return "sync.would_block";
+                break;
+            case SyncError.TimedOut:
+                return "sync.timed_out";
+                break;
+            case SyncError.Closed:
+                return "sync.closed";
+                break;
+            case SyncError.ResourceExhausted:
+                return "sync.resource_exhausted";
+                break;
+            case SyncError.Unsupported:
+                return "sync.unsupported";
+                break;
+            case SyncError.Os:
+                return "sync.os";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.SyncError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&SyncError self) {
+        switch (*self) {
+            case SyncError.Poisoned:
+                return "The synchronization resource has been marked poisoned.";
+                break;
+            case SyncError.WouldBlock:
+                return "The synchronization resource is currently held.";
+                break;
+            case SyncError.TimedOut:
+                return "The lock or wait did not finish before its deadline.";
+                break;
+            case SyncError.Closed:
+                return "The synchronization resource is closed.";
+                break;
+            case SyncError.ResourceExhausted:
+                return "The operating system cannot create another synchronization resource.";
+                break;
+            case SyncError.Unsupported:
+                return "The synchronization operation is unavailable on this target.";
+                break;
+            case SyncError.Os:
+                return "The operating system rejected the synchronization operation.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.TaskError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum TaskError implements Copy, Error {
+/*
+ * The native worker finished without an initialized application result.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Failed;
+/*
+ * The requested task storage, count or duration exceeds the supported range.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Overflow;
+/*
+ * This operation would wait for the calling worker itself.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+WouldDeadlock;
+/*
+ * The operating system rejected worker reaping or another task lifecycle operation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Native {
+/*
+ * The platform error code captured before any cleanup call.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code;
+/*
+ * The native error domain accompanying os_code; it is not an address or handle.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 domain;
+};
+
+    /*
+     * Version history for the error.TaskError.SpawnFailed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SpawnFailed { /*
+ * Version history for the error.TaskError.SpawnFailed.os_code public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 os_code; };
+    /*
+     * Version history for the error.TaskError.Cancelled public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Cancelled;
+    /*
+     * Version history for the error.TaskError.TimedOut public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    TimedOut;
+    /*
+     * Version history for the error.TaskError.AlreadyJoined public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AlreadyJoined;
+    /*
+     * Version history for the error.TaskError.ScopeClosed public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ScopeClosed;
+    /*
+     * Version history for the error.TaskError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.TaskError.Unsupported public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Unsupported;
+
+    /*
+     * Version history for the error.TaskError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&TaskError self) {
+        switch (*self) {
+            case TaskError.Failed: return "task.failed"; break;
+            case TaskError.Overflow: return "task.overflow"; break;
+            case TaskError.WouldDeadlock: return "task.would_deadlock"; break;
+            case TaskError.Native: return "task.native"; break;
+
+            case TaskError.SpawnFailed:
+                return "task.spawn_failed";
+                break;
+            case TaskError.Cancelled:
+                return "task.cancelled";
+                break;
+            case TaskError.TimedOut:
+                return "task.timed_out";
+                break;
+            case TaskError.AlreadyJoined:
+                return "task.already_joined";
+                break;
+            case TaskError.ScopeClosed:
+                return "task.scope_closed";
+                break;
+            case TaskError.AllocationFailure:
+                return "task.allocation_failure";
+                break;
+            case TaskError.Unsupported:
+                return "task.unsupported";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.TaskError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&TaskError self) {
+        switch (*self) {
+            case TaskError.Failed: return "The native worker did not initialize an application result."; break;
+            case TaskError.Overflow: return "The requested task storage, count or duration exceeds the supported range."; break;
+            case TaskError.WouldDeadlock: return "The operation would wait for its calling worker."; break;
+            case TaskError.Native: return "A native task lifecycle operation failed; the platform code and domain are retained."; break;
+
+            case TaskError.SpawnFailed:
+                return "The CPU task could not be started.";
+                break;
+            case TaskError.Cancelled:
+                return "The CPU task was cancelled before producing an application result.";
+                break;
+            case TaskError.TimedOut:
+                return "The task did not finish before the deadline.";
+                break;
+            case TaskError.AlreadyJoined:
+                return "The task result has already been collected.";
+                break;
+            case TaskError.ScopeClosed:
+                return "The task scope is closed to new work.";
+                break;
+            case TaskError.AllocationFailure:
+                return "Storage for the task could not be allocated.";
+                break;
+            case TaskError.Unsupported:
+                return "The task operation is unavailable on this target.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.ShapeError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum ShapeError implements Copy, Error {
+    /*
+     * Version history for the error.ShapeError.RankMismatch public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    RankMismatch;
+    /*
+     * Version history for the error.ShapeError.ExtentMismatch public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ExtentMismatch { /*
+ * Version history for the error.ShapeError.ExtentMismatch.axis public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize axis; };
+    /*
+     * Version history for the error.ShapeError.InvalidAxis public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidAxis { /*
+ * Version history for the error.ShapeError.InvalidAxis.axis public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize axis; };
+    /*
+     * Version history for the error.ShapeError.ElementCountOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ElementCountOverflow;
+    /*
+     * Version history for the error.ShapeError.NotBroadcastable public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NotBroadcastable;
+    /*
+     * Version history for the error.ShapeError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+
+    /*
+     * Version history for the error.ShapeError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&ShapeError self) {
+        switch (*self) {
+            case ShapeError.RankMismatch:
+                return "shape.rank_mismatch";
+                break;
+            case ShapeError.ExtentMismatch:
+                return "shape.extent_mismatch";
+                break;
+            case ShapeError.InvalidAxis:
+                return "shape.invalid_axis";
+                break;
+            case ShapeError.ElementCountOverflow:
+                return "shape.element_count_overflow";
+                break;
+            case ShapeError.NotBroadcastable:
+                return "shape.not_broadcastable";
+                break;
+            case ShapeError.AllocationFailure:
+                return "shape.allocation_failure";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.ShapeError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&ShapeError self) {
+        switch (*self) {
+            case ShapeError.RankMismatch:
+                return "The shape has an unexpected number of axes.";
+                break;
+            case ShapeError.ExtentMismatch:
+                return "An axis extent does not match the required extent.";
+                break;
+            case ShapeError.InvalidAxis:
+                return "The selected axis is outside the shape rank.";
+                break;
+            case ShapeError.ElementCountOverflow:
+                return "The shape element count is not representable.";
+                break;
+            case ShapeError.NotBroadcastable:
+                return "The operand shapes cannot be broadcast together.";
+                break;
+            case ShapeError.AllocationFailure:
+                return "Storage for shape metadata could not be allocated.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.TensorError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum TensorError implements Copy, Error {
+    /*
+     * Version history for the error.TensorError.Shape public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Shape { /*
+ * Version history for the error.TensorError.Shape.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public ShapeError error; };
+    /*
+     * Version history for the error.TensorError.OutOfBounds public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    OutOfBounds;
+    /*
+     * Version history for the error.TensorError.InvalidLayout public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidLayout;
+    /*
+     * Version history for the error.TensorError.NonContiguous public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NonContiguous;
+    /*
+     * Version history for the error.TensorError.Aliasing public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Aliasing;
+    /*
+     * Version history for the error.TensorError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.TensorError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+    /*
+     * Version history for the error.TensorError.ArithmeticFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    ArithmeticFailure;
+    /*
+     * Version history for the error.TensorError.Unsupported public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Unsupported;
+
+    /*
+     * Version history for the error.TensorError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&TensorError self) {
+        switch (*self) {
+            case TensorError.Shape:
+                return "tensor.shape";
+                break;
+            case TensorError.OutOfBounds:
+                return "tensor.out_of_bounds";
+                break;
+            case TensorError.InvalidLayout:
+                return "tensor.invalid_layout";
+                break;
+            case TensorError.NonContiguous:
+                return "tensor.non_contiguous";
+                break;
+            case TensorError.Aliasing:
+                return "tensor.aliasing";
+                break;
+            case TensorError.AllocationFailure:
+                return "tensor.allocation_failure";
+                break;
+            case TensorError.SizeOverflow:
+                return "tensor.size_overflow";
+                break;
+            case TensorError.ArithmeticFailure:
+                return "tensor.arithmetic_failure";
+                break;
+            case TensorError.Unsupported:
+                return "tensor.unsupported";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.TensorError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&TensorError self) {
+        switch (*self) {
+            case TensorError.Shape:
+                return "The tensor shapes are incompatible.";
+                break;
+            case TensorError.OutOfBounds:
+                return "A tensor element or axis selection is out of bounds.";
+                break;
+            case TensorError.InvalidLayout:
+                return "The layout does not describe a valid tensor storage span.";
+                break;
+            case TensorError.NonContiguous:
+                return "The operation requires contiguous tensor storage.";
+                break;
+            case TensorError.Aliasing:
+                return "The requested writable tensor regions overlap.";
+                break;
+            case TensorError.AllocationFailure:
+                return "Storage for the tensor result could not be allocated.";
+                break;
+            case TensorError.SizeOverflow:
+                return "The tensor storage size is not representable.";
+                break;
+            case TensorError.ArithmeticFailure:
+                return "A checked tensor scalar operation failed.";
+                break;
+            case TensorError.Unsupported:
+                return "The CPU tensor operation is unsupported for these types or layout.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.QuantizationError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum QuantizationError implements Copy, Error {
+    /*
+     * Version history for the error.QuantizationError.InvalidScale public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidScale;
+    /*
+     * Version history for the error.QuantizationError.InvalidZeroPoint public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidZeroPoint;
+    /*
+     * Version history for the error.QuantizationError.InvalidAxis public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidAxis { /*
+ * Version history for the error.QuantizationError.InvalidAxis.axis public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize axis; };
+    /*
+     * Version history for the error.QuantizationError.MetadataMismatch public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    MetadataMismatch;
+    /*
+     * Version history for the error.QuantizationError.NonFinite public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    NonFinite;
+    /*
+     * Version history for the error.QuantizationError.OutOfRange public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    OutOfRange;
+    /*
+     * Version history for the error.QuantizationError.Shape public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Shape { /*
+ * Version history for the error.QuantizationError.Shape.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public ShapeError error; };
+    /*
+     * Version history for the error.QuantizationError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.QuantizationError.Unsupported public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Unsupported;
+
+    /*
+     * Version history for the error.QuantizationError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&QuantizationError self) {
+        switch (*self) {
+            case QuantizationError.InvalidScale:
+                return "quantization.invalid_scale";
+                break;
+            case QuantizationError.InvalidZeroPoint:
+                return "quantization.invalid_zero_point";
+                break;
+            case QuantizationError.InvalidAxis:
+                return "quantization.invalid_axis";
+                break;
+            case QuantizationError.MetadataMismatch:
+                return "quantization.metadata_mismatch";
+                break;
+            case QuantizationError.NonFinite:
+                return "quantization.non_finite";
+                break;
+            case QuantizationError.OutOfRange:
+                return "quantization.out_of_range";
+                break;
+            case QuantizationError.Shape:
+                return "quantization.shape";
+                break;
+            case QuantizationError.AllocationFailure:
+                return "quantization.allocation_failure";
+                break;
+            case QuantizationError.Unsupported:
+                return "quantization.unsupported";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.QuantizationError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&QuantizationError self) {
+        switch (*self) {
+            case QuantizationError.InvalidScale:
+                return "A quantization scale must be finite and positive.";
+                break;
+            case QuantizationError.InvalidZeroPoint:
+                return "The zero point cannot be represented by the storage type.";
+                break;
+            case QuantizationError.InvalidAxis:
+                return "The per-axis quantization axis is invalid.";
+                break;
+            case QuantizationError.MetadataMismatch:
+                return "Quantization metadata does not match the payload shape.";
+                break;
+            case QuantizationError.NonFinite:
+                return "Quantization input must be finite.";
+                break;
+            case QuantizationError.OutOfRange:
+                return "The quantized value is outside the checked storage range.";
+                break;
+            case QuantizationError.Shape:
+                return "The quantized operand shapes are incompatible.";
+                break;
+            case QuantizationError.AllocationFailure:
+                return "Storage for the quantized result could not be allocated.";
+                break;
+            case QuantizationError.Unsupported:
+                return "The quantization operation or encoding is unsupported.";
+                break;
+        }
+    }
+};
+
+/*
+ * Version history for the error.MapError public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum MapError implements Copy, Error {
+    /*
+     * Version history for the error.MapError.AllocationFailure public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    AllocationFailure;
+    /*
+     * Version history for the error.MapError.SizeOverflow public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    SizeOverflow;
+    /*
+     * Version history for the error.MapError.MissingKey public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    MissingKey;
+    /*
+     * Version history for the error.MapError.DuplicateKey public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    DuplicateKey;
+    /*
+     * Version history for the error.MapError.CapacityExceeded public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    CapacityExceeded;
+
+    /*
+     * Version history for the error.MapError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&MapError self) {
+        switch (*self) {
+            case MapError.AllocationFailure:
+                return "map.allocation_failure";
+                break;
+            case MapError.SizeOverflow:
+                return "map.size_overflow";
+                break;
+            case MapError.MissingKey:
+                return "map.missing_key";
+                break;
+            case MapError.DuplicateKey:
+                return "map.duplicate_key";
+                break;
+            case MapError.CapacityExceeded:
+                return "map.capacity_exceeded";
+                break;
+        }
+    }
+
+    /*
+     * Version history for the error.MapError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&MapError self) {
+        switch (*self) {
+            case MapError.AllocationFailure:
+                return "Storage for the map could not be allocated.";
+                break;
+            case MapError.SizeOverflow:
+                return "The requested map capacity is not representable.";
+                break;
+            case MapError.MissingKey:
+                return "The requested key is absent.";
+                break;
+            case MapError.DuplicateKey:
+                return "The operation requires a key that is not already present.";
+                break;
+            case MapError.CapacityExceeded:
+                return "The operation cannot proceed without increasing capacity.";
+                break;
+        }
+    }
+};
+
+/*
+ * Already consumed input is not restored after parse failure; IO and parsing stay distinct.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum ReadError implements Copy, Error {
+    /*
+     * Version history for the error.ReadError.Io public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Io { /*
+ * Version history for the error.ReadError.Io.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public IoError error; };
+    /*
+     * Version history for the error.ReadError.Parse public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Parse { /*
+ * Version history for the error.ReadError.Parse.error public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public ParseError error; };
+
+    /*
+     * Version history for the error.ReadError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&ReadError self) {
+        switch (*self) {
+            case ReadError.Io { &IoError cause = error }:
+                return cause.code();
+                break;
+            case ReadError.Parse { &ParseError cause = error }:
+                switch (*cause) {
+                    case ParseError.EmptyInput: return "parse.empty_input"; break;
+                    case ParseError.InvalidSyntax: return "parse.invalid_syntax"; break;
+                    case ParseError.OutOfRange: return "parse.out_of_range"; break;
+                    case ParseError.NonFinite: return "parse.non_finite"; break;
+                    case ParseError.InvalidScalar: return "parse.invalid_scalar"; break;
+                }
+                break;
+        }
+    }
+    /*
+     * Version history for the error.ReadError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&ReadError self) {
+        switch (*self) {
+            case ReadError.Io { &IoError cause = error }:
+                return cause.message();
+                break;
+            case ReadError.Parse { &ParseError cause = error }:
+                switch (*cause) {
+                    case ParseError.EmptyInput: return "Input contains no scalar token."; break;
+                    case ParseError.InvalidSyntax: return "Input is not a complete valid scalar representation."; break;
+                    case ParseError.OutOfRange: return "Input is outside the requested scalar type range."; break;
+                    case ParseError.NonFinite: return "A finite scalar value is required."; break;
+                    case ParseError.InvalidScalar: return "Input is not a valid Unicode scalar."; break;
+                }
+                break;
+        }
+    }
+};
+
+/*
+ * Explicit, allocation-free adapter from builtin errors to the Error interface.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/* Moving the adapter preserves its original error value; no implicit conversion or cloning occurs.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum CoreError implements Error {
+    /*
+     * Preserve an owned CollectionError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Collection {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public CollectionError error;
+    };
+    /*
+     * Preserve an owned RangeError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Range {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public RangeError error;
+    };
+    /*
+     * Preserve an owned BoundsError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Bounds {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public BoundsError error;
+    };
+    /*
+     * Preserve an owned TextError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Text {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public TextError error;
+    };
+    /*
+     * Preserve an owned ParseError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Parse {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public ParseError error;
+    };
+    /*
+     * Preserve an owned IntegerError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Integer {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public IntegerError error;
+    };
+    /*
+     * Preserve an owned FloatError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Float {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public FloatError error;
+    };
+    /*
+     * Preserve the original invalid character scalar without allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    Char {
+        /*
+         * Retain the exact scalar rejected by the checked Char constructor.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public CharError error;
+    };
+    /*
+     * Preserve an owned RefCountError value.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    RefCount {
+        /*
+         * Original error, available to callers by borrowing or consuming the adapter.
+         * @since 0.3
+         * @deprecated_at none
+         * @removed_at none
+         */
+        public RefCountError error;
+    };
+
+    /*
+     * Return a static code without allocating or consuming the stored error.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&CoreError self) {
+        switch (*self) {
+            case CoreError.Collection { &CollectionError cause = error }:
+                switch (*cause) {
+                    case CollectionError.AllocationFailure: return "collection.allocation_failure"; break;
+                    case CollectionError.SizeOverflow: return "collection.size_overflow"; break;
+                }
+                break;
+            case CoreError.Range { &RangeError cause = error }:
+                switch (*cause) {
+                    case RangeError.InvalidStep: return "range.invalid_step"; break;
+                    case RangeError.CountOverflow: return "range.count_overflow"; break;
+                }
+                break;
+            case CoreError.Bounds { &BoundsError cause = error }:
+                switch (*cause) {
+                    case BoundsError.OutOfBounds: return "bounds.out_of_bounds"; break;
+                    case BoundsError.ReversedRange: return "bounds.reversed_range"; break;
+                }
+                break;
+            case CoreError.Text { &TextError cause = error }:
+                switch (*cause) {
+                    case TextError.AllocationFailure: return "text.allocation_failure"; break;
+                    case TextError.SizeOverflow: return "text.size_overflow"; break;
+                    case TextError.InvalidUtf8: return "text.invalid_utf8"; break;
+                    case TextError.InvalidBoundary: return "text.invalid_boundary"; break;
+                }
+                break;
+            case CoreError.Parse { &ParseError cause = error }:
+                switch (*cause) {
+                    case ParseError.EmptyInput: return "parse.empty_input"; break;
+                    case ParseError.InvalidSyntax: return "parse.invalid_syntax"; break;
+                    case ParseError.OutOfRange: return "parse.out_of_range"; break;
+                    case ParseError.NonFinite: return "parse.non_finite"; break;
+                    case ParseError.InvalidScalar: return "parse.invalid_scalar"; break;
+                }
+                break;
+            case CoreError.Integer { &IntegerError cause = error }:
+                switch (*cause) {
+                    case IntegerError.OutOfRange: return "integer.out_of_range"; break;
+                }
+                break;
+            case CoreError.Float { &FloatError cause = error }:
+                switch (*cause) {
+                    case FloatError.OutOfRange: return "float.out_of_range"; break;
+                    case FloatError.NonFinite: return "float.non_finite"; break;
+                    case FloatError.NonExact: return "float.non_exact"; break;
+                }
+                break;
+            case CoreError.Char { &CharError cause = error }:
+                switch (*cause) {
+                    case CharError.InvalidScalar: return "char.invalid_scalar"; break;
+                }
+                break;
+            case CoreError.RefCount { &RefCountError cause = error }:
+                switch (*cause) {
+                    case RefCountError.CountOverflow: return "memory.ref_count_overflow"; break;
+                }
+                break;
+        }
+    }
+
+    /*
+     * Return a static message without allocating or consuming the stored error.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&CoreError self) {
+        switch (*self) {
+            case CoreError.Collection { &CollectionError cause = error }:
+                switch (*cause) {
+                    case CollectionError.AllocationFailure: return "Memory for the collection could not be allocated."; break;
+                    case CollectionError.SizeOverflow: return "The requested collection size is not representable."; break;
+                }
+                break;
+            case CoreError.Range { &RangeError cause = error }:
+                switch (*cause) {
+                    case RangeError.InvalidStep: return "The range step is invalid for its direction."; break;
+                    case RangeError.CountOverflow: return "The range element count is not representable."; break;
+                }
+                break;
+            case CoreError.Bounds { &BoundsError cause = error }:
+                switch (*cause) {
+                    case BoundsError.OutOfBounds: return "The requested index is outside the valid bounds."; break;
+                    case BoundsError.ReversedRange: return "The range start is greater than its end."; break;
+                }
+                break;
+            case CoreError.Text { &TextError cause = error }:
+                switch (*cause) {
+                    case TextError.AllocationFailure: return "Memory for the text could not be allocated."; break;
+                    case TextError.SizeOverflow: return "The requested text size is not representable."; break;
+                    case TextError.InvalidUtf8: return "The input is not valid UTF-8."; break;
+                    case TextError.InvalidBoundary: return "The byte offset is not a UTF-8 character boundary."; break;
+                }
+                break;
+            case CoreError.Parse { &ParseError cause = error }:
+                switch (*cause) {
+                    case ParseError.EmptyInput: return "Input contains no scalar token."; break;
+                    case ParseError.InvalidSyntax: return "Input is not a complete valid scalar representation."; break;
+                    case ParseError.OutOfRange: return "Input is outside the requested scalar type range."; break;
+                    case ParseError.NonFinite: return "A finite scalar value is required."; break;
+                    case ParseError.InvalidScalar: return "Input is not a valid Unicode scalar."; break;
+                }
+                break;
+            case CoreError.Integer { &IntegerError cause = error }:
+                switch (*cause) {
+                    case IntegerError.OutOfRange: return "The integer result is outside the requested type range."; break;
+                }
+                break;
+            case CoreError.Float { &FloatError cause = error }:
+                switch (*cause) {
+                    case FloatError.OutOfRange: return "The floating-point result is outside the requested type range."; break;
+                    case FloatError.NonFinite: return "A finite floating-point value is required."; break;
+                    case FloatError.NonExact: return "The conversion cannot preserve the value exactly."; break;
+                }
+                break;
+            case CoreError.Char { &CharError cause = error }:
+                switch (*cause) {
+                    case CharError.InvalidScalar: return "The value is not a valid Unicode scalar."; break;
+                }
+                break;
+            case CoreError.RefCount { &RefCountError cause = error }:
+                switch (*cause) {
+                    case RefCountError.CountOverflow: return "The shared or weak reference count cannot be increased."; break;
+                }
+                break;
+        }
+    }
+};
+
+/*
+ * Type erasure either moves an existing Box or performs an explicit fallible allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct AnyError implements Error {
+    Box<dyn Error> owner;
+
+    /*
+     * Version history for the error.AnyError.from_box public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public AnyError from_box(Box<dyn Error> value) {
+        return AnyError { owner = value };
+    }
+    /*
+     * Version history for the error.AnyError.pack public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<AnyError, InputError<E>> pack<E>(E value) where E implements Error {
+        Result<Box<E>, InputError<E>> allocated = Box.new(value);
+        switch (move allocated) {
+            case Result<Box<E>, InputError<E>>.Ok { Box<E> concrete = value }:
+                Box<dyn Error> erased = Box.into_dyn(concrete);
+                return Result.ok(AnyError { owner = erased });
+                break;
+            case Result<Box<E>, InputError<E>>.Err { InputError<E> failure = error }:
+                return Result.err(failure);
+                break;
+        }
+    }
+    /*
+     * Version history for the error.AnyError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&AnyError self) {
+        return self.owner.code();
+    }
+    /*
+     * Version history for the error.AnyError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&AnyError self) {
+        return self.owner.message();
+    }
+    /*
+     * Version history for the error.AnyError.as_error public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public &dyn Error as_error(&AnyError self) {
+        return Box.as_ref(&self.owner);
+    }
+};

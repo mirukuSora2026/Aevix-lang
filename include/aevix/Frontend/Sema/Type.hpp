@@ -53,7 +53,19 @@ namespace aevix
         Box,
         Tuple,
         Simd,
-        SimdMask
+        SimdMask,
+        Shared,
+        Weak,
+        Atomic,
+        Mutex,
+        RwLock,
+        MutexGuard,
+        RwLockReadGuard,
+        RwLockWriteGuard,
+        CancellationSource,
+        CancellationToken,
+        Task,
+        TaskScope
     };
 
     /// 타입 ID는 해당 TypeContext 안에서만 의미를 가지며 별칭은 같은 ID를 사용한다.
@@ -93,6 +105,11 @@ namespace aevix
         TypeId simdMask(std::size_t lanes);
         TypeId dynamic(SymbolId declaration, std::string name);
         TypeId boxed(SymbolId declaration, std::string name, TypeId element);
+        TypeId shared(SymbolId declaration, std::string name, TypeId element, bool weak = false);
+        TypeId atomic(SymbolId declaration, std::string name, TypeId element);
+        TypeId sync(TypeKind kind, SymbolId declaration, std::string name, TypeId element);
+        TypeId cancellation(SymbolId declaration, std::string name, bool observer);
+        TypeId taskOwner(TypeKind kind, SymbolId declaration, std::string name, TypeId element = InvalidTypeId);
 
         // 잘못된 ID는 오류 타입으로 처리하여 후속 검사의 연쇄 오류를 줄인다.
         // Invalid IDs resolve to the error type to limit cascading diagnostics.

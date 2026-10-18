@@ -1,0 +1,599 @@
+# ========================
+#
+# Created By : miruku_sora2026
+#
+# File name : generate_ucd
+#
+# Description :
+#     고정된 Unicode 17 입력에서 불변 소스 테이블과 재현 가능한 명세를 만든다.
+#     Build immutable source tables and a reproducible manifest from pinned Unicode 17 inputs.
+#
+# ========================
+from array import array
+from fractions import Fraction
+from pathlib import Path
+import argparse
+import hashlib
+import json
+import re
+import zipfile
+
+LIMIT = 0x110000
+PROJECT = Path(__file__).resolve().parents[2]
+parser = argparse.ArgumentParser(description='Reproduce the pinned Unicode source artifact without network access.')
+parser.add_argument('--input-dir', type=Path, default=PROJECT / 'third_party/unicode/17.0.0')
+parser.add_argument('--source', type=Path, default=PROJECT / 'library/Core/unicode.avx')
+parser.add_argument('--output', type=Path, default=PROJECT / 'library/Core/unicode.avx')
+parser.add_argument('--metadata-output', type=Path, default=PROJECT / 'docs/Language/Library/unicode_properties.json')
+parser.add_argument('--manifest-output', type=Path, default=PROJECT / 'third_party/unicode/17.0.0/artifact-manifest.json')
+parser.add_argument('--verify', action='store_true', help='Compare every generated output with existing bytes without writing.')
+parser.add_argument('--verify-upstream-archive', type=Path, help='Additionally verify the original full UCD.zip and byte-exact extracted members.')
+args = parser.parse_args()
+INPUT = args.input_dir
+EXPECTED_ARCHIVE = '2066d1909b2ea93916ce092da1c0ee4808ea3ef8407c94b4f14f5b7eb263d28e'
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit(message)
+
+
+input_manifest = json.loads((INPUT / 'manifest.json').read_text(encoding='utf-8'))
+require(hashlib.sha256(json.dumps(input_manifest, sort_keys=True, separators=(',', ':')).encode()).hexdigest() == '70bf55c770fdc341bcfc65168784431b6eedb8a63fd7b4cb8ca69bc5a3d5016c', 'Pinned Unicode input manifest changed.')
+for entry in input_manifest['files']:
+    content = (INPUT / entry['path']).read_bytes()
+    require(hashlib.sha256(content).hexdigest() == entry['sha256'], 'Pinned Unicode input changed: ' + entry['path'])
+if args.verify_upstream_archive:
+    require(hashlib.sha256(args.verify_upstream_archive.read_bytes()).hexdigest() == EXPECTED_ARCHIVE, 'Original UCD.zip archive hash mismatch.')
+    with zipfile.ZipFile(args.verify_upstream_archive) as archive:
+        for entry in input_manifest['files']:
+            require((INPUT / entry['path']).read_bytes() == archive.read(entry['path']), 'Original UCD member mismatch: ' + entry['path'])
+require(hashlib.sha256((INPUT / 'LICENSE-UNICODE.txt').read_bytes()).hexdigest() == 'e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96', 'Pinned Unicode license bytes changed.')
+
+
+def rows(filename):
+    for raw in (INPUT / filename).read_text(encoding='utf-8-sig').splitlines():
+        clean = raw.split('#', 1)[0].strip()
+        if clean:
+            yield [part.strip() for part in clean.split(';')]
+
+
+def span(text):
+    parts = text.split('..')
+    return int(parts[0], 16), int(parts[-1], 16)
+
+
+def assign(values, left, right, value):
+    values[left:right + 1] = array(values.typecode, [value]) * (right - left + 1)
+
+
+def pascal(value):
+    value = ''.join(word[:1].upper() + word[1:] for word in re.split(r'[^A-Za-z0-9]+', value) if word)
+    return 'Value' + value if value[:1].isdigit() else value
+
+
+aliases = {}
+for parts in rows('PropertyValueAliases.txt'):
+    if len(parts) < 3:
+        continue
+    for spelling in parts[1:]:
+        if spelling:
+            aliases[(parts[0], spelling)] = parts[2]
+
+
+def canonical(prop, value):
+    return aliases.get((prop, value), value)
+
+
+def pack(value, width):
+    assert 0 <= value < 64 ** width, (value, width)
+    return ''.join(chr(48 + ((value >> (6 * shift)) & 63)) for shift in range(width - 1, -1, -1))
+
+
+def literal(value):
+    return json.dumps(value, ensure_ascii=True)
+
+
+def doc(text):
+    return '/*\n * ' + text + '\n * @since 0.3\n * @deprecated_at none\n * @removed_at none\n */\n'
+
+
+pieces = []
+tables = {}
+properties = {}
+enum_specs = {}
+
+
+def data(name, payload):
+    pieces.append('string_view ucd_' + name + '_data(){return ' + literal(payload) + ';}\n')
+    tables[name] = {'bytes': len(payload), 'sha256': hashlib.sha256(payload.encode('ascii')).hexdigest()}
+
+
+def ranges(name, values, width=2):
+    records = []
+    last = None
+    for code, value in enumerate(values):
+        if value != last:
+            records.append(pack(code, 4) + pack(value, width))
+            last = value
+    data(name, ''.join(records))
+    tables[name]['records'] = len(records)
+    tables[name]['value_width'] = width
+
+
+def add_enum(name, variants):
+    assert len(set(variants)) == len(variants), name
+    enum_specs[name] = variants
+    pieces.append(doc('Unicode 17 ' + name + ' property values; variants have no numeric ABI guarantee.'))
+    pieces.append('public enum ' + name + ' implements Copy {\n')
+    for variant in variants:
+        pieces.append(doc('The ' + variant + ' value from the pinned Unicode property artifact.'))
+        pieces.append(variant + ';\n')
+    pieces.append('};\n')
+    pieces.append(name + ' ucd_' + name + '(u32 value){switch(value){\n')
+    for index, variant in enumerate(variants):
+        pieces.append('case ' + str(index) + 'u32:return ' + name + '.' + variant + ';break;\n')
+    pieces.append('default:Never.unreachable();break;}}\n')
+
+
+def prop_file(filename, prop, default, field=1, select=None):
+    actual = []
+    missing = []
+    for raw in (INPUT / filename).read_text(encoding='utf-8-sig').splitlines():
+        if '@missing:' in raw:
+            parts = [part.strip() for part in raw.split('@missing:', 1)[1].split(';')]
+            if select and (len(parts) < 3 or parts[1] != select):
+                continue
+            missing.append((span(parts[0]), parts[-1]))
+        clean = raw.split('#', 1)[0].strip()
+        if not clean:
+            continue
+        parts = [part.strip() for part in clean.split(';')]
+        if select and (len(parts) < 3 or parts[1] != select):
+            continue
+        actual.append((span(parts[0]), parts[field]))
+    names = {canonical(prop, default)}
+    names.update(canonical(prop, value) for _, value in actual + missing)
+    ordered = sorted(names)
+    ids = {value: index for index, value in enumerate(ordered)}
+    result = array('I', [ids[canonical(prop, default)]]) * LIMIT
+    for (first, last), value in missing + actual:
+        assign(result, first, last, ids[canonical(prop, value)])
+    return result, ordered
+
+
+pieces.append('''
+u32 ucd_unpack(Slice<byte> input,usize offset,usize width){
+    mut u32 result=0u32;mut usize index=0usize;
+    while(index<width){result=(result<<6)|represent<u32>(Byte.to_u8(input[offset+index])-48u8);index++;}
+    return result;
+}
+u32 ucd_find(string_view table,u32 scalar_value,usize value_width){
+    Slice<byte> input=string.as_bytes(table);usize stride=4usize+value_width;
+    mut usize low=0usize;mut usize high=Slice.len(input)/stride;
+    while(low<high){usize middle=low+(high-low)/2usize;if(ucd_unpack(input,middle*stride,4usize)<=scalar_value)low=middle+1usize;else high=middle;}
+    if(low==0usize)Never.unreachable();
+    return ucd_unpack(input,(low-1usize)*stride+4usize,value_width);
+}
+''')
+
+# UnicodeData ranges supply general categories, combining classes, decimal digits,
+# canonical names, and simple case mappings. First/Last ranges are expanded exactly.
+unicode_rows = list(rows('UnicodeData.txt'))
+categories = sorted({entry[2] for entry in unicode_rows} | {'Cn'})
+category_ids = {name: index for index, name in enumerate(categories)}
+general = array('I', [category_ids['Cn']]) * LIMIT
+combining = array('I', [0]) * LIMIT
+decimal = array('I', [10]) * LIMIT
+simple = {name: array('I', range(LIMIT)) for name in ('lowercase', 'uppercase', 'titlecase', 'case_fold')}
+names = {}
+algorithmic = []
+pending = None
+for entry in unicode_rows:
+    point = int(entry[0], 16)
+    if entry[1].endswith(', First>'):
+        pending = entry
+        continue
+    first = point
+    if entry[1].endswith(', Last>'):
+        assert pending
+        first = int(pending[0], 16)
+        if 'CJK Ideograph' in pending[1]:
+            algorithmic.append((first, point, 'CJK UNIFIED IDEOGRAPH-'))
+        elif 'Tangut Ideograph' in pending[1]:
+            algorithmic.append((first, point, 'TANGUT IDEOGRAPH-'))
+        pending = None
+    assign(general, first, point, category_ids[entry[2]])
+    assign(combining, first, point, int(entry[3]))
+    if entry[6]:
+        assign(decimal, first, point, int(entry[6]))
+    if not entry[1].startswith('<'):
+        names[point] = entry[1]
+    for case, field in [('uppercase', 12), ('lowercase', 13), ('titlecase', 14)]:
+        if entry[field]:
+            simple[case][point] = int(entry[field], 16)
+        elif case == 'titlecase' and entry[12]:
+            simple[case][point] = int(entry[12], 16)
+
+add_enum('GeneralCategory', [pascal(canonical('gc', value)) for value in categories])
+ranges('general_category', general)
+properties['general_category'] = {'type': 'GeneralCategory', 'values': general, 'variants': enum_specs['GeneralCategory']}
+pieces.append(doc('Return Unicode 17 General_Category without allocation.'))
+pieces.append('public GeneralCategory general_category(char c){return ucd_GeneralCategory(ucd_find(ucd_general_category_data(),Char.to_u32(c),2usize));}\n')
+ranges('combining_class', combining)
+pieces.append(doc('Return Unicode 17 Canonical_Combining_Class without allocation.'))
+pieces.append('public u8 combining_class(char c){return represent<u8>(ucd_find(ucd_combining_class_data(),Char.to_u32(c),2usize));}\n')
+properties['combining_class'] = {'type': 'u8', 'values': combining}
+ranges('decimal_value', decimal)
+pieces.append(doc('Return the decimal digit value only for Nd scalars; no allocation.'))
+pieces.append('public Optional<u8> decimal_value(char c){u32 value=ucd_find(ucd_decimal_value_data(),Char.to_u32(c),2usize);if(value==10u32)return Optional.none();return Optional.some(represent<u8>(value));}\n')
+properties['decimal_value'] = {'type': 'Optional<u8>', 'values': decimal}
+
+specs = [
+    ('bidi_class', 'BidiClass', 'extracted/DerivedBidiClass.txt', 'bc', 'L'),
+    ('east_asian_width', 'EastAsianWidth', 'EastAsianWidth.txt', 'ea', 'N'),
+    ('script', 'Script', 'Scripts.txt', 'sc', 'Unknown'),
+    ('grapheme_break', 'GraphemeBreak', 'auxiliary/GraphemeBreakProperty.txt', 'GCB', 'Other'),
+    ('word_break', 'WordBreak', 'auxiliary/WordBreakProperty.txt', 'WB', 'Other'),
+    ('sentence_break', 'SentenceBreak', 'auxiliary/SentenceBreakProperty.txt', 'SB', 'Other'),
+    ('line_break', 'LineBreak', 'LineBreak.txt', 'lb', 'XX'),
+]
+for api, enum, filename, alias, default in specs:
+    values, spellings = prop_file(filename, alias, default)
+    variants = [pascal(value) for value in spellings]
+    add_enum(enum, variants)
+    ranges(api, values)
+    properties[api] = {'type': enum, 'values': values, 'variants': variants, 'spellings': spellings}
+    pieces.append(doc('Return the Unicode 17 ' + api + ' property; this is not a text segmentation or rendering algorithm.'))
+    pieces.append('public ' + enum + ' ' + api + '(char c){return ucd_' + enum + '(ucd_find(ucd_' + api + '_data(),Char.to_u32(c),2usize));}\n')
+
+# Blocks have absent gaps and are independent of Script.
+block_entries = list(rows('Blocks.txt'))
+block_names = sorted({entry[1] for entry in block_entries})
+add_enum('UnicodeBlock', [pascal(value) for value in block_names])
+block_ids = {name: index + 1 for index, name in enumerate(block_names)}
+blocks = array('I', [0]) * LIMIT
+for entry in block_entries:
+    left, right = span(entry[0]); assign(blocks, left, right, block_ids[entry[1]])
+ranges('block', blocks)
+pieces.append(doc('Return the named Unicode 17 block, including unassigned positions inside a block; gaps return None.'))
+pieces.append('public Optional<UnicodeBlock> block(char c){u32 value=ucd_find(ucd_block_data(),Char.to_u32(c),2usize);if(value==0u32)return Optional.none();return Optional.some(ucd_UnicodeBlock(value-1u32));}\n')
+properties['block'] = {'type': 'Optional<UnicodeBlock>', 'values': blocks, 'variants': enum_specs['UnicodeBlock']}
+
+# Age is not a guessed property of unassigned code points.
+age_values, ages = prop_file('DerivedAge.txt', 'age', 'Unassigned')
+pieces.append(doc('An exact Unicode release identifier; the current artifact uses major/minor with patch zero.'))
+pieces.append('public struct UnicodeVersion implements Copy {\n')
+for field in ('major', 'minor', 'patch'):
+    pieces.append(doc('The ' + field + ' release component.'))
+    pieces.append('public u8 ' + field + ';\n')
+pieces.append('};\n')
+ranges('age', age_values)
+pieces.append(doc('Return the pinned Age value, or None for code points without a UCD age.'))
+pieces.append('public Optional<UnicodeVersion> age(char c){switch(ucd_find(ucd_age_data(),Char.to_u32(c),2usize)){\n')
+for index, value in enumerate(ages):
+    if value == 'Unassigned':
+        pieces.append('case ' + str(index) + 'u32:return Optional.none();break;\n')
+    else:
+        major, minor = value.removeprefix('V').replace('_', '.').split('.')
+        pieces.append('case ' + str(index) + 'u32:return Optional.some(UnicodeVersion {major=' + major + 'u8,minor=' + minor + 'u8,patch=0u8});break;\n')
+pieces.append('default:Never.unreachable();break;}}\n')
+properties['age'] = {'type': 'Optional<UnicodeVersion>', 'values': age_values, 'spellings': ages}
+
+add_enum('QuickCheck', ['No', 'Maybe', 'Yes'])
+for api, key in [('nfc_quick_check', 'NFC_QC'), ('nfd_quick_check', 'NFD_QC'), ('nfkc_quick_check', 'NFKC_QC'), ('nfkd_quick_check', 'NFKD_QC')]:
+    values, spellings = prop_file('DerivedNormalizationProps.txt', key, 'Yes', field=2, select=key)
+    qc = {'N': 0, 'No': 0, 'M': 1, 'Maybe': 1, 'Y': 2, 'Yes': 2}
+    values = array('I', [qc[spellings[value]] for value in values])
+    ranges(api, values)
+    properties[api] = {'type': 'QuickCheck', 'values': values, 'variants': ['No', 'Maybe', 'Yes']}
+    pieces.append(doc('Return the scalar Unicode 17 ' + key + ' property; whole-string normalization requires additional context.'))
+    pieces.append('public QuickCheck ' + api + '(char c){return ucd_QuickCheck(ucd_find(ucd_' + api + '_data(),Char.to_u32(c),2usize));}\n')
+
+flags = array('I', [0]) * LIMIT
+flag_apis = {
+    'is_alphabetic': 'Alphabetic', 'is_case_ignorable': 'Case_Ignorable',
+    'is_cased': 'Cased', 'is_default_ignorable': 'Default_Ignorable_Code_Point',
+    'is_join_control': 'Join_Control', 'is_lowercase': 'Lowercase',
+    'is_uppercase': 'Uppercase', 'is_variation_selector': 'Variation_Selector',
+    'is_whitespace': 'White_Space', 'is_xid_continue': 'XID_Continue', 'is_xid_start': 'XID_Start',
+}
+flag_ids = {value: index for index, value in enumerate(flag_apis.values())}
+for filename in ('DerivedCoreProperties.txt', 'PropList.txt'):
+    for entry in rows(filename):
+        if entry[1] in flag_ids:
+            left, right = span(entry[0]); bit = 1 << flag_ids[entry[1]]
+            for code in range(left, right + 1):
+                flags[code] |= bit
+ranges('flags', flags)
+for api, prop in flag_apis.items():
+    pieces.append(doc('Test Unicode 17 ' + prop + '; locale independent and allocation free.'))
+    pieces.append('public bool ' + api + '(char c){return (ucd_find(ucd_flags_data(),Char.to_u32(c),2usize)&' + str(1 << flag_ids[prop]) + 'u32)!=0u32;}\n')
+    properties[api] = {'type': 'bool', 'values': array('I', [int(bool(value & (1 << flag_ids[prop]))) for value in flags])}
+category_tests = {
+    'is_assigned': [value for value in categories if value != 'Cn'],
+    'is_unassigned': ['Cn'], 'is_decimal_digit': ['Nd'], 'is_format': ['Cf'],
+    'is_letter': [value for value in categories if value.startswith('L')],
+    'is_mark': [value for value in categories if value.startswith('M')],
+    'is_letter_or_number': [value for value in categories if value.startswith(('L', 'N'))],
+}
+for api, matching in category_tests.items():
+    ids = {category_ids[value] for value in matching}
+    test = '||'.join('value==' + str(value) + 'u32' for value in sorted(ids))
+    pieces.append(doc('Test the Unicode 17 general-category grouping, without allocating.'))
+    pieces.append('public bool ' + api + '(char c){u32 value=ucd_find(ucd_general_category_data(),Char.to_u32(c),2usize);return ' + test + ';}\n')
+    properties[api] = {'type': 'bool', 'values': array('I', [int(value in ids) for value in general])}
+
+numeric_values = {Fraction(entry[3]) for entry in rows('extracted/DerivedNumericValues.txt')}
+numeric_pairs = sorted(numeric_values)
+numeric_ids = {value: index + 1 for index, value in enumerate(numeric_pairs)}
+numeric = array('I', [0]) * LIMIT
+for entry in rows('extracted/DerivedNumericValues.txt'):
+    left, right = span(entry[0]); assign(numeric, left, right, numeric_ids[Fraction(entry[3])])
+assert max(abs(value.numerator) for value in numeric_pairs) < 2 ** 63
+assert max(value.denominator for value in numeric_pairs) < 2 ** 64
+ranges('numeric', numeric)
+pieces.append(doc('The exact reduced rational Numeric_Value, including Han numeric data; denominator is positive.'))
+pieces.append('public struct UnicodeNumeric implements Copy {\n')
+for declaration, description in [('i64 numerator', 'The signed rational numerator.'), ('u64 denominator', 'The strictly positive rational denominator.')]:
+    pieces.append(doc(description)); pieces.append('public ' + declaration + ';\n')
+pieces.append('};\n')
+pieces.append(doc('Return the exact pinned numeric rational, or None; never round through a float.'))
+pieces.append('public Optional<UnicodeNumeric> numeric_value(char c){switch(ucd_find(ucd_numeric_data(),Char.to_u32(c),2usize)){\ncase 0u32:return Optional.none();break;\n')
+for index, value in enumerate(numeric_pairs, 1):
+    pieces.append('case ' + str(index) + 'u32:return Optional.some(UnicodeNumeric {numerator=' + str(value.numerator) + 'i64,denominator=' + str(value.denominator) + 'u64});break;\n')
+pieces.append('default:Never.unreachable();break;}}\n')
+pieces.append(doc('Test Numeric_Type other than None, including non-decimal and Han numeric characters.'))
+pieces.append('public bool is_numeric(char c){return ucd_find(ucd_numeric_data(),Char.to_u32(c),2usize)!=0u32;}\n')
+properties['numeric_value'] = {'type': 'Optional<UnicodeNumeric>', 'values': numeric, 'pairs': [[x.numerator, x.denominator] for x in numeric_pairs]}
+properties['is_numeric'] = {'type': 'bool', 'values': array('I', [int(bool(value)) for value in numeric])}
+
+# Script_Extensions defaults to a singleton containing the Script property.
+script = properties['script']
+script_ids = {value: index for index, value in enumerate(script['spellings'])}
+sets = {(value,) for value in script_ids.values()}
+extension_rows = []
+for entry in rows('ScriptExtensions.txt'):
+    group = tuple(sorted(script_ids[canonical('sc', value)] for value in entry[1].split()))
+    sets.add(group); extension_rows.append((span(entry[0]), group))
+ordered_sets = sorted(sets)
+set_ids = {value: index for index, value in enumerate(ordered_sets)}
+extensions = array('I', [set_ids[(value,)] for value in script['values']])
+for (left, right), group in extension_rows:
+    assign(extensions, left, right, set_ids[group])
+ranges('script_extensions', extensions)
+group_pool = ''.join(''.join(pack(value, 2) for value in group) for group in ordered_sets)
+data('script_extension_pool', group_pool)
+offset = 0; group_index = []
+for group in ordered_sets:
+    group_index.append(pack(offset, 4) + pack(len(group), 2)); offset += len(group) * 2
+data('script_extension_index', ''.join(group_index))
+pieces.append(doc('Allocate the Script_Extensions set in stable Script variant order; UCD defaults are singleton Script sets. Allocation errors use UnicodeError.'))
+pieces.append('''public Result<Vector<Script>,UnicodeError> script_extensions(char c){
+    u32 set_id=ucd_find(ucd_script_extensions_data(),Char.to_u32(c),2usize);
+    Slice<byte> index=string.as_bytes(ucd_script_extension_index_data());usize position=represent<usize>(set_id)*6usize;
+    usize offset=represent<usize>(ucd_unpack(index,position,4usize));usize length=represent<usize>(ucd_unpack(index,position+4usize,2usize));
+    Slice<byte> pool=string.as_bytes(ucd_script_extension_pool_data());
+    Result<Vector<Script>,CollectionError> empty=[];
+    mut Vector<Script> output=proven(empty);
+    mut usize at=0usize;while(at<length){ucd_push_script(&mut output,ucd_Script(ucd_unpack(pool,offset+at*2usize,2usize)))?;at++;}
+    return Result.ok(output);
+}
+Result<unit,UnicodeError> ucd_push_script(&mut Vector<Script> output,Script value){
+    Result<unit,InputError<Script>> appended=Vector.push(output,value);
+    switch(move appended){case Result<unit,InputError<Script>>.Ok:return Result.ok(Unit.value());break;case Result<unit,InputError<Script>>.Err {InputError<Script> cause=error}:switch(move cause){case InputError<Script>.SizeOverflow:return Result.err(UnicodeError.SizeOverflow);break;case InputError<Script>.AllocationFailure:return Result.err(UnicodeError.AllocationFailure);break;default:Never.unreachable();break;}break;}
+}
+''')
+properties['script_extensions'] = {'type': 'Vector<Script>', 'values': extensions, 'sets': ordered_sets}
+
+# Only C/S entries participate in simple default folding; F/C in full default folding.
+full_fold = {}
+for entry in rows('CaseFolding.txt'):
+    code = int(entry[0], 16); mapping = [int(value, 16) for value in entry[2].split()]
+    if entry[1] in ('C', 'S'):
+        assert len(mapping) == 1; simple['case_fold'][code] = mapping[0]
+    if entry[1] in ('C', 'F'):
+        full_fold[code] = mapping
+full = {name: {} for name in ('lowercase', 'uppercase', 'titlecase', 'case_fold')}
+for name in full:
+    for code, mapped in enumerate(simple[name]):
+        if code != mapped:
+            full[name][code] = [mapped]
+full['case_fold'].update(full_fold)
+for entry in rows('SpecialCasing.txt'):
+    if len(entry) >= 5 and entry[4]:
+        continue
+    code = int(entry[0], 16)
+    for name, field in [('lowercase', 1), ('titlecase', 2), ('uppercase', 3)]:
+        full[name][code] = [int(value, 16) for value in entry[field].split()]
+
+def sparse(name, entries, fields):
+    data(name, ''.join(pack(code, 4) + ''.join(pack(value, width) for value, width in zip(values, fields)) for code, values in sorted(entries.items())))
+    tables[name]['records'] = len(entries)
+
+
+pieces.append('''usize ucd_sparse(string_view table,u32 code,usize stride){
+    Slice<byte> data=string.as_bytes(table);mut usize low=0usize;mut usize high=Slice.len(data)/stride;
+    while(low<high){usize middle=low+(high-low)/2usize;u32 found=ucd_unpack(data,middle*stride,4usize);if(found<code)low=middle+1usize;else high=middle;}
+    if(low==Slice.len(data)/stride||ucd_unpack(data,low*stride,4usize)!=code)return Slice.len(data);
+    return low*stride;
+}
+''')
+for kind in simple:
+    mapping = {code: (value,) for code, value in enumerate(simple[kind]) if code != value}
+    sparse('simple_' + kind, mapping, (4,))
+    pieces.append(doc('Apply Unicode 17 default non-Turkic simple ' + kind + '; identity when absent, no context or allocation.'))
+    pieces.append('public char simple_' + kind + '(char c){string_view table=ucd_simple_' + kind + '_data();usize at=ucd_sparse(table,Char.to_u32(c),8usize);Slice<byte> bytes=string.as_bytes(table);if(at==Slice.len(bytes))return c;return scalar(ucd_unpack(bytes,at+4usize,4usize));}\n')
+    properties['simple_' + kind] = {'type': 'char', 'values': simple[kind]}
+    pool = ''; index = {}
+    for code, sequence in sorted(full[kind].items()):
+        index[code] = (len(pool), len(sequence))
+        pool += ''.join(pack(value, 4) for value in sequence)
+    sparse('full_' + kind, index, (4, 2)); data('full_' + kind + '_pool', pool)
+    api = 'case_fold' if kind == 'case_fold' else 'to_' + kind
+    pieces.append(doc('Allocate Unicode 17 default isolated-scalar full ' + kind + '. Only unconditional SpecialCasing rules apply; normalization and contextual/Turkic casing are separate. Errors use UnicodeError.'))
+    pieces.append('public Result<string,UnicodeError> ' + api + '(char c){return ucd_full_case(c,ucd_full_' + kind + '_data(),ucd_full_' + kind + '_pool_data());}\n')
+pieces.append('''Result<string,UnicodeError> ucd_full_case(char c,string_view table,string_view pool){
+    Slice<byte> index=string.as_bytes(table);usize at=ucd_sparse(table,Char.to_u32(c),10usize);
+    mut byte output[12]=[Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8)];
+    mut usize used=0usize;
+    if(at==Slice.len(index)){used=encode_utf8_into(c,Slice.from_array_mut(&mut output))?;}
+    else{
+        usize offset=represent<usize>(ucd_unpack(index,at+4usize,4usize));usize count=represent<usize>(ucd_unpack(index,at+8usize,2usize));
+        Slice<byte> sequences=string.as_bytes(pool);mut usize item=0usize;
+        while(item<count){char mapped=scalar(ucd_unpack(sequences,offset+item*4usize,4usize));MutSlice<byte> storage=Slice.from_array_mut(&mut output);MutSlice<byte> tail=proven(Slice.slice_mut(storage,used,12usize));used+=encode_utf8_into(mapped,tail)?;item++;}
+    }
+    return own_bytes(proven(Slice.slice(Slice.from_array(&output),0usize,used)));
+}
+''')
+assert max(len(sequence) for mappings in full.values() for sequence in mappings.values()) <= 3
+
+# Hangul names are defined algorithmically by the pinned Jamo_Short_Name input.
+# Materializing the finite set here keeps source lookup allocation free and makes
+# inverse lookup unambiguous without relaxed hyphen/space matching.
+jamo = {int(entry[0], 16): entry[1] for entry in rows('Jamo.txt')}
+for code in range(0xAC00, 0xD7A4):
+    syllable = code - 0xAC00
+    trailing = syllable % 28
+    name = jamo[0x1100 + syllable // 588] + jamo[0x1161 + (syllable % 588) // 28]
+    if trailing:
+        name += jamo[0x11A7 + trailing]
+    names[code] = 'HANGUL SYLLABLE ' + name
+
+alias_rows = list(rows('NameAliases.txt'))
+alias_groups = {}
+lookup = {value: code for code, value in names.items()}
+for entry in alias_rows:
+    code = int(entry[0], 16)
+    alias_groups.setdefault(code, []).append(entry[1])
+    assert entry[1] not in lookup or lookup[entry[1]] == code, entry
+    lookup[entry[1]] = code
+name_pool = ''
+name_locations = {}
+for name in sorted(lookup):
+    name_locations[name] = (len(name_pool), len(name))
+    name_pool += name
+data('name_pool', name_pool)
+sparse('name_index', {code: name_locations[name] for code, name in names.items()}, (4, 2))
+data('name_lookup', ''.join(pack(name_locations[name][0], 4) + pack(len(name), 2) + pack(code, 4) for name, code in sorted(lookup.items())))
+alias_index = {}; alias_pool = ''
+for code, entries in sorted(alias_groups.items()):
+    alias_index[code] = (len(alias_pool), len(entries))
+    for name in entries:
+        offset, length = name_locations[name]
+        alias_pool += pack(offset, 4) + pack(length, 2)
+sparse('alias_index', alias_index, (4, 2)); data('alias_pool', alias_pool)
+
+pieces.append('''string_view ucd_part(string_view input,usize offset,usize length){return proven(string.slice_bytes(input,offset,offset+length));}
+Optional<string_view> ucd_algorithmic_prefix(u32 code){
+''')
+for first, last, prefix in algorithmic:
+    pieces.append('if(code>=' + str(first) + 'u32&&code<=' + str(last) + 'u32)return Optional.some(' + literal(prefix) + ');\n')
+pieces.append('return Optional.none();}\n')
+pieces.append('''Result<string,UnicodeError> ucd_algorithmic_name(u32 code,string_view prefix){
+    mut byte buffer[40]=[Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8),Byte.from_u8(0u8)];
+    Slice<byte> front=string.as_bytes(prefix);usize length=Slice.len(front);mut usize at=0usize;
+    while(at<length){buffer[at]=front[at];at++;}
+    usize digits=code<65536u32?4usize:(code<1048576u32?5usize:6usize);
+    mut usize position=0usize;
+    while(position<digits){usize shift=(digits-position-1usize)*4usize;u32 nibble=(code>>shift)&15u32;buffer[length+position]=Byte.from_u8(represent<u8>(nibble<10u32?nibble+48u32:nibble+55u32));position++;}
+    return own_bytes(proven(Slice.slice(Slice.from_array(&buffer),0usize,length+digits)));
+}
+u8 ucd_ascii_upper(u8 value){if(value>=97u8&&value<=122u8)return value-32u8;return value;}
+i32 ucd_compare_name(Slice<byte> input,Slice<byte> pool,usize offset,usize length){
+    usize input_length=Slice.len(input);mut usize at=0usize;
+    while(at<input_length&&at<length){u8 left=ucd_ascii_upper(Byte.to_u8(input[at]));u8 right=Byte.to_u8(pool[offset+at]);if(left<right)return -1;if(left>right)return 1;at++;}
+    if(input_length<length)return -1;if(input_length>length)return 1;return 0;
+}
+bool ucd_prefix_equal(Slice<byte> input,Slice<byte> prefix){
+    usize length=Slice.len(prefix);if(Slice.len(input)<length)return false;mut usize index=0usize;
+    while(index<length){if(ucd_ascii_upper(Byte.to_u8(input[index]))!=Byte.to_u8(prefix[index]))return false;index++;}return true;
+}
+Optional<char> ucd_lookup_algorithmic(Slice<byte> input,string_view prefix){
+    Slice<byte> front=string.as_bytes(prefix);usize start=Slice.len(front);usize length=Slice.len(input);
+    if(!ucd_prefix_equal(input,front)||length<start+4usize||length>start+6usize)return Optional.none();
+    mut u32 code=0u32;mut usize offset=start;
+    while(offset<length){i32 digit=hex_value(Byte.to_u8(input[offset]));if(digit<0)return Optional.none();code=(code<<4)|represent<u32>(digit);offset++;}
+    usize digits=code<65536u32?4usize:(code<1048576u32?5usize:6usize);
+    if(length!=start+digits)return Optional.none();
+    Optional<string_view> actual=ucd_algorithmic_prefix(code);
+    switch(actual){case Optional<string_view>.Some {string_view expected=value}:if(string.equals(expected,prefix))return Optional.some(scalar(code));return Optional.none();break;case Optional<string_view>.None:return Optional.none();break;}
+}
+''')
+pieces.append(doc('Allocate the canonical Unicode 17 name, including algorithmic Hangul/CJK/Tangut names. Controls, private-use and unnamed/unassigned scalars return None. Allocation errors use UnicodeError.'))
+pieces.append('''public Result<Optional<string>,UnicodeError> name(char c){
+    u32 code=Char.to_u32(c);Optional<string_view> algorithmic=ucd_algorithmic_prefix(code);
+    switch(algorithmic){case Optional<string_view>.Some {string_view prefix=value}:return Result.ok(Optional.some(ucd_algorithmic_name(code,prefix)?));break;case Optional<string_view>.None:break;}
+    string_view table=ucd_name_index_data();Slice<byte> index=string.as_bytes(table);usize at=ucd_sparse(table,code,10usize);
+    if(at==Slice.len(index))return Result.ok(Optional.none());
+    usize offset=represent<usize>(ucd_unpack(index,at+4usize,4usize));usize length=represent<usize>(ucd_unpack(index,at+8usize,2usize));
+    return Result.ok(Optional.some(own_bytes(string.as_bytes(ucd_part(ucd_name_pool_data(),offset,length)))?));
+}
+''')
+pieces.append(doc('Resolve canonical names and all five formal Name_Alias kinds. ASCII letter case is ignored; spaces and hyphens are exact, preserving Hangul OE/O-E distinctions. Unknown or noncanonical spellings return InvalidSyntax at byte zero; no allocation.'))
+pieces.append('''public Result<char,UnicodeError> lookup_name(string_view name){
+    Slice<byte> input=string.as_bytes(name);usize length=Slice.len(input);mut usize offset=0usize;
+    while(offset<length){if(Byte.to_u8(input[offset])>127u8)return Result.err(UnicodeError.InvalidSyntax {offset=0usize});offset++;}
+    Slice<byte> index=string.as_bytes(ucd_name_lookup_data());Slice<byte> pool=string.as_bytes(ucd_name_pool_data());
+    mut usize low=0usize;mut usize high=Slice.len(index)/10usize;
+    while(low<high){usize middle=low+(high-low)/2usize;usize at=middle*10usize;usize start=represent<usize>(ucd_unpack(index,at,4usize));usize size=represent<usize>(ucd_unpack(index,at+4usize,2usize));i32 compared=ucd_compare_name(input,pool,start,size);if(compared>0)low=middle+1usize;else if(compared<0)high=middle;else return Result.ok(scalar(ucd_unpack(index,at+6usize,4usize)));}
+''')
+for prefix in sorted({item[2] for item in algorithmic}):
+    pieces.append('Optional<char> found_' + prefix.split()[0].lower() + '=ucd_lookup_algorithmic(input,' + literal(prefix) + ');\n')
+    pieces.append('switch(found_' + prefix.split()[0].lower() + '){case Optional<char>.Some {char found=value}:return Result.ok(found);break;case Optional<char>.None:break;}\n')
+pieces.append('return Result.err(UnicodeError.InvalidSyntax {offset=0usize});}\n')
+pieces.append(doc('Allocate all formal Name_Alias strings in pinned file order, retaining each alias kind represented in that data. The vector is empty when absent; allocation errors preserve cleanup of earlier entries.'))
+pieces.append('''public Result<Vector<string>,UnicodeError> name_aliases(char c){
+    Result<Vector<string>,CollectionError> empty=[];mut Vector<string> output=proven(empty);
+    string_view table=ucd_alias_index_data();Slice<byte> index=string.as_bytes(table);usize at=ucd_sparse(table,Char.to_u32(c),10usize);
+    if(at==Slice.len(index))return Result.ok(output);
+    usize start=represent<usize>(ucd_unpack(index,at+4usize,4usize));usize count=represent<usize>(ucd_unpack(index,at+8usize,2usize));Slice<byte> aliases=string.as_bytes(ucd_alias_pool_data());
+    mut usize item=0usize;while(item<count){usize offset=represent<usize>(ucd_unpack(aliases,start+item*6usize,4usize));usize length=represent<usize>(ucd_unpack(aliases,start+item*6usize+4usize,2usize));string owned=own_bytes(string.as_bytes(ucd_part(ucd_name_pool_data(),offset,length)))?;ucd_push_name(&mut output,owned)?;item++;}
+    return Result.ok(output);
+}
+Result<unit,UnicodeError> ucd_push_name(&mut Vector<string> output,string value){
+    Result<unit,InputError<string>> appended=Vector.push(output,value);
+    switch(move appended){case Result<unit,InputError<string>>.Ok:return Result.ok(Unit.value());break;case Result<unit,InputError<string>>.Err {InputError<string> cause=error}:switch(move cause){case InputError<string>.SizeOverflow:return Result.err(UnicodeError.SizeOverflow);break;case InputError<string>.AllocationFailure:return Result.err(UnicodeError.AllocationFailure);break;default:Never.unreachable();break;}break;}
+}
+''')
+
+manifest = json.loads((INPUT / 'manifest.json').read_text(encoding='utf-8'))
+manifest['created_by'] = 'miruku_sora2026'
+manifest['description'] = 'Reproducible Unicode 17 data, license, generator, policy, and immutable source-table provenance; not an execution verification claim.'
+manifest['license'] = {'path': 'LICENSE-UNICODE.txt', 'url': 'https://www.unicode.org/license.txt', 'sha256': hashlib.sha256((INPUT / 'LICENSE-UNICODE.txt').read_bytes()).hexdigest()}
+manifest['generator_sha256'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+manifest['policy'] = {
+    'encoding': 'ASCII six-bit big-endian fields; interval records begin at zero and extend to the next start; sparse records require exact scalar match.',
+    'case': 'Default non-Turkic; simple CaseFolding C/S and full C/F; unconditional SpecialCasing only for isolated scalar mapping.',
+    'names': 'Canonical names, algorithmic Hangul/CJK/Tangut names, all five Name_Alias kinds; ASCII case-insensitive exact separator matching.',
+    'numeric': 'Exact rational field 3 of DerivedNumericValues, including derived Han values.',
+    'script_extensions': 'Explicit UCD sets, otherwise singleton Script; stable canonical-script-name order.',
+    'break_properties': 'Properties only; no segmentation, shaping, bidi reordering, line wrapping, or normalization algorithm.'}
+manifest['generated_tables'] = tables
+fingerprint = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+pieces.append(doc('Borrow the exact Unicode release identifier for these immutable source tables; no locale or runtime database is consulted.'))
+pieces.append('public string_view unicode_version(){return "17.0.0";}\n')
+pieces.append(doc('Borrow the SHA-256 of the canonical input/license/table manifest; table encoding and policy are reproducible from pinned inputs.'))
+pieces.append('public string_view ucd_fingerprint(){return "sha256:' + fingerprint + '";}\n')
+manifest['artifact_fingerprint'] = fingerprint
+manifest_content = json.dumps(manifest, indent=2) + '\n'
+
+# Export data-derived reference metadata separately from generated source encoding.
+metadata = {'unicode_version': '17.0.0', 'archive_sha256': EXPECTED_ARCHIVE, 'tables': tables, 'enums': enum_specs,
+            'properties': {name: {key: value for key, value in info.items() if key != 'values'} for name, info in properties.items()},
+            'name_entries': len(names), 'algorithmic_ranges': algorithmic,
+            'public_functions': re.findall(r'public [^\n]+? ([a-z_]+)\(', ''.join(pieces))}
+metadata['created_by'] = 'miruku_sora2026'
+metadata['description'] = 'Generated Unicode 17 property vocabularies and table layout for independent execution oracles; not a compiler completeness claim.'
+metadata_content = json.dumps(metadata, indent=2) + '\n'
+marker = '/* BEGIN GENERATED UNICODE 17 PROPERTY ARTIFACT. */'
+prefix = args.source.read_text(encoding='utf-8').split(marker, 1)[0].rstrip()
+source = prefix + '\n\n' + marker + '\n' + ''.join(pieces)
+for path, content in [(args.output, source), (args.metadata_output, metadata_content), (args.manifest_output, manifest_content)]:
+    encoded = content.encode('utf-8')
+    if args.verify:
+        require(path.read_bytes() == encoded, 'Generated artifact differs: ' + str(path))
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(encoded)
+print(json.dumps({'source_bytes': len(source.encode()), 'tables': len(tables), 'functions': len(metadata['public_functions']), 'materialized_names': len(names), 'verified': args.verify}))

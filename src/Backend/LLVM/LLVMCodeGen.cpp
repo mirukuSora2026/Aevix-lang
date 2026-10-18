@@ -10,9 +10,18 @@
 //
 // ========================
 #include "aevix/Backend/LLVM/LLVMCodeGen.hpp"
+#include "aevix/Optimizer/ProofRangeAnalysis.hpp"
+#include <chrono>
+#include "aevix/Native/AtomicOperation.hpp"
+#include "aevix/Native/TaskOperation.hpp"
+#include "aevix/Native/RangeOperation.hpp"
+#include "aevix/Frontend/Ownership/ThreadSafetyAnalysis.hpp"
+#include "aevix/Native/SyncOperation.hpp"
 #include "aevix/Backend/LLVM/SimdCodeGen.hpp"
+#include "aevix/Frontend/Lexer/LiteralText.hpp"
 #include "aevix/Frontend/Sema/NumericLiteral.hpp"
 #include "aevix/Frontend/Sema/SmallFloat.hpp"
+#include "aevix/Native/OsOperation.hpp"
 #include <algorithm>
 #include <bit>
 #include <cctype>
@@ -35,8 +44,8 @@ namespace aevix
         {
         public:
             Emitter(const AIRModule& module, const TypeCheckResult& typed, const NameResolution& names,
-                    Diagnostics& diagnostics, std::string triple)
-                : module_(module), typed_(typed), names_(names), diagnostics_(diagnostics), triple_(std::move(triple)) {}
+                    Diagnostics& diagnostics, std::string triple, ProofOptimizationOptions proof)
+                : module_(module), typed_(typed), names_(names), diagnostics_(diagnostics), triple_(std::move(triple)), proofOptions_(proof) {}
             std::optional<std::string> run()
             {
                 const auto before = diagnostics_.size();
@@ -128,8 +137,78 @@ namespace aevix
                 emitModuleLifecycle();
                 emitEntry();
                 emitReserves();
+                emitVectorTruncations();
                 emitPayloadDrops();
+                emitSharedPayloadDrops();
+                emitTaskThunks();
                 emitDrops();
+                if (usesTask_)
+                    output_ << "declare i32 @aevix_task_scope_open(ptr)\n"
+                            << "declare i32 @aevix_task_scope_prepare_identified(i64, i64, i64, i64, i64, ptr, ptr, ptr, ptr, ptr, ptr)\n"
+                            << "declare i32 @aevix_scoped_task_commit(i64)\n"
+                            << "declare i32 @aevix_task_scope_prepare_ready(i64, i64, i64, ptr, ptr, ptr, ptr)\n"
+                            << "declare i32 @aevix_scoped_task_ready_commit(i64)\n"
+                            << "declare i32 @aevix_scoped_task_join(i64, ptr, i64)\n"
+                            << "declare i32 @aevix_scoped_task_try_take(i64, ptr, i64)\n"
+                            << "declare i32 @aevix_scoped_task_discard(i64)\n"
+                            << "declare i32 @aevix_scoped_task_wait(i64)\n"
+                            << "declare i32 @aevix_scoped_task_wait_timeout(i64, i64)\n"
+                            << "declare i32 @aevix_scoped_task_request_cancel(i64, ptr)\n"
+                            << "declare i32 @aevix_scoped_task_snapshot(i64, ptr)\n"
+                            << "declare i32 @aevix_scoped_task_cancel_token(i64, ptr)\n"
+                            << "declare i32 @aevix_task_scope_close_admission(i64)\n"
+                            << "declare i32 @aevix_task_scope_active_count(i64, ptr)\n"
+                            << "declare i32 @aevix_task_scope_status(i64, ptr)\n"
+                            << "declare i32 @aevix_task_scope_close(i64, ptr)\n"
+                            << "declare i32 @aevix_task_scope_cleanup(i64)\n"
+                            << "declare i32 @aevix_task_last_error()\n"
+                            << "declare i32 @aevix_task_error_domain()\n";
+                if (usesCancellation_)
+                    output_ << "declare i32 @aevix_cancel_source_new(ptr)\n"
+                            << "declare i32 @aevix_cancel_source_clone(i64, ptr)\n"
+                            << "declare i32 @aevix_cancel_token_from_source(i64, ptr)\n"
+                            << "declare i32 @aevix_cancel_token_clone(i64, ptr)\n"
+                            << "declare i32 @aevix_cancel_source_request(i64, ptr)\n"
+                            << "declare i32 @aevix_cancel_token_requested(i64, ptr)\n"
+                            << "declare i32 @aevix_cancel_source_release(i64)\n"
+                            << "declare i32 @aevix_cancel_token_release(i64)\n";
+                if (usesSync_)
+                    output_ << "declare i32 @aevix_mutex_lock(ptr, ptr)\n"
+                            << "declare i32 @aevix_mutex_try_lock(ptr, ptr)\n"
+                            << "declare i32 @aevix_mutex_lock_timeout(ptr, i64, ptr)\n"
+                            << "declare i32 @aevix_mutex_unlock(ptr, i32)\n"
+                            << "declare i32 @aevix_mutex_is_poisoned(ptr, ptr)\n"
+                            << "declare i32 @aevix_mutex_clear_poison(ptr)\n"
+                            << "declare i32 @aevix_rwlock_read(ptr, ptr)\n"
+                            << "declare i32 @aevix_rwlock_write(ptr, ptr)\n"
+                            << "declare i32 @aevix_rwlock_try_read(ptr, ptr)\n"
+                            << "declare i32 @aevix_rwlock_try_write(ptr, ptr)\n"
+                            << "declare i32 @aevix_rwlock_read_timeout(ptr, i64, ptr)\n"
+                            << "declare i32 @aevix_rwlock_write_timeout(ptr, i64, ptr)\n"
+                            << "declare i32 @aevix_rwlock_read_unlock(ptr)\n"
+                            << "declare i32 @aevix_rwlock_write_unlock(ptr, i32)\n"
+                            << "declare i32 @aevix_rwlock_is_poisoned(ptr, ptr)\n"
+                            << "declare i32 @aevix_rwlock_clear_poison(ptr)\n";
+                if (usesAtomic_)
+                    output_ << "declare i32 @aevix_atomic_operation(ptr, i32, i32, i64, i64, i32, i32, ptr, ptr)\n"
+                            << "declare i32 @aevix_atomic_fence(i32, i32)\n"
+                            << "declare i32 @aevix_atomic_wait(ptr, i32, i64, i32, i64, i32, ptr, ptr)\n"
+                            << "declare i32 @aevix_atomic_alignment(i32)\n"
+                            << "declare i32 @aevix_atomic_lock_free(i32)\n";
+                if (usesShared_)
+                    output_ << "declare i32 @aevix_shared_prepare(i64, i64, ptr, ptr, ptr)\n"
+                            << "declare i32 @aevix_shared_commit(i64)\n"
+                            << "declare i32 @aevix_shared_clone(i64, ptr)\n"
+                            << "declare i32 @aevix_shared_release(i64)\n"
+                            << "declare i32 @aevix_shared_downgrade(i64, ptr)\n"
+                            << "declare i32 @aevix_weak_clone(i64, ptr)\n"
+                            << "declare i32 @aevix_weak_release(i64)\n"
+                            << "declare i32 @aevix_weak_upgrade(i64, ptr)\n"
+                            << "declare i32 @aevix_shared_payload(i64, ptr)\n"
+                            << "declare i32 @aevix_shared_unique_payload(i64, ptr)\n"
+                            << "declare i32 @aevix_shared_take(i64, ptr, i64)\n"
+                            << "declare i32 @aevix_shared_counts(i64, ptr, ptr)\n"
+                            << "declare i32 @aevix_shared_same_allocation(i64, i64, ptr)\n";
                 if (usesText_)
                     output_ << "declare i32 @aevix_text_copy(ptr, ptr, i64, i32)\n"
                             << "declare i32 @aevix_text_append(ptr, ptr, i64)\n"
@@ -138,6 +217,42 @@ namespace aevix
                             << "declare i32 @aevix_text_decode(ptr, i64, i64)\n"
                             << "declare i32 @aevix_text_boundary(ptr, i64, i64)\n"
                             << "declare i32 @aevix_text_equal(ptr, i64, ptr, i64)\n";
+                if (usesOs_)
+                    output_ << "declare i32 @aevix_os_file_open_utf8(ptr, i64, i32, ptr)\n"
+                            << "declare i32 @aevix_os_file_read(i64, ptr, i64, ptr)\n"
+                            << "declare i32 @aevix_os_file_write(i64, ptr, i64, ptr)\n"
+                            << "declare i32 @aevix_os_file_seek(i64, i64, i32, ptr)\n"
+                            << "declare i32 @aevix_os_file_flush(i64)\n"
+                            << "declare i32 @aevix_os_file_close(i64)\n"
+                            << "declare i32 @aevix_os_file_size(i64, ptr)\n"
+                            << "declare i32 @aevix_os_file_set_len(i64, i64)\n"
+                            << "declare void @aevix_os_file_cleanup(i64)\n"
+                            << "declare i32 @aevix_os_last_error()\n"
+                            << "declare i32 @aevix_os_error_kind()\n";
+                if (usesOs_)
+                    output_ << "declare i32 @aevix_os_env_get_utf8(ptr, i64, ptr, ptr, ptr)\n"
+                            << "declare i32 @aevix_os_env_set_utf8(ptr, i64, ptr, i64)\n"
+                            << "declare i32 @aevix_os_env_remove_utf8(ptr, i64)\n"
+                            << "declare i32 @aevix_os_monotonic_ns(ptr)\n"
+                            << "declare i32 @aevix_os_unix_time_ns(ptr)\n"
+                            << "declare i32 @aevix_os_sleep_ns(i64)\n"
+                            << "declare i32 @aevix_os_path_normalize_utf8(ptr, i64, ptr, ptr)\n"
+                            << "declare i32 @aevix_os_path_metadata_utf8(ptr, i64, i32, ptr)\n"
+                            << "declare i32 @aevix_os_path_mkdir_utf8(ptr, i64)\n"
+                            << "declare i32 @aevix_os_path_remove_utf8(ptr, i64)\n"
+                            << "declare i32 @aevix_os_process_spawn(ptr, i64, ptr)\n"
+                            << "declare i32 @aevix_os_process_wait(i64, ptr)\n"
+                            << "declare i32 @aevix_os_process_try_wait(i64, ptr)\n"
+                            << "declare i32 @aevix_os_process_kill(i64)\n"
+                            << "declare void @aevix_os_process_cleanup(i64)\n";
+                if (usesParse_)
+                    output_ << "declare i32 @aevix_parse_scalar(ptr, i64, i32, i32, i32, ptr)\n";
+                if (usesSystem_)
+                    output_ << "declare i32 @aevix_system_output(ptr, i64, i8, i8, ptr, i64)\n"
+                            << "declare i32 @aevix_system_flush(i8)\n"
+                            << "declare i32 @aevix_system_input(i8, ptr, ptr, ptr)\n"
+                            << "declare i32 @aevix_system_error_code()\n"
+                            << "declare i64 @aevix_system_error_progress()\n";
                 if (usesBench_)
                     output_ << "declare i64 @aevix_bench_begin(ptr)\n"
                             << "declare void @aevix_bench_end(i64)\n"
@@ -160,6 +275,7 @@ namespace aevix
                     output_ << "declare ptr @malloc(i64)\ndeclare void @free(ptr)\n";
                 }
                 if (!reserveTypes_.empty()) output_ << "declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1 immarg)\n";
+                if (usesMemmove_) output_ << "declare void @llvm.memmove.p0.p0.i64(ptr, ptr, i64, i1 immarg)\n";
                 output_ << "declare void @llvm.trap()\n";
                 for (const auto& intrinsic : overflowIntrinsics_) output_ << intrinsic << '\n';
                 if (diagnostics_.size() != before) return std::nullopt;
@@ -171,6 +287,9 @@ namespace aevix
             const NameResolution& names_;
             Diagnostics& diagnostics_;
             std::string triple_;
+            ProofOptimizationOptions proofOptions_;
+            ProofRangeResult proofRanges_;
+            const AIRInstruction* currentInstruction_ = nullptr;
             std::ostringstream output_;
             std::set<std::string> overflowIntrinsics_;
             const AIRFunction* function_ = nullptr;
@@ -178,14 +297,27 @@ namespace aevix
             std::size_t label_ = 0;
             bool hasPersist_ = false;
             bool usesAllocation_ = false;
+            bool usesMemmove_ = false;
             bool usesParallel_ = false;
             bool usesText_ = false;
+            bool usesParse_ = false;
+            bool usesSystem_ = false;
+            bool usesOs_ = false;
+            bool usesShared_ = false;
+            bool usesAtomic_ = false;
+            bool usesCancellation_ = false;
+            bool usesTask_ = false;
+            std::set<std::tuple<TypeId,TypeId,SymbolId>> taskThunks_;
+            std::set<TypeId> taskReadyDrops_;
+            bool usesSync_ = false;
             bool usesBench_ = false;
             bool usesWideInteger_ = false;
             std::map<std::string, std::pair<std::string, std::string>> textLiterals_;
             std::set<TypeId> dropTypes_;
             std::set<TypeId> reserveTypes_;
+            std::set<TypeId> truncateTypes_;
             std::set<TypeId> payloadDropTypes_;
+            std::set<TypeId> sharedPayloadDropTypes_;
             std::set<bool> smallFloatFormats_;
             bool usesComplex_ = false;
             void error(const Node* source, const std::string& message)
@@ -208,6 +340,11 @@ namespace aevix
                         if (type.bits == 64) return "double";
                         return "i16";
                     case TypeKind::Reference: return typed_.types.get(type.element).kind == TypeKind::Dynamic ? "{ ptr, ptr }" : "ptr";
+                    case TypeKind::Shared: case TypeKind::Weak: case TypeKind::CancellationSource: case TypeKind::CancellationToken: case TypeKind::TaskScope: return "i64";
+                    case TypeKind::Task: return "{ i64, i64 }";
+                    case TypeKind::Atomic: return llvmType(type.element);
+                    case TypeKind::Mutex: case TypeKind::RwLock: return "{ i64, " + llvmType(type.element) + ", i8 }";
+                    case TypeKind::MutexGuard: case TypeKind::RwLockReadGuard: case TypeKind::RwLockWriteGuard: return "{ ptr, ptr, i1 }";
                     case TypeKind::Box: return typed_.types.get(type.element).kind == TypeKind::Dynamic ? "{ ptr, ptr }" : "ptr";
                     case TypeKind::Dynamic: error(nullptr, "unsized dyn has no direct storage type."); return "{}";
                     case TypeKind::Vector: return "{ ptr, i64, i64 }";
@@ -238,7 +375,10 @@ namespace aevix
             {
                 if (textLiterals_.contains(spelling)) return;
                 std::string bytes;
-                for (std::size_t index = 1; index + 1 < spelling.size(); ++index)
+                // 원시 문자열은 이스케이프 처리 없이 검증된 본문 바이트를 보존한다.
+                // Preserve validated raw string bytes without escape processing.
+                if (const auto raw = rawStringContents(spelling)) bytes.assign(*raw);
+                else for (std::size_t index = 1; index + 1 < spelling.size(); ++index)
                 {
                     char character = spelling[index];
                     if (character != '\\') { bytes += character; continue; }
@@ -262,7 +402,7 @@ namespace aevix
             }
             void collectText(const Node& node)
             {
-                if (node.kind == "Literal" && node.value.starts_with('"')) internText(node.value);
+                if (node.kind == "Literal" && isStringLiteralSpelling(node.value)) internText(node.value);
                 for (const auto& child : node.children) collectText(*child);
             }
             std::string value(AIRValueId id) const { return "%v" + std::to_string(id); }
@@ -491,8 +631,10 @@ namespace aevix
                 else if (place.pointer != InvalidAIRId)
                 { pointer = value(place.pointer); current = typed_.types.get(valueType(place.pointer)).element; }
                 else { error(nullptr, "place has no base."); pointer = "null"; }
+                std::size_t projectionOrdinal = 0;
                 for (const auto& projection : place.projections)
                 {
+                    const auto ordinal = projectionOrdinal++;
                     const auto next = temporary();
                     if (projection.kind == AIRProjectionKind::Field)
                         output_ << "  " << next << " = getelementptr " << llvmType(current) << ", ptr " << pointer << ", i32 0, i32 " << projection.field << '\n';
@@ -527,15 +669,29 @@ namespace aevix
                                     << "  " << data << " = extractvalue " << llvmType(current) << ' ' << descriptor << ", 0\n"
                                     << "  " << bound << " = extractvalue " << llvmType(current) << ' ' << descriptor << ", 1\n";
                         }
-                        output_ << "  " << invalid << " = icmp uge " << compareType << ' ' << index << ", " << bound << '\n';
-                        if (integer.isSigned)
+                        // 동일 AIR 명령의 실제 고정 배열 장소에 대한 수렴한 증명만 소비한다.
+                        // Consume converged proof only for this exact instruction's actual fixed-array place.
+                        const auto proven = currentInstruction_ ? proofRanges_.fixedArrayIndices.find(currentInstruction_)
+                            : proofRanges_.fixedArrayIndices.end();
+                        const bool safeIndex = proofOptions_.enabled && currentInstruction_ && &place == &currentInstruction_->place
+                            && collection.kind == TypeKind::Array && collection.extent == projection.extent
+                            && proven != proofRanges_.fixedArrayIndices.end() && proven->second.contains(ordinal);
+                        if (safeIndex)
                         {
-                            const auto negative = temporary(); const auto outside = temporary();
-                            output_ << "  " << negative << " = icmp slt " << numericType << ' ' << value(projection.index) << ", 0\n"
-                                    << "  " << outside << " = or i1 " << invalid << ", " << negative << '\n';
-                            guard(outside);
+                            if (proofOptions_.statistics) ++proofOptions_.statistics->boundsChecksRemoved;
                         }
-                        else guard(invalid);
+                        else
+                        {
+                            output_ << "  " << invalid << " = icmp uge " << compareType << ' ' << index << ", " << bound << '\n';
+                            if (integer.isSigned)
+                            {
+                                const auto negative = temporary(); const auto outside = temporary();
+                                output_ << "  " << negative << " = icmp slt " << numericType << ' ' << value(projection.index) << ", 0\n"
+                                        << "  " << outside << " = or i1 " << invalid << ", " << negative << '\n';
+                                guard(outside);
+                            }
+                            else guard(invalid);
+                        }
                         if (collection.kind == TypeKind::Vector || collection.kind == TypeKind::Slice)
                             output_ << "  " << next << " = getelementptr " << llvmType(collection.element) << ", ptr " << data << ", " << compareType << ' ' << index << '\n';
                         else output_ << "  " << next << " = getelementptr " << llvmType(current) << ", ptr " << pointer << ", i32 0, " << compareType << ' ' << index << '\n';
@@ -735,6 +891,15 @@ namespace aevix
             void numericInstruction(const AIRInstruction& item)
             {
                 const auto source = valueType(item.operands[0]); const auto operand = value(item.operands[0]);
+                if (item.opcode == AIROpcode::NumericConvert && (item.operation == "Float.to_bits" || item.operation == "Float.from_bits"))
+                {
+                    // 16비트 저장은 이미 i16이며 큰 형식도 산술 없이 비트를 그대로 옮긴다.
+                    // Sixteen-bit storage already uses i16; wider formats transfer bits without arithmetic.
+                    const auto from = llvmType(source), to = llvmType(item.type);
+                    output_ << "  " << value(item.result) << " = " << (from == to ? "freeze " : "bitcast ") << from << ' ' << operand;
+                    if (from != to) output_ << " to " << to;
+                    output_ << '\n'; return;
+                }
                 if (item.opcode == AIROpcode::NumericConvert)
                 {
                     const auto converted = numericConverted(source, item.type, operand);
@@ -836,6 +1001,14 @@ namespace aevix
                 if (scalar.bits == 128)
                 { wideArithmetic(item, operation == "add" ? 0 : operation == "sub" ? 1 : 2, left, right); return; }
                 const auto type = llvmType(item.type);
+                if (proofOptions_.enabled && proofRanges_.arithmeticNoOverflow.contains(&item))
+                {
+                    // 수학적 결과가 타입 범위 안임을 증명해도 poison 약속 플래그를 추가하지 않는다.
+                    // Even with a proven mathematical result, emit no poison-producing no-wrap promises.
+                    output_ << "  " << value(item.result) << " = " << operation << ' ' << type << ' ' << left << ", " << right << '\n';
+                    if (proofOptions_.statistics) ++proofOptions_.statistics->arithmeticChecksRemoved;
+                    return;
+                }
                 const auto intrinsic = "llvm." + std::string(scalar.isSigned ? "s" : "u") + operation + ".with.overflow." + type;
                 overflowIntrinsics_.insert("declare { " + type + ", i1 } @" + intrinsic + "(" + type + ", " + type + ")");
                 const auto pair = temporary(); const auto overflow = temporary();
@@ -934,6 +1107,34 @@ namespace aevix
                 std::string instruction = op == "+" ? "fadd" : op == "-" ? "fsub" : op == "*" ? "fmul" : op == "&" ? "and" : op == "|" ? "or" : op == "^" ? "xor" : "";
                 if (instruction.empty()) { error(item.source, "unsupported binary operator '" + op + "'."); return; }
                 output_ << "  " << value(item.result) << " = " << instruction << ' ' << type << ' ' << left << ", " << right << '\n';
+            }
+            void emitRangeInspect(const AIRInstruction& item)
+            {
+                const auto* operation = rangeInspectOperation(item.operation);
+                if (!operation) { error(item.source,"Unknown closed Range inspection."); return; }
+                const auto rangeId = typed_.types.get(valueType(item.operands[0])).element;
+                const auto& element = typed_.types.get(typed_.types.get(rangeId).element);
+                const auto type = llvmType(rangeId), aggregate = temporary();
+                output_ << "  " << aggregate << " = load " << type << ", ptr " << value(item.operands[0]) << '\n';
+                if (operation->result != RangeInspectResult::Empty)
+                {
+                    output_ << "  " << value(item.result) << " = extractvalue " << type << ' ' << aggregate << ", " << operation->field << '\n';
+                    return;
+                }
+                const auto start = temporary(), end = temporary(), closed = temporary(), descending = temporary();
+                output_ << "  " << start << " = extractvalue " << type << ' ' << aggregate << ", 0\n"
+                        << "  " << end << " = extractvalue " << type << ' ' << aggregate << ", 1\n"
+                        << "  " << closed << " = extractvalue " << type << ' ' << aggregate << ", 3\n"
+                        << "  " << descending << " = extractvalue " << type << ' ' << aggregate << ", 4\n";
+                const auto less = temporary(), greater = temporary(), equal = temporary(), strict = temporary(), singleton = temporary(), present = temporary();
+                const auto integer = llvmType(typed_.types.get(rangeId).element);
+                output_ << "  " << less << " = icmp " << (element.isSigned ? "slt" : "ult") << ' ' << integer << ' ' << start << ", " << end << '\n'
+                        << "  " << greater << " = icmp " << (element.isSigned ? "sgt" : "ugt") << ' ' << integer << ' ' << start << ", " << end << '\n'
+                        << "  " << equal << " = icmp eq " << integer << ' ' << start << ", " << end << '\n'
+                        << "  " << strict << " = select i1 " << descending << ", i1 " << greater << ", i1 " << less << '\n'
+                        << "  " << singleton << " = and i1 " << closed << ", " << equal << '\n'
+                        << "  " << present << " = or i1 " << strict << ", " << singleton << '\n'
+                        << "  " << value(item.result) << " = xor i1 " << present << ", true\n";
             }
             void emitRange(const AIRInstruction& item)
             {
@@ -1063,6 +1264,36 @@ namespace aevix
                         << "  " << updated << " = insertvalue " << type << ' ' << value(item.operands[0]) << ", " << integer << ' ' << narrowed << ", 0\n"
                         << "  " << value(item.result) << " = insertvalue " << type << ' ' << updated << ", i1 " << enabled << ", 5\n";
             }
+            void emitCharScalar(const AIRInstruction& item)
+            {
+                if (item.operation == "Char.to_u32")
+                { output_ << "  " << value(item.result) << " = freeze i32 " << value(item.operands[0]) << '\n'; return; }
+                const auto carrier = typed_.carriers.find(item.type);
+                if (carrier == typed_.carriers.end()) { error(item.source,"Char scalar Result carrier is missing."); return; }
+                const auto* rejected = namedVariant(carrier->second.error,"InvalidScalar");
+                if (!rejected || rejected->fieldTypes.size() != 1)
+                { error(item.source,"Char scalar error payload is missing."); return; }
+                const auto raw = value(item.operands[0]);
+                const auto bounded = temporary(), lower = temporary(), upper = temporary(), outside = temporary(), valid = temporary();
+                const auto yes = label(), no = label(), done = label();
+                const auto storage = "%enumtmp" + std::to_string(item.result), errors = "%charerror" + std::to_string(item.result);
+                // 모든 검사는 u32에서 이루어져 잘못된 입력을 자르거나 char로 먼저 만들지 않는다.
+                // Check the full u32 before constructing char; rejected input is never truncated or exposed as a scalar.
+                output_ << "  " << bounded << " = icmp ule i32 " << raw << ", 1114111\n"
+                        << "  " << lower << " = icmp ult i32 " << raw << ", 55296\n"
+                        << "  " << upper << " = icmp ugt i32 " << raw << ", 57343\n"
+                        << "  " << outside << " = or i1 " << lower << ", " << upper << '\n'
+                        << "  " << valid << " = and i1 " << bounded << ", " << outside << '\n'
+                        << "  br i1 " << valid << ", label %" << yes << ", label %" << no << '\n' << yes << ":\n";
+                enumStore(storage,typed_.enumVariants.at(carrier->second.success),{{carrier->second.value,raw}});
+                output_ << "  br label %" << done << '\n' << no << ":\n";
+                enumStore(errors,*rejected,{{typed_.types.builtin("u32"),raw}});
+                const auto errorValue = temporary();
+                output_ << "  " << errorValue << " = load " << llvmType(carrier->second.error) << ", ptr " << errors << '\n';
+                enumStore(storage,typed_.enumVariants.at(carrier->second.failure),{{carrier->second.error,errorValue}});
+                output_ << "  br label %" << done << '\n' << done << ":\n"
+                        << "  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << storage << '\n';
+            }
             void enumStore(const std::string& storage, const EnumVariantInfo& variant, const std::vector<std::pair<TypeId, std::string>>& fields)
             {
                 output_ << "  store " << llvmType(variant.type) << " zeroinitializer, ptr " << storage << "\n  store i32 " << variant.tag << ", ptr " << storage << '\n';
@@ -1105,6 +1336,298 @@ namespace aevix
                 output_ << "  " << data << " = extractvalue " << llvmType(type) << ' ' << descriptor << ", 0\n"
                         << "  " << length << " = extractvalue " << llvmType(type) << ' ' << descriptor << ", 1\n";
                 return {data, length};
+            }
+            const EnumVariantInfo* namedVariant(TypeId type, std::string_view name)
+            {
+                for (const auto& record : module_.records) if (record.type == type)
+                    for (const auto& variant : record.variants)
+                        if (variant.variant < names_.symbols.size() && names_.symbols[variant.variant].name == name) return &variant;
+                error(nullptr, "missing system error variant " + std::string(name) + "."); return nullptr;
+            }
+            void systemIoError(TypeId type, const std::string& storage, const std::string& status, bool input, bool flush)
+            {
+                const auto done = label();
+                const auto save = [&](std::string_view name)
+                {
+                    const auto* variant = namedVariant(type, name);
+                    if (!variant) return;
+                    std::vector<std::pair<TypeId, std::string>> values;
+                    if (name == "ReadFailed" || name == "WriteFailed" || name == "FlushFailed")
+                    {
+                        const auto code = temporary(); output_ << "  " << code << " = call i32 @aevix_system_error_code()\n";
+                        values.emplace_back(typed_.types.builtin("i32"), code);
+                        if (!flush)
+                        { const auto progress = temporary(); output_ << "  " << progress << " = call i64 @aevix_system_error_progress()\n"; values.emplace_back(typed_.types.builtin("usize"), progress); }
+                    }
+                    enumStore(storage, *variant, values); output_ << "  br label %" << done << '\n';
+                };
+                const std::vector<std::pair<unsigned, std::string>> cases = input
+                    ? std::vector<std::pair<unsigned, std::string>>{{2,"AllocationFailure"},{3,"SizeOverflow"},{4,"ReadFailed"},{5,"InvalidUtf8"}}
+                    : std::vector<std::pair<unsigned, std::string>>{{1,flush ? "FlushFailed" : "WriteFailed"},{2,"AllocationFailure"},{3,"SizeOverflow"}};
+                for (const auto& [code, name] : cases)
+                {
+                    const auto matches = temporary(), selected = label(), next = label();
+                    output_ << "  " << matches << " = icmp eq i32 " << status << ", " << code << '\n'
+                            << "  br i1 " << matches << ", label %" << selected << ", label %" << next << '\n' << selected << ":\n";
+                    save(name); output_ << next << ":\n";
+                }
+                save("Unsupported"); output_ << done << ":\n";
+            }
+            void emitSystem(const AIRInstruction& item)
+            {
+                usesSystem_ = true;
+                const auto& carrier = typed_.carriers.at(item.type);
+                const auto suffix = std::to_string(item.result);
+                const auto storage = "%enumtmp" + suffix, errorStorage = "%syserror" + suffix;
+                const auto status = temporary();
+                if (item.operation == "input")
+                {
+                    usesAllocation_ = true;
+                    const auto& optional = typed_.carriers.at(carrier.value);
+                    const auto& target = typed_.types.get(optional.value);
+                    const bool text = target.kind == TypeKind::String;
+                    const auto dataSlot = "%sysdata" + suffix, lengthSlot = "%syslen" + suffix, capacitySlot = "%syscap" + suffix;
+                    const auto optionalSlot = "%sysoptional" + suffix, ioSlot = "%sysio" + suffix;
+                    const auto* ioVariant = namedVariant(carrier.error, "Io");
+                    const auto* parseVariant = namedVariant(carrier.error, "Parse");
+                    if (!ioVariant || !parseVariant || ioVariant->fieldTypes.size() != 1 || parseVariant->fieldTypes.size() != 1) return;
+                    output_ << "  " << status << " = call i32 @aevix_system_input(i8 " << (text ? 0 : 1) << ", ptr " << dataSlot
+                            << ", ptr " << lengthSlot << ", ptr " << capacitySlot << ")\n";
+                    const auto ok = temporary(), yes = label(), maybeEof = label(), eof = label(), failed = label(), done = label();
+                    output_ << "  " << ok << " = icmp eq i32 " << status << ", 0\n  br i1 " << ok << ", label %" << yes << ", label %" << maybeEof << '\n'
+                            << maybeEof << ":\n";
+                    const auto ended = temporary();
+                    output_ << "  " << ended << " = icmp eq i32 " << status << ", 1\n  br i1 " << ended << ", label %" << eof << ", label %" << failed << '\n' << eof << ":\n";
+                    enumStore(optionalSlot, typed_.enumVariants.at(optional.failure), {});
+                    const auto empty = temporary(); output_ << "  " << empty << " = load " << llvmType(carrier.value) << ", ptr " << optionalSlot << '\n';
+                    enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value, empty}}); output_ << "  br label %" << done << '\n';
+                    output_ << failed << ":\n";
+                    systemIoError(ioVariant->fieldTypes[0], ioSlot, status, true, false);
+                    const auto ioValue = temporary(); output_ << "  " << ioValue << " = load " << llvmType(ioVariant->fieldTypes[0]) << ", ptr " << ioSlot << '\n';
+                    enumStore(errorStorage, *ioVariant, {{ioVariant->fieldTypes[0], ioValue}});
+                    const auto reason = temporary(); output_ << "  " << reason << " = load " << llvmType(carrier.error) << ", ptr " << errorStorage << '\n';
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, reason}}); output_ << "  br label %" << done << '\n' << yes << ":\n";
+                    const auto data = temporary(), length = temporary(), capacity = temporary();
+                    output_ << "  " << data << " = load ptr, ptr " << dataSlot << '\n'
+                            << "  " << length << " = load i64, ptr " << lengthSlot << '\n'
+                            << "  " << capacity << " = load i64, ptr " << capacitySlot << '\n';
+                    std::string payload;
+                    if (text)
+                    {
+                        const auto a = temporary(), b = temporary(); payload = temporary();
+                        output_ << "  " << a << " = insertvalue { ptr, i64, i64 } zeroinitializer, ptr " << data << ", 0\n"
+                                << "  " << b << " = insertvalue { ptr, i64, i64 } " << a << ", i64 " << length << ", 1\n"
+                                << "  " << payload << " = insertvalue { ptr, i64, i64 } " << b << ", i64 " << capacity << ", 2\n";
+                    }
+                    else
+                    {
+                        usesParse_ = true;
+                        const auto domain = target.kind == TypeKind::Integer ? 0 : target.kind == TypeKind::Float ? 1 : target.kind == TypeKind::Bool ? 2 : target.kind == TypeKind::Char ? 3 : 4;
+                        const auto bits = target.kind == TypeKind::Bool ? 1u : target.kind == TypeKind::Char ? 32u : target.bits;
+                        const auto parsed = temporary(), valid = temporary(), good = label(), bad = label();
+                        output_ << "  " << parsed << " = call i32 @aevix_parse_scalar(ptr " << data << ", i64 " << length << ", i32 " << domain
+                                << ", i32 " << bits << ", i32 " << (target.kind == TypeKind::Integer && target.isSigned ? 1 : 0) << ", ptr %syspayload" << suffix << ")\n"
+                                << "  call void @free(ptr " << data << ")\n  " << valid << " = icmp eq i32 " << parsed << ", 0\n"
+                                << "  br i1 " << valid << ", label %" << good << ", label %" << bad << '\n' << bad << ":\n";
+                        const auto tag = temporary(), parseError = temporary();
+                        const auto parseSlot = "%sysparseerror" + suffix;
+                        output_ << "  store " << llvmType(parseVariant->fieldTypes[0]) << " zeroinitializer, ptr " << parseSlot << '\n'
+                                << "  " << tag << " = sub i32 " << parsed << ", 1\n  store i32 " << tag << ", ptr " << parseSlot << '\n'
+                                << "  " << parseError << " = load " << llvmType(parseVariant->fieldTypes[0]) << ", ptr " << parseSlot << '\n';
+                        enumStore(errorStorage, *parseVariant, {{parseVariant->fieldTypes[0], parseError}});
+                        const auto readError = temporary(); output_ << "  " << readError << " = load " << llvmType(carrier.error) << ", ptr " << errorStorage << '\n';
+                        enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, readError}}); output_ << "  br label %" << done << '\n' << good << ":\n";
+                        payload = temporary(); output_ << "  " << payload << " = load " << llvmType(optional.value) << ", ptr %syspayload" << suffix << '\n';
+                    }
+                    enumStore(optionalSlot, typed_.enumVariants.at(optional.success), {{optional.value, payload}});
+                    const auto some = temporary(); output_ << "  " << some << " = load " << llvmType(carrier.value) << ", ptr " << optionalSlot << '\n';
+                    enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value, some}});
+                    output_ << "  br label %" << done << '\n' << done << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << storage << '\n';
+                    return;
+                }
+                if (item.operation == "flush") output_ << "  " << status << " = call i32 @aevix_system_flush(i8 0)\n";
+                else
+                {
+                    const bool log = item.operation == "log";
+                    const auto begin = log ? 1u : 0u;
+                    const auto end = item.operands.size() - (log ? 1u : 0u);
+                    const auto count = end - begin;
+                    const std::string partType = "{ ptr, i64, i32, i32 }";
+                    for (std::size_t index = begin; index < end; ++index)
+                    {
+                        const auto input = item.operands[index]; const auto& type = typed_.types.get(valueType(input));
+                        const bool text = type.kind == TypeKind::StringView || type.kind == TypeKind::Reference;
+                        std::string pointer, length = "0";
+                        unsigned kind = 6, bits = 0;
+                        if (text) std::tie(pointer, length) = textDescriptor(input);
+                        else
+                        {
+                            pointer = "%syspart" + suffix + "." + std::to_string(index);
+                            kind = type.kind == TypeKind::Integer ? type.isSigned ? 0 : 1 : type.kind == TypeKind::Float ? 2 : type.kind == TypeKind::Bool ? 3 : type.kind == TypeKind::Char ? 4 : 5;
+                            bits = type.kind == TypeKind::Bool ? 1u : type.kind == TypeKind::Char ? 32u : type.bits;
+                            auto scalar = value(input);
+                            if (type.kind == TypeKind::Bool)
+                            { const auto extended = temporary(); output_ << "  " << extended << " = zext i1 " << scalar << " to i8\n"; scalar = extended; }
+                            output_ << "  store " << (type.kind == TypeKind::Bool ? "i8" : llvmType(valueType(input))) << ' ' << scalar << ", ptr " << pointer << '\n';
+                        }
+                        const auto slot = temporary(); output_ << "  " << slot << " = getelementptr [" << count << " x " << partType << "], ptr %sysparts" << suffix << ", i32 0, i64 " << index - begin << '\n';
+                        const auto a = temporary(), b = temporary(), c = temporary(), d = temporary();
+                        output_ << "  " << a << " = insertvalue " << partType << " zeroinitializer, ptr " << pointer << ", 0\n"
+                                << "  " << b << " = insertvalue " << partType << ' ' << a << ", i64 " << length << ", 1\n"
+                                << "  " << c << " = insertvalue " << partType << ' ' << b << ", i32 " << kind << ", 2\n"
+                                << "  " << d << " = insertvalue " << partType << ' ' << c << ", i32 " << bits << ", 3\n"
+                                << "  store " << partType << ' ' << d << ", ptr " << slot << '\n';
+                    }
+                    std::string level = "0", code = "null", codeLength = "0";
+                    if (log)
+                    {
+                        const auto tag = temporary(); level = temporary();
+                        output_ << "  " << tag << " = extractvalue " << llvmType(valueType(item.operands[0])) << ' ' << value(item.operands[0]) << ", 0\n"
+                                << "  " << level << " = trunc i32 " << tag << " to i8\n";
+                        std::tie(code, codeLength) = textDescriptor(item.operands.back());
+                    }
+                    output_ << "  " << status << " = call i32 @aevix_system_output(ptr " << (count ? "%sysparts" + suffix : "null")
+                            << ", i64 " << count << ", i8 " << (log ? 2 : item.operation == "println" ? 1 : 0) << ", i8 " << level << ", ptr " << code << ", i64 " << codeLength << ")\n";
+                }
+                const auto ok = temporary(), yes = label(), no = label(), done = label();
+                output_ << "  " << ok << " = icmp eq i32 " << status << ", 0\n  br i1 " << ok << ", label %" << yes << ", label %" << no << '\n' << yes << ":\n";
+                enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value, "zeroinitializer"}});
+                output_ << "  br label %" << done << '\n' << no << ":\n";
+                systemIoError(carrier.error, errorStorage, status, false, item.operation == "flush");
+                const auto reason = temporary(); output_ << "  " << reason << " = load " << llvmType(carrier.error) << ", ptr " << errorStorage << '\n';
+                enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, reason}});
+                output_ << "  br label %" << done << '\n' << done << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << storage << '\n';
+            }
+            void emitOs(const AIRInstruction& item)
+            {
+                usesOs_ = true;
+                const auto* operation = osOperation(item.operation);
+                if (!operation) { error(item.source, "unknown closed OS operation."); return; }
+                if (operation->unitResult)
+                {
+                    output_ << "  call void @aevix_os_" << item.operation << "(i64 " << value(item.operands[0]) << ")\n"
+                            << "  " << value(item.result) << " = freeze {} zeroinitializer\n";
+                    return;
+                }
+                const auto storage = "%osout" + std::to_string(item.result);
+                auto status = temporary();
+                const auto payloadType = typed_.types.get(item.type).parameters[1];
+                // 모든 경로에서 출력 저장소를 초기화하므로 실패 결과에도 이전 호출의 토큰이 섞이지 않는다.
+                // Initialize output on every path so failures cannot expose a previous invocation's token.
+                output_ << "  store " << llvmType(payloadType) << " zeroinitializer, ptr " << storage << '\n';
+                if (item.operation == "file_open")
+                {
+                    const auto [data, length] = textDescriptor(item.operands[0]);
+                    output_ << "  " << status << " = call i32 @aevix_os_file_open_utf8(ptr " << data
+                            << ", i64 " << length << ", i32 " << value(item.operands[1]) << ", ptr " << storage << ")\n";
+                }
+                else if (item.operation == "file_read" || item.operation == "file_write")
+                {
+                    const auto [data, length] = textDescriptor(item.operands[1]);
+                    output_ << "  " << status << " = call i32 @aevix_os_" << item.operation << "(i64 "
+                            << value(item.operands[0]) << ", ptr " << data << ", i64 " << length << ", ptr " << storage << ")\n";
+                }
+                else if (item.operation == "file_seek")
+                    output_ << "  " << status << " = call i32 @aevix_os_file_seek(i64 " << value(item.operands[0])
+                            << ", i64 " << value(item.operands[1]) << ", i32 " << value(item.operands[2]) << ", ptr " << storage << ")\n";
+                else if (item.operation == "file_size")
+                    output_ << "  " << status << " = call i32 @aevix_os_file_size(i64 " << value(item.operands[0]) << ", ptr " << storage << ")\n";
+                else if (item.operation == "file_set_len")
+                    output_ << "  " << status << " = call i32 @aevix_os_file_set_len(i64 " << value(item.operands[0])
+                            << ", i64 " << value(item.operands[1]) << ")\n";
+                else if (item.operation == "file_flush" || item.operation == "file_close")
+                    output_ << "  " << status << " = call i32 @aevix_os_" << item.operation << "(i64 " << value(item.operands[0]) << ")\n";
+                else if (item.operation == "monotonic_ns" || item.operation == "unix_time_ns")
+                    output_ << "  " << status << " = call i32 @aevix_os_" << item.operation << "(ptr " << storage << ")\n";
+                else if (item.operation == "sleep_ns")
+                    output_ << "  " << status << " = call i32 @aevix_os_sleep_ns(i64 " << value(item.operands[0]) << ")\n";
+                else if (item.operation == "process_spawn")
+                {
+                    const auto [data, count] = textDescriptor(item.operands[0]);
+                    output_ << "  " << status << " = call i32 @aevix_os_process_spawn(ptr " << data << ", i64 " << count << ", ptr " << storage << ")\n";
+                }
+                else if (item.operation == "process_wait" || item.operation == "process_try_wait")
+                    output_ << "  " << status << " = call i32 @aevix_os_" << item.operation << "(i64 " << value(item.operands[0]) << ", ptr " << storage << ")\n";
+                else if (item.operation == "process_kill")
+                    output_ << "  " << status << " = call i32 @aevix_os_process_kill(i64 " << value(item.operands[0]) << ")\n";
+                else if (item.operation == "env_set")
+                {
+                    const auto [name, nameLength] = textDescriptor(item.operands[0]);
+                    const auto [text, textLength] = textDescriptor(item.operands[1]);
+                    output_ << "  " << status << " = call i32 @aevix_os_env_set_utf8(ptr " << name << ", i64 " << nameLength
+                            << ", ptr " << text << ", i64 " << textLength << ")\n";
+                }
+                else
+                {
+                    const auto [data, length] = textDescriptor(item.operands[0]);
+                    if (item.operation == "env_get" || item.operation == "path_normalize")
+                    {
+                        const auto dataSlot = temporary(), lengthSlot = temporary(), capacitySlot = temporary();
+                        output_ << "  " << dataSlot << " = getelementptr { ptr, i64, i64 }, ptr " << storage << ", i32 0, i32 0\n"
+                                << "  " << lengthSlot << " = getelementptr { ptr, i64, i64 }, ptr " << storage << ", i32 0, i32 1\n"
+                                << "  " << capacitySlot << " = getelementptr { ptr, i64, i64 }, ptr " << storage << ", i32 0, i32 2\n";
+                        output_ << "  " << status << " = call i32 @aevix_os_" << item.operation << "_utf8(ptr " << data << ", i64 " << length
+                                << ", ptr " << dataSlot << ", ptr " << lengthSlot;
+                        if (item.operation == "env_get") output_ << ", ptr %ospresent" << item.result;
+                        output_ << ")\n";
+                        const auto count = temporary(); output_ << "  " << count << " = load i64, ptr " << lengthSlot << '\n'
+                            << "  store i64 " << count << ", ptr " << capacitySlot << '\n';
+                        if (item.operation == "env_get")
+                        {
+                            const auto present = temporary(), missing = temporary(), succeeded = temporary(), absent = temporary(), adapted = temporary();
+                            output_ << "  " << present << " = load i32, ptr %ospresent" << item.result << '\n'
+                                    << "  " << missing << " = icmp eq i32 " << present << ", 0\n"
+                                    << "  " << succeeded << " = icmp eq i32 " << status << ", 0\n"
+                                    << "  " << absent << " = and i1 " << missing << ", " << succeeded << '\n'
+                                    << "  " << adapted << " = select i1 " << absent << ", i32 8, i32 " << status << '\n';
+                            status = adapted;
+                        }
+                        usesAllocation_ = true;
+                    }
+                    else if (item.operation == "path_metadata")
+                        output_ << "  " << status << " = call i32 @aevix_os_path_metadata_utf8(ptr " << data << ", i64 " << length
+                                << ", i32 " << value(item.operands[1]) << ", ptr " << storage << ")\n";
+                    else
+                        output_ << "  " << status << " = call i32 @aevix_os_" << item.operation << "_utf8(ptr " << data << ", i64 " << length << ")\n";
+                }
+                const auto native = temporary(), kind = temporary(), payload = temporary();
+                output_ << "  " << native << " = call i32 @aevix_os_last_error()\n"
+                        << "  " << kind << " = call i32 @aevix_os_error_kind()\n"
+                        << "  " << payload << " = load " << llvmType(payloadType) << ", ptr " << storage << '\n';
+                const auto first = temporary(), second = temporary(), third = temporary();
+                const auto tuple = llvmType(item.type);
+                output_ << "  " << first << " = insertvalue " << tuple << " zeroinitializer, i32 " << status << ", 0\n"
+                        << "  " << second << " = insertvalue " << tuple << ' ' << first << ", " << llvmType(payloadType) << ' ' << payload << ", 1\n"
+                        << "  " << third << " = insertvalue " << tuple << ' ' << second << ", i32 " << native << ", 2\n"
+                        << "  " << value(item.result) << " = insertvalue " << tuple << ' ' << third << ", i32 " << kind << ", 3\n";
+            }
+            void emitParse(const AIRInstruction& item)
+            {
+                usesParse_ = true;
+                const auto& carrier = typed_.carriers.at(item.type);
+                const auto& scalar = typed_.types.get(carrier.value);
+                const auto domain = scalar.kind == TypeKind::Integer ? 0 : scalar.kind == TypeKind::Float ? 1
+                    : scalar.kind == TypeKind::Bool ? 2 : scalar.kind == TypeKind::Char ? 3 : 4;
+                const auto bits = scalar.kind == TypeKind::Bool ? 1u : scalar.kind == TypeKind::Char ? 32u : scalar.bits;
+                const auto [data, length] = textDescriptor(item.operands[0]);
+                const auto payload = "%parsepayload" + std::to_string(item.result);
+                const auto errorStorage = "%parseerror" + std::to_string(item.result);
+                const auto storage = "%enumtmp" + std::to_string(item.result);
+                const auto status = temporary(), ok = temporary(), yes = label(), no = label(), done = label();
+                output_ << "  " << status << " = call i32 @aevix_parse_scalar(ptr " << data << ", i64 " << length
+                        << ", i32 " << domain << ", i32 " << bits << ", i32 " << (scalar.kind == TypeKind::Integer && scalar.isSigned ? 1 : 0)
+                        << ", ptr " << payload << ")\n  " << ok << " = icmp eq i32 " << status << ", 0\n"
+                        << "  br i1 " << ok << ", label %" << yes << ", label %" << no << '\n' << yes << ":\n";
+                const auto result = temporary();
+                output_ << "  " << result << " = load " << llvmType(carrier.value) << ", ptr " << payload << '\n';
+                enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value, result}});
+                output_ << "  br label %" << done << '\n' << no << ":\n";
+                const auto tag = temporary(), reason = temporary();
+                output_ << "  store " << llvmType(carrier.error) << " zeroinitializer, ptr " << errorStorage << '\n'
+                        << "  " << tag << " = sub i32 " << status << ", 1\n  store i32 " << tag << ", ptr " << errorStorage << '\n'
+                        << "  " << reason << " = load " << llvmType(carrier.error) << ", ptr " << errorStorage << '\n';
+                enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, reason}});
+                output_ << "  br label %" << done << '\n' << done << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << storage << '\n';
             }
             void emitText(const AIRInstruction& item)
             {
@@ -1204,12 +1727,896 @@ namespace aevix
                 enumStore(storage, typed_.enumVariants.at(result.failure), {{result.error, errorValue}});
                 output_ << "  br label %" << done << '\n' << done << ":\n  " << value(item.result) << " = load " << resultType << ", ptr " << storage << '\n';
             }
+            void emitSync(const AIRInstruction& item)
+            {
+                const auto* operation = syncOperation(item.operation);
+                if (!operation) { error(item.source, "Unknown closed Sync operation."); return; }
+                const auto input = value(item.operands[0]);
+                const auto payloadType = llvmType(item.syncElement);
+                const auto base = "%sync." + std::to_string(item.result);
+                const auto method = item.operation.substr(item.operation.find('.') + 1);
+                const auto inputType = valueType(item.operands[0]);
+                const auto owner = operation->access == SyncAccess::None ? item.type : operation->access == SyncAccess::Value ? inputType : typed_.types.get(inputType).element;
+                const auto ownerType = llvmType(owner);
+                if (operation->result == SyncResult::Recovered)
+                { output_ << "  " << value(item.result) << " = extractvalue " << ownerType << ' ' << input << ", 0\n"; return; }
+                if (operation->result == SyncResult::Owner)
+                {
+                    std::string policy = "0";
+                    if (item.operands.size() == 2)
+                    {
+                        const auto raw = temporary(), invalid = temporary(); policy = temporary();
+                        output_ << "  " << raw << " = extractvalue " << llvmType(valueType(item.operands[1])) << ' ' << value(item.operands[1]) << ", 0\n"
+                                << "  " << invalid << " = icmp ugt i32 " << raw << ", 1\n";
+                        guard(invalid); output_ << "  " << policy << " = trunc i32 " << raw << " to i8\n";
+                    }
+                    const auto partial = temporary();
+                    output_ << "  " << partial << " = insertvalue " << llvmType(item.type) << " zeroinitializer, " << payloadType << ' ' << input << ", 1\n"
+                            << "  " << value(item.result) << " = insertvalue " << llvmType(item.type) << ' ' << partial << ", i8 " << policy << ", 2\n";
+                    return;
+                }
+                if (operation->result == SyncResult::Reference || operation->result == SyncResult::MutableReference)
+                {
+                    const auto descriptor = temporary();
+                    output_ << "  " << descriptor << " = load " << ownerType << ", ptr " << input << '\n'
+                            << "  " << value(item.result) << " = extractvalue " << ownerType << ' ' << descriptor << ", 1\n";
+                    return;
+                }
+                if (operation->result == SyncResult::Policy)
+                {
+                    const auto pointer = temporary(), stored = temporary(), expanded = temporary();
+                    output_ << "  " << pointer << " = getelementptr " << ownerType << ", ptr " << input << ", i32 0, i32 2\n"
+                            << "  " << stored << " = load i8, ptr " << pointer << '\n'
+                            << "  " << expanded << " = zext i8 " << stored << " to i32\n"
+                            << "  " << value(item.result) << " = insertvalue " << llvmType(item.type) << " zeroinitializer, i32 " << expanded << ", 0\n";
+                    return;
+                }
+                usesSync_ = true;
+                if (operation->result == SyncResult::Unit)
+                {
+                    auto descriptor = input;
+                    if (operation->access != SyncAccess::Value)
+                    { descriptor = temporary(); output_ << "  " << descriptor << " = load " << ownerType << ", ptr " << input << '\n'; }
+                    const auto state = temporary(); output_ << "  " << state << " = extractvalue " << ownerType << ' ' << descriptor << ", 0\n";
+                    if (method == "mark_poisoned")
+                    {
+                        const auto pointer = temporary();
+                        output_ << "  " << pointer << " = getelementptr " << ownerType << ", ptr " << input << ", i32 0, i32 2\n  store i1 true, ptr " << pointer << '\n';
+                    }
+                    else
+                    {
+                        const auto status = temporary(); std::string extra;
+                        if (operation->access == SyncAccess::Value && operation->kind != SyncKind::ReadGuard)
+                        {
+                            const auto pending = temporary(), wide = temporary();
+                            output_ << "  " << pending << " = extractvalue " << ownerType << ' ' << descriptor << ", 2\n"
+                                    << "  " << wide << " = zext i1 " << pending << " to i32\n";
+                            extra = ", i32 " + wide;
+                        }
+                        output_ << "  " << status << " = call i32 @aevix_" << operation->native << "(ptr " << state << extra << ")\n";
+                        const auto failed = temporary(); output_ << "  " << failed << " = icmp ne i32 " << status << ", 0\n"; guard(failed);
+                        if (method == "clear_poison")
+                        {
+                            const auto pointer = temporary();
+                            output_ << "  " << pointer << " = getelementptr " << ownerType << ", ptr " << input << ", i32 0, i32 2\n  store i1 false, ptr " << pointer << '\n';
+                        }
+                    }
+                    output_ << "  " << value(item.result) << " = freeze {} zeroinitializer\n"; return;
+                }
+                auto state = input;
+                if (operation->result == SyncResult::IntoInner)
+                { state = base + ".owner"; output_ << "  store " << ownerType << ' ' << input << ", ptr " << state << '\n'; }
+                const auto status = temporary();
+                std::string timeout;
+                if (operation->timed)
+                { timeout = temporary(); output_ << "  " << timeout << " = extractvalue " << llvmType(valueType(item.operands[1])) << ' ' << value(item.operands[1]) << ", 0\n"; }
+                output_ << "  " << status << " = call i32 @aevix_" << operation->native << "(ptr " << state
+                        << (operation->timed ? ", i64 " + timeout : "") << ", ptr " << base << ".poison)\n";
+                const auto poison = temporary(), poisoned = temporary();
+                output_ << "  " << poison << " = load i32, ptr " << base << ".poison\n"
+                        << "  " << poisoned << " = icmp ne i32 " << poison << ", 0\n";
+                if (operation->result == SyncResult::Boolean)
+                {
+                    const auto failed = temporary(); output_ << "  " << failed << " = icmp ne i32 " << status << ", 0\n"; guard(failed);
+                    output_ << "  " << value(item.result) << " = freeze i1 " << poisoned << '\n'; return;
+                }
+                const auto carrierEntry = typed_.carriers.find(item.type);
+                if (carrierEntry == typed_.carriers.end()) { error(item.source, "Sync operation requires a core Result carrier."); return; }
+                const auto& carrier = carrierEntry->second;
+                const auto storage = "%enumtmp" + std::to_string(item.result);
+                const bool acquisition = operation->result == SyncResult::Acquire || operation->result == SyncResult::OptionalAcquire;
+                if (operation->result != SyncResult::IntoInner && (!namedVariant(carrier.error, "Poisoned")
+                    || (acquisition && (!namedVariant(carrier.error, "ReaderOverflow") || !namedVariant(carrier.error, "InvalidTimeout")))))
+                { error(item.source, "Sync operation requires the exact LockError capability carrier."); return; }
+                const auto& output = typed_.types.get(carrier.value);
+                (void)output;
+                const auto successful = label(), failure = label(), finished = label();
+                const auto ok = temporary();
+                output_ << "  " << ok << " = icmp eq i32 " << status << ", 0\n  br i1 " << ok << ", label %" << successful << ", label %" << failure << '\n' << successful << ":\n";
+                std::string held;
+                TypeId heldType = carrier.value;
+                if (operation->result == SyncResult::OptionalAcquire) heldType = typed_.carriers.at(carrier.value).value;
+                if (operation->result == SyncResult::IntoInner)
+                { held = temporary(); output_ << "  " << held << " = extractvalue " << ownerType << ' ' << input << ", 1\n"; }
+                else
+                {
+                    const auto payload = temporary();
+                    output_ << "  " << payload << " = getelementptr " << ownerType << ", ptr " << state << ", i32 0, i32 1\n";
+                    held = payload;
+                    if (acquisition)
+                    {
+                        const auto first = temporary(); held = temporary();
+                        output_ << "  " << first << " = insertvalue " << llvmType(heldType) << " zeroinitializer, ptr " << state << ", 0\n"
+                                << "  " << held << " = insertvalue " << llvmType(heldType) << ' ' << first << ", ptr " << payload << ", 1\n";
+                    }
+                }
+                const auto clean = label(), dirty = label();
+                output_ << "  br i1 " << poisoned << ", label %" << dirty << ", label %" << clean << '\n' << clean << ":\n";
+                auto successValue = held;
+                if (operation->result == SyncResult::OptionalAcquire)
+                {
+                    const auto& optional = typed_.carriers.at(carrier.value);
+                    enumStore(base + ".optional", typed_.enumVariants.at(optional.success), {{heldType,held}});
+                    successValue = temporary(); output_ << "  " << successValue << " = load " << llvmType(carrier.value) << ", ptr " << base << ".optional\n";
+                }
+                enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value,successValue}});
+                output_ << "  br label %" << finished << '\n' << dirty << ":\n";
+                if (operation->result == SyncResult::IntoInner)
+                {
+                    const auto errorValue = temporary();
+                    output_ << "  " << errorValue << " = insertvalue " << llvmType(carrier.error) << " zeroinitializer, " << payloadType << ' ' << held << ", 0\n";
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error,errorValue}});
+                }
+                else
+                {
+                    enumStore(base + ".error", *namedVariant(carrier.error,"Poisoned"), {{heldType,held}});
+                    const auto errorValue = temporary(); output_ << "  " << errorValue << " = load " << llvmType(carrier.error) << ", ptr " << base << ".error\n";
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error,errorValue}});
+                }
+                output_ << "  br label %" << finished << '\n' << failure << ":\n";
+                if (!acquisition)
+                { guard("true"); output_ << "  br label %" << finished << '\n'; }
+                else
+                {
+                    const auto empty = label(), saturated = label(), invalid = label(), unexpected = label();
+                    output_ << "  switch i32 " << status << ", label %" << unexpected << " [ i32 1, label %" << empty << " i32 2, label %" << empty
+                            << " i32 5, label %" << saturated << " i32 3, label %" << invalid << " ]\n" << empty << ":\n";
+                    if (operation->result == SyncResult::OptionalAcquire)
+                    {
+                        const auto& optional = typed_.carriers.at(carrier.value);
+                        enumStore(base + ".optional", typed_.enumVariants.at(optional.failure), {});
+                        const auto none = temporary(); output_ << "  " << none << " = load " << llvmType(carrier.value) << ", ptr " << base << ".optional\n";
+                        enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value,none}});
+                    }
+                    else guard("true");
+                    output_ << "  br label %" << finished << '\n' << saturated << ":\n";
+                    if (operation->guard != SyncKind::ReadGuard) guard("true");
+                    enumStore(base + ".error", *namedVariant(carrier.error,"ReaderOverflow"), {});
+                    const auto exhausted = temporary(); output_ << "  " << exhausted << " = load " << llvmType(carrier.error) << ", ptr " << base << ".error\n";
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error,exhausted}});
+                    output_ << "  br label %" << finished << '\n' << invalid << ":\n";
+                    if (operation->timed)
+                    { const auto finite = temporary(); output_ << "  " << finite << " = icmp ule i64 " << timeout << ", 9223372036854775807\n"; guard(finite); }
+                    else guard("true");
+                    enumStore(base + ".error", *namedVariant(carrier.error,"InvalidTimeout"), {});
+                    const auto durationError = temporary(); output_ << "  " << durationError << " = load " << llvmType(carrier.error) << ", ptr " << base << ".error\n";
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error,durationError}});
+                    output_ << "  br label %" << finished << '\n' << unexpected << ":\n";
+                    guard("true"); output_ << "  br label %" << finished << '\n';
+                }
+                output_ << finished << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << storage << '\n';
+            }
+            void emitTaskReason(TypeId type, const std::string& storage, const std::string& status,
+                                const std::string& code, const std::string& domain)
+            {
+                const auto native = label(), cancelled = label(), failed = label(), deadlock = label(), overflow = label(), timedout = label(), invalid = label(), done = label();
+                output_ << "  switch i32 " << status << ", label %" << invalid << " [ i32 6, label %" << native << " i32 9, label %" << cancelled
+                        << " i32 10, label %" << failed << " i32 7, label %" << deadlock << " i32 2, label %" << overflow << " i32 11, label %" << timedout << " ]\n";
+                for (const auto& entry : {std::pair{native,"Native"},std::pair{cancelled,"Cancelled"},std::pair{failed,"Failed"},std::pair{deadlock,"WouldDeadlock"},std::pair{overflow,"Overflow"},std::pair{timedout,"TimedOut"}})
+                {
+                    output_ << entry.first << ":\n";
+                    const auto* variant = namedVariant(type,entry.second);
+                    if (!variant) return;
+                    std::vector<std::pair<TypeId,std::string>> fields;
+                    if (entry.second == std::string_view("Native")) fields = {{typed_.types.builtin("i32"),code},{typed_.types.builtin("i32"),domain}};
+                    enumStore(storage,*variant,fields); output_ << "  br label %" << done << '\n';
+                }
+                output_ << invalid << ":\n"; guard("true"); output_ << "  br label %" << done << '\n' << done << ":\n";
+            }
+            void emitTask(const AIRInstruction& item)
+            {
+                const auto* operation = taskOperation(item.operation);
+                if (!operation) { error(item.source,"Unknown closed Task operation."); return; }
+                usesTask_ = true;
+                const auto base = "%task." + std::to_string(item.result);
+                const auto resultStorage = "%enumtmp" + std::to_string(item.result);
+                const auto statusCall = [&](const std::string& call)
+                { const auto status = temporary(); output_ << "  " << status << " = " << call << '\n'; return status; };
+                const auto requireGood = [&](const std::string& status)
+                { const auto bad = temporary(); output_ << "  " << bad << " = icmp ne i32 " << status << ", 0\n"; guard(bad); };
+                const auto platformCode = [&]() { return statusCall("call i32 @aevix_task_last_error()"); };
+                const auto platformDomain = [&]() { return statusCall("call i32 @aevix_task_error_domain()"); };
+                // 진단 식별자는 관측 핸들이 소비되어도 남아 있으며 런타임 토큰을 다시 조회하지 않는다.
+                // Diagnostic identity survives consumed observation and never queries a runtime token.
+                if (operation->result == TaskResult::Identity)
+                {
+                    const auto descriptor = temporary(), serial = temporary(), invalid = temporary();
+                    const auto owner = typed_.types.get(valueType(item.operands[0])).element;
+                    output_ << "  " << descriptor << " = load " << llvmType(owner) << ", ptr " << value(item.operands[0]) << '\n'
+                            << "  " << serial << " = extractvalue " << llvmType(owner) << ' ' << descriptor << ", 1\n"
+                            << "  " << invalid << " = icmp eq i64 " << serial << ", 0\n";
+                    guard(invalid);
+                    output_ << "  " << value(item.result) << " = insertvalue " << llvmType(item.type) << " zeroinitializer, i64 " << serial << ", 0\n";
+                    return;
+                }
+                std::string token, observation;
+                if (operation->access != TaskAccess::None)
+                {
+                    token = value(item.operands[0]);
+                    if (operation->access == TaskAccess::TaskValue)
+                    {
+                        const auto extracted = temporary();
+                        output_ << "  " << extracted << " = extractvalue " << llvmType(valueType(item.operands[0])) << ' ' << token << ", 0\n";
+                        token = extracted;
+                    }
+                    else if (operation->access != TaskAccess::ScopeValue)
+                    {
+                        if (operation->access == TaskAccess::TaskShared || operation->access == TaskAccess::TaskExclusive)
+                        {
+                            observation = temporary();
+                            const auto owner = typed_.types.get(valueType(item.operands[0])).element;
+                            output_ << "  " << observation << " = getelementptr " << llvmType(owner) << ", ptr " << token << ", i32 0, i32 0\n";
+                            token = observation;
+                        }
+                        const auto loaded = temporary(); output_ << "  " << loaded << " = load i64, ptr " << token << '\n'; token = loaded;
+                    }
+                }
+                if (operation->result == TaskResult::ActiveCount || operation->result == TaskResult::ScopeState)
+                {
+                    const auto count = operation->result == TaskResult::ActiveCount;
+                    requireGood(statusCall("call i32 @aevix_task_scope_" + std::string(count ? "active_count" : "status")
+                        + "(i64 " + token + ", ptr " + base + (count ? ".count)" : ".flag)")));
+                    if (count)
+                        output_ << "  " << value(item.result) << " = load i64, ptr " << base << ".count\n";
+                    else
+                    {
+                        const auto state = temporary(), invalid = temporary();
+                        output_ << "  " << state << " = load i32, ptr " << base << ".flag\n  " << invalid << " = icmp ugt i32 " << state << ", 1\n"; guard(invalid);
+                        const auto* open = namedVariant(item.type,"Open"); if (!open) return;
+                        enumStore(base + ".status",*open,{});
+                        output_ << "  store i32 " << state << ", ptr " << base << ".status\n  " << value(item.result)
+                                << " = load " << llvmType(item.type) << ", ptr " << base << ".status\n";
+                    }
+                    return;
+                }
+                if (operation->result == TaskResult::Executor)
+                {
+                    // 백엔드 사실은 결과를 가져간 뒤에도 동일하며 네이티브 식별자를 노출하지 않는다.
+                    // The backend fact survives result consumption and exposes no native identity.
+                    const auto* backend = namedVariant(item.type,"NativeThreads"); if (!backend) return;
+                    enumStore(base + ".status",*backend,{});
+                    output_ << "  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << base << ".status\n";
+                    return;
+                }
+                if (operation->result == TaskResult::Status || operation->result == TaskResult::Boolean)
+                {
+                    const auto* statusRecord = operation->result == TaskResult::Status ? record(item.type) : nullptr;
+                    const auto phaseType = statusRecord ? statusRecord->fieldTypes[0] : InvalidTypeId;
+                    const auto empty = temporary(), yes = label(), no = label(), done = label();
+                    output_ << "  " << empty << " = icmp eq i64 " << token << ", 0\n  br i1 " << empty << ", label %" << yes << ", label %" << no << '\n';
+                    const auto storeStatus = [&](const std::string& phase, const std::string& requested)
+                    {
+                        if (operation->result == TaskResult::Boolean)
+                        {
+                            if (item.operation == "is_cancel_requested")
+                            {
+                                output_ << "  store i1 " << requested << ", ptr " << base << ".status\n  br label %" << done << '\n';
+                                return;
+                            }
+                            const auto terminal = temporary();
+                            output_ << "  " << terminal << " = icmp uge i32 " << phase << ", 3\n  store i1 " << terminal << ", ptr " << base << ".status\n  br label %" << done << '\n';
+                            return;
+                        }
+                        const auto p = temporary(), a = temporary(), b = temporary();
+                        output_ << "  " << p << " = insertvalue " << llvmType(phaseType) << " zeroinitializer, i32 " << phase << ", 0\n"
+                                << "  " << a << " = insertvalue " << llvmType(item.type) << " zeroinitializer, " << llvmType(phaseType) << ' ' << p << ", 0\n"
+                                << "  " << b << " = insertvalue " << llvmType(item.type) << ' ' << a << ", i1 " << requested << ", 1\n"
+                                << "  store " << llvmType(item.type) << ' ' << b << ", ptr " << base << ".status\n  br label %" << done << '\n';
+                    };
+                    output_ << yes << ":\n"; storeStatus("7","false"); output_ << no << ":\n";
+                    requireGood(statusCall("call i32 @aevix_scoped_task_snapshot(i64 " + token + ", ptr " + base + ".snapshot)"));
+                    const auto phase = temporary(), requestPointer = temporary(), requested = temporary(), bit = temporary(), invalid = temporary(), invalidFlag = temporary();
+                    output_ << "  " << phase << " = load i32, ptr " << base << ".snapshot\n  " << invalid << " = icmp ugt i32 " << phase << ", 6\n"; guard(invalid);
+                    output_ << "  " << requestPointer << " = getelementptr i32, ptr " << base << ".snapshot, i32 1\n  " << requested << " = load i32, ptr " << requestPointer << '\n'
+                            << "  " << invalidFlag << " = icmp ugt i32 " << requested << ", 1\n"; guard(invalidFlag);
+                    output_ << "  " << bit << " = icmp ne i32 " << requested << ", 0\n";
+                    storeStatus(phase,bit);
+                    output_ << done << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << base << ".status\n"; return;
+                }
+                const auto& carrier = typed_.carriers.at(item.type);
+                const auto done = label();
+                const auto ok = [&](TypeId type, const std::string& value)
+                { enumStore(resultStorage,typed_.enumVariants.at(carrier.success),{{type,value}}); output_ << "  br label %" << done << '\n'; };
+                const auto failure = [&]()
+                { const auto loaded = temporary(); output_ << "  " << loaded << " = load " << llvmType(carrier.error) << ", ptr " << base << ".error\n"; enumStore(resultStorage,typed_.enumVariants.at(carrier.failure),{{carrier.error,loaded}}); output_ << "  br label %" << done << '\n'; };
+                if (operation->result == TaskResult::Token)
+                {
+                    usesCancellation_ = true;
+                    const auto empty = temporary(), consumed = label(), execute = label();
+                    output_ << "  " << empty << " = icmp eq i64 " << token << ", 0\n  br i1 " << empty << ", label %" << consumed << ", label %" << execute << '\n'
+                            << consumed << ":\n";
+                    const auto* already = namedVariant(carrier.error,"AlreadyJoined"); if (!already) return;
+                    enumStore(base + ".error",*already,{}); failure(); output_ << execute << ":\n";
+                    const auto status = statusCall("call i32 @aevix_scoped_task_cancel_token(i64 " + token + ", ptr " + base + ".token)");
+                    const auto good = label(), allocation = label(), overflow = label(), invalid = label();
+                    output_ << "  switch i32 " << status << ", label %" << invalid << " [ i32 0, label %" << good
+                            << " i32 1, label %" << allocation << " i32 2, label %" << overflow << " ]\n" << good << ":\n";
+                    const auto owner = temporary(), absent = temporary();
+                    output_ << "  " << owner << " = load i64, ptr " << base << ".token\n  " << absent << " = icmp eq i64 " << owner << ", 0\n";
+                    guard(absent); ok(carrier.value,owner);
+                    for (const auto& entry : {std::pair{allocation,"AllocationFailure"},std::pair{overflow,"Overflow"}})
+                    {
+                        output_ << entry.first << ":\n";
+                        const auto* reason = namedVariant(carrier.error,entry.second); if (!reason) return;
+                        enumStore(base + ".error",*reason,{}); failure();
+                    }
+                    output_ << invalid << ":\n"; guard("true"); output_ << "  br label %" << done << '\n';
+                }
+                else if (operation->result == TaskResult::CheckCancel)
+                {
+                    usesCancellation_ = true;
+                    requireGood(statusCall("call i32 @aevix_cancel_token_requested(i64 " + token + ", ptr " + base + ".flag)"));
+                    const auto flag = temporary(), invalid = temporary(), requested = temporary();
+                    const auto clean = label(), cancelled = label();
+                    output_ << "  " << flag << " = load i32, ptr " << base << ".flag\n  " << invalid << " = icmp ugt i32 " << flag << ", 1\n"; guard(invalid);
+                    output_ << "  " << requested << " = icmp eq i32 " << flag << ", 1\n  br i1 " << requested << ", label %" << cancelled << ", label %" << clean << '\n'
+                            << clean << ":\n";
+                    ok(carrier.value,"zeroinitializer");
+                    output_ << cancelled << ":\n";
+                    const auto* checkpoint = namedVariant(carrier.error,"Requested"); if (!checkpoint) return;
+                    enumStore(base + ".error",*checkpoint,{}); failure();
+                }
+                else if (operation->result == TaskResult::Scope || operation->result == TaskResult::Spawn)
+                {
+                    std::string status;
+                    if (operation->worker)
+                    {
+                        taskThunks_.insert({item.taskCallable,item.taskElement,item.taskInvoke});
+                        const auto capture = layout(item.taskCallable), result = layout(item.taskElement);
+                        const auto identity = std::to_string(item.taskCallable) + "." + std::to_string(item.taskElement) + "." + std::to_string(item.taskInvoke);
+                        output_ << "  store " << llvmType(item.taskCallable) << ' ' << value(item.operands[1]) << ", ptr " << base << ".capture\n";
+                        status = statusCall("call i32 @aevix_task_scope_prepare_identified(i64 " + token + ", i64 " + std::to_string(capture.size) + ", i64 " + std::to_string(capture.alignment)
+                            + ", i64 " + std::to_string(result.size) + ", i64 " + std::to_string(result.alignment) + ", ptr @aevix.task.invoke." + identity
+                             + ", ptr @aevix.task.capture.drop." + identity + ", ptr @aevix.task.result.drop." + identity + ", ptr " + base + ".token, ptr " + base + ".pointer, ptr " + base + ".identity)");
+                    }
+                    else if (operation->preparation == TaskPreparation::Ready)
+                    {
+                        taskReadyDrops_.insert(item.taskElement);
+                        const auto result = layout(item.taskElement);
+                        output_ << "  store " << llvmType(item.taskElement) << ' ' << value(item.operands[1]) << ", ptr " << base << ".ready\n";
+                        status = statusCall("call i32 @aevix_task_scope_prepare_ready(i64 " + token + ", i64 " + std::to_string(result.size)
+                            + ", i64 " + std::to_string(result.alignment) + ", ptr @aevix.task.ready.drop." + std::to_string(item.taskElement)
+                            + ", ptr " + base + ".token, ptr " + base + ".pointer, ptr " + base + ".identity)");
+                    }
+                    else status = statusCall("call i32 @aevix_task_scope_open(ptr " + base + ".token)");
+                    const auto code = platformCode(), domain = platformDomain();
+                    const auto good = label(), bad = label(); const auto valid = temporary();
+                    output_ << "  " << valid << " = icmp eq i32 " << status << ", 0\n  br i1 " << valid << ", label %" << good << ", label %" << bad << '\n' << good << ":\n";
+                    const auto owner = temporary(); output_ << "  " << owner << " = load i64, ptr " << base << ".token\n";
+                    if (operation->worker)
+                    {
+                        const auto pointer = temporary(); output_ << "  " << pointer << " = load ptr, ptr " << base << ".pointer\n  store " << llvmType(item.taskCallable) << ' ' << value(item.operands[1]) << ", ptr " << pointer << '\n';
+                        requireGood(statusCall("call i32 @aevix_scoped_task_commit(i64 " + owner + ")"));
+                    }
+                    if (operation->preparation == TaskPreparation::Ready)
+                    {
+                        const auto pointer = temporary();
+                        output_ << "  " << pointer << " = load ptr, ptr " << base << ".pointer\n  store " << llvmType(item.taskElement) << ' '
+                                << value(item.operands[1]) << ", ptr " << pointer << '\n';
+                        requireGood(statusCall("call i32 @aevix_scoped_task_ready_commit(i64 " + owner + ")"));
+                    }
+                    if (operation->worker || operation->preparation == TaskPreparation::Ready)
+                    {
+                        const auto serial = temporary(), partial = temporary(), descriptor = temporary(), invalid = temporary();
+                        output_ << "  " << serial << " = load i64, ptr " << base << ".identity\n"
+                                << "  " << invalid << " = icmp eq i64 " << serial << ", 0\n";
+                        guard(invalid);
+                        output_ << "  " << partial << " = insertvalue " << llvmType(carrier.value) << " zeroinitializer, i64 " << owner << ", 0\n"
+                                << "  " << descriptor << " = insertvalue " << llvmType(carrier.value) << ' ' << partial << ", i64 " << serial << ", 1\n";
+                        ok(carrier.value,descriptor);
+                    }
+                    else ok(carrier.value,owner);
+                    output_ << bad << ":\n";
+                    if (operation->worker) emitDropCall(item.taskCallable,base + ".capture");
+                    else if (operation->preparation == TaskPreparation::Ready) emitDropCall(item.taskElement,base + ".ready");
+                    const auto allocation = label(), overflow = label(), closed = label(), thread = label(), invalid = label();
+                    output_ << "  switch i32 " << status << ", label %" << invalid << " [ i32 1, label %" << allocation << " i32 2, label %" << overflow << " i32 5, label %" << closed << " i32 6, label %" << thread << " ]\n";
+                    for (const auto& entry : {std::pair{allocation,"AllocationFailure"},std::pair{overflow,"Overflow"},std::pair{closed,"ScopeClosed"},std::pair{thread,"ThreadFailure"}})
+                    {
+                        output_ << entry.first << ":\n";
+                        const auto* variant = namedVariant(carrier.error,entry.second); if (!variant) return;
+                        std::vector<std::pair<TypeId,std::string>> fields;
+                        if (entry.second == std::string_view("ThreadFailure")) fields = {{typed_.types.builtin("i32"),code},{typed_.types.builtin("i32"),domain}};
+                        enumStore(base + ".error",*variant,fields); failure();
+                    }
+                    output_ << invalid << ":\n"; guard("true"); output_ << "  br label %" << done << '\n';
+                }
+                else if (operation->result == TaskResult::CloseAdmission)
+                {
+                    const auto* borrowed = namedVariant(carrier.error,"Failure");
+                    if (!borrowed || borrowed->fieldTypes.size() != 1) { error(item.source,"Non-owning ScopeError.Failure reason is missing."); return; }
+                    const auto reason = borrowed->fieldTypes[0];
+                    const auto status = statusCall("call i32 @aevix_task_scope_close_admission(i64 " + token + ")");
+                    const auto code = platformCode(), domain = platformDomain(), valid = temporary();
+                    const auto good = label(), bad = label();
+                    output_ << "  " << valid << " = icmp eq i32 " << status << ", 0\n  br i1 " << valid << ", label %" << good << ", label %" << bad << '\n' << good << ":\n";
+                    ok(carrier.value,"zeroinitializer");
+                    output_ << bad << ":\n";
+                    emitTaskReason(reason,base + ".reason",status,code,domain);
+                    const auto error = temporary(); output_ << "  " << error << " = load " << llvmType(reason) << ", ptr " << base << ".reason\n";
+                    enumStore(base + ".error",*borrowed,{{reason,error}}); failure();
+                }
+                else if (operation->result == TaskResult::Close)
+                {
+                    const auto* retry = namedVariant(carrier.error,"Retry"); if (!retry) return;
+                    const auto reason = retry->fieldTypes[1];
+                    const auto status = statusCall("call i32 @aevix_task_scope_close(i64 " + token + ", ptr " + base + ".report)");
+                    const auto code = platformCode(), domain = platformDomain(), valid = temporary(); const auto good = label(), bad = label();
+                    output_ << "  " << valid << " = icmp eq i32 " << status << ", 0\n  br i1 " << valid << ", label %" << good << ", label %" << bad << '\n' << good << ":\n";
+                    const auto report = temporary(); output_ << "  " << report << " = load " << llvmType(carrier.value) << ", ptr " << base << ".report\n"; ok(carrier.value,report);
+                    output_ << bad << ":\n"; emitTaskReason(reason,base + ".reason",status,code,domain);
+                    const auto error = temporary(); output_ << "  " << error << " = load " << llvmType(reason) << ", ptr " << base << ".reason\n";
+                    enumStore(base + ".error",*retry,{{valueType(item.operands[0]),token},{reason,error}}); failure();
+                }
+                else
+                {
+                    const auto empty = temporary(), already = label(), execute = label();
+                    output_ << "  " << empty << " = icmp eq i64 " << token << ", 0\n  br i1 " << empty << ", label %" << already << ", label %" << execute << '\n' << already << ":\n";
+                    const auto* consumed = namedVariant(carrier.error,"AlreadyJoined"); if (!consumed) return;
+                    enumStore(base + ".error",*consumed,{}); failure(); output_ << execute << ":\n";
+                    std::string status;
+                    if (operation->result == TaskResult::Wait)
+                    {
+                        const auto timeout = temporary(), tooLarge = temporary(), invalid = label(), finite = label();
+                        output_ << "  " << timeout << " = extractvalue " << llvmType(valueType(item.operands[1])) << ' ' << value(item.operands[1]) << ", 0\n"
+                                << "  " << tooLarge << " = icmp ugt i64 " << timeout << ", 9223372036854775807\n  br i1 " << tooLarge << ", label %" << invalid << ", label %" << finite << '\n' << invalid << ":\n";
+                        enumStore(base + ".error",*namedVariant(carrier.error,"Overflow"),{}); failure(); output_ << finite << ":\n";
+                        status = statusCall("call i32 @aevix_scoped_task_wait_timeout(i64 " + token + ", i64 " + timeout + ")");
+                    }
+                    else if (operation->result == TaskResult::Completion) status = statusCall("call i32 @aevix_scoped_task_wait(i64 " + token + ")");
+                    else if (operation->result == TaskResult::Request) status = statusCall("call i32 @aevix_scoped_task_request_cancel(i64 " + token + ", ptr " + base + ".flag)");
+                    else if (operation->result == TaskResult::Discard) status = statusCall("call i32 @aevix_scoped_task_discard(i64 " + token + ")");
+                    else
+                    {
+                        if (item.operation == "cancel_and_join")
+                            requireGood(statusCall("call i32 @aevix_scoped_task_request_cancel(i64 " + token + ", ptr " + base + ".flag)"));
+                        status = statusCall("call i32 @aevix_scoped_task_" + std::string(operation->result == TaskResult::TryTake ? "try_take" : "join") + "(i64 " + token + ", ptr " + base + ".result, i64 " + std::to_string(layout(item.taskElement).size) + ")");
+                    }
+                    const auto code = platformCode(), domain = platformDomain();
+                    const auto good = label(), bad = label(), notReady = label();
+                    output_ << "  switch i32 " << status << ", label %" << bad << " [ i32 0, label %" << good;
+                    if (operation->result == TaskResult::TryTake) output_ << " i32 8, label %" << notReady;
+                    else if (operation->result == TaskResult::Wait) output_ << " i32 11, label %" << notReady;
+                    output_ << " ]\n" << good << ":\n";
+                    if (operation->result == TaskResult::Join || operation->result == TaskResult::TryTake)
+                    {
+                        const auto value = temporary(); output_ << "  " << value << " = load " << llvmType(item.taskElement) << ", ptr " << base << ".result\n";
+                        if (operation->result == TaskResult::TryTake)
+                        {
+                            output_ << "  store i64 0, ptr " << observation << '\n';
+                            const auto& optional = typed_.carriers.at(carrier.value);
+                            enumStore(base + ".optional",typed_.enumVariants.at(optional.success),{{item.taskElement,value}});
+                            const auto some = temporary(); output_ << "  " << some << " = load " << llvmType(carrier.value) << ", ptr " << base << ".optional\n"; ok(carrier.value,some);
+                        }
+                        else ok(carrier.value,value);
+                    }
+                    else if (operation->result == TaskResult::Discard || operation->result == TaskResult::Completion) ok(carrier.value,"zeroinitializer");
+                    else
+                    {
+                        if (operation->result == TaskResult::Request)
+                        {
+                            const auto disposition = temporary(), invalid = temporary(), terminal = temporary(), repeated = temporary(), tag = temporary();
+                            output_ << "  " << disposition << " = load i32, ptr " << base << ".flag\n  " << invalid << " = icmp ugt i32 " << disposition << ", 2\n"; guard(invalid);
+                            output_ << "  " << terminal << " = icmp eq i32 " << disposition << ", 1\n  " << repeated << " = icmp eq i32 " << disposition << ", 2\n";
+                            const auto normal = temporary(); output_ << "  " << normal << " = select i1 " << repeated << ", i32 1, i32 0\n  " << tag << " = select i1 " << terminal << ", i32 2, i32 " << normal << '\n';
+                            enumStore(base + ".success",*namedVariant(carrier.value,"NewlyRequested"),{}); output_ << "  store i32 " << tag << ", ptr " << base << ".success\n";
+                        }
+                        else enumStore(base + ".success",*namedVariant(carrier.value,"Ready"),{});
+                        const auto ready = temporary(); output_ << "  " << ready << " = load " << llvmType(carrier.value) << ", ptr " << base << ".success\n"; ok(carrier.value,ready);
+                    }
+                    if (operation->result == TaskResult::TryTake || operation->result == TaskResult::Wait)
+                    {
+                        output_ << notReady << ":\n";
+                        if (operation->result == TaskResult::TryTake)
+                        { const auto& optional = typed_.carriers.at(carrier.value); enumStore(base + ".optional",typed_.enumVariants.at(optional.failure),{}); }
+                        else enumStore(base + ".success",*namedVariant(carrier.value,"TimedOut"),{});
+                        const auto result = temporary(); output_ << "  " << result << " = load " << llvmType(carrier.value) << ", ptr " << base << (operation->result == TaskResult::TryTake ? ".optional" : ".success") << '\n'; ok(carrier.value,result);
+                    }
+                    output_ << bad << ":\n";
+                    if (operation->result == TaskResult::Discard) { guard("true"); output_ << "  br label %" << done << '\n'; }
+                    else
+                    {
+                        const auto cancelled = temporary(), failed = temporary(), consumed = temporary();
+                        output_ << "  " << cancelled << " = icmp eq i32 " << status << ", 9\n  " << failed << " = icmp eq i32 " << status << ", 10\n  " << consumed << " = or i1 " << cancelled << ", " << failed << '\n';
+                        if (operation->result == TaskResult::Join)
+                        {
+                            const auto fallback = label(), reason = label(); output_ << "  br i1 " << consumed << ", label %" << reason << ", label %" << fallback << '\n' << fallback << ":\n";
+                            requireGood(statusCall("call i32 @aevix_scoped_task_discard(i64 " + token + ")")); output_ << "  br label %" << reason << '\n' << reason << ":\n";
+                        }
+                        else if (operation->result == TaskResult::TryTake)
+                        {
+                            const auto clear = label(), reason = label(); output_ << "  br i1 " << consumed << ", label %" << clear << ", label %" << reason << '\n' << clear << ":\n  store i64 0, ptr " << observation << "\n  br label %" << reason << '\n' << reason << ":\n";
+                        }
+                        emitTaskReason(carrier.error,base + ".error",status,code,domain); failure();
+                    }
+                }
+                output_ << done << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << resultStorage << '\n';
+            }
+            void emitTaskThunks()
+            {
+                for (const auto& [capture,result,invoke] : taskThunks_)
+                {
+                    const auto identity = std::to_string(capture) + "." + std::to_string(result) + "." + std::to_string(invoke);
+                    const auto* target = function(invoke);
+                    if (!target || target->parameters.size() != 1) { error(nullptr,"Task thunk has no exact callable implementation."); continue; }
+                    const auto self = target->locals[target->parameters[0]].type; const bool borrowed = typed_.types.get(self).kind == TypeKind::Reference;
+                    temporary_ = 0; label_ = 0;
+                    output_ << "define internal i32 @aevix.task.invoke." << identity << "(ptr %capture, ptr %result, ptr %context) {\nentry:\n";
+                    if (!borrowed) output_ << "  %owner = load " << llvmType(capture) << ", ptr %capture\n";
+                    output_ << "  %value = call " << llvmType(result) << " @aevix.fn." << invoke << '(' << (borrowed ? "ptr %capture" : llvmType(capture) + " %owner") << ")\n";
+                    if (borrowed) emitDropCall(capture,"%capture");
+                    output_ << "  store " << llvmType(result) << " %value, ptr %result\n  ret i32 0\n}\n";
+                    output_ << "define internal void @aevix.task.capture.drop." << identity << "(ptr %capture) {\nentry:\n";
+                    temporary_ = 0; label_ = 0; emitDropCall(capture,"%capture"); output_ << "  ret void\n}\n";
+                    output_ << "define internal void @aevix.task.result.drop." << identity << "(ptr %result) {\nentry:\n";
+                    temporary_ = 0; label_ = 0; emitDropCall(result,"%result"); output_ << "  ret void\n}\n";
+                }
+                for (const auto result : taskReadyDrops_)
+                {
+                    output_ << "define internal void @aevix.task.ready.drop." << result << "(ptr %result) {\nentry:\n";
+                    temporary_ = 0; label_ = 0; emitDropCall(result,"%result"); output_ << "  ret void\n}\n";
+                }
+            }
+            void emitCancellation(const AIRInstruction& item)
+            {
+                const auto* operation = cancellationOperation(item.operation);
+                if (!operation) { error(item.source, "Unknown closed cancellation operation."); return; }
+                usesCancellation_ = true;
+                const auto base = "%cancel." + std::to_string(item.result);
+                std::string token;
+                if (operation->operands)
+                {
+                    token = temporary();
+                    output_ << "  " << token << " = load i64, ptr " << value(item.operands[0]) << '\n';
+                }
+                const bool owner = operation->result == CancellationResult::Source || operation->result == CancellationResult::Token;
+                const auto status = temporary();
+                output_ << "  " << status << " = call i32 @" << operation->native << '(';
+                if (operation->operands) output_ << "i64 " << token << ", ";
+                output_ << "ptr " << base << (owner ? ".token" : ".flag") << ")\n";
+                if (!operation->fallible)
+                {
+                    const auto bad = temporary(), observed = temporary(), invalidFlag = temporary();
+                    output_ << "  " << bad << " = icmp ne i32 " << status << ", 0\n"; guard(bad);
+                    output_ << "  " << observed << " = load i32, ptr " << base << ".flag\n"
+                            << "  " << invalidFlag << " = icmp ugt i32 " << observed << ", 1\n"; guard(invalidFlag);
+                    output_ << "  " << value(item.result) << " = icmp ne i32 " << observed << ", 0\n";
+                    return;
+                }
+                const auto& carrier = typed_.carriers.at(item.type);
+                const auto* allocationVariant = namedVariant(carrier.error,"AllocationFailure");
+                const auto* overflowVariant = namedVariant(carrier.error,"Overflow");
+                const auto* requestVariant = owner ? nullptr : namedVariant(carrier.value,"NewlyRequested");
+                if (!allocationVariant || !overflowVariant || (!owner && !requestVariant)) return;
+                const auto storage = "%enumtmp" + std::to_string(item.result);
+                const auto good = label(), allocation = label(), overflow = label(), invalid = label(), done = label();
+                output_ << "  switch i32 " << status << ", label %" << invalid << " [ i32 0, label %" << good
+                        << " i32 1, label %" << allocation << " i32 2, label %" << overflow << " ]\n" << good << ":\n";
+                const auto taken = temporary();
+                if (owner)
+                    output_ << "  " << taken << " = load i64, ptr " << base << ".token\n";
+                else
+                {
+                    const auto flag = temporary(), bad = temporary();
+                    output_ << "  " << flag << " = load i32, ptr " << base << ".flag\n"
+                            << "  " << bad << " = icmp ugt i32 " << flag << ", 1\n"; guard(bad);
+                    enumStore(base + ".request", *requestVariant, {});
+                    output_ << "  store i32 " << flag << ", ptr " << base << ".request\n"
+                            << "  " << taken << " = load " << llvmType(carrier.value) << ", ptr " << base << ".request\n";
+                }
+                enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value,taken}});
+                output_ << "  br label %" << done << '\n';
+                for (const auto& failure : {std::pair{allocation,"AllocationFailure"},std::pair{overflow,"Overflow"}})
+                {
+                    output_ << failure.first << ":\n";
+                    enumStore(base + ".error", failure.second == std::string_view("AllocationFailure") ? *allocationVariant : *overflowVariant, {});
+                    const auto errorValue = temporary();
+                    output_ << "  " << errorValue << " = load " << llvmType(carrier.error) << ", ptr " << base << ".error\n";
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error,errorValue}});
+                    output_ << "  br label %" << done << '\n';
+                }
+                output_ << invalid << ":\n"; guard("true"); output_ << "  br label %" << done << '\n'
+                    << done << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << storage << '\n';
+            }
+            void emitAtomic(const AIRInstruction& item)
+            {
+                const auto* operation = atomicOperation(item.operation);
+                if (!operation) { error(item.source, "Unknown closed Atomic operation."); return; }
+                const auto& scalar = typed_.types.get(item.atomicElement);
+                const auto kind = scalar.kind == TypeKind::Bool ? 8u : scalar.kind == TypeKind::Integer && scalar.bits <= 64
+                    ? (scalar.bits == 8 ? 0u : scalar.bits == 16 ? 2u : scalar.bits == 32 ? 4u : 6u) + (scalar.isSigned ? 0u : 1u) : 999u;
+                const auto input = [&](std::size_t index) { return value(item.operands[index]); };
+                const auto scalarType = llvmType(item.atomicElement);
+                if (item.operation == "new" || item.operation == "into_inner")
+                { output_ << "  " << value(item.result) << " = freeze " << scalarType << ' ' << input(0) << '\n'; return; }
+                if (item.operation == "get_mut")
+                { output_ << "  " << value(item.result) << " = getelementptr i8, ptr " << input(0) << ", i64 0\n"; return; }
+                if (item.operation == "is_supported")
+                { output_ << "  " << value(item.result) << " = freeze i1 " << (kind < 9 ? "true" : "false") << '\n'; return; }
+                usesAtomic_ = true;
+                if (item.operation == "is_lock_free" || item.operation == "required_alignment")
+                {
+                    const auto observed = temporary();
+                    output_ << "  " << observed << " = call i32 @aevix_atomic_" << (item.operation == "is_lock_free" ? "lock_free" : "alignment") << "(i32 " << kind << ")\n";
+                    if (item.operation == "is_lock_free") output_ << "  " << value(item.result) << " = icmp ne i32 " << observed << ", 0\n";
+                    else output_ << "  " << value(item.result) << " = zext i32 " << observed << " to i64\n";
+                    return;
+                }
+                const auto base = "%atomic." + std::to_string(item.result);
+                const auto encode = [&](std::size_t index)
+                {
+                    if (scalar.kind == TypeKind::Integer && scalar.bits == 64) return input(index);
+                    const auto result = temporary(); output_ << "  " << result << " = zext " << scalarType << ' ' << input(index) << " to i64\n"; return result;
+                };
+                const auto order = [&](int index)
+                {
+                    if (index < 0) return std::string("0");
+                    const auto result = temporary();
+                    output_ << "  " << result << " = extractvalue " << llvmType(valueType(item.operands[index])) << ' ' << input(index) << ", 0\n"; return result;
+                };
+                const auto successOrder = order(operation->order), failureOrder = order(operation->failure);
+                const auto status = temporary();
+                if (item.operation == "fence" || item.operation == "compiler_fence")
+                    output_ << "  " << status << " = call i32 @aevix_atomic_fence(i32 " << successOrder << ", i32 " << (item.operation == "compiler_fence" ? 1 : 0) << ")\n";
+                else if (item.operation == "wait" || item.operation == "wait_timeout")
+                {
+                    const auto expected = encode(1); std::string timeout = "0";
+                    if (item.operation == "wait_timeout")
+                    { timeout = temporary(); output_ << "  " << timeout << " = extractvalue " << llvmType(valueType(item.operands[2])) << ' ' << input(2) << ", 0\n"; }
+                    output_ << "  " << status << " = call i32 @aevix_atomic_wait(ptr " << input(0) << ", i32 " << kind << ", i64 " << expected
+                            << ", i32 " << successOrder << ", i64 " << timeout << ", i32 " << (item.operation == "wait_timeout" ? 1 : 0)
+                            << ", ptr " << base << ".observed, ptr " << base << ".changed)\n";
+                }
+                else
+                {
+                    const auto operand = operation->value >= 0 ? encode(operation->value) : std::string("0");
+                    const auto expected = operation->result == AtomicResult::Cas ? encode(1) : std::string("0");
+                    output_ << "  " << status << " = call i32 @aevix_atomic_operation(ptr " << input(0) << ", i32 " << kind << ", i32 " << operation->native
+                            << ", i64 " << operand << ", i64 " << expected << ", i32 " << successOrder << ", i32 " << failureOrder
+                            << ", ptr " << base << ".observed, ptr " << base << ".changed)\n";
+                }
+                if (!operation->fallible)
+                {
+                    const auto bad = temporary(); output_ << "  " << bad << " = icmp ne i32 " << status << ", 0\n"; guard(bad);
+                    output_ << "  " << value(item.result) << " = freeze {} zeroinitializer\n"; return;
+                }
+                const auto& carrier = typed_.carriers.at(item.type);
+                const auto storage = "%enumtmp" + std::to_string(item.result);
+                const auto successful = label(), failure = label(), done = label(), ok = temporary();
+                output_ << "  " << ok << " = icmp eq i32 " << status << ", 0\n  br i1 " << ok << ", label %" << successful << ", label %" << failure << '\n' << successful << ":\n";
+                std::string payload = "zeroinitializer";
+                if (operation->result != AtomicResult::Unit)
+                {
+                    const auto observed = temporary(); output_ << "  " << observed << " = load i64, ptr " << base << ".observed\n";
+                    std::string decoded = observed;
+                    if (!(scalar.kind == TypeKind::Integer && scalar.bits == 64))
+                    { decoded = temporary(); output_ << "  " << decoded << " = trunc i64 " << observed << " to " << scalarType << '\n'; }
+                    payload = decoded;
+                    if (operation->result == AtomicResult::Cas || operation->result == AtomicResult::Wait)
+                    {
+                        const auto raw = temporary(), changed = temporary();
+                        output_ << "  " << raw << " = load i32, ptr " << base << ".changed\n  " << changed << " = icmp ne i32 " << raw << ", 0\n";
+                        const auto first = temporary(), second = temporary(), aggregate = llvmType(carrier.value);
+                        if (operation->result == AtomicResult::Cas)
+                            output_ << "  " << first << " = insertvalue " << aggregate << " zeroinitializer, i1 " << changed << ", 0\n"
+                                    << "  " << second << " = insertvalue " << aggregate << ' ' << first << ", " << scalarType << ' ' << decoded << ", 1\n";
+                        else
+                        {
+                            const auto timedOut = temporary(), middle = temporary();
+                            output_ << "  " << first << " = insertvalue " << aggregate << " zeroinitializer, " << scalarType << ' ' << decoded << ", 0\n"
+                                    << "  " << middle << " = insertvalue " << aggregate << ' ' << first << ", i1 " << changed << ", 1\n"
+                                    << "  " << timedOut << " = xor i1 " << changed << ", true\n"
+                                    << "  " << second << " = insertvalue " << aggregate << ' ' << middle << ", i1 " << timedOut << ", 2\n";
+                        }
+                        payload = second;
+                    }
+                }
+                enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value, payload}});
+                output_ << "  br label %" << done << '\n' << failure << ":\n";
+                const auto invalid = label(), unsupported = label(), overflow = label(), joined = label();
+                output_ << "  switch i32 " << status << ", label %" << overflow << " [ i32 1, label %" << invalid << " i32 2, label %" << unsupported << " ]\n"
+                        << invalid << ":\n";
+                enumStore(base + ".error", *namedVariant(carrier.error, "InvalidOrder"), {});
+                output_ << "  br label %" << joined << '\n' << unsupported << ":\n";
+                enumStore(base + ".error", *namedVariant(carrier.error, "UnsupportedType"), {});
+                output_ << "  br label %" << joined << '\n' << overflow << ":\n";
+                const auto unexpected = temporary(); output_ << "  " << unexpected << " = icmp ne i32 " << status << ", 3\n"; guard(unexpected);
+                enumStore(base + ".error", *namedVariant(carrier.error, "Overflow"), {});
+                output_ << "  br label %" << joined << '\n' << joined << ":\n";
+                const auto errorValue = temporary(); output_ << "  " << errorValue << " = load " << llvmType(carrier.error) << ", ptr " << base << ".error\n";
+                enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, errorValue}});
+                output_ << "  br label %" << done << '\n' << done << ":\n  " << value(item.result) << " = load " << llvmType(item.type) << ", ptr " << storage << '\n';
+            }
+            void emitShared(const AIRInstruction& item)
+            {
+                usesShared_ = true;
+                const bool weak = item.operation.starts_with("weak.");
+                const auto method = item.operation.substr(item.operation.find('.') + 1);
+                const auto suffix = std::to_string(item.result);
+                const auto scratch = "%shared." + suffix;
+                const auto outputType = llvmType(item.type);
+                if (weak && method == "new")
+                { output_ << "  " << value(item.result) << " = freeze i64 0\n"; return; }
+                const auto inputType = valueType(item.operands[0]);
+                const auto input = value(item.operands[0]);
+                std::string token = input;
+                if (method != "new" && method != "try_unwrap")
+                { token = temporary(); output_ << "  " << token << " = load i64, ptr " << input << '\n'; }
+                const auto requireStatus = [&](const std::string& status)
+                { const auto bad = temporary(); output_ << "  " << bad << " = icmp ne i32 " << status << ", 0\n"; guard(bad); };
+                const auto call = [&](const std::string& invocation, int emptyStatus = 0, const std::string& additionalEmpty = std::string{})
+                {
+                    const auto status = temporary();
+                    if (weak)
+                    {
+                        const auto empty = temporary(), skip = label(), execute = label(), done = label();
+                        output_ << "  " << empty << " = icmp eq i64 " << token << ", 0\n";
+                        std::string condition = empty;
+                        if (!additionalEmpty.empty()) { condition = temporary(); output_ << "  " << condition << " = or i1 " << empty << ", " << additionalEmpty << '\n'; }
+                        output_ << "  br i1 " << condition << ", label %" << skip << ", label %" << execute << '\n'
+                                << skip << ":\n  store i32 " << emptyStatus << ", ptr " << scratch << ".status\n  br label %" << done << '\n'
+                                << execute << ":\n  " << status << " = " << invocation << '\n'
+                                << "  store i32 " << status << ", ptr " << scratch << ".status\n  br label %" << done << '\n' << done << ":\n";
+                        const auto merged = temporary(); output_ << "  " << merged << " = load i32, ptr " << scratch << ".status\n"; return merged;
+                    }
+                    output_ << "  " << status << " = " << invocation << '\n'; return status;
+                };
+                output_ << "  store i64 0, ptr " << scratch << ".token\n  store ptr null, ptr " << scratch << ".pointer\n"
+                        << "  store i64 0, ptr " << scratch << ".strong\n  store i64 0, ptr " << scratch << ".weak\n  store i32 0, ptr " << scratch << ".equal\n";
+                if (method == "is_empty")
+                { output_ << "  " << value(item.result) << " = icmp eq i64 " << token << ", 0\n"; return; }
+                if (method == "clear")
+                {
+                    requireStatus(call("call i32 @aevix_weak_release(i64 " + token + ")"));
+                    output_ << "  store i64 0, ptr " << input << "\n  " << value(item.result) << " = freeze {} zeroinitializer\n"; return;
+                }
+                if (method == "strong_count" || method == "weak_count" || method == "is_expired")
+                {
+                    requireStatus(call("call i32 @aevix_shared_counts(i64 " + token + ", ptr " + scratch + ".strong, ptr " + scratch + ".weak)"));
+                    if (method == "is_expired")
+                    { const auto count = temporary(); output_ << "  " << count << " = load i64, ptr " << scratch << ".strong\n  " << value(item.result) << " = icmp eq i64 " << count << ", 0\n"; }
+                    else output_ << "  " << value(item.result) << " = load i64, ptr " << scratch << (method == "strong_count" ? ".strong" : ".weak") << '\n';
+                    return;
+                }
+                if (method == "ptr_equal")
+                {
+                    const auto second = temporary(); output_ << "  " << second << " = load i64, ptr " << value(item.operands[1]) << '\n';
+                    std::string secondEmpty;
+                    if (weak)
+                    {
+                        secondEmpty = temporary(); const auto firstEmpty = temporary(), both = temporary(), encoded = temporary();
+                        output_ << "  " << secondEmpty << " = icmp eq i64 " << second << ", 0\n  " << firstEmpty << " = icmp eq i64 " << token << ", 0\n"
+                                << "  " << both << " = and i1 " << firstEmpty << ", " << secondEmpty << "\n  " << encoded << " = zext i1 " << both << " to i32\n  store i32 " << encoded << ", ptr " << scratch << ".equal\n";
+                    }
+                    requireStatus(call("call i32 @aevix_shared_same_allocation(i64 " + token + ", i64 " + second + ", ptr " + scratch + ".equal)", 0, secondEmpty));
+                    const auto equal = temporary(); output_ << "  " << equal << " = load i32, ptr " << scratch << ".equal\n  " << value(item.result) << " = icmp ne i32 " << equal << ", 0\n"; return;
+                }
+                if (method == "as_ref")
+                {
+                    requireStatus(call("call i32 @aevix_shared_payload(i64 " + token + ", ptr " + scratch + ".pointer)"));
+                    output_ << "  " << value(item.result) << " = load ptr, ptr " << scratch << ".pointer\n"; return;
+                }
+                const auto& carrier = typed_.carriers.at(item.type);
+                const auto storage = "%enumtmp" + suffix;
+                const auto success = label(), failure = label(), done = label();
+                std::string status;
+                if (method == "new")
+                {
+                    const auto element = typed_.types.get(carrier.value).element;
+                    const auto layout = TypeLayout(typed_.types, names_, typed_.symbolTypes).layout(element);
+                    if (!layout.succeeded) { error(item.source, "Cannot lay out Shared payload."); return; }
+                    sharedPayloadDropTypes_.insert(element);
+                    status = call("call i32 @aevix_shared_prepare(i64 " + std::to_string(layout.layout.size) + ", i64 " + std::to_string(layout.layout.alignment)
+                        + ", ptr @aevix.shared.payload.drop." + std::to_string(element) + ", ptr " + scratch + ".token, ptr " + scratch + ".pointer)");
+                }
+                else if (method == "try_unwrap")
+                {
+                    const auto layout = TypeLayout(typed_.types, names_, typed_.symbolTypes).layout(carrier.value);
+                    if (!layout.succeeded) { error(item.source, "Cannot lay out Shared extraction."); return; }
+                    status = call("call i32 @aevix_shared_take(i64 " + token + ", ptr " + scratch + ".taken, i64 " + std::to_string(layout.layout.size) + ")");
+                }
+                else if (method == "get_mut") status = call("call i32 @aevix_shared_unique_payload(i64 " + token + ", ptr " + scratch + ".pointer)");
+                else status = call("call i32 @aevix_" + std::string(weak ? "weak_" : "shared_") + method + "(i64 " + token + ", ptr " + scratch + ".token)", method == "upgrade" ? 7 : 0);
+                const auto ok = temporary(); output_ << "  " << ok << " = icmp eq i32 " << status << ", 0\n  br i1 " << ok << ", label %" << success << ", label %" << failure << '\n' << success << ":\n";
+                std::string payload = temporary();
+                if (method == "new")
+                {
+                    const auto pointer = temporary(); output_ << "  " << pointer << " = load ptr, ptr " << scratch << ".pointer\n"
+                        << "  store " << llvmType(inputType) << ' ' << input << ", ptr " << pointer << '\n'
+                        << "  " << payload << " = load i64, ptr " << scratch << ".token\n";
+                    const auto committed = temporary(); output_ << "  " << committed << " = call i32 @aevix_shared_commit(i64 " << payload << ")\n"; requireStatus(committed);
+                }
+                else if (method == "try_unwrap") output_ << "  " << payload << " = load " << llvmType(carrier.value) << ", ptr " << scratch << ".taken\n";
+                else if (method == "get_mut") output_ << "  " << payload << " = load ptr, ptr " << scratch << ".pointer\n";
+                else
+                {
+                    output_ << "  " << payload << " = load i64, ptr " << scratch << ".token\n";
+                    if (method == "upgrade")
+                    {
+                        const auto& optional = typed_.carriers.at(carrier.value);
+                        enumStore(scratch + ".optional", typed_.enumVariants.at(optional.success), {{optional.value, payload}});
+                        payload = temporary(); output_ << "  " << payload << " = load " << llvmType(carrier.value) << ", ptr " << scratch << ".optional\n";
+                    }
+                }
+                enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value, payload}});
+                output_ << "  br label %" << done << '\n' << failure << ":\n";
+                if (method == "get_mut")
+                {
+                    const auto unexpected = temporary(); output_ << "  " << unexpected << " = icmp ne i32 " << status << ", 8\n"; guard(unexpected);
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {});
+                }
+                else if (method == "try_unwrap")
+                {
+                    const auto unexpected = temporary(); output_ << "  " << unexpected << " = icmp ne i32 " << status << ", 8\n"; guard(unexpected);
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, token}});
+                }
+                else if (method == "new")
+                {
+                    const auto allocation = temporary(), allocationBlock = label(), sizeBlock = label(), joined = label();
+                    output_ << "  " << allocation << " = icmp eq i32 " << status << ", 1\n  br i1 " << allocation << ", label %" << allocationBlock << ", label %" << sizeBlock << '\n' << allocationBlock << ":\n";
+                    enumStore(scratch + ".error", *namedVariant(carrier.error, "AllocationFailure"), {{inputType, input}});
+                    output_ << "  br label %" << joined << '\n' << sizeBlock << ":\n";
+                    const auto unexpected = temporary(); output_ << "  " << unexpected << " = icmp ne i32 " << status << ", 2\n"; guard(unexpected);
+                    enumStore(scratch + ".error", *namedVariant(carrier.error, "SizeOverflow"), {{inputType, input}});
+                    output_ << "  br label %" << joined << '\n' << joined << ":\n";
+                    const auto errorValue = temporary(); output_ << "  " << errorValue << " = load " << llvmType(carrier.error) << ", ptr " << scratch << ".error\n";
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, errorValue}});
+                }
+                else
+                {
+                    const auto countBlock = label();
+                    if (method == "upgrade")
+                    {
+                        const auto expired = temporary(), expiredBlock = label();
+                        output_ << "  " << expired << " = icmp eq i32 " << status << ", 7\n  br i1 " << expired << ", label %" << expiredBlock << ", label %" << countBlock << '\n' << expiredBlock << ":\n";
+                        const auto& optional = typed_.carriers.at(carrier.value);
+                        enumStore(scratch + ".optional", typed_.enumVariants.at(optional.failure), {});
+                        const auto empty = temporary(); output_ << "  " << empty << " = load " << llvmType(carrier.value) << ", ptr " << scratch << ".optional\n";
+                        enumStore(storage, typed_.enumVariants.at(carrier.success), {{carrier.value, empty}});
+                        output_ << "  br label %" << done << '\n' << countBlock << ":\n";
+                    }
+                    const auto unexpected = temporary(); output_ << "  " << unexpected << " = icmp ne i32 " << status << ", 6\n"; guard(unexpected);
+                    enumStore(scratch + ".error", *namedVariant(carrier.error, "CountOverflow"), {});
+                    const auto errorValue = temporary(); output_ << "  " << errorValue << " = load " << llvmType(carrier.error) << ", ptr " << scratch << ".error\n";
+                    enumStore(storage, typed_.enumVariants.at(carrier.failure), {{carrier.error, errorValue}});
+                }
+                output_ << "  br label %" << done << '\n' << done << ":\n  " << value(item.result) << " = load " << outputType << ", ptr " << storage << '\n';
+            }
             void emitInstruction(const AIRInstruction& item)
             {
+                currentInstruction_ = &item;
                 const auto type = item.type == InvalidTypeId ? std::string{} : llvmType(item.type);
                 switch (item.opcode)
                 {
                     case AIROpcode::TextIntrinsic: emitText(item); return;
+                    case AIROpcode::ParseIntrinsic: emitParse(item); return;
+                    case AIROpcode::SystemIntrinsic: emitSystem(item); return;
+                    case AIROpcode::OsIntrinsic: emitOs(item); return;
+                    case AIROpcode::SharedIntrinsic: emitShared(item); return;
+                    case AIROpcode::AtomicIntrinsic: emitAtomic(item); return;
+                    case AIROpcode::SyncIntrinsic: emitSync(item); return;
+                    case AIROpcode::CancellationIntrinsic: emitCancellation(item); return;
+                    case AIROpcode::TaskIntrinsic: emitTask(item); return;
                     case AIROpcode::ArrayRepeat:
                     {
                         const auto count = typed_.types.get(item.type).extent;
@@ -1225,6 +2632,8 @@ namespace aevix
                                 << done << ":\n  " << value(item.result) << " = load " << type << ", ptr " << storage << '\n';
                         return;
                     }
+                    case AIROpcode::RangeInspect: emitRangeInspect(item); return;
+                    case AIROpcode::CharScalar: emitCharScalar(item); return;
                     case AIROpcode::RangeConstruct: case AIROpcode::RangeTest: case AIROpcode::RangeNext: case AIROpcode::RangeValue:
                     case AIROpcode::RangeWithStep: case AIROpcode::RangeCount: case AIROpcode::RangeCountFits: emitRange(item); return;
                     case AIROpcode::SliceConstruct:
@@ -1310,6 +2719,80 @@ namespace aevix
                         output_ << "  " << value(item.result) << " = call i32 @aevix.vector.reserve." << vectorType << "(ptr " << pointer << ", i64 " << value(item.operands[0]) << ")\n";
                         return;
                     }
+                    case AIROpcode::VectorTake:
+                    case AIROpcode::VectorInsert:
+                    {
+                        const auto [owner, vector] = address(item.place);
+                        const auto element = typed_.types.get(vector).element;
+                        const auto spelling = llvmType(vector), elementSpelling = llvmType(element);
+                        const auto layout = TypeLayout(typed_.types, names_, typed_.symbolTypes).layout(element);
+                        if (!layout.succeeded) { error(item.source, "Cannot determine Vector mutation element layout."); return; }
+                        const auto descriptor = temporary(), pointer = temporary(), length = temporary(), outside = temporary();
+                        const auto index = value(item.operands[0]);
+                        const bool insert = item.opcode == AIROpcode::VectorInsert;
+                        output_ << "  " << descriptor << " = load " << spelling << ", ptr " << owner << '\n'
+                                << "  " << pointer << " = extractvalue " << spelling << ' ' << descriptor << ", 0\n"
+                                << "  " << length << " = extractvalue " << spelling << ' ' << descriptor << ", 1\n"
+                                << "  " << outside << " = icmp " << (insert ? "ugt" : "uge") << " i64 " << index << ", " << length << '\n';
+                        guard(outside);
+                        const auto destination = temporary(), last = temporary(), updated = temporary();
+                        output_ << "  " << destination << " = getelementptr " << elementSpelling << ", ptr " << pointer << ", i64 " << index << '\n'
+                                << "  " << last << " = " << (insert ? "add" : "sub") << " i64 " << length << ", 1\n";
+                        if (insert)
+                        {
+                            const auto capacity = temporary(), full = temporary();
+                            output_ << "  " << capacity << " = extractvalue " << spelling << ' ' << descriptor << ", 2\n"
+                                    << "  " << full << " = icmp uge i64 " << length << ", " << capacity << '\n';
+                            guard(full);
+                            const auto next = temporary(), shifted = temporary(), count = temporary(), bytes = temporary();
+                            output_ << "  " << next << " = add i64 " << index << ", 1\n"
+                                    << "  " << shifted << " = getelementptr " << elementSpelling << ", ptr " << pointer << ", i64 " << next << '\n'
+                                    << "  " << count << " = sub i64 " << length << ", " << index << '\n'
+                                    << "  " << bytes << " = mul i64 " << count << ", " << layout.layout.size << '\n'
+                                    << "  call void @llvm.memmove.p0.p0.i64(ptr " << shifted << ", ptr " << destination << ", i64 " << bytes << ", i1 false)\n"
+                                    << "  store " << elementSpelling << ' ' << value(item.operands[1]) << ", ptr " << destination << '\n'
+                                    << "  " << value(item.result) << " = freeze {} zeroinitializer\n";
+                            usesMemmove_ = true;
+                        }
+                        else
+                        {
+                            if (item.operation == "pop")
+                            {
+                                const auto notLast = temporary();
+                                output_ << "  " << notLast << " = icmp ne i64 " << index << ", " << last << '\n'; guard(notLast);
+                            }
+                            output_ << "  " << value(item.result) << " = load " << elementSpelling << ", ptr " << destination << '\n';
+                            const auto finalSlot = temporary();
+                            output_ << "  " << finalSlot << " = getelementptr " << elementSpelling << ", ptr " << pointer << ", i64 " << last << '\n';
+                            if (item.operation == "swap_remove")
+                            {
+                                const auto moved = temporary();
+                                output_ << "  " << moved << " = load " << elementSpelling << ", ptr " << finalSlot << '\n'
+                                        << "  store " << elementSpelling << ' ' << moved << ", ptr " << destination << '\n';
+                            }
+                            else if (item.operation == "remove")
+                            {
+                                const auto next = temporary(), source = temporary(), count = temporary(), bytes = temporary();
+                                output_ << "  " << next << " = add i64 " << index << ", 1\n"
+                                        << "  " << source << " = getelementptr " << elementSpelling << ", ptr " << pointer << ", i64 " << next << '\n'
+                                        << "  " << count << " = sub i64 " << last << ", " << index << '\n'
+                                        << "  " << bytes << " = mul i64 " << count << ", " << layout.layout.size << '\n'
+                                        << "  call void @llvm.memmove.p0.p0.i64(ptr " << destination << ", ptr " << source << ", i64 " << bytes << ", i1 false)\n";
+                                usesMemmove_ = true;
+                            }
+                            output_ << "  store " << elementSpelling << " zeroinitializer, ptr " << finalSlot << '\n';
+                        }
+                        output_ << "  " << updated << " = insertvalue " << spelling << ' ' << descriptor << ", i64 " << last << ", 1\n"
+                                << "  store " << spelling << ' ' << updated << ", ptr " << owner << '\n';
+                        return;
+                    }
+                    case AIROpcode::VectorTruncate:
+                    {
+                        const auto [owner, vector] = address(item.place); truncateTypes_.insert(vector);
+                        output_ << "  call void @aevix.vector.truncate." << vector << "(ptr " << owner << ", i64 " << (item.operation == "clear" ? std::string("0") : value(item.operands[0])) << ")\n"
+                                << "  " << value(item.result) << " = freeze {} zeroinitializer\n";
+                        return;
+                    }
                     case AIROpcode::VectorLength:
                     {
                         auto operandType = valueType(item.operands[0]); auto descriptor = value(item.operands[0]);
@@ -1349,16 +2832,74 @@ namespace aevix
                                 << "  " << value(item.result) << " = freeze {} zeroinitializer\n";
                         return;
                     }
+                    case AIROpcode::BoxExtract:
+                    {
+                        if (!validBoxExtractionShape(*function_, item, typed_.types))
+                        { error(item.source, "Box extraction owner/result metadata is invalid."); return; }
+                        // 실제 T를 먼저 이동하고 바깥 할당만 해제한다. payload Drop은 호출하지 않는다.
+                        // Move the exact T first, then release only outer storage without invoking payload Drop.
+                        usesAllocation_ = true;
+                        const auto [storage, ignored] = address(item.place); (void)ignored;
+                        const auto pointer = temporary();
+                        output_ << "  " << pointer << " = load ptr, ptr " << storage << '\n'
+                                << "  " << value(item.result) << " = load " << type << ", ptr " << pointer << '\n'
+                                << "  call void @free(ptr " << pointer << ")\n"
+                                << "  store i1 false, ptr %initialized" << item.place.local << '\n';
+                        return;
+                    }
+                    case AIROpcode::MemoryIntrinsic:
+                    {
+                        const auto element = typed_.types.get(valueType(item.operands[0])).element;
+                        const auto storage = llvmType(element);
+                        const auto left = value(item.operands[0]);
+                        if (item.operation == "replace")
+                        {
+                            // 기존 값을 읽고 즉시 교체한다. 대여 저장소를 비우거나 Drop을 호출하지 않는다.
+                            // Read the old value and replace it immediately without emptying storage or invoking Drop.
+                            output_ << "  " << value(item.result) << " = load " << storage << ", ptr " << left << '\n'
+                                    << "  store " << storage << ' ' << value(item.operands[1]) << ", ptr " << left << '\n';
+                        }
+                        else
+                        {
+                            const auto right = value(item.operands[1]);
+                            const auto first = temporary(), second = temporary();
+                            output_ << "  " << first << " = load " << storage << ", ptr " << left << '\n'
+                                    << "  " << second << " = load " << storage << ", ptr " << right << '\n'
+                                    << "  store " << storage << ' ' << second << ", ptr " << left << '\n'
+                                    << "  store " << storage << ' ' << first << ", ptr " << right << '\n'
+                                    << "  " << value(item.result) << " = freeze {} zeroinitializer\n";
+                        }
+                        return;
+                    }
                     case AIROpcode::Constant:
                         output_ << "  " << value(item.result) << " = freeze " << type << ' ' << literal(item.operation, item.type) << '\n'; return;
+                    case AIROpcode::ClosureConsume:
+                    {
+                        // 검증된 환경의 모든 필드를 옮긴 뒤 부모를 비활성화한다. 사용자 코드는 중간 상태를 볼 수 없다.
+                        // Transfer every verified environment field, then deactivate its owner before any user-body instruction.
+                        const auto environment = temporary();
+                        output_ << "  " << environment << " = load " << type << ", ptr %l" << item.place.local << '\n';
+                        for (std::size_t field = 0; field < item.closureLocals.size(); ++field)
+                        {
+                            const auto local = item.closureLocals[field]; const auto capture = temporary();
+                            output_ << "  " << capture << " = extractvalue " << type << ' ' << environment << ", " << field << '\n'
+                                    << "  store " << llvmType(function_->locals[local].type) << ' ' << capture << ", ptr %l" << local << '\n'
+                                    << "  store i1 true, ptr %initialized" << local << '\n';
+                        }
+                        output_ << "  store i1 false, ptr %initialized" << item.place.local << '\n';
+                        return;
+                    }
                     case AIROpcode::Read: case AIROpcode::Move:
                     {
                         const auto [pointer, ignored] = address(item.place); (void)ignored;
                         output_ << "  " << value(item.result) << " = load " << type << ", ptr " << pointer << '\n';
-                        // 이동한 payload는 정리 가능한 빈 저장소로 바꾸고 나머지 필드는 보존한다.
-                        // Replace moved payload storage with a drop-safe empty value and preserve other fields.
+                        // 이동한 필드는 비활성으로 표시한다. 0으로 채운 사용자 값도 유효한 Drop 값은 아니다.
+                        // Mark moved fields inactive: zero-filled user values are not valid Drop values.
                         if (item.opcode == AIROpcode::Move && item.operation == "enum.extract")
-                            output_ << "  store " << type << " zeroinitializer, ptr " << pointer << '\n';
+                        {
+                            const auto& field = item.place.projections.front();
+                            output_ << "  store i1 false, ptr " << enumLive(item.place.local, field.variant, field.field) << '\n';
+                        }
                         if (item.opcode == AIROpcode::Move && item.place.local != InvalidAIRId && item.place.projections.empty())
                             output_ << "  store i1 false, ptr %initialized" << item.place.local << '\n';
                         return;
@@ -1368,7 +2909,12 @@ namespace aevix
                         const bool initialization = function_->initializesGlobal == item.place.global && item.place.projections.empty() && item.operation == "persist.initialize";
                         const auto [pointer, ignored] = address(item.place, initialization); (void)ignored;
                         output_ << "  store " << type << ' ' << value(item.operands[0]) << ", ptr " << pointer << '\n';
-                        if (item.place.local != InvalidAIRId && item.place.projections.empty()) output_ << "  store i1 true, ptr %initialized" << item.place.local << '\n';
+                        if (item.place.local != InvalidAIRId && item.place.projections.empty())
+                        {
+                            output_ << "  store i1 true, ptr %initialized" << item.place.local << '\n';
+                            for (const auto& [variant, field] : extractedFields(item.place.local))
+                                output_ << "  store i1 true, ptr " << enumLive(item.place.local, variant, field) << '\n';
+                        }
                         return;
                     }
                     case AIROpcode::BorrowShared: case AIROpcode::BorrowMut:
@@ -1489,7 +3035,7 @@ namespace aevix
                         output_ << "  " << live << " = load i1, ptr %initialized" << slot << '\n'
                                 << "  br i1 " << live << ", label %" << drop << ", label %" << done << '\n'
                                 << drop << ":\n";
-                        emitDropCall(function_->locals[slot].type, "%l" + std::to_string(slot));
+                        emitLocalDrop(slot);
                         output_ << "  store " << llvmType(function_->locals[slot].type) << " zeroinitializer, ptr %l" << slot << '\n'
                                 << "  store i1 false, ptr %initialized" << slot << "\n  br label %" << done << '\n' << done << ":\n";
                         return;
@@ -1499,7 +3045,9 @@ namespace aevix
             bool needsDrop(TypeId id, std::set<TypeId>& active)
             {
                 const auto& type = typed_.types.get(id);
-                if (type.kind == TypeKind::Vector || type.kind == TypeKind::Box || type.kind == TypeKind::String) return true;
+                if (typed_.dropMethods.contains(id)) return true;
+                if (taskOwner(type.kind) || cancellationOwner(type.kind) || syncGuard(type.kind) || type.kind == TypeKind::Vector || type.kind == TypeKind::Box || type.kind == TypeKind::Shared || type.kind == TypeKind::Weak || type.kind == TypeKind::String) return true;
+                if (syncOwner(type.kind)) return needsDrop(type.element, active);
                 if (!active.insert(id).second) return false;
                 bool result = type.kind == TypeKind::Array && needsDrop(type.element, active);
                 if (type.kind == TypeKind::Tuple) for (const auto field : type.parameters) result = result || needsDrop(field, active);
@@ -1509,6 +3057,59 @@ namespace aevix
                     for (const auto& variant : info->variants) for (const auto field : variant.fieldTypes) result = result || needsDrop(field, active);
                 }
                 active.erase(id); return result;
+            }
+            std::string enumLive(AIRLocalId local, SymbolId variant, SymbolId field) const
+            { return "%enumlive." + std::to_string(local) + "." + std::to_string(variant) + "." + std::to_string(field); }
+            std::set<std::pair<SymbolId, SymbolId>> extractedFields(AIRLocalId local) const
+            {
+                std::set<std::pair<SymbolId, SymbolId>> result;
+                for (const auto& block : function_->blocks)
+                    for (const auto& item : block.instructions)
+                        if (item.opcode == AIROpcode::Move && item.operation == "enum.extract" && item.place.local == local
+                            && item.place.projections.size() == 1 && item.place.projections[0].kind == AIRProjectionKind::EnumField)
+                            result.emplace(item.place.projections[0].variant, item.place.projections[0].field);
+                return result;
+            }
+            void emitLocalDrop(AIRLocalId local)
+            {
+                const auto id = function_->locals[local].type;
+                const auto pointer = "%l" + std::to_string(local);
+                const auto fields = extractedFields(local);
+                if (fields.empty()) { emitDropCall(id, pointer); return; }
+                const auto* info = record(id);
+                if (!info || !info->isEnum || typed_.dropMethods.contains(id))
+                { error(function_->source, "Partial enum cleanup requires a non-Drop enum owner."); return; }
+                const auto tag = temporary(), done = label();
+                std::vector<std::string> branches;
+                for (std::size_t i = 0; i < info->variants.size(); ++i) branches.push_back(label());
+                output_ << "  " << tag << " = load i32, ptr " << pointer << "\n  switch i32 " << tag << ", label %" << done << " [\n";
+                for (std::size_t i = 0; i < info->variants.size(); ++i)
+                    output_ << "    i32 " << info->variants[i].tag << ", label %" << branches[i] << '\n';
+                output_ << "  ]\n";
+                for (std::size_t index = 0; index < info->variants.size(); ++index)
+                {
+                    const auto& variant = info->variants[index];
+                    output_ << branches[index] << ":\n";
+                    for (std::size_t i = variant.fields.size(); i > 0; --i)
+                    {
+                        const auto field = variant.fields[i - 1], type = variant.fieldTypes[i - 1];
+                        std::set<TypeId> active;
+                        if (!needsDrop(type, active)) continue;
+                        std::string next;
+                        if (fields.contains({variant.variant, i - 1}))
+                        {
+                            const auto live = temporary(), drop = label(); next = label();
+                            output_ << "  " << live << " = load i1, ptr " << enumLive(local, variant.variant, i - 1) << '\n'
+                                    << "  br i1 " << live << ", label %" << drop << ", label %" << next << '\n' << drop << ":\n";
+                        }
+                        const auto address = temporary();
+                        output_ << "  " << address << " = getelementptr i8, ptr " << pointer << ", i64 " << enumOffset(id, field) << '\n';
+                        emitDropCall(type, address);
+                        if (!next.empty()) output_ << "  br label %" << next << '\n' << next << ":\n";
+                    }
+                    output_ << "  br label %" << done << '\n';
+                }
+                output_ << done << ":\n";
             }
             void emitDropCall(TypeId id, const std::string& pointer)
             {
@@ -1559,6 +3160,34 @@ namespace aevix
                             << "  br label %success\nsuccess:\n  ret i32 0\nallocation:\n  ret i32 1\noverflow:\n  ret i32 2\n}\n";
                 }
             }
+            void emitVectorTruncations()
+            {
+                for (const auto vector : truncateTypes_)
+                {
+                    temporary_ = 0; label_ = 0;
+                    const auto element = typed_.types.get(vector).element;
+                    const auto spelling = llvmType(vector);
+                    output_ << "define internal void @aevix.vector.truncate." << vector << "(ptr %owner, i64 %wanted) {\nentry:\n"
+                            << "  %descriptor = load " << spelling << ", ptr %owner\n"
+                            << "  %length = extractvalue " << spelling << " %descriptor, 1\n"
+                            << "  %shorter = icmp ult i64 %wanted, %length\n"
+                            << "  br i1 %shorter, label %prepare, label %done\nprepare:\n"
+                            << "  %data = extractvalue " << spelling << " %descriptor, 0\n"
+                            << "  %updated = insertvalue " << spelling << " %descriptor, i64 %wanted, 1\n"
+                            << "  store " << spelling << " %updated, ptr %owner\n"
+                            << "  br label %loop\nloop:\n"
+                            << "  %index = phi i64 [ %length, %prepare ], [ %previous, %body ]\n"
+                            << "  %finished = icmp eq i64 %index, %wanted\n"
+                            << "  br i1 %finished, label %done, label %body\nbody:\n"
+                            << "  %previous = sub i64 %index, 1\n"
+                            << "  %slot = getelementptr " << llvmType(element) << ", ptr %data, i64 %previous\n";
+                    // 길이 밖 소유자는 한 번 정리하고 남은 바이트를 새 값처럼 해제하지 않는다.
+                    // Drop each removed owner once; stale tail bytes never become another initialized value.
+                    emitDropCall(element, "%slot");
+                    output_ << "  store " << llvmType(element) << " zeroinitializer, ptr %slot\n"
+                            << "  br label %loop\ndone:\n  ret void\n}\n";
+                }
+            }
             void emitPayloadDrops()
             {
                 for (const auto type : payloadDropTypes_)
@@ -1566,6 +3195,15 @@ namespace aevix
                     temporary_ = 0; label_ = 0; usesAllocation_ = true;
                     output_ << "define internal void @aevix.box.payload.drop." << type << "(ptr %storage) {\nentry:\n";
                     emitDropCall(type, "%storage"); output_ << "  call void @free(ptr %storage)\n  ret void\n}\n";
+                }
+            }
+            void emitSharedPayloadDrops()
+            {
+                for (const auto type : sharedPayloadDropTypes_)
+                {
+                    temporary_ = 0; label_ = 0;
+                    output_ << "define internal void @aevix.shared.payload.drop." << type << "(ptr %storage) {\nentry:\n";
+                    emitDropCall(type, "%storage"); output_ << "  ret void\n}\n";
                 }
             }
             void emitDrops()
@@ -1578,7 +3216,73 @@ namespace aevix
                     emitted.insert(id); const auto& type = typed_.types.get(id);
                     output_ << "define internal void @aevix.collection.drop." << id << "(ptr %object) {\nentry:\n";
                     temporary_ = 0; label_ = 0;
-                    if (type.kind == TypeKind::Box)
+                    // 사용자 정리를 먼저 호출하고, 반환한 뒤 남은 필드를 역순으로 해제한다.
+                    // Run user cleanup first, then release remaining fields in reverse order.
+                    if (const auto custom = typed_.dropMethods.find(id); custom != typed_.dropMethods.end())
+                    {
+                        const auto* cleanup = function(custom->second);
+                        bool valid = cleanup && typed_.types.get(cleanup->result).kind == TypeKind::Void
+                            && cleanup->parameters.size() == 1;
+                        if (valid)
+                        {
+                            const auto parameter = cleanup->parameters[0];
+                            valid = parameter < cleanup->locals.size();
+                            if (valid)
+                            {
+                                const auto& receiver = typed_.types.get(cleanup->locals[parameter].type);
+                                valid = receiver.kind == TypeKind::Reference && receiver.isMutable && receiver.element == id;
+                            }
+                        }
+                        if (!valid) error(cleanup ? cleanup->source : nullptr, "Invalid compiler-managed Drop method signature.");
+                        else output_ << "  call void @aevix.fn." << custom->second << "(ptr %object)\n";
+                    }
+                    if (syncGuard(type.kind))
+                    {
+                        usesSync_ = true;
+                        output_ << "  %guard = load " << llvmType(id) << ", ptr %object\n  %state = extractvalue " << llvmType(id) << " %guard, 0\n"
+                                << "  %empty = icmp eq ptr %state, null\n  br i1 %empty, label %done, label %release\nrelease:\n";
+                        if (type.kind == TypeKind::RwLockReadGuard)
+                            output_ << "  %status = call i32 @aevix_rwlock_read_unlock(ptr %state)\n";
+                        else
+                            output_ << "  %pending = extractvalue " << llvmType(id) << " %guard, 2\n  %mark = zext i1 %pending to i32\n"
+                                    << "  %status = call i32 @aevix_" << (type.kind == TypeKind::MutexGuard ? "mutex" : "rwlock_write") << "_unlock(ptr %state, i32 %mark)\n";
+                        output_ << "  %failed = icmp ne i32 %status, 0\n"; guard("%failed");
+                        output_ << "  br label %done\ndone:\n";
+                    }
+                    else if (syncOwner(type.kind))
+                    {
+                        const auto payload = temporary();
+                        output_ << "  " << payload << " = getelementptr " << llvmType(id) << ", ptr %object, i32 0, i32 1\n";
+                        emitDropCall(type.element, payload);
+                    }
+                    else if (taskOwner(type.kind))
+                    {
+                        usesTask_ = true;
+                        if (type.kind == TypeKind::Task)
+                            output_ << "  %observation = getelementptr " << llvmType(id) << ", ptr %object, i32 0, i32 0\n";
+                        output_ << "  %token = load i64, ptr " << (type.kind == TypeKind::Task ? "%observation" : "%object") << "\n  %empty = icmp eq i64 %token, 0\n  br i1 %empty, label %done, label %release\nrelease:\n"
+                                << "  %status = call i32 @aevix_" << (type.kind == TypeKind::TaskScope ? "task_scope_cleanup" : "scoped_task_discard") << "(i64 %token)\n"
+                                << "  %failed = icmp ne i32 %status, 0\n";
+                        guard("%failed"); output_ << "  br label %done\ndone:\n";
+                    }
+                    else if (cancellationOwner(type.kind))
+                    {
+                        usesCancellation_ = true;
+                        output_ << "  %token = load i64, ptr %object\n  %status = call i32 @aevix_cancel_"
+                                << (type.kind == TypeKind::CancellationSource ? "source" : "token") << "_release(i64 %token)\n"
+                                << "  %failed = icmp ne i32 %status, 0\n";
+                        guard("%failed");
+                    }
+                    else if (type.kind == TypeKind::Shared || type.kind == TypeKind::Weak)
+                    {
+                        usesShared_ = true;
+                        output_ << "  %token = load i64, ptr %object\n  %empty = icmp eq i64 %token, 0\n"
+                                << "  br i1 %empty, label %done, label %release\nrelease:\n"
+                                << "  %status = call i32 @aevix_" << (type.kind == TypeKind::Weak ? "weak" : "shared") << "_release(i64 %token)\n"
+                                << "  %failed = icmp ne i32 %status, 0\n";
+                        guard("%failed"); output_ << "  br label %done\ndone:\n";
+                    }
+                    else if (type.kind == TypeKind::Box)
                     {
                         usesAllocation_ = true;
                         if (typed_.types.get(type.element).kind == TypeKind::Dynamic)
@@ -1664,6 +3368,25 @@ namespace aevix
             void emitFunction(const AIRFunction& function)
             {
                 function_ = &function;
+                currentInstruction_ = nullptr;
+                proofRanges_ = {};
+                if (proofOptions_.enabled)
+                {
+                    const auto started = std::chrono::steady_clock::now();
+                    proofRanges_ = analyzeProofRanges(function, typed_.types);
+                    if (auto* statistics = proofOptions_.statistics)
+                    {
+                        statistics->analysisNanoseconds += static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - started).count());
+                        statistics->functions += proofRanges_.stats.functions;
+                        statistics->skipped += proofRanges_.stats.skipped;
+                        statistics->budgetFallbacks += proofRanges_.stats.budgetFallback ? 1 : 0;
+                        statistics->arithmeticConsidered += proofRanges_.stats.arithmeticConsidered;
+                        statistics->arithmeticProven += proofRanges_.stats.arithmeticProven;
+                        statistics->fixedIndicesConsidered += proofRanges_.stats.fixedIndicesConsidered;
+                        statistics->fixedIndicesProven += proofRanges_.stats.fixedIndicesProven;
+                        statistics->cfgIterations += proofRanges_.stats.cfgIterations;
+                    }
+                }
                 temporary_ = 0; label_ = 0;
                 output_ << "define " << llvmType(function.result) << " @aevix.fn." << function.symbol << '(';
                 for (std::size_t index = 0; index < function.parameters.size(); ++index)
@@ -1681,20 +3404,148 @@ namespace aevix
                         if (benchFunction(function))
                             output_ << "  %bench.token = call i64 @aevix_bench_begin(ptr @aevix.bench.name." << function.symbol << ")\n";
                         for (std::size_t index = 0; index < function.locals.size(); ++index)
-                            output_ << "  %l" << index << " = alloca " << llvmType(function.locals[index].type) << "\n"
+                        {
+                            output_ << "  %l" << index << " = alloca " << llvmType(function.locals[index].type) << ", align " << layout(function.locals[index].type).alignment << "\n"
                                     << "  %initialized" << index << " = alloca i1\n  store i1 false, ptr %initialized" << index << '\n';
+                            for (const auto& [variant, field] : extractedFields(index))
+                                output_ << "  " << enumLive(index, variant, field) << " = alloca i1\n  store i1 true, ptr " << enumLive(index, variant, field) << '\n';
+                        }
                         for (const auto& basicBlock : function.blocks)
                             for (const auto& instruction : basicBlock.instructions)
                             {
+                                if (instruction.opcode == AIROpcode::OsIntrinsic && typed_.types.get(instruction.type).kind == TypeKind::Tuple)
+                                {
+                                    output_ << "  %osout" << instruction.result << " = alloca "
+                                            << llvmType(typed_.types.get(instruction.type).parameters[1]) << '\n';
+                                    if (instruction.operation == "env_get")
+                                        output_ << "  %ospresent" << instruction.result << " = alloca i32\n  store i32 0, ptr %ospresent" << instruction.result << '\n';
+                                }
                                 if (instruction.opcode == AIROpcode::ComplexIntrinsic && instruction.operation == "divide_components")
                                     output_ << "  %complex.real." << instruction.result << " = alloca double\n  %complex.imag." << instruction.result << " = alloca double\n";
                                 if (instruction.opcode == AIROpcode::ArrayRepeat)
                                     output_ << "  %repeattmp" << instruction.result << " = alloca " << llvmType(instruction.type) << '\n';
+                                if (instruction.opcode == AIROpcode::TaskIntrinsic)
+                                {
+                                    const auto base = "%task." + std::to_string(instruction.result);
+                                    output_ << "  " << base << ".token = alloca i64\n  " << base << ".pointer = alloca ptr\n  " << base << ".flag = alloca i32\n  " << base << ".snapshot = alloca [3 x i32]\n";
+                                    const auto* operation = taskOperation(instruction.operation);
+                                    if (operation && operation->result == TaskResult::ActiveCount)
+                                        output_ << "  " << base << ".count = alloca i64\n";
+                                    if (operation && operation->worker)
+                                        output_ << "  " << base << ".identity = alloca i64\n  " << base << ".capture = alloca " << llvmType(instruction.taskCallable) << ", align " << layout(instruction.taskCallable).alignment << '\n';
+                                    else if (operation && operation->preparation == TaskPreparation::Ready)
+                                        output_ << "  " << base << ".identity = alloca i64\n  " << base << ".ready = alloca " << llvmType(instruction.taskElement) << ", align " << layout(instruction.taskElement).alignment << '\n';
+                                    if (operation && (operation->result == TaskResult::Join || operation->result == TaskResult::TryTake))
+                                        output_ << "  " << base << ".result = alloca " << llvmType(instruction.taskElement) << ", align " << layout(instruction.taskElement).alignment << '\n';
+                                    if (const auto carrier = typed_.carriers.find(instruction.type); carrier != typed_.carriers.end())
+                                    {
+                                        output_ << "  %enumtmp" << instruction.result << " = alloca " << llvmType(instruction.type) << ", align " << layout(instruction.type).alignment << '\n'
+                                                << "  " << base << ".error = alloca " << llvmType(carrier->second.error) << ", align " << layout(carrier->second.error).alignment << '\n'
+                                                << "  " << base << ".success = alloca " << llvmType(carrier->second.value) << ", align " << layout(carrier->second.value).alignment << '\n';
+                                        if (operation && operation->result == TaskResult::TryTake)
+                                            output_ << "  " << base << ".optional = alloca " << llvmType(carrier->second.value) << ", align " << layout(carrier->second.value).alignment << '\n';
+                                        if (operation && (operation->result == TaskResult::Close || operation->result == TaskResult::CloseAdmission))
+                                        {
+                                            const bool closing = operation->result == TaskResult::Close;
+                                            const auto* variant = namedVariant(carrier->second.error,closing ? "Retry" : "Failure");
+                                            if (variant && variant->fieldTypes.size() == (closing ? 2u : 1u))
+                                                output_ << "  " << base << ".reason = alloca " << llvmType(variant->fieldTypes[closing ? 1 : 0]) << '\n';
+                                            if (closing) output_ << "  " << base << ".report = alloca " << llvmType(carrier->second.value) << '\n';
+                                        }
+                                    }
+                                    else output_ << "  " << base << ".status = alloca " << llvmType(instruction.type) << '\n';
+                                }
+                                if (instruction.opcode == AIROpcode::CancellationIntrinsic)
+                                {
+                                    const auto base = "%cancel." + std::to_string(instruction.result);
+                                    output_ << "  " << base << ".token = alloca i64\n  " << base << ".flag = alloca i32\n";
+                                    if (const auto carrier = typed_.carriers.find(instruction.type); carrier != typed_.carriers.end())
+                                    {
+                                        output_ << "  %enumtmp" << instruction.result << " = alloca " << llvmType(instruction.type) << '\n'
+                                                << "  " << base << ".error = alloca " << llvmType(carrier->second.error) << '\n';
+                                        if (const auto* operation = cancellationOperation(instruction.operation); operation && operation->result == CancellationResult::Request)
+                                            output_ << "  " << base << ".request = alloca " << llvmType(carrier->second.value) << '\n';
+                                    }
+                                }
+                                if (instruction.opcode == AIROpcode::SyncIntrinsic)
+                                {
+                                    const auto base = "%sync." + std::to_string(instruction.result);
+                                    output_ << "  " << base << ".poison = alloca i32\n  store i32 0, ptr " << base << ".poison\n";
+                                    if (instruction.operation.ends_with(".into_inner") && !instruction.operation.starts_with("poisoned."))
+                                        output_ << "  " << base << ".owner = alloca " << llvmType(valueType(instruction.operands[0])) << '\n';
+                                    if (const auto carrier = typed_.carriers.find(instruction.type); carrier != typed_.carriers.end())
+                                    {
+                                        output_ << "  %enumtmp" << instruction.result << " = alloca " << llvmType(instruction.type) << '\n'
+                                                << "  " << base << ".error = alloca " << llvmType(carrier->second.error) << '\n';
+                                        const auto* operation = syncOperation(instruction.operation);
+                                        if (operation && operation->result == SyncResult::OptionalAcquire)
+                                            output_ << "  " << base << ".optional = alloca " << llvmType(carrier->second.value) << '\n';
+                                    }
+                                }
+                                if (instruction.opcode == AIROpcode::AtomicIntrinsic)
+                                {
+                                    const auto base = "%atomic." + std::to_string(instruction.result);
+                                    output_ << "  " << base << ".observed = alloca i64\n  " << base << ".changed = alloca i32\n";
+                                    if (const auto carrier = typed_.carriers.find(instruction.type); carrier != typed_.carriers.end())
+                                        output_ << "  %enumtmp" << instruction.result << " = alloca " << llvmType(instruction.type) << '\n'
+                                                << "  " << base << ".error = alloca " << llvmType(carrier->second.error) << '\n';
+                                }
+                                if (instruction.opcode == AIROpcode::SharedIntrinsic)
+                                {
+                                    const auto base = "%shared." + std::to_string(instruction.result);
+                                    output_ << "  " << base << ".token = alloca i64\n  " << base << ".pointer = alloca ptr\n"
+                                            << "  " << base << ".strong = alloca i64\n  " << base << ".weak = alloca i64\n"
+                                            << "  " << base << ".equal = alloca i32\n  " << base << ".status = alloca i32\n";
+                                    if (const auto carrier = typed_.carriers.find(instruction.type); carrier != typed_.carriers.end())
+                                    {
+                                        output_ << "  %enumtmp" << instruction.result << " = alloca " << llvmType(instruction.type) << '\n';
+                                        if (!carrier->second.optional) output_ << "  " << base << ".error = alloca " << llvmType(carrier->second.error) << '\n';
+                                        if (instruction.operation == "weak.upgrade") output_ << "  " << base << ".optional = alloca " << llvmType(carrier->second.value) << '\n';
+                                        if (instruction.operation == "shared.try_unwrap") output_ << "  " << base << ".taken = alloca " << llvmType(carrier->second.value) << '\n';
+                                    }
+                                }
                                 if (instruction.opcode == AIROpcode::EnumConstruct || instruction.operation == "box.new"
+                                    || instruction.opcode == AIROpcode::ParseIntrinsic
+                                    || (instruction.opcode == AIROpcode::CharScalar && instruction.operation == "Char.from_u32")
+                                    || instruction.opcode == AIROpcode::SystemIntrinsic
                                     || (instruction.opcode == AIROpcode::TextIntrinsic && typed_.carriers.contains(instruction.type)))
                                 {
                                     output_ << "  %enumtmp" << instruction.result << " = alloca " << llvmType(instruction.type) << '\n';
                                     if (instruction.operation == "box.new") output_ << "  %boxerrtmp" << instruction.result << " = alloca " << llvmType(typed_.carriers.at(instruction.type).error) << '\n';
+                                    if (instruction.opcode == AIROpcode::CharScalar)
+                                        output_ << "  %charerror" << instruction.result << " = alloca " << llvmType(typed_.carriers.at(instruction.type).error) << '\n';
+                                    if (instruction.opcode == AIROpcode::SystemIntrinsic)
+                                    {
+                                        const auto& carrier = typed_.carriers.at(instruction.type);
+                                        const auto suffix = std::to_string(instruction.result);
+                                        output_ << "  %syserror" << suffix << " = alloca " << llvmType(carrier.error) << '\n';
+                                        if (instruction.operation == "input")
+                                        {
+                                            const auto& optional = typed_.carriers.at(carrier.value);
+                                            const auto* io = namedVariant(carrier.error, "Io"), *parse = namedVariant(carrier.error, "Parse");
+                                            if (io && parse)
+                                                output_ << "  %sysdata" << suffix << " = alloca ptr\n  %syslen" << suffix << " = alloca i64\n  %syscap" << suffix << " = alloca i64\n"
+                                                        << "  %sysoptional" << suffix << " = alloca " << llvmType(carrier.value) << '\n'
+                                                        << "  %sysio" << suffix << " = alloca " << llvmType(io->fieldTypes[0]) << '\n'
+                                                        << "  %sysparseerror" << suffix << " = alloca " << llvmType(parse->fieldTypes[0]) << '\n'
+                                                        << "  %syspayload" << suffix << " = alloca " << llvmType(optional.value) << '\n';
+                                        }
+                                        else
+                                        {
+                                            const auto begin = instruction.operation == "log" ? 1u : 0u;
+                                            const auto end = instruction.operands.size() - (instruction.operation == "log" ? 1u : 0u);
+                                            output_ << "  %sysparts" << suffix << " = alloca [" << end - begin << " x { ptr, i64, i32, i32 }]\n";
+                                            for (std::size_t index = begin; index < end; ++index)
+                                                output_ << "  %syspart" << suffix << '.' << index << " = alloca "
+                                                        << (typed_.types.get(valueType(instruction.operands[index])).kind == TypeKind::Bool ? "i8" : llvmType(valueType(instruction.operands[index]))) << '\n';
+                                        }
+                                    }
+                                    if (instruction.opcode == AIROpcode::ParseIntrinsic)
+                                    {
+                                        const auto& carrier = typed_.carriers.at(instruction.type);
+                                        output_ << "  %parsepayload" << instruction.result << " = alloca " << llvmType(carrier.value) << '\n'
+                                                << "  %parseerror" << instruction.result << " = alloca " << llvmType(carrier.error) << '\n';
+                                    }
                                     if (instruction.opcode == AIROpcode::TextIntrinsic)
                                     {
                                         const auto& carrier = typed_.carriers.at(instruction.type);
@@ -1787,9 +3638,10 @@ namespace aevix
         };
     }
     std::optional<std::string> emitLLVM(const AIRModule& module, const TypeCheckResult& types,
-                                      const NameResolution& names, Diagnostics& diagnostics, std::string targetTriple)
+                                      const NameResolution& names, Diagnostics& diagnostics, std::string targetTriple, ProofOptimizationOptions proof)
     {
-        if (!diagnostics.empty() || !verifyAIR(module, types.types, diagnostics)) return std::nullopt;
-        return Emitter(module, types, names, diagnostics, std::move(targetTriple)).run();
+        if (proof.statistics) *proof.statistics = {};
+        if (!diagnostics.empty() || !verifyAIR(module, types.types, diagnostics) || !validateTaskWorkers(module,types,diagnostics)) return std::nullopt;
+        return Emitter(module, types, names, diagnostics, std::move(targetTriple), proof).run();
     }
 }

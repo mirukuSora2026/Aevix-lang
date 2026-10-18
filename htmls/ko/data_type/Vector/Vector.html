@@ -28,6 +28,7 @@
 <h2 id="Overview-heading">1입니다. 동적 길이 및 별도의 소유권
 </h2>
 <div class="callout note" id="Implementation-02"><p><strong>0.2 구현 범위.</strong> <code>Vector&lt;T&gt;</code> 및 <code>T values[]</code> import 할 필요가 없습니다. 컨텍스트 동적 리터럴을 통해 다음과 같이 소유자를 구성합니다. <code>Result&lt;Vector&lt;i32&gt;, CollectionError&gt; values = [1, 2];</code>. 상기 호출들은 The calls are <code>Vector.len(&amp;owner)</code>, <code>Vector.capacity(&amp;owner)</code>, <code>Vector.reserve(&amp;mut owner, additional)</code> 및 <code>Vector.push(&amp;mut owner, value)</code>. 지금 예약 <code>Result&lt;unit, CollectionError&gt;</code>푸시 리턴 Push Returns <code>Result&lt;unit, InputError&lt;T&gt;&gt;</code>실패에 대한 거부된 입력을 보존합니다. <code>Vector.new</code>copy/clone 및 기타 카탈로그 constructors/algorithms는 0.2 API가 아닙니다. 자세히 보기 <a href="../../releases/0_2.html">0.2 구현 프로필</a>; 나머지 카탈로그 항목은 설계 계약입니다.</p></div>
+<div class="callout note" id="Implementation-03"><p><strong>0.3 개발 중 insert 계약.</strong> <code>Vector.insert(&amp;mut owner, index, value)</code> 는 다음을 받는다: <code>index &lt;= length</code>. 잘못된 인덱스는 다음 오류를 반환합니다: <code>InputError&lt;T&gt;.OutOfBounds { public T input; }</code> 를 할당이나 원소 이동 전에 반환합니다. 입력 소유자와 기존 벡터는 보존됩니다. 크기 확장 실패는 사용하지 않은 입력과 함께 AllocationFailure 또는 SizeOverflow를 반환합니다. 위의 공개된 0.2 부분집합은 그대로이며, 이 소스 확장이 나머지 카탈로그 API까지 구현한다는 뜻은 아닙니다.</p></div>
 <div class="callout draft-note"><strong>언어 설계 초안.</strong> Vector는 런타임 길이의 growable 소유자입니다. 그것은 고정된 것과 다르다. <code>Array&lt;T, N&gt;</code>이 카탈로그에서는 API가 아닌 제안된 계약을 설명합니다.
 
 </div>

@@ -1,0 +1,2400 @@
+{
+  "schema_version": 1,
+  "created_by": "miruku_sora2026",
+  "file_name": "box_contract_audit.json",
+  "description": {
+    "en": "Build-only, read-only reconciliation of all34 canonical Box contracts against closed compiler bindings and actual checked source compositions.",
+    "ko": "Box 원본34개 계약을 직접 제공자·실제 소스 조합·오류 및 콜백 차이·미제공 항목으로 나눈 build 전용 초안이다."
+  },
+  "observed_date": "2026-10-18",
+  "status": "dated_static_audit_not_complete_catalog_or_execution_proof",
+  "compiler_sha256": "390886932eb9e335dcc8094cdb62fd397f36ae1ed4b8387eb99ac95145930d93",
+  "basis": {
+    "catalog": {
+      "path": "docs/Language/Library/api_inventory.json",
+      "sha256": "7f6d3780699239c26743097b7148fdf53ec54d0dd576485ea32983a23c2007ab",
+      "canonical_box_rows": 34
+    },
+    "source_files": [
+      {
+        "path": "src/Frontend/Modules/ModuleLoader.cpp",
+        "sha256": "d08201ba9662a211112770b098fc176cd528f04c8a442cc6061f5d4b5efc83d0"
+      },
+      {
+        "path": "src/Frontend/Sema/GenericResolver.cpp",
+        "sha256": "682f73491b3c3b375818460d08ea98f41f0bf8658ada4dbb721b62052f039e95"
+      },
+      {
+        "path": "src/Frontend/Sema/TypeChecker.cpp",
+        "sha256": "997fa18e995c690c3e19ad776710aaf43c3917dda428f0d76322aa5f5e7cfead"
+      },
+      {
+        "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+        "sha256": "d521bfb07bea7687df675ec4af47c12468acdffd09c9d15ab38b18a401f79904"
+      },
+      {
+        "path": "src/IR/Lowering/ASTLowering.cpp",
+        "sha256": "1317e412c1f7b2d574a41a6a367d98ec3c76c5ce1ff67e2952ee52ec8872ff5c"
+      },
+      {
+        "path": "library/Collections/hash.avx",
+        "sha256": "5aafacdc2f2f3d529e90a4f360b7ec29731e897979da88c46bf1d0821a47aaaa"
+      },
+      {
+        "path": "library/Collections/array.avx",
+        "sha256": "7a839328894bfbcf6cc8771331e38d75278e4822df49b81aa518250dba30cfe6"
+      },
+      {
+        "path": "library/Core/ordering.avx",
+        "sha256": "cd7c8aad08d8755c9a657a16df746423da9740893ff617fb0f10eb2b96df4652"
+      }
+    ],
+    "namespace": "Explicit import memory. Box is compiler-injected; there is no ordinary library/Core/memory.avx or standalone generic Box implementation to substitute for the closed binding.",
+    "placeholder_warning": "Injected public void declarations are compiler placeholders. The closed resolver, type checker and lowering determine actual result and effect behavior; ordinary body text is not the ABI.",
+    "active_source_modified": false
+  },
+  "counts": {
+    "canonical_signature_rows": 34,
+    "direct_compiler_callable_names": 4,
+    "canonical_names_without_closed_provider": 30,
+    "checked_source_composition_candidates": 11,
+    "source_compositions_same_carrier": 7,
+    "source_compositions_adapted_error_carrier": 3,
+    "source_compositions_different_callback_contract": 1,
+    "rows_with_no_concrete_provider": 19,
+    "by_status": {
+      "no_concrete_provider": 19,
+      "source_composition_same_carrier": 7,
+      "direct_compiler_provider": 4,
+      "source_composition_different_callback_contract": 1,
+      "source_composition_adapted_error_carrier": 3
+    }
+  },
+  "interpretation": [
+    "The30 unsupported canonical names are not30 entirely absent behaviors:11 have actual checked compositions.",
+    "Nineteen rows still have no concrete provider in the searched compiler/source surface.",
+    "The7 same-carrier compositions still require namespace/API and full cost/error/retained-input/lifetime reconciliation; they are not declared fully complete.",
+    "The3 adapted error carriers are Box.copy/from_array/from_vector through Box.new InputError<T>, compared with canonical CollectionError/OwnerError<T>.",
+    "Box.compare has a checked hash.Ord/i32-to-Ordering route, but its explicit arbitrary Compare<T> callback contract is not supplied by that route.",
+    "All34 remain0.3 CPU catalog targets. Nothing is silently deferred to0.4; no GPU behavior is introduced."
+  ],
+  "compile_only_verification": {
+    "positive_fixtures": [
+      {
+        "path": "build/box-audit-preview/available.avx",
+        "sha256": "da33d4eb6a5696a0cc4d509ea29d4eb8897f16921323f1beebe91a40eb792415",
+        "mode": "--check",
+        "exit_code": 0,
+        "stdout": "Type checking succeeded: 4 module(s), 691 symbol(s); ownership checked",
+        "executed": false
+      },
+      {
+        "path": "build/box-audit-preview/generic_compositions.avx",
+        "sha256": "4ca19b8f5ee93db2c13399552a7faa149a9aa7edc3fe0b07effc77993d9c32c8",
+        "mode": "--check",
+        "exit_code": 0,
+        "stdout": "Type checking succeeded: 4 module(s), 566 symbol(s); ownership checked",
+        "executed": false
+      }
+    ],
+    "negative_controls": [
+      {
+        "name": "moved_owner",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Use of a moved or unavailable value.",
+          "Use of a moved or unavailable value."
+        ],
+        "executed": false
+      },
+      {
+        "name": "owner_view_escape",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Cannot return a reference to a local value."
+        ],
+        "executed": false
+      },
+      {
+        "name": "array_slice_escape",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Cannot return a reference to a local value."
+        ],
+        "executed": false
+      },
+      {
+        "name": "noncopy_payload_move",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Moving an owning value out of a borrowed place requires an ownership-preserving operation such as memory.replace.",
+          "Cannot modify, move, or exclusively borrow through a read-only reference."
+        ],
+        "executed": false
+      },
+      {
+        "name": "conflicting_borrow",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Cannot modify, move, or exclusively borrow a place while it is borrowed.",
+          "Cannot modify, move, or exclusively borrow a place while it is borrowed."
+        ],
+        "executed": false
+      },
+      {
+        "name": "swap_same_owner",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Cannot modify, move, or exclusively borrow a place while it is borrowed.",
+          "Cannot modify, move, or exclusively borrow a place while it is borrowed."
+        ],
+        "executed": false
+      },
+      {
+        "name": "private_payload",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Type Box<i32> has no supported member 'payload'."
+        ],
+        "executed": false
+      },
+      {
+        "name": "explicit_drop",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Drop cleanup methods cannot be called explicitly."
+        ],
+        "executed": false
+      },
+      {
+        "name": "dynamic_borrow_escape",
+        "mode": "--check",
+        "exit_code": 1,
+        "expected": "compile rejection",
+        "messages": [
+          "Cannot return a reference to a local value."
+        ],
+        "executed": false
+      }
+    ],
+    "negative_control_source_files": [
+      {
+        "path": "build/box-audit-preview/moved_owner.avx",
+        "sha256": "0134d6c021a247781fb920e5bee5e90ef7ec16e272ac8357e304389eed0e66a1"
+      },
+      {
+        "path": "build/box-audit-preview/owner_view_escape.avx",
+        "sha256": "d271d0b2750b75a2ca269e8d64b56e5ce7bb70d9eee53877e3db5e7ba480c700"
+      },
+      {
+        "path": "build/box-audit-preview/array_slice_escape.avx",
+        "sha256": "d3dd3f8be7b8142796cf9312d46fe912997f0fdb502c85bd00f9b5dcb145f2f3"
+      },
+      {
+        "path": "build/box-audit-preview/noncopy_payload_move.avx",
+        "sha256": "f4c5d68371208eba9f9c0670dad496ee401e2ce962fbea11064c7f43dbd6c08c"
+      },
+      {
+        "path": "build/box-audit-preview/conflicting_borrow.avx",
+        "sha256": "2fd90e2bb72460ae0ca88dca056ae0816ddd89370c5b010f7383d82f9e278df4"
+      },
+      {
+        "path": "build/box-audit-preview/swap_same_owner.avx",
+        "sha256": "69495443bbc05992d09298a21c55649d21a05c00de45df84c811a30470e23be8"
+      },
+      {
+        "path": "build/box-audit-preview/private_payload.avx",
+        "sha256": "3e40fefc8db78796dc90232fdea7fd470e58eb6d6058d0ddb0ec443c4e617277"
+      },
+      {
+        "path": "build/box-audit-preview/explicit_drop.avx",
+        "sha256": "b3b29a21249e3cd3b5211ec01307ab38768e8acca1b218aa57020594ccc8b23c"
+      },
+      {
+        "path": "build/box-audit-preview/dynamic_borrow_escape.avx",
+        "sha256": "60baf22de57c6e7860efa28fe3083344ec8a3dbbf807bd0a21f50868c0e04563"
+      }
+    ],
+    "scope": "Only --check was run. No invalid source was AOT/JIT-executed; no Box fault injection, Drop-count runtime proof, sanitizer run or cross-target execution is claimed. The parent-owned138-test suite is separate.",
+    "generic_boundary": "Generic helper declarations were checked through the concrete recorded instantiations. This is not an independent proof over every generic type/interface implementation or exact conceptual callback alias."
+  },
+  "production_files_written": [],
+  "records": [
+    {
+      "name": "Box.allocation_bytes",
+      "signature": "Box.allocation_bytes(&Box<T> owner)",
+      "returns": "usize",
+      "contract": "Payload allocation request size; excludes allocator bookkeeping.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-allocation_bytes",
+          "section": "Function-Reference",
+          "line": 109
+        }
+      ],
+      "id": "catalog:cc9350e5a385efb90b1d",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No public Box allocation-request introspection callable or source-level target-layout primitive was found. The backend knows layout internally but that is not a user-callable API.",
+        "Box.new currently requests max(1,layout size); this internal implementation fact does not provide allocation_bytes(owner) or allocator-bookkeeping reporting."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.allocation_bytes(&Box<T> owner)",
+        "canonical_returns": "usize",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.array_as_mut_slice",
+      "signature": "Box.array_as_mut_slice(&mut Box<Array<T, N>> owner)",
+      "returns": "MutSlice<T>",
+      "contract": "Exclusive fixed-extent borrow; no ownership transfer.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-array_as_mut_slice",
+          "section": "Function-Reference",
+          "line": 73
+        }
+      ],
+      "id": "catalog:e4dba7dd0e1852185c5a",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_same_carrier",
+      "provider": "&mutArray<T,N> payload = Box.as_mut(&mut owner); Slice.from_array_mut(payload)",
+      "actual_result_contract": "MutSlice<T>",
+      "remaining_contract_notes": [
+        "There is no named Box.array_as_mut_slice binding. Existing Box payload borrows and Slice construction compose into the corresponding initialized-element view.",
+        "The view remains bounded by both outer owner and nested initialized storage. It neither transfers ownership nor permits vector growth through a slice.",
+        "Concrete i32 Array/Vector examples passed --check; generic primitive/source definitions are evidence of a composition, not a blanket execution proof for every T, N, alias or target."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:27",
+        "array_slice_escape.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 1109,
+          "role": "Slice constructors infer Array/Vector element types from explicit borrows."
+        },
+        {
+          "path": "library/Collections/array.avx",
+          "line": 37,
+          "role": "Generic Array slice wrapper over the same primitive."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.array_as_mut_slice(&mut Box<Array<T, N>> owner)",
+        "canonical_returns": "MutSlice<T>",
+        "current_provider_expression": "&mutArray<T,N> payload = Box.as_mut(&mut owner); Slice.from_array_mut(payload)",
+        "current_returns": "MutSlice<T>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.array_as_slice",
+      "signature": "Box.array_as_slice(&Box<Array<T, N>> owner)",
+      "returns": "Slice<T>",
+      "contract": "Borrow the initialized fixed extent; O(1), no allocation.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-array_as_slice",
+          "section": "Function-Reference",
+          "line": 71
+        }
+      ],
+      "id": "catalog:a413c98b97622f860e4f",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_same_carrier",
+      "provider": "&Array<T,N> payload = Box.as_ref(&owner); Slice.from_array(payload)",
+      "actual_result_contract": "Slice<T>",
+      "remaining_contract_notes": [
+        "There is no named Box.array_as_slice binding. Existing Box payload borrows and Slice construction compose into the corresponding initialized-element view.",
+        "The view remains bounded by both outer owner and nested initialized storage. It neither transfers ownership nor permits vector growth through a slice.",
+        "Concrete i32 Array/Vector examples passed --check; generic primitive/source definitions are evidence of a composition, not a blanket execution proof for every T, N, alias or target."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:26",
+        "array_slice_escape.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 1109,
+          "role": "Slice constructors infer Array/Vector element types from explicit borrows."
+        },
+        {
+          "path": "library/Collections/array.avx",
+          "line": 30,
+          "role": "Generic Array slice wrapper over the same primitive."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.array_as_slice(&Box<Array<T, N>> owner)",
+        "canonical_returns": "Slice<T>",
+        "current_provider_expression": "&Array<T,N> payload = Box.as_ref(&owner); Slice.from_array(payload)",
+        "current_returns": "Slice<T>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.array_from_fn",
+      "signature": "Box.array_from_fn(T, const usize N, MakeAt<T> make)",
+      "returns": "Result<Box<Array<T, N>>, CollectionError>",
+      "contract": "Construct directly into reserved storage; finalize initialized prefix on unwind.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-array_from_fn",
+          "section": "Function-Reference",
+          "line": 63
+        }
+      ],
+      "id": "catalog:22231ec2ffcbde53176e",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No reserved-Box array builder or equivalent public callback operation was found.",
+        "Building an Array temporary and then Box.new would evaluate the callback before Box allocation and would not prove direct initialized-prefix construction/cleanup."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.array_from_fn(T, const usize N, MakeAt<T> make)",
+        "canonical_returns": "Result<Box<Array<T, N>>, CollectionError>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.array_repeat_clone",
+      "signature": "Box.array_repeat_clone(const usize N, &T value)",
+      "returns": "Result<Box<Array<T, N>>, CollectionError>",
+      "contract": "T: Clone; clean partially cloned output on failure.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-array_repeat_clone",
+          "section": "Function-Reference",
+          "line": 69
+        }
+      ],
+      "id": "catalog:332758f319a0224d1a9f",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No public Clone interface/callback protocol or boxed repeated-clone builder was found.",
+        "Copy-only loops or Vector.repeat_copy are not fallible Clone with partial-prefix cleanup into reserved fixed storage."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.array_repeat_clone(const usize N, &T value)",
+        "canonical_returns": "Result<Box<Array<T, N>>, CollectionError>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.array_repeat_copy",
+      "signature": "Box.array_repeat_copy(const usize N, &T value)",
+      "returns": "Result<Box<Array<T, N>>, CollectionError>",
+      "contract": "T: Copy; explicit O(N) copies and allocation.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-array_repeat_copy",
+          "section": "Function-Reference",
+          "line": 67
+        }
+      ],
+      "id": "catalog:2a3192a6d30f88b4ecf1",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No boxed fixed-N repeated-Copy builder was found.",
+        "A manually produced fixed array followed by Box.new is an allocation-after-construction composition with InputError<Array<T,N>>, not this CollectionError API."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.array_repeat_copy(const usize N, &T value)",
+        "canonical_returns": "Result<Box<Array<T, N>>, CollectionError>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.array_try_from_fn",
+      "signature": "Box.array_try_from_fn(T, const usize N, TryMakeAt<T, E> make)",
+      "returns": "Result<Box<Array<T, N>>, BuildError<E>>",
+      "contract": "Index builder failure cleans the initialized prefix and records the callback error.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-array_try_from_fn",
+          "section": "Function-Reference",
+          "line": 65
+        }
+      ],
+      "id": "catalog:17199280a7f71617e99c",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No reserved boxed fixed-array fallible callback builder was found. BuildError<E>, prefix cleanup and callback failure ownership require an explicit provider."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.array_try_from_fn(T, const usize N, TryMakeAt<T, E> make)",
+        "canonical_returns": "Result<Box<Array<T, N>>, BuildError<E>>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.as_mut",
+      "signature": "Box.as_mut(&mut Box<T> owner)",
+      "returns": "&mut T",
+      "contract": "Exclusive borrow; owner movement, extraction, and conflicting access stay suspended.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-as_mut",
+          "section": "Function-Reference",
+          "line": 88
+        }
+      ],
+      "id": "catalog:f8a662b9444792dbf3ef",
+      "implementation": "design_contract_unmapped",
+      "status": "direct_compiler_provider",
+      "provider": "Box.as_mut(&mut owner)",
+      "actual_result_contract": "&mut T",
+      "remaining_contract_notes": [
+        "Requires a mutable owner borrow; owner movement and conflicting access remain blocked by the ownership checker.",
+        "A non-Copy payload cannot be moved out through a borrow; memory.replace is the checked ownership-preserving alternative."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:12",
+        "available.avx:41",
+        "conflicting_borrow.avx",
+        "noncopy_payload_move.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3583,
+          "role": "Mutable owner reference requirement."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 2815,
+          "role": "Pointer-only Box borrow lowering."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": true,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.as_mut(&mut Box<T> owner)",
+        "canonical_returns": "&mut T",
+        "current_provider_expression": "Box.as_mut(&mut owner)",
+        "current_returns": "&mut T",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.as_ref",
+      "signature": "Box.as_ref(&Box<T> owner)",
+      "returns": "&T",
+      "contract": "Borrow the initialized value; O(1), lifetime bounded by owner.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-as_ref",
+          "section": "Function-Reference",
+          "line": 86
+        }
+      ],
+      "id": "catalog:48d6293c5db6d73898d4",
+      "implementation": "design_contract_unmapped",
+      "status": "direct_compiler_provider",
+      "provider": "Box.as_ref(&owner)",
+      "actual_result_contract": "&T",
+      "remaining_contract_notes": [
+        "Requires an explicit owner reference; the result is tied to the owner borrow. The LLVM box.borrow operation loads the existing payload pointer without allocating.",
+        "Read-only/exclusive conflict and escaping-local-owner controls are rejected; these checks do not establish all possible interprocedural lifetime scenarios."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:11",
+        "owner_view_escape.avx",
+        "conflicting_borrow.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3582,
+          "role": "Explicit reference and payload type requirements."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 2815,
+          "role": "Pointer-only Box borrow lowering."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": true,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.as_ref(&Box<T> owner)",
+        "canonical_returns": "&T",
+        "current_provider_expression": "Box.as_ref(&owner)",
+        "current_returns": "&T",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.clone",
+      "signature": "Box.clone(&Box<T> source)",
+      "returns": "Result<Box<T>, CollectionError>",
+      "contract": "T: Clone; allocate independent storage; clone failure preserves source.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-clone",
+          "section": "Function-Reference",
+          "line": 84
+        }
+      ],
+      "id": "catalog:da9a262b385c840f446f",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No Box.clone or generic Clone interface/provider was found.",
+        "Copy and Box.new cannot implement arbitrary fallible clone or preserve its exact CollectionError/source contract."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.clone(&Box<T> source)",
+        "canonical_returns": "Result<Box<T>, CollectionError>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.compare",
+      "signature": "Box.compare(&Box<T> left, &Box<T> right, Compare<T> compare)",
+      "returns": "Ordering",
+      "contract": "Compare values using an explicit consistent comparator; no implicit pointer order.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-compare",
+          "section": "Function-Reference",
+          "line": 115
+        }
+      ],
+      "id": "catalog:eb2ebe5b31279fe06501",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_different_callback_contract",
+      "provider": "ordering.from_i32(hash.compare(Box.as_ref(left), Box.as_ref(right)))",
+      "actual_result_contract": "ordering.Ordering",
+      "remaining_contract_notes": [
+        "There is no Box.compare callable. The checked composition compares pointees using fixed source scalar overloads or hash.Ord, then converts a negative/zero/positive i32 into ordering.Ordering.",
+        "The canonical signature accepts an arbitrary explicit Compare<T> comparator. A fixed hash.Ord method is not that callback ABI or selection contract.",
+        "Concrete i32 and a custom non-Copy Key generic Ord composition passed --check. Comparator consistency, costs and every callable/error/lifetime profile remain unproven."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:16",
+        "generic_compositions.avx:13"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "library/Collections/hash.avx",
+          "line": 46,
+          "role": "Explicit Ord trait using i32 order codes."
+        },
+        {
+          "path": "library/Collections/hash.avx",
+          "line": 157,
+          "role": "Concrete i32 comparison."
+        },
+        {
+          "path": "library/Collections/hash.avx",
+          "line": 520,
+          "role": "Generic Ord comparison."
+        },
+        {
+          "path": "library/Core/ordering.avx",
+          "line": 53,
+          "role": "Convert i32 sign to the source Ordering enum."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.compare(&Box<T> left, &Box<T> right, Compare<T> compare)",
+        "canonical_returns": "Ordering",
+        "current_provider_expression": "ordering.from_i32(hash.compare(Box.as_ref(left), Box.as_ref(right)))",
+        "current_returns": "ordering.Ordering",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.copy",
+      "signature": "Box.copy(&Box<T> source)",
+      "returns": "Result<Box<T>, CollectionError>",
+      "contract": "T: Copy; allocate independent storage and copy the value.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-copy",
+          "section": "Function-Reference",
+          "line": 82
+        }
+      ],
+      "id": "catalog:9dca39a2ad40739ba675",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_adapted_error_carrier",
+      "provider": "Box.new(*Box.as_ref(source))",
+      "actual_result_contract": "Result<Box<T>,InputError<T>>",
+      "remaining_contract_notes": [
+        "There is no Box.copy callable. Copying a borrowed T and then Box.new can allocate independent storage without consuming the source.",
+        "A generic helper constrained by Copy, instantiated with i32, passed --check. This is an InputError<T> route, while the canonical row promises CollectionError.",
+        "Failure owns the copied input in InputError; it cannot be silently dropped/relabelled as CollectionError. No allocation-failure or actual source-preservation execution was performed here."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:14",
+        "generic_compositions.avx:16"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3553,
+          "role": "Box.new selects InputError<T> rather than CollectionError."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 1273,
+          "role": "Allocate and retain copied input on allocation failure."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.copy(&Box<T> source)",
+        "canonical_returns": "Result<Box<T>, CollectionError>",
+        "current_provider_expression": "Box.new(*Box.as_ref(source))",
+        "current_returns": "Result<Box<T>,InputError<T>>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.default",
+      "signature": "Box.default(T)",
+      "returns": "Result<Box<T>, CollectionError>",
+      "contract": "T: Default; allocate and construct one value; expose failure.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-default",
+          "section": "Function-Reference",
+          "line": 80
+        }
+      ],
+      "id": "catalog:212998857069a46c9277",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No Box.default or source Default interface/provider was found.",
+        "Box.new(a manually constructed value) does not choose Default or establish reserve-before-construction/failure semantics. The default token spelling was not parser-probed in this audit."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.default(T)",
+        "canonical_returns": "Result<Box<T>, CollectionError>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.equal",
+      "signature": "Box.equal(&Box<T> left, &Box<T> right)",
+      "returns": "bool",
+      "contract": "T: Eq; compare pointee values; add user comparison cost.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-equal",
+          "section": "Function-Reference",
+          "line": 113
+        }
+      ],
+      "id": "catalog:bba8fbc22724a5256b54",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_same_carrier",
+      "provider": "hash.equal(Box.as_ref(left), Box.as_ref(right))",
+      "actual_result_contract": "bool",
+      "remaining_contract_notes": [
+        "There is no Box.equal callable. Concrete scalar overloads and the generic hash.Eq interface route compare pointee values while borrowing both owners.",
+        "The generic composition was instantiated for a non-Copy custom Key implementing hash.Eq; scalar i32 composition also passed --check.",
+        "The nominal source trait is hash.Eq. Its equivalence-law and user-method cost obligations remain semantic contracts; accepted typing does not prove them or all implementations."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:15",
+        "generic_compositions.avx:10"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "library/Collections/hash.avx",
+          "line": 33,
+          "role": "Source Eq interface and equal contract."
+        },
+        {
+          "path": "library/Collections/hash.avx",
+          "line": 150,
+          "role": "Concrete i32 equality overload."
+        },
+        {
+          "path": "library/Collections/hash.avx",
+          "line": 513,
+          "role": "Generic Eq-bounded equality provider."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.equal(&Box<T> left, &Box<T> right)",
+        "canonical_returns": "bool",
+        "current_provider_expression": "hash.equal(Box.as_ref(left), Box.as_ref(right))",
+        "current_returns": "bool",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.flatten",
+      "signature": "Box.flatten(Box<Box<T>> owner)",
+      "returns": "Box<T>",
+      "contract": "Move out the inner box and destroy outer storage; no inner-value clone.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-flatten",
+          "section": "Function-Reference",
+          "line": 103
+        }
+      ],
+      "id": "catalog:3d5b0c42ce9f24fe5b18",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No Box payload-extraction or outer-only deallocation callable was found.",
+        "The inner Box is non-Copy and cannot be moved out of a borrowed payload; memory.replace would require a replacement owner and alter allocation/failure costs."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.flatten(Box<Box<T>> owner)",
+        "canonical_returns": "Box<T>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.from_array",
+      "signature": "Box.from_array(Array<T, N> values)",
+      "returns": "Result<Box<Array<T, N>>, OwnerError<Array<T, N>>>",
+      "contract": "Allocate fixed array storage; returned allocation failure preserves the original array.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-from_array",
+          "section": "Function-Reference",
+          "line": 61
+        }
+      ],
+      "id": "catalog:dfd1b73168a60dcfd6dd",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_adapted_error_carrier",
+      "provider": "Box.new(values)",
+      "actual_result_contract": "Result<Box<Array<T,N>>,InputError<Array<T,N>>>",
+      "remaining_contract_notes": [
+        "There is no Box.from_array callable. Box.new accepts an already initialized Array<T,N> value, preserving nested ownership in its actual InputError carrier.",
+        "The canonical row returns OwnerError<Array<T,N>>; no implicit nominal conversion or exact retained-input/error enumeration equivalence is assumed.",
+        "This boxes an existing value/handle after it is produced; it is not direct construction into pre-reserved Box storage. Only concrete i32 source typing was checked; no fault/cleanup execution was performed."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:25"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3553,
+          "role": "Box.new selects InputError<T>."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 1273,
+          "role": "Store initialized input or retain it in allocation failure."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.from_array(Array<T, N> values)",
+        "canonical_returns": "Result<Box<Array<T, N>>, OwnerError<Array<T, N>>>",
+        "current_provider_expression": "Box.new(values)",
+        "current_returns": "Result<Box<Array<T,N>>,InputError<Array<T,N>>>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.from_fn",
+      "signature": "Box.from_fn(T, Make<T> make)",
+      "returns": "Result<Box<T>, CollectionError>",
+      "contract": "Reserve before calling the one-shot constructor; no large temporary is required.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-from_fn",
+          "section": "Function-Reference",
+          "line": 76
+        }
+      ],
+      "id": "catalog:1831ed7f7709c774c632",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No reserve-first, one-shot Box constructor provider was found.",
+        "Box.new(make()) evaluates make before allocation and requires a completed input temporary; it cannot claim the catalog failure/cost ordering."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.from_fn(T, Make<T> make)",
+        "canonical_returns": "Result<Box<T>, CollectionError>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.from_vector",
+      "signature": "Box.from_vector(Vector<T> values)",
+      "returns": "Result<Box<Vector<T>>, OwnerError<Vector<T>>>",
+      "contract": "Box the vector handle; this may add an allocation, and failure returns the vector.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-from_vector",
+          "section": "Function-Reference",
+          "line": 77
+        }
+      ],
+      "id": "catalog:feea55db28a2d85ab201",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_adapted_error_carrier",
+      "provider": "Box.new(values)",
+      "actual_result_contract": "Result<Box<Vector<T>>,InputError<Vector<T>>>",
+      "remaining_contract_notes": [
+        "There is no Box.from_vector callable. Box.new accepts an already initialized Vector<T> value, preserving nested ownership in its actual InputError carrier.",
+        "The canonical row returns OwnerError<Vector<T>>; no implicit nominal conversion or exact retained-input/error enumeration equivalence is assumed.",
+        "This boxes an existing value/handle after it is produced; it is not direct construction into pre-reserved Box storage. Only concrete i32 source typing was checked; no fault/cleanup execution was performed."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:30"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3553,
+          "role": "Box.new selects InputError<T>."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 1273,
+          "role": "Store initialized input or retain it in allocation failure."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.from_vector(Vector<T> values)",
+        "canonical_returns": "Result<Box<Vector<T>>, OwnerError<Vector<T>>>",
+        "current_provider_expression": "Box.new(values)",
+        "current_returns": "Result<Box<Vector<T>>,InputError<Vector<T>>>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.into_array",
+      "signature": "Box.into_array(Box<Array<T, N>> owner)",
+      "returns": "Array<T, N>",
+      "contract": "Move the inline array out; release heap storage, with O(N) payload-move cost.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-into_array",
+          "section": "Function-Reference",
+          "line": 75
+        }
+      ],
+      "id": "catalog:a0d2a23414b003eb0be8",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No consuming Box payload extraction/free-outer operation was found.",
+        "Copying an array through a borrow is restricted to Copy elements and does not implement generic ownership movement or its original O(N) contract."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.into_array(Box<Array<T, N>> owner)",
+        "canonical_returns": "Array<T, N>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.into_dyn",
+      "signature": "Box.into_dyn(Box<T> owner)",
+      "returns": "Box<dyn Interface>",
+      "contract": "Chosen conversion: move the concrete box into the target-inferred interface owner. T must implement that interface. No additional allocation, payload clone or device transfer; preserve concrete cleanup and borrowed-source lifetimes.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-into_dyn",
+          "section": "Function-Reference",
+          "line": 96
+        }
+      ],
+      "id": "catalog:0cb4e6f644bf74b29e69",
+      "implementation": "design_contract_unmapped",
+      "status": "direct_compiler_provider",
+      "provider": "Box.into_dyn(owner)",
+      "actual_result_contract": "Box<dyn Interface>",
+      "remaining_contract_notes": [
+        "The destination Box<dyn Interface> context is required; a concrete source must implement that interface.",
+        "LLVM constructs a pointer/vtable pair from the existing allocation, without a new allocation or payload clone; concrete payload cleanup is retained through the vtable.",
+        "Moved source use and escaping borrowed concrete payloads are rejected. This audit does not execute dynamic cleanup or certify every interface/target combination."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:35",
+        "moved_owner.avx",
+        "dynamic_borrow_escape.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2896,
+          "role": "Concrete implementation and cleanup metadata adaptation."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 2830,
+          "role": "Existing pointer plus vtable conversion."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 3081,
+          "role": "Concrete payload drop helper releases storage after payload cleanup."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": true,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.into_dyn(Box<T> owner)",
+        "canonical_returns": "Box<dyn Interface>",
+        "current_provider_expression": "Box.into_dyn(owner)",
+        "current_returns": "Box<dyn Interface>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.into_inner",
+      "signature": "Box.into_inner(Box<T> owner)",
+      "returns": "T",
+      "contract": "Move out value and release allocation; no payload clone.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-into_inner",
+          "section": "Function-Reference",
+          "line": 94
+        }
+      ],
+      "id": "catalog:89306ceaaba8f2cfa52c",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No consuming payload extraction that releases the Box allocation was found.",
+        "A non-Copy borrowed payload cannot be moved out. memory.replace requires another initialized T and leaves the owner allocation alive."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.into_inner(Box<T> owner)",
+        "canonical_returns": "T",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.into_shared",
+      "signature": "Box.into_shared(Box<T> owner)",
+      "returns": "Result<Shared<T>, OwnerError<Box<T>>>",
+      "contract": "May allocate shared control storage; failure returns the original box.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-into_shared",
+          "section": "Function-Reference",
+          "line": 97
+        }
+      ],
+      "id": "catalog:c0573c9c5128cb1c2ba9",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No Box-to-Shared conversion provider was found.",
+        "Shared.new(owner) would create Shared<Box<T>> and add a wrapper allocation; it does not produce Shared<T> or canonical OwnerError<Box<T>> retaining the original owner."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.into_shared(Box<T> owner)",
+        "canonical_returns": "Result<Shared<T>, OwnerError<Box<T>>>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.into_vector",
+      "signature": "Box.into_vector(Box<Vector<T>> owner)",
+      "returns": "Vector<T>",
+      "contract": "Move out vector ownership and free only the outer box allocation.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-into_vector",
+          "section": "Function-Reference",
+          "line": 83
+        }
+      ],
+      "id": "catalog:3fdc2c7d40916b522f5a",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No outer-only consuming extraction provider was found.",
+        "Moving a Vector out through a Box borrow is forbidden. Replacing it requires a replacement Vector and still leaves the outer allocation alive."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.into_vector(Box<Vector<T>> owner)",
+        "canonical_returns": "Vector<T>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.map",
+      "signature": "Box.map(Box<T> owner, Transform<T, U> transform)",
+      "returns": "Result<Box<U>, OwnerError<Box<T>>>",
+      "contract": "Preallocate output before consuming T; allocation failure returns source; unwind does not roll back callback effects.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-map",
+          "section": "Function-Reference",
+          "line": 99
+        }
+      ],
+      "id": "catalog:b005f2ea7e6d981695a9",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No preallocate-before-consuming Box map provider was found.",
+        "Borrow-based transformation followed by Box.new changes consumption order/retained-input behavior; generic into_inner is itself unavailable."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.map(Box<T> owner, Transform<T, U> transform)",
+        "canonical_returns": "Result<Box<U>, OwnerError<Box<T>>>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.new",
+      "signature": "Box.new(T value)",
+      "returns": "Result<Box<T>, InputError<T>>",
+      "contract": "Allocate initialized unique storage; size or allocation failure returns the unused value.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-new",
+          "section": "Function-Reference",
+          "line": 74
+        }
+      ],
+      "id": "catalog:505e944a067b35b07b7f",
+      "implementation": "design_contract_unmapped",
+      "status": "direct_compiler_provider",
+      "provider": "Box.new(value)",
+      "actual_result_contract": "Result<Box<T>,InputError<T>>",
+      "remaining_contract_notes": [
+        "The closed resolver constructs the exact nominal success/error carrier. The input expression is evaluated before box allocation.",
+        "LLVM code requests max(1,target payload layout size) bytes from malloc; allocation failure stores the unchanged input into InputError, while success stores it into unique initialized storage.",
+        "The check-only probes establish accepted typing/ownership, not allocation-fault execution, target alignment coverage or actual destructor counts."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:10",
+        "available.avx:25",
+        "available.avx:30",
+        "available.avx:40"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 1273,
+          "role": "Box allocation and retained input failure branch."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": true,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.new(T value)",
+        "canonical_returns": "Result<Box<T>, InputError<T>>",
+        "current_provider_expression": "Box.new(value)",
+        "current_returns": "Result<Box<T>,InputError<T>>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.payload_alignment",
+      "signature": "Box.payload_alignment(T)",
+      "returns": "usize",
+      "contract": "Required target alignment of T, not a universal C ABI assertion.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-payload_alignment",
+          "section": "Function-Reference",
+          "line": 107
+        }
+      ],
+      "id": "catalog:5b69bd927ef9e0532406",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No public type-operand alignment query or Box.payload_alignment provider was found. Internal target layouts are not source-callable metadata and do not establish a C ABI promise."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.payload_alignment(T)",
+        "canonical_returns": "usize",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.payload_size",
+      "signature": "Box.payload_size(T)",
+      "returns": "usize",
+      "contract": "Native size of T, excluding allocator and separately owned resources; compile-time metadata.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-payload_size",
+          "section": "Function-Reference",
+          "line": 105
+        }
+      ],
+      "id": "catalog:f7ddcdb6c18e7dd67026",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No public type-operand layout-size query or Box.payload_size provider was found. Internal LLVM/compiler sizes are not an exposed compile-time metadata API."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.payload_size(T)",
+        "canonical_returns": "usize",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.replace",
+      "signature": "Box.replace(&mut Box<T> owner, T replacement)",
+      "returns": "T",
+      "contract": "Move out old value and install initialized replacement; no new allocation.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-replace",
+          "section": "Function-Reference",
+          "line": 90
+        }
+      ],
+      "id": "catalog:d9d9d0fd010c4282dcb8",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_same_carrier",
+      "provider": "memory.replace(Box.as_mut(&mut owner), replacement)",
+      "actual_result_contract": "T",
+      "remaining_contract_notes": [
+        "There is no Box.replace callable; memory.replace is an explicit generic intrinsic operating on initialized exclusive storage.",
+        "Lowering loads the old value, stores the replacement and returns the old value without allocation or Drop during exchange. The original allocation remains in place.",
+        "i32 and non-Copy Drop-bearing Count compositions passed --check, with explicit Drop calls rejected. Actual exactly-once cleanup/OOM execution is outside this audit."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:13",
+        "available.avx:41",
+        "explicit_drop.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 893,
+          "role": "Public memory.replace declaration, compiler-bound rather than ordinary placeholder body."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 2630,
+          "role": "Closed memory argument roles/type selection."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2652,
+          "role": "Concrete storable exclusive target requirement."
+        },
+        {
+          "path": "src/IR/Lowering/ASTLowering.cpp",
+          "line": 1347,
+          "role": "Evaluate arguments in source order and emit MemoryIntrinsic."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 2740,
+          "role": "Replace loads old value and immediately initializes replacement."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.replace(&mut Box<T> owner, T replacement)",
+        "canonical_returns": "T",
+        "current_provider_expression": "memory.replace(Box.as_mut(&mut owner), replacement)",
+        "current_returns": "T",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.same_allocation",
+      "signature": "Box.same_allocation(&Box<T> left, &Box<T> right)",
+      "returns": "bool",
+      "contract": "Compare allocation identities, not value equality or an aliasing permission.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-same_allocation",
+          "section": "Function-Reference",
+          "line": 111
+        }
+      ],
+      "id": "catalog:120b00aba6351e00033e",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No Box allocation identity/pointer equality provider was found.",
+        "Pointee equality/hash.compare do not compare allocation identity; Shared.ptr_equal accepts a distinct ownership type and cannot establish this contract."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.same_allocation(&Box<T> left, &Box<T> right)",
+        "canonical_returns": "bool",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.swap",
+      "signature": "Box.swap(&mut Box<T> left, &mut Box<T> right)",
+      "returns": "unit",
+      "contract": "Swap ownership handles under distinct exclusive borrows; O(1), no payload clone.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-swap",
+          "section": "Function-Reference",
+          "line": 92
+        }
+      ],
+      "id": "catalog:1d6d68c8ed853bbd583f",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_same_carrier",
+      "provider": "memory.swap(&mut left, &mut right)",
+      "actual_result_contract": "unit",
+      "remaining_contract_notes": [
+        "There is no Box.swap callable; instantiate memory.swap with T=Box<U> to exchange ownership handles rather than pointee values.",
+        "LLVM emits two handle loads/stores, with no allocator, payload copy or Drop call. Concrete Box<i32> owners passed --check.",
+        "Aliasing both exclusive arguments to the same owner is rejected. Runtime cleanup counts and every dynamic/nested owner case are not executed here."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:21",
+        "swap_same_owner.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 900,
+          "role": "Public memory.swap declaration."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 2630,
+          "role": "Closed memory argument roles/type selection."
+        },
+        {
+          "path": "src/Backend/LLVM/LLVMCodeGen.cpp",
+          "line": 2754,
+          "role": "Typed handle exchange using loads/stores."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.swap(&mut Box<T> left, &mut Box<T> right)",
+        "canonical_returns": "unit",
+        "current_provider_expression": "memory.swap(&mut left, &mut right)",
+        "current_returns": "unit",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.try_from_fn",
+      "signature": "Box.try_from_fn(T, TryMake<T, E> make)",
+      "returns": "Result<Box<T>, BuildError<E>>",
+      "contract": "Reserve then construct once; callback failure cleans allocated storage.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-try_from_fn",
+          "section": "Function-Reference",
+          "line": 78
+        }
+      ],
+      "id": "catalog:2f1b77b6d20436046e25",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No reserve-first fallible Box constructor provider was found; callback failure cleanup and BuildError<E> still need exact implementation."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.try_from_fn(T, TryMake<T, E> make)",
+        "canonical_returns": "Result<Box<T>, BuildError<E>>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.try_map",
+      "signature": "Box.try_map(Box<T> owner, TryTransform<T, U, E> transform)",
+      "returns": "Result<Box<U>, BoxMapError<T, E>>",
+      "contract": "Preflight failure returns owner; a callback error after consuming T cannot reconstruct it.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box.html",
+          "anchor": "Box-try_map",
+          "section": "Function-Reference",
+          "line": 101
+        }
+      ],
+      "id": "catalog:7a89f5afb33cb90d3739",
+      "implementation": "design_contract_unmapped",
+      "status": "no_concrete_provider",
+      "provider": null,
+      "actual_result_contract": null,
+      "remaining_contract_notes": [
+        "No consuming fallible Box mapping provider was found; BoxMapError<T,E> preflight retained-owner versus post-consumption callback-error distinction is not implemented by Result.map or Box.new."
+      ],
+      "compile_only_fixture_evidence": [],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3538,
+          "role": "Box closed method whitelist contains only new, into_dyn, as_ref and as_mut."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.try_map(Box<T> owner, TryTransform<T, U, E> transform)",
+        "canonical_returns": "Result<Box<U>, BoxMapError<T, E>>",
+        "current_provider_expression": null,
+        "current_returns": null,
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.vector_as_mut_slice",
+      "signature": "Box.vector_as_mut_slice(&mut Box<Vector<T>> owner)",
+      "returns": "MutSlice<T>",
+      "contract": "Exclusive element view; no vector growth is permitted through this slice.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-vector_as_mut_slice",
+          "section": "Function-Reference",
+          "line": 81
+        }
+      ],
+      "id": "catalog:bd1f24bc564415207732",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_same_carrier",
+      "provider": "&mutVector<T> payload = Box.as_mut(&mut owner); Slice.from_vector_mut(payload)",
+      "actual_result_contract": "MutSlice<T>",
+      "remaining_contract_notes": [
+        "There is no named Box.vector_as_mut_slice binding. Existing Box payload borrows and Slice construction compose into the corresponding initialized-element view.",
+        "The view remains bounded by both outer owner and nested initialized storage. It neither transfers ownership nor permits vector growth through a slice.",
+        "Concrete i32 Array/Vector examples passed --check; generic primitive/source definitions are evidence of a composition, not a blanket execution proof for every T, N, alias or target."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:32",
+        "conflicting_borrow.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 1109,
+          "role": "Slice constructors infer Array/Vector element types from explicit borrows."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.vector_as_mut_slice(&mut Box<Vector<T>> owner)",
+        "canonical_returns": "MutSlice<T>",
+        "current_provider_expression": "&mutVector<T> payload = Box.as_mut(&mut owner); Slice.from_vector_mut(payload)",
+        "current_returns": "MutSlice<T>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    },
+    {
+      "name": "Box.vector_as_slice",
+      "signature": "Box.vector_as_slice(&Box<Vector<T>> owner)",
+      "returns": "Slice<T>",
+      "contract": "Borrow the vector’s initialized elements; nested ownership remains intact.",
+      "family": "Box",
+      "occurrences": [
+        {
+          "page": "htmls/data_type/Box/Box_Slices.html",
+          "anchor": "Box-vector_as_slice",
+          "section": "Function-Reference",
+          "line": 79
+        }
+      ],
+      "id": "catalog:fbd50dae869cf7ceda6d",
+      "implementation": "design_contract_unmapped",
+      "status": "source_composition_same_carrier",
+      "provider": "&Vector<T> payload = Box.as_ref(&owner); Slice.from_vector(payload)",
+      "actual_result_contract": "Slice<T>",
+      "remaining_contract_notes": [
+        "There is no named Box.vector_as_slice binding. Existing Box payload borrows and Slice construction compose into the corresponding initialized-element view.",
+        "The view remains bounded by both outer owner and nested initialized storage. It neither transfers ownership nor permits vector growth through a slice.",
+        "Concrete i32 Array/Vector examples passed --check; generic primitive/source definitions are evidence of a composition, not a blanket execution proof for every T, N, alias or target."
+      ],
+      "compile_only_fixture_evidence": [
+        "available.avx:31",
+        "conflicting_borrow.avx"
+      ],
+      "source_evidence": [
+        {
+          "path": "src/Frontend/Modules/ModuleLoader.cpp",
+          "line": 856,
+          "role": "Compiler-injected Box<T> with private payload; public method declarations are placeholders."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 3528,
+          "role": "Closed Box operation selection and actual result type construction."
+        },
+        {
+          "path": "src/Frontend/Sema/TypeChecker.cpp",
+          "line": 2878,
+          "role": "Typed Box intrinsic validation; placeholder void is not the actual ABI."
+        },
+        {
+          "path": "src/Frontend/Sema/GenericResolver.cpp",
+          "line": 1109,
+          "role": "Slice constructors infer Array/Vector element types from explicit borrows."
+        }
+      ],
+      "target_version": "0.3",
+      "canonical_spelling_available": false,
+      "full_contract_completion_claim": false,
+      "canonical_original_preserved": true,
+      "canonical_spelling_evidence": "Static compiler-injected method list and closed intrinsic whitelist; not a new34-call canonical failure sweep.",
+      "signature_and_carrier_comparison": {
+        "canonical_signature": "Box.vector_as_slice(&Box<Vector<T>> owner)",
+        "canonical_returns": "Slice<T>",
+        "current_provider_expression": "&Vector<T> payload = Box.as_ref(&owner); Slice.from_vector(payload)",
+        "current_returns": "Slice<T>",
+        "cost_error_retained_input_lifetime_equivalence": "See per-row notes. Same name, return carrier or source composition is not full contract completion."
+      }
+    }
+  ]
+}

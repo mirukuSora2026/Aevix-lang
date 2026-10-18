@@ -1,0 +1,514 @@
+/*
+ * Lifecycle of the ascii public module.
+ * @module ascii
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * Locale-independent ASCII classification and casing; non-ASCII input is never classified as ASCII.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import error { Error };
+/*
+ * The requested radix is outside the supported inclusive range 2..36.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum DigitError implements Copy, Error {
+    /*
+     * Version history for the ascii.DigitError.InvalidRadix public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    InvalidRadix;
+    /*
+     * Version history for the ascii.DigitError.code public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view code(&DigitError self) { return "ascii.invalid_radix"; }
+    /*
+     * Version history for the ascii.DigitError.message public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public string_view message(&DigitError self) { return "ASCII digit radix must be between 2 and 36."; }
+};
+/*
+ * Test whether the input belongs to the 7-bit ASCII character set.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_ascii(char value) { return value <= '\u{7f}'; }
+/*
+ * Test the ASCII control category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_control(char value) { return value < ' ' || value == '\u{7f}'; }
+/*
+ * Test the ASCII whitespace category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_whitespace(char value) { return value == ' ' || (value >= '\t' && value <= '\r'); }
+/*
+ * Test the ASCII uppercase category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_uppercase(char value) { return value >= 'A' && value <= 'Z'; }
+/*
+ * Test the ASCII lowercase category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_lowercase(char value) { return value >= 'a' && value <= 'z'; }
+/*
+ * Test the ASCII alphabetic category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_alphabetic(char value) { return is_uppercase(value) || is_lowercase(value); }
+/*
+ * Test the ASCII digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_digit(char value) { return value >= '0' && value <= '9'; }
+/*
+ * Test the ASCII alphanumeric category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_alphanumeric(char value) { return is_alphabetic(value) || is_digit(value); }
+/*
+ * Test the ASCII hex digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_hex_digit(char value) { return is_digit(value) || (value >= 'A' && value <= 'F') || (value >= 'a' && value <= 'f'); }
+/*
+ * Test the ASCII oct digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_oct_digit(char value) { return value >= '0' && value <= '7'; }
+/*
+ * Test the ASCII binary digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_binary_digit(char value) { return value == '0' || value == '1'; }
+/*
+ * Test the ASCII graphic category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_graphic(char value) { return value >= '!' && value <= '~'; }
+/*
+ * Test the ASCII printable category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_printable(char value) { return value >= ' ' && value <= '~'; }
+/*
+ * Test the ASCII punctuation category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_punctuation(char value) { return is_graphic(value) && !is_alphanumeric(value); }
+/*
+ * Map ASCII letters to lowercase; preserve every other value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public char to_lower(char value) {
+    switch (value) {
+        case 'A': return 'a'; break;
+        case 'B': return 'b'; break;
+        case 'C': return 'c'; break;
+        case 'D': return 'd'; break;
+        case 'E': return 'e'; break;
+        case 'F': return 'f'; break;
+        case 'G': return 'g'; break;
+        case 'H': return 'h'; break;
+        case 'I': return 'i'; break;
+        case 'J': return 'j'; break;
+        case 'K': return 'k'; break;
+        case 'L': return 'l'; break;
+        case 'M': return 'm'; break;
+        case 'N': return 'n'; break;
+        case 'O': return 'o'; break;
+        case 'P': return 'p'; break;
+        case 'Q': return 'q'; break;
+        case 'R': return 'r'; break;
+        case 'S': return 's'; break;
+        case 'T': return 't'; break;
+        case 'U': return 'u'; break;
+        case 'V': return 'v'; break;
+        case 'W': return 'w'; break;
+        case 'X': return 'x'; break;
+        case 'Y': return 'y'; break;
+        case 'Z': return 'z'; break;
+        default: return value; break;
+    }
+}
+/*
+ * Map ASCII letters to uppercase; preserve every other value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public char to_upper(char value) {
+    switch (value) {
+        case 'a': return 'A'; break;
+        case 'b': return 'B'; break;
+        case 'c': return 'C'; break;
+        case 'd': return 'D'; break;
+        case 'e': return 'E'; break;
+        case 'f': return 'F'; break;
+        case 'g': return 'G'; break;
+        case 'h': return 'H'; break;
+        case 'i': return 'I'; break;
+        case 'j': return 'J'; break;
+        case 'k': return 'K'; break;
+        case 'l': return 'L'; break;
+        case 'm': return 'M'; break;
+        case 'n': return 'N'; break;
+        case 'o': return 'O'; break;
+        case 'p': return 'P'; break;
+        case 'q': return 'Q'; break;
+        case 'r': return 'R'; break;
+        case 's': return 'S'; break;
+        case 't': return 'T'; break;
+        case 'u': return 'U'; break;
+        case 'v': return 'V'; break;
+        case 'w': return 'W'; break;
+        case 'x': return 'X'; break;
+        case 'y': return 'Y'; break;
+        case 'z': return 'Z'; break;
+        default: return value; break;
+    }
+}
+/*
+ * Compare single values using ASCII-only case folding.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal_ignore_case(char left, char right) { return to_lower(left) == to_lower(right); }
+/*
+ * Test whether the input belongs to the 7-bit ASCII character set.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_ascii(byte value) { u8 code = Byte.to_u8(value); return code <= 127; }
+/*
+ * Test the ASCII control category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_control(byte value) { u8 code = Byte.to_u8(value); return code < 32 || code == 127; }
+/*
+ * Test the ASCII whitespace category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_whitespace(byte value) { u8 code = Byte.to_u8(value); return code == 32 || (code >= 9 && code <= 13); }
+/*
+ * Test the ASCII uppercase category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_uppercase(byte value) { u8 code = Byte.to_u8(value); return code >= 65 && code <= 90; }
+/*
+ * Test the ASCII lowercase category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_lowercase(byte value) { u8 code = Byte.to_u8(value); return code >= 97 && code <= 122; }
+/*
+ * Test the ASCII alphabetic category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_alphabetic(byte value) { return is_uppercase(value) || is_lowercase(value); }
+/*
+ * Test the ASCII digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_digit(byte value) { u8 code = Byte.to_u8(value); return code >= 48 && code <= 57; }
+/*
+ * Test the ASCII alphanumeric category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_alphanumeric(byte value) { return is_alphabetic(value) || is_digit(value); }
+/*
+ * Test the ASCII hex digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_hex_digit(byte value) { u8 code = Byte.to_u8(value); return is_digit(value) || (code >= 65 && code <= 70) || (code >= 97 && code <= 102); }
+/*
+ * Test the ASCII oct digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_oct_digit(byte value) { u8 code = Byte.to_u8(value); return code >= 48 && code <= 55; }
+/*
+ * Test the ASCII binary digit category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_binary_digit(byte value) { u8 code = Byte.to_u8(value); return code == 48 || code == 49; }
+/*
+ * Test the ASCII graphic category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_graphic(byte value) { u8 code = Byte.to_u8(value); return code >= 33 && code <= 126; }
+/*
+ * Test the ASCII printable category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_printable(byte value) { u8 code = Byte.to_u8(value); return code >= 32 && code <= 126; }
+/*
+ * Test the ASCII punctuation category without allocation or locale state.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_punctuation(byte value) { return is_graphic(value) && !is_alphanumeric(value); }
+/*
+ * Map ASCII letters to lowercase; preserve every other value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte to_lower(byte value) {
+    u8 code = Byte.to_u8(value); if (code >= 65 && code <= 90) return Byte.from_u8(code + 32); return value;
+}
+/*
+ * Map ASCII letters to uppercase; preserve every other value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public byte to_upper(byte value) {
+    u8 code = Byte.to_u8(value); if (code >= 97 && code <= 122) return Byte.from_u8(code - 32); return value;
+}
+/*
+ * Compare single values using ASCII-only case folding.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal_ignore_case(byte left, byte right) { return to_lower(left) == to_lower(right); }
+/*
+ * Decode an ASCII alphanumeric digit for radix 2..36; non-ASCII or out-of-radix values yield None.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<u32>, DigitError> digit_value(char value, u32 radix) {
+    if (radix < 2 || radix > 36) return Result.err(DigitError.InvalidRadix);
+    mut u32 digit = 36;
+    switch (value) {
+        case '0': digit = 0u32; break;
+        case '1': digit = 1u32; break;
+        case '2': digit = 2u32; break;
+        case '3': digit = 3u32; break;
+        case '4': digit = 4u32; break;
+        case '5': digit = 5u32; break;
+        case '6': digit = 6u32; break;
+        case '7': digit = 7u32; break;
+        case '8': digit = 8u32; break;
+        case '9': digit = 9u32; break;
+        case 'a': digit = 10u32; break;
+        case 'b': digit = 11u32; break;
+        case 'c': digit = 12u32; break;
+        case 'd': digit = 13u32; break;
+        case 'e': digit = 14u32; break;
+        case 'f': digit = 15u32; break;
+        case 'g': digit = 16u32; break;
+        case 'h': digit = 17u32; break;
+        case 'i': digit = 18u32; break;
+        case 'j': digit = 19u32; break;
+        case 'k': digit = 20u32; break;
+        case 'l': digit = 21u32; break;
+        case 'm': digit = 22u32; break;
+        case 'n': digit = 23u32; break;
+        case 'o': digit = 24u32; break;
+        case 'p': digit = 25u32; break;
+        case 'q': digit = 26u32; break;
+        case 'r': digit = 27u32; break;
+        case 's': digit = 28u32; break;
+        case 't': digit = 29u32; break;
+        case 'u': digit = 30u32; break;
+        case 'v': digit = 31u32; break;
+        case 'w': digit = 32u32; break;
+        case 'x': digit = 33u32; break;
+        case 'y': digit = 34u32; break;
+        case 'z': digit = 35u32; break;
+        case 'A': digit = 10u32; break;
+        case 'B': digit = 11u32; break;
+        case 'C': digit = 12u32; break;
+        case 'D': digit = 13u32; break;
+        case 'E': digit = 14u32; break;
+        case 'F': digit = 15u32; break;
+        case 'G': digit = 16u32; break;
+        case 'H': digit = 17u32; break;
+        case 'I': digit = 18u32; break;
+        case 'J': digit = 19u32; break;
+        case 'K': digit = 20u32; break;
+        case 'L': digit = 21u32; break;
+        case 'M': digit = 22u32; break;
+        case 'N': digit = 23u32; break;
+        case 'O': digit = 24u32; break;
+        case 'P': digit = 25u32; break;
+        case 'Q': digit = 26u32; break;
+        case 'R': digit = 27u32; break;
+        case 'S': digit = 28u32; break;
+        case 'T': digit = 29u32; break;
+        case 'U': digit = 30u32; break;
+        case 'V': digit = 31u32; break;
+        case 'W': digit = 32u32; break;
+        case 'X': digit = 33u32; break;
+        case 'Y': digit = 34u32; break;
+        case 'Z': digit = 35u32; break;
+        default: return Result.ok(Optional.none()); break;
+    }
+    return Result.ok(digit < radix ? Optional.some(digit) : Optional.none());
+}
+/*
+ * Decode one byte using the same ASCII radix and absence rules as the char overload.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<u32>, DigitError> digit_value(byte value, u32 radix) {
+    if (radix < 2 || radix > 36) return Result.err(DigitError.InvalidRadix);
+    u8 code = Byte.to_u8(value);
+    mut u8 digit = 36;
+    if (code >= 48 && code <= 57) digit = code - 48;
+    else if (code >= 65 && code <= 90) digit = code - 65 + 10;
+    else if (code >= 97 && code <= 122) digit = code - 97 + 10;
+    Result<u32, IntegerError> converted = Integer.convert<u32>(digit);
+    switch (move converted) {
+        case Result<u32, IntegerError>.Ok { u32 widened = value }:
+            return Result.ok(widened < radix ? Optional.some(widened) : Optional.none());
+            break;
+        case Result<u32, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Encode a digit for radix 2..36, with explicit optional uppercase letters and no allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<char>, DigitError> from_digit(u32 value, u32 radix, bool uppercase = false) {
+    if (radix < 2 || radix > 36) return Result.err(DigitError.InvalidRadix);
+    if (value >= radix) return Result.ok(Optional.none());
+    switch (value) {
+        case 0u32: return Result.ok(Optional.some('0')); break;
+        case 1u32: return Result.ok(Optional.some('1')); break;
+        case 2u32: return Result.ok(Optional.some('2')); break;
+        case 3u32: return Result.ok(Optional.some('3')); break;
+        case 4u32: return Result.ok(Optional.some('4')); break;
+        case 5u32: return Result.ok(Optional.some('5')); break;
+        case 6u32: return Result.ok(Optional.some('6')); break;
+        case 7u32: return Result.ok(Optional.some('7')); break;
+        case 8u32: return Result.ok(Optional.some('8')); break;
+        case 9u32: return Result.ok(Optional.some('9')); break;
+        case 10u32: return Result.ok(Optional.some(uppercase ? 'A' : 'a')); break;
+        case 11u32: return Result.ok(Optional.some(uppercase ? 'B' : 'b')); break;
+        case 12u32: return Result.ok(Optional.some(uppercase ? 'C' : 'c')); break;
+        case 13u32: return Result.ok(Optional.some(uppercase ? 'D' : 'd')); break;
+        case 14u32: return Result.ok(Optional.some(uppercase ? 'E' : 'e')); break;
+        case 15u32: return Result.ok(Optional.some(uppercase ? 'F' : 'f')); break;
+        case 16u32: return Result.ok(Optional.some(uppercase ? 'G' : 'g')); break;
+        case 17u32: return Result.ok(Optional.some(uppercase ? 'H' : 'h')); break;
+        case 18u32: return Result.ok(Optional.some(uppercase ? 'I' : 'i')); break;
+        case 19u32: return Result.ok(Optional.some(uppercase ? 'J' : 'j')); break;
+        case 20u32: return Result.ok(Optional.some(uppercase ? 'K' : 'k')); break;
+        case 21u32: return Result.ok(Optional.some(uppercase ? 'L' : 'l')); break;
+        case 22u32: return Result.ok(Optional.some(uppercase ? 'M' : 'm')); break;
+        case 23u32: return Result.ok(Optional.some(uppercase ? 'N' : 'n')); break;
+        case 24u32: return Result.ok(Optional.some(uppercase ? 'O' : 'o')); break;
+        case 25u32: return Result.ok(Optional.some(uppercase ? 'P' : 'p')); break;
+        case 26u32: return Result.ok(Optional.some(uppercase ? 'Q' : 'q')); break;
+        case 27u32: return Result.ok(Optional.some(uppercase ? 'R' : 'r')); break;
+        case 28u32: return Result.ok(Optional.some(uppercase ? 'S' : 's')); break;
+        case 29u32: return Result.ok(Optional.some(uppercase ? 'T' : 't')); break;
+        case 30u32: return Result.ok(Optional.some(uppercase ? 'U' : 'u')); break;
+        case 31u32: return Result.ok(Optional.some(uppercase ? 'V' : 'v')); break;
+        case 32u32: return Result.ok(Optional.some(uppercase ? 'W' : 'w')); break;
+        case 33u32: return Result.ok(Optional.some(uppercase ? 'X' : 'x')); break;
+        case 34u32: return Result.ok(Optional.some(uppercase ? 'Y' : 'y')); break;
+        case 35u32: return Result.ok(Optional.some(uppercase ? 'Z' : 'z')); break;
+        default: return Result.ok(Optional.none()); break;
+    }
+}
+/*
+ * Compare UTF-8 views using ASCII-only byte folding; non-ASCII bytes retain exact order.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare_ignore_case(string_view left, string_view right) {
+    Slice<byte> a = string.as_bytes(left); Slice<byte> b = string.as_bytes(right);
+    usize common = Slice.len(a) < Slice.len(b) ? Slice.len(a) : Slice.len(b);
+    mut usize index = 0;
+    while (index < common) {
+        u8 x = Byte.to_u8(to_lower(a[index])); u8 y = Byte.to_u8(to_lower(b[index]));
+        if (x < y) return -1; if (x > y) return 1; index++;
+    }
+    return Slice.len(a) < Slice.len(b) ? -1 : Slice.len(a) > Slice.len(b) ? 1 : 0;
+}
+/*
+ * Compare UTF-8 views with ASCII-only folding; this is not Unicode caseless matching.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal_ignore_case(string_view left, string_view right) { return compare_ignore_case(left, right) == 0; }

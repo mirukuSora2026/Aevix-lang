@@ -1,0 +1,1559 @@
+/*
+ * Owning ordered set backed by an AVL map with unit payloads.
+ * Comparators define stable total equivalence classes; stored members stay immutable.
+ * @module ordered_set
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import ordered_map;
+import memory;
+import ordered_map { OrderedMap, Entry, InsertError };
+import hash;
+
+private InputError<T> rejected<T>(InsertError<T, unit> problem) {
+    switch (move problem) {
+        case InsertError<T, unit>.AllocationFailure { T input = key }: return InputError<T>.AllocationFailure { input = input }; break;
+        case InsertError<T, unit>.SizeOverflow { T input = key }: return InputError<T>.SizeOverflow { input = input }; break;
+        case InsertError<T, unit>.Occupied: Never.unreachable(); break;
+    }
+}
+private Optional<T> owned_key<T>(Optional<Entry<T, unit>> input) {
+    switch (move input) {
+        case Optional<Entry<T, unit>>.Some { Entry<T, unit> pair = value }:
+            switch (move pair) { case Entry<T, unit>.Pair { T key = key }: return Optional.some(key); break; }
+            break;
+        case Optional<Entry<T, unit>>.None: return Optional.none(); break;
+    }
+}
+private Optional<&T> borrowed_key<T>(Optional<Tuple<&T, &unit>> input) {
+    switch (move input) {
+        case Optional<Tuple<&T, &unit>>.Some { Tuple<&T, &unit> pair = value }:
+            &T key = *Tuple.get<0>(&pair);
+            return Optional.some(key);
+            break;
+        case Optional<Tuple<&T, &unit>>.None: return Optional.none(); break;
+    }
+}
+
+/*
+ * AVL owner. Lookup/insert/take/edge pops take O(log n) comparisons/node work.
+ * No mutation exposes stored keys. Destruction is O(n) with O(log n) stack.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct OrderedSet<T> {
+    OrderedMap<T, unit> tree;
+    /*
+     * Version history for the ordered_set.OrderedSet.new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new() { return Self { tree = OrderedMap<T, unit>.new() }; }
+    /*
+     * Version history for the ordered_set.OrderedSet.len public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize len(&Self self) { return self.tree.len(); }
+    /*
+     * Version history for the ordered_set.OrderedSet.is_empty public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_empty(&Self self) { return self.tree.is_empty(); }
+    /*
+     * Version history for the ordered_set.OrderedSet.height public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public i32 height(&Self self) { return self.tree.height(); }
+    /*
+     * Version history for the ordered_set.OrderedSet.clear public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public void clear(&mut Self self) { self.tree.clear(); return; }
+    /*
+     * Version history for the ordered_set.OrderedSet.contains_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool contains_with<F>(&Self self, &T key, &F compare) where F implements Fn<Tuple<&T, &T>, i32> { return self.tree.contains_key_with(key, compare); }
+    /*
+     * Version history for the ordered_set.OrderedSet.get_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> get_with<F>(&Self self, &T key, &F compare) where F implements Fn<Tuple<&T, &T>, i32> { return borrowed_key<T>(self.tree.get_key_value_with(key, compare)); }
+    /*
+     * Version history for the ordered_set.OrderedSet.first public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> first(&Self self) { return borrowed_key<T>(self.tree.first_key_value()); }
+    /*
+     * Version history for the ordered_set.OrderedSet.last public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> last(&Self self) { return borrowed_key<T>(self.tree.last_key_value()); }
+    /* Keep the canonical equal representative and destroy a duplicate input on success false.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<bool, InputError<T>> insert_with<F>(&mut Self self, T value, &F compare) where F implements Fn<Tuple<&T, &T>, i32> {
+        if (self.tree.contains_key_with(&value, compare)) return Result.ok(false);
+        Result<Optional<unit>, InsertError<T, unit>> inserted = self.tree.insert_with(value, Unit.value(), compare);
+        switch (move inserted) {
+            case Result<Optional<unit>, InsertError<T, unit>>.Ok: return Result.ok(true); break;
+            case Result<Optional<unit>, InsertError<T, unit>>.Err { InsertError<T, unit> problem = error }: return Result.err(rejected<T>(problem)); break;
+        }
+    }
+    /* Replace an equal stored representative without allocating, returning the old owner.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Optional<T>, InputError<T>> replace_with<F>(&mut Self self, T value, &F compare) where F implements Fn<Tuple<&T, &T>, i32> {
+        Result<Optional<Entry<T, unit>>, InsertError<T, unit>> replaced = self.tree.replace_entry_with(value, Unit.value(), compare);
+        switch (move replaced) {
+            case Result<Optional<Entry<T, unit>>, InsertError<T, unit>>.Ok { Optional<Entry<T, unit>> previous = value }: return Result.ok(owned_key<T>(previous)); break;
+            case Result<Optional<Entry<T, unit>>, InsertError<T, unit>>.Err { InsertError<T, unit> problem = error }: return Result.err(rejected<T>(problem)); break;
+        }
+    }
+    /*
+     * Version history for the ordered_set.OrderedSet.take_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    /*
+     * Insert only if absent, preserving the incoming owner on occupied/allocation failure.
+     * This source API uses ordered_map.InsertError<T, unit>, whose Occupied case is explicit;
+     * it does not mislabel duplicates as InputError.OutOfBounds.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<&T, InsertError<T, unit>> try_insert_with<F>(&mut Self self, T value, &F compare) where F implements Fn<Tuple<&T, &T>, i32> {
+        usize index = self.tree.rank_with(&value, compare);
+        { self.tree.try_insert_with(value, Unit.value(), compare)?; }
+        Optional<&T> inserted = self.select(index);
+        switch (move inserted) {
+            case Optional<&T>.Some { &T key = value }: return Result.ok(key); break;
+            case Optional<&T>.None: Never.unreachable(); break;
+        }
+    }
+    /*
+     * Version history for the ordered_set.OrderedSet.take_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<T> take_with<F>(&mut Self self, &T value, &F compare) where F implements Fn<Tuple<&T, &T>, i32> { return owned_key<T>(self.tree.remove_entry_with(value, compare)); }
+    /*
+     * Version history for the ordered_set.OrderedSet.remove_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool remove_with<F>(&mut Self self, &T value, &F compare) where F implements Fn<Tuple<&T, &T>, i32> { Optional<T> removed = self.take_with(value, compare); return Optional.is_some(&removed); }
+    /*
+     * Version history for the ordered_set.OrderedSet.pop_first public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<T> pop_first(&mut Self self) { return owned_key<T>(self.tree.pop_first()); }
+    /*
+     * Version history for the ordered_set.OrderedSet.pop_last public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<T> pop_last(&mut Self self) { return owned_key<T>(self.tree.pop_last()); }
+    /*
+     * Version history for the ordered_set.OrderedSet.rank_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize rank_with<F>(&Self self, &T value, &F compare, bool strict = false) where F implements Fn<Tuple<&T, &T>, i32> { return self.tree.rank_with(value, compare, strict); }
+    /*
+     * Version history for the ordered_set.OrderedSet.select public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> select(&Self self, usize index) { return borrowed_key<T>(self.tree.select(index)); }
+    /*
+     * Version history for the ordered_set.OrderedSet.lower_bound_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> lower_bound_with<F>(&Self self, &T value, &F compare) where F implements Fn<Tuple<&T, &T>, i32> { return borrowed_key<T>(self.tree.lower_bound_with(value, compare)); }
+    /*
+     * Version history for the ordered_set.OrderedSet.upper_bound_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> upper_bound_with<F>(&Self self, &T value, &F compare) where F implements Fn<Tuple<&T, &T>, i32> { return borrowed_key<T>(self.tree.upper_bound_with(value, compare)); }
+    /* Borrow members sequentially in increasing order; O(n) work and O(log n) stack.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit for_each<F>(&Self self, mut F visit) where F implements FnMut<Tuple<&T>, unit> {
+        return self.tree.for_each([&mut visit](&T key, &unit ignored) -> unit { return visit(key); });
+    }
+    /*
+     * Version history for the ordered_set.OrderedSet.retain public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit retain<F>(&mut Self self, mut F keep) where F implements FnMut<Tuple<&T>, bool> {
+        return self.tree.retain([&mut keep](&T key, &mut unit ignored) -> bool { return keep(key); });
+    }
+    /* Half-open callback traversal: O(log n + k), reversed bounds are explicit errors.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, BoundsError> for_each_range_with<F, G>(&Self self, &T lower, &T upper, &F compare, mut G visit) where F implements Fn<Tuple<&T, &T>, i32>, G implements FnMut<Tuple<&T>, unit> {
+        return self.tree.for_each_range_with(lower, upper, compare, [&mut visit](&T key, &unit ignored) -> unit { return visit(key); });
+    }
+    /*
+     * Version history for the ordered_set.OrderedSet.iter public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Iterator<T> iter(&Self self) { return Iterator<T>.new(self.tree.iter()); }
+    /*
+     * Version history for the ordered_set.OrderedSet.range_with public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Iterator<T>, BoundsError> range_with<F>(&Self self, &T lower, &T upper, &F compare) where F implements Fn<Tuple<&T, &T>, i32> {
+        ordered_map.Iterator<T, unit> iterator = self.tree.range_with(lower, upper, compare)?;
+        return Result.ok(Iterator<T>.new(iterator));
+    }
+    /*
+     * Version history for the ordered_set.OrderedSet.into_iter public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public OwningIterator<T> into_iter(mut Self self) {
+        OrderedMap<T, unit> empty = OrderedMap<T, unit>.new();
+        OrderedMap<T, unit> owned = memory_take(&mut self.tree, empty);
+        return OwningIterator<T>.new(owned.into_iter());
+    }
+};
+
+/* Private replacement wrapper keeps the memory dependency explicit. */
+private OrderedMap<T, unit> memory_take<T>(&mut OrderedMap<T, unit> owner, OrderedMap<T, unit> replacement) { return memory.replace(owner, replacement); }
+
+/* Borrowed double-ended rank cursor: O(log n) per step, O(n log n) full traversal.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Iterator<T> {
+    ordered_map.Iterator<T, unit> cursor;
+    /*
+     * Version history for the ordered_set.Iterator.new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new(ordered_map.Iterator<T, unit> cursor) { return Self { cursor = cursor }; }
+    /*
+     * Version history for the ordered_set.Iterator.len public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize len(&Self self) { return self.cursor.len(); }
+    /*
+     * Version history for the ordered_set.Iterator.is_empty public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_empty(&Self self) { return self.cursor.is_empty(); }
+    /*
+     * Version history for the ordered_set.Iterator.next public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> next(&mut Self self) { return borrowed_key<T>(self.cursor.next()); }
+    /*
+     * Version history for the ordered_set.Iterator.next_back public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&T> next_back(&mut Self self) { return borrowed_key<T>(self.cursor.next_back()); }
+};
+
+/* Own the unyielded AVL nodes; each step is O(log n), and Drop releases the rest.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct OwningIterator<T> {
+    ordered_map.OwningIterator<T, unit> cursor;
+    /*
+     * Version history for the ordered_set.OwningIterator.new public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Self new(ordered_map.OwningIterator<T, unit> cursor) { return Self { cursor = cursor }; }
+    /*
+     * Version history for the ordered_set.OwningIterator.len public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize len(&Self self) { return self.cursor.len(); }
+    /*
+     * Version history for the ordered_set.OwningIterator.next public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<T> next(&mut Self self) { return owned_key<T>(self.cursor.next()); }
+    /*
+     * Version history for the ordered_set.OwningIterator.next_back public API.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<T> next_back(&mut Self self) { return owned_key<T>(self.cursor.next_back()); }
+};
+
+/* Concrete primitive/text overloads and Ord-bound custom members use the same stable order.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i8> get(&OrderedSet<i8> set, &i8 value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<i8> set, &i8 value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i8>> insert(&mut OrderedSet<i8> set, i8 value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<i8>, InputError<i8>> replace(&mut OrderedSet<i8> set, i8 value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i8> take(&mut OrderedSet<i8> set, &i8 value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<i8> set, &i8 value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i16> get(&OrderedSet<i16> set, &i16 value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<i16> set, &i16 value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i16>> insert(&mut OrderedSet<i16> set, i16 value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<i16>, InputError<i16>> replace(&mut OrderedSet<i16> set, i16 value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i16> take(&mut OrderedSet<i16> set, &i16 value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<i16> set, &i16 value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i32> get(&OrderedSet<i32> set, &i32 value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<i32> set, &i32 value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i32>> insert(&mut OrderedSet<i32> set, i32 value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<i32>, InputError<i32>> replace(&mut OrderedSet<i32> set, i32 value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i32> take(&mut OrderedSet<i32> set, &i32 value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<i32> set, &i32 value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i64> get(&OrderedSet<i64> set, &i64 value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<i64> set, &i64 value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i64>> insert(&mut OrderedSet<i64> set, i64 value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<i64>, InputError<i64>> replace(&mut OrderedSet<i64> set, i64 value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i64> take(&mut OrderedSet<i64> set, &i64 value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<i64> set, &i64 value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i128> get(&OrderedSet<i128> set, &i128 value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<i128> set, &i128 value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<i128>> insert(&mut OrderedSet<i128> set, i128 value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<i128>, InputError<i128>> replace(&mut OrderedSet<i128> set, i128 value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<i128> take(&mut OrderedSet<i128> set, &i128 value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<i128> set, &i128 value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&isize> get(&OrderedSet<isize> set, &isize value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<isize> set, &isize value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<isize>> insert(&mut OrderedSet<isize> set, isize value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<isize>, InputError<isize>> replace(&mut OrderedSet<isize> set, isize value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<isize> take(&mut OrderedSet<isize> set, &isize value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<isize> set, &isize value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u8> get(&OrderedSet<u8> set, &u8 value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<u8> set, &u8 value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u8>> insert(&mut OrderedSet<u8> set, u8 value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<u8>, InputError<u8>> replace(&mut OrderedSet<u8> set, u8 value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u8> take(&mut OrderedSet<u8> set, &u8 value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<u8> set, &u8 value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u16> get(&OrderedSet<u16> set, &u16 value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<u16> set, &u16 value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u16>> insert(&mut OrderedSet<u16> set, u16 value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<u16>, InputError<u16>> replace(&mut OrderedSet<u16> set, u16 value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u16> take(&mut OrderedSet<u16> set, &u16 value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<u16> set, &u16 value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u32> get(&OrderedSet<u32> set, &u32 value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<u32> set, &u32 value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u32>> insert(&mut OrderedSet<u32> set, u32 value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<u32>, InputError<u32>> replace(&mut OrderedSet<u32> set, u32 value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u32> take(&mut OrderedSet<u32> set, &u32 value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<u32> set, &u32 value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u64> get(&OrderedSet<u64> set, &u64 value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<u64> set, &u64 value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u64>> insert(&mut OrderedSet<u64> set, u64 value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<u64>, InputError<u64>> replace(&mut OrderedSet<u64> set, u64 value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u64> take(&mut OrderedSet<u64> set, &u64 value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<u64> set, &u64 value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u128> get(&OrderedSet<u128> set, &u128 value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<u128> set, &u128 value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<u128>> insert(&mut OrderedSet<u128> set, u128 value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<u128>, InputError<u128>> replace(&mut OrderedSet<u128> set, u128 value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<u128> take(&mut OrderedSet<u128> set, &u128 value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<u128> set, &u128 value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&usize> get(&OrderedSet<usize> set, &usize value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<usize> set, &usize value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<usize>> insert(&mut OrderedSet<usize> set, usize value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<usize>, InputError<usize>> replace(&mut OrderedSet<usize> set, usize value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> take(&mut OrderedSet<usize> set, &usize value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<usize> set, &usize value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&bool> get(&OrderedSet<bool> set, &bool value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<bool> set, &bool value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<bool>> insert(&mut OrderedSet<bool> set, bool value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<bool>, InputError<bool>> replace(&mut OrderedSet<bool> set, bool value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<bool> take(&mut OrderedSet<bool> set, &bool value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<bool> set, &bool value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&byte> get(&OrderedSet<byte> set, &byte value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<byte> set, &byte value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<byte>> insert(&mut OrderedSet<byte> set, byte value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<byte>, InputError<byte>> replace(&mut OrderedSet<byte> set, byte value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<byte> take(&mut OrderedSet<byte> set, &byte value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<byte> set, &byte value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&string> get(&OrderedSet<string> set, &string value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<string> set, &string value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<string>> insert(&mut OrderedSet<string> set, string value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<string>, InputError<string>> replace(&mut OrderedSet<string> set, string value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<string> take(&mut OrderedSet<string> set, &string value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<string> set, &string value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&string_view> get(&OrderedSet<string_view> set, &string_view value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(&OrderedSet<string_view> set, &string_view value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<string_view>> insert(&mut OrderedSet<string_view> set, string_view value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<string_view>, InputError<string_view>> replace(&mut OrderedSet<string_view> set, string_view value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<string_view> take(&mut OrderedSet<string_view> set, &string_view value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove(&mut OrderedSet<string_view> set, &string_view value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.get public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&T> get<T>(&OrderedSet<T> set, &T value) where T implements hash.Ord {
+    rsn compare = [](&T left, &T right) -> i32 { return hash.compare(left, right); };
+    return set.get_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains<T>(&OrderedSet<T> set, &T value) where T implements hash.Ord {
+    rsn compare = [](&T left, &T right) -> i32 { return hash.compare(left, right); };
+    return set.contains_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool, InputError<T>> insert<T>(&mut OrderedSet<T> set, T value) where T implements hash.Ord {
+    rsn compare = [](&T left, &T right) -> i32 { return hash.compare(left, right); };
+    return set.insert_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<T>, InputError<T>> replace<T>(&mut OrderedSet<T> set, T value) where T implements hash.Ord {
+    rsn compare = [](&T left, &T right) -> i32 { return hash.compare(left, right); };
+    return set.replace_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.take public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> take<T>(&mut OrderedSet<T> set, &T value) where T implements hash.Ord {
+    rsn compare = [](&T left, &T right) -> i32 { return hash.compare(left, right); };
+    return set.take_with(value, &compare);
+}
+/*
+ * Version history for the ordered_set.remove public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool remove<T>(&mut OrderedSet<T> set, &T value) where T implements hash.Ord {
+    rsn compare = [](&T left, &T right) -> i32 { return hash.compare(left, right); };
+    return set.remove_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&i8, InsertError<i8, unit>> try_insert(&mut OrderedSet<i8> set, i8 value) {
+    rsn compare = [](&i8 left, &i8 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&i16, InsertError<i16, unit>> try_insert(&mut OrderedSet<i16> set, i16 value) {
+    rsn compare = [](&i16 left, &i16 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&i32, InsertError<i32, unit>> try_insert(&mut OrderedSet<i32> set, i32 value) {
+    rsn compare = [](&i32 left, &i32 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&i64, InsertError<i64, unit>> try_insert(&mut OrderedSet<i64> set, i64 value) {
+    rsn compare = [](&i64 left, &i64 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&i128, InsertError<i128, unit>> try_insert(&mut OrderedSet<i128> set, i128 value) {
+    rsn compare = [](&i128 left, &i128 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&isize, InsertError<isize, unit>> try_insert(&mut OrderedSet<isize> set, isize value) {
+    rsn compare = [](&isize left, &isize right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&u8, InsertError<u8, unit>> try_insert(&mut OrderedSet<u8> set, u8 value) {
+    rsn compare = [](&u8 left, &u8 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&u16, InsertError<u16, unit>> try_insert(&mut OrderedSet<u16> set, u16 value) {
+    rsn compare = [](&u16 left, &u16 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&u32, InsertError<u32, unit>> try_insert(&mut OrderedSet<u32> set, u32 value) {
+    rsn compare = [](&u32 left, &u32 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&u64, InsertError<u64, unit>> try_insert(&mut OrderedSet<u64> set, u64 value) {
+    rsn compare = [](&u64 left, &u64 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&u128, InsertError<u128, unit>> try_insert(&mut OrderedSet<u128> set, u128 value) {
+    rsn compare = [](&u128 left, &u128 right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&usize, InsertError<usize, unit>> try_insert(&mut OrderedSet<usize> set, usize value) {
+    rsn compare = [](&usize left, &usize right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&bool, InsertError<bool, unit>> try_insert(&mut OrderedSet<bool> set, bool value) {
+    rsn compare = [](&bool left, &bool right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&byte, InsertError<byte, unit>> try_insert(&mut OrderedSet<byte> set, byte value) {
+    rsn compare = [](&byte left, &byte right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&string, InsertError<string, unit>> try_insert(&mut OrderedSet<string> set, string value) {
+    rsn compare = [](&string left, &string right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&string_view, InsertError<string_view, unit>> try_insert(&mut OrderedSet<string_view> set, string_view value) {
+    rsn compare = [](&string_view left, &string_view right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}
+
+/*
+ * Version history for the ordered_set.try_insert public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<&T, InsertError<T, unit>> try_insert<T>(&mut OrderedSet<T> set, T value) where T implements hash.Ord {
+    rsn compare = [](&T left, &T right) -> i32 { return hash.compare(left, right); };
+    return set.try_insert_with(value, &compare);
+}

@@ -1,0 +1,192 @@
+/*
+ * Exercise every ASCII operation against fixed ASCII category tables and exhaustive radix boundaries.
+ * Non-ASCII values deliberately remain unchanged.
+ */
+import ascii;
+u32 categories(char value) {
+    mut u32 bits = 0;
+    if (ascii.is_ascii(value)) bits |= 1u32;
+    if (ascii.is_control(value)) bits |= 2u32;
+    if (ascii.is_whitespace(value)) bits |= 4u32;
+    if (ascii.is_uppercase(value)) bits |= 8u32;
+    if (ascii.is_lowercase(value)) bits |= 16u32;
+    if (ascii.is_alphabetic(value)) bits |= 32u32;
+    if (ascii.is_digit(value)) bits |= 64u32;
+    if (ascii.is_alphanumeric(value)) bits |= 128u32;
+    if (ascii.is_hex_digit(value)) bits |= 256u32;
+    if (ascii.is_oct_digit(value)) bits |= 512u32;
+    if (ascii.is_binary_digit(value)) bits |= 1024u32;
+    if (ascii.is_graphic(value)) bits |= 2048u32;
+    if (ascii.is_printable(value)) bits |= 4096u32;
+    if (ascii.is_punctuation(value)) bits |= 8192u32;
+    return bits;
+}
+u32 categories(byte value) {
+    mut u32 bits = 0;
+    if (ascii.is_ascii(value)) bits |= 1u32;
+    if (ascii.is_control(value)) bits |= 2u32;
+    if (ascii.is_whitespace(value)) bits |= 4u32;
+    if (ascii.is_uppercase(value)) bits |= 8u32;
+    if (ascii.is_lowercase(value)) bits |= 16u32;
+    if (ascii.is_alphabetic(value)) bits |= 32u32;
+    if (ascii.is_digit(value)) bits |= 64u32;
+    if (ascii.is_alphanumeric(value)) bits |= 128u32;
+    if (ascii.is_hex_digit(value)) bits |= 256u32;
+    if (ascii.is_oct_digit(value)) bits |= 512u32;
+    if (ascii.is_binary_digit(value)) bits |= 1024u32;
+    if (ascii.is_graphic(value)) bits |= 2048u32;
+    if (ascii.is_printable(value)) bits |= 4096u32;
+    if (ascii.is_punctuation(value)) bits |= 8192u32;
+    return bits;
+}
+usize index_of(u8 value) { Result<usize, IntegerError> converted = Integer.convert<usize>(value); switch (move converted) { case Result<usize, IntegerError>.Ok { usize index = value }: return index; break; default: Never.unreachable(); break; } }
+usize index_of(u32 value) { Result<usize, IntegerError> converted = Integer.convert<usize>(value); switch (move converted) { case Result<usize, IntegerError>.Ok { usize index = value }: return index; break; default: Never.unreachable(); break; } }
+bool digit_is(Result<Optional<u32>, ascii.DigitError> result, bool present, u32 expected) {
+    switch (move result) {
+        case Result<Optional<u32>, ascii.DigitError>.Ok { Optional<u32> option = value }:
+            switch (move option) { case Optional<u32>.Some { u32 digit = value }: return present && digit == expected; break; case Optional<u32>.None: return !present; break; }
+            break;
+        case Result<Optional<u32>, ascii.DigitError>.Err: return false; break;
+    }
+}
+bool character_is(Result<Optional<char>, ascii.DigitError> result, bool present, char expected) {
+    switch (move result) {
+        case Result<Optional<char>, ascii.DigitError>.Ok { Optional<char> option = value }:
+            switch (move option) { case Optional<char>.Some { char digit = value }: return present && digit == expected; break; case Optional<char>.None: return !present; break; }
+            break;
+        case Result<Optional<char>, ascii.DigitError>.Err: return false; break;
+    }
+}
+bool invalid_digit(Result<Optional<u32>, ascii.DigitError> result) {
+    switch (result) { case Result<Optional<u32>, ascii.DigitError>.Err { &ascii.DigitError problem = error }: return string.equals(problem.code(), "ascii.invalid_radix") && string.byte_len(problem.message()) > 0; break; default: return false; break; }
+}
+bool invalid_character(Result<Optional<char>, ascii.DigitError> result) {
+    switch (result) { case Result<Optional<char>, ascii.DigitError>.Err { &ascii.DigitError problem = error }: return string.equals(problem.code(), "ascii.invalid_radix") && string.byte_len(problem.message()) > 0; break; default: return false; break; }
+}
+i32 main() {
+    u32 expected[256] = [
+        3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 7u32, 7u32, 7u32, 7u32, 7u32, 3u32, 3u32,
+        3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32, 3u32,
+        4101u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32,
+        8129u32, 8129u32, 7105u32, 7105u32, 7105u32, 7105u32, 7105u32, 7105u32, 6593u32, 6593u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32,
+        14337u32, 6569u32, 6569u32, 6569u32, 6569u32, 6569u32, 6569u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32,
+        6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 6313u32, 14337u32, 14337u32, 14337u32, 14337u32, 14337u32,
+        14337u32, 6577u32, 6577u32, 6577u32, 6577u32, 6577u32, 6577u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32,
+        6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 6321u32, 14337u32, 14337u32, 14337u32, 14337u32, 3u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
+        0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32
+    ];
+    char all_chars[128] = [
+        '\u{0}', '\u{1}', '\u{2}', '\u{3}', '\u{4}', '\u{5}', '\u{6}', '\u{7}', '\u{8}', '\u{9}', '\u{a}', '\u{b}', '\u{c}', '\u{d}', '\u{e}', '\u{f}',
+        '\u{10}', '\u{11}', '\u{12}', '\u{13}', '\u{14}', '\u{15}', '\u{16}', '\u{17}', '\u{18}', '\u{19}', '\u{1a}', '\u{1b}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{1f}',
+        '\u{20}', '\u{21}', '\u{22}', '\u{23}', '\u{24}', '\u{25}', '\u{26}', '\u{27}', '\u{28}', '\u{29}', '\u{2a}', '\u{2b}', '\u{2c}', '\u{2d}', '\u{2e}', '\u{2f}',
+        '\u{30}', '\u{31}', '\u{32}', '\u{33}', '\u{34}', '\u{35}', '\u{36}', '\u{37}', '\u{38}', '\u{39}', '\u{3a}', '\u{3b}', '\u{3c}', '\u{3d}', '\u{3e}', '\u{3f}',
+        '\u{40}', '\u{41}', '\u{42}', '\u{43}', '\u{44}', '\u{45}', '\u{46}', '\u{47}', '\u{48}', '\u{49}', '\u{4a}', '\u{4b}', '\u{4c}', '\u{4d}', '\u{4e}', '\u{4f}',
+        '\u{50}', '\u{51}', '\u{52}', '\u{53}', '\u{54}', '\u{55}', '\u{56}', '\u{57}', '\u{58}', '\u{59}', '\u{5a}', '\u{5b}', '\u{5c}', '\u{5d}', '\u{5e}', '\u{5f}',
+        '\u{60}', '\u{61}', '\u{62}', '\u{63}', '\u{64}', '\u{65}', '\u{66}', '\u{67}', '\u{68}', '\u{69}', '\u{6a}', '\u{6b}', '\u{6c}', '\u{6d}', '\u{6e}', '\u{6f}',
+        '\u{70}', '\u{71}', '\u{72}', '\u{73}', '\u{74}', '\u{75}', '\u{76}', '\u{77}', '\u{78}', '\u{79}', '\u{7a}', '\u{7b}', '\u{7c}', '\u{7d}', '\u{7e}', '\u{7f}'
+    ];
+    char lower_chars[128] = [
+        '\u{0}', '\u{1}', '\u{2}', '\u{3}', '\u{4}', '\u{5}', '\u{6}', '\u{7}', '\u{8}', '\u{9}', '\u{a}', '\u{b}', '\u{c}', '\u{d}', '\u{e}', '\u{f}',
+        '\u{10}', '\u{11}', '\u{12}', '\u{13}', '\u{14}', '\u{15}', '\u{16}', '\u{17}', '\u{18}', '\u{19}', '\u{1a}', '\u{1b}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{1f}',
+        '\u{20}', '\u{21}', '\u{22}', '\u{23}', '\u{24}', '\u{25}', '\u{26}', '\u{27}', '\u{28}', '\u{29}', '\u{2a}', '\u{2b}', '\u{2c}', '\u{2d}', '\u{2e}', '\u{2f}',
+        '\u{30}', '\u{31}', '\u{32}', '\u{33}', '\u{34}', '\u{35}', '\u{36}', '\u{37}', '\u{38}', '\u{39}', '\u{3a}', '\u{3b}', '\u{3c}', '\u{3d}', '\u{3e}', '\u{3f}',
+        '\u{40}', '\u{61}', '\u{62}', '\u{63}', '\u{64}', '\u{65}', '\u{66}', '\u{67}', '\u{68}', '\u{69}', '\u{6a}', '\u{6b}', '\u{6c}', '\u{6d}', '\u{6e}', '\u{6f}',
+        '\u{70}', '\u{71}', '\u{72}', '\u{73}', '\u{74}', '\u{75}', '\u{76}', '\u{77}', '\u{78}', '\u{79}', '\u{7a}', '\u{5b}', '\u{5c}', '\u{5d}', '\u{5e}', '\u{5f}',
+        '\u{60}', '\u{61}', '\u{62}', '\u{63}', '\u{64}', '\u{65}', '\u{66}', '\u{67}', '\u{68}', '\u{69}', '\u{6a}', '\u{6b}', '\u{6c}', '\u{6d}', '\u{6e}', '\u{6f}',
+        '\u{70}', '\u{71}', '\u{72}', '\u{73}', '\u{74}', '\u{75}', '\u{76}', '\u{77}', '\u{78}', '\u{79}', '\u{7a}', '\u{7b}', '\u{7c}', '\u{7d}', '\u{7e}', '\u{7f}'
+    ];
+    char upper_chars[128] = [
+        '\u{0}', '\u{1}', '\u{2}', '\u{3}', '\u{4}', '\u{5}', '\u{6}', '\u{7}', '\u{8}', '\u{9}', '\u{a}', '\u{b}', '\u{c}', '\u{d}', '\u{e}', '\u{f}',
+        '\u{10}', '\u{11}', '\u{12}', '\u{13}', '\u{14}', '\u{15}', '\u{16}', '\u{17}', '\u{18}', '\u{19}', '\u{1a}', '\u{1b}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{1f}',
+        '\u{20}', '\u{21}', '\u{22}', '\u{23}', '\u{24}', '\u{25}', '\u{26}', '\u{27}', '\u{28}', '\u{29}', '\u{2a}', '\u{2b}', '\u{2c}', '\u{2d}', '\u{2e}', '\u{2f}',
+        '\u{30}', '\u{31}', '\u{32}', '\u{33}', '\u{34}', '\u{35}', '\u{36}', '\u{37}', '\u{38}', '\u{39}', '\u{3a}', '\u{3b}', '\u{3c}', '\u{3d}', '\u{3e}', '\u{3f}',
+        '\u{40}', '\u{41}', '\u{42}', '\u{43}', '\u{44}', '\u{45}', '\u{46}', '\u{47}', '\u{48}', '\u{49}', '\u{4a}', '\u{4b}', '\u{4c}', '\u{4d}', '\u{4e}', '\u{4f}',
+        '\u{50}', '\u{51}', '\u{52}', '\u{53}', '\u{54}', '\u{55}', '\u{56}', '\u{57}', '\u{58}', '\u{59}', '\u{5a}', '\u{5b}', '\u{5c}', '\u{5d}', '\u{5e}', '\u{5f}',
+        '\u{60}', '\u{41}', '\u{42}', '\u{43}', '\u{44}', '\u{45}', '\u{46}', '\u{47}', '\u{48}', '\u{49}', '\u{4a}', '\u{4b}', '\u{4c}', '\u{4d}', '\u{4e}', '\u{4f}',
+        '\u{50}', '\u{51}', '\u{52}', '\u{53}', '\u{54}', '\u{55}', '\u{56}', '\u{57}', '\u{58}', '\u{59}', '\u{5a}', '\u{7b}', '\u{7c}', '\u{7d}', '\u{7e}', '\u{7f}'
+    ];
+    char lower_digits[36] = [
+        '\u{30}', '\u{31}', '\u{32}', '\u{33}', '\u{34}', '\u{35}', '\u{36}', '\u{37}', '\u{38}', '\u{39}', '\u{61}', '\u{62}', '\u{63}', '\u{64}', '\u{65}', '\u{66}',
+        '\u{67}', '\u{68}', '\u{69}', '\u{6a}', '\u{6b}', '\u{6c}', '\u{6d}', '\u{6e}', '\u{6f}', '\u{70}', '\u{71}', '\u{72}', '\u{73}', '\u{74}', '\u{75}', '\u{76}',
+        '\u{77}', '\u{78}', '\u{79}', '\u{7a}'
+    ];
+    char upper_digits[36] = [
+        '\u{30}', '\u{31}', '\u{32}', '\u{33}', '\u{34}', '\u{35}', '\u{36}', '\u{37}', '\u{38}', '\u{39}', '\u{41}', '\u{42}', '\u{43}', '\u{44}', '\u{45}', '\u{46}',
+        '\u{47}', '\u{48}', '\u{49}', '\u{4a}', '\u{4b}', '\u{4c}', '\u{4d}', '\u{4e}', '\u{4f}', '\u{50}', '\u{51}', '\u{52}', '\u{53}', '\u{54}', '\u{55}', '\u{56}',
+        '\u{57}', '\u{58}', '\u{59}', '\u{5a}'
+    ];
+    u32 digit_table[256] = [
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        0u32, 1u32, 2u32, 3u32, 4u32, 5u32, 6u32, 7u32, 8u32, 9u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 10u32, 11u32, 12u32, 13u32, 14u32, 15u32, 16u32, 17u32, 18u32, 19u32, 20u32, 21u32, 22u32, 23u32, 24u32,
+        25u32, 26u32, 27u32, 28u32, 29u32, 30u32, 31u32, 32u32, 33u32, 34u32, 35u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 10u32, 11u32, 12u32, 13u32, 14u32, 15u32, 16u32, 17u32, 18u32, 19u32, 20u32, 21u32, 22u32, 23u32, 24u32,
+        25u32, 26u32, 27u32, 28u32, 29u32, 30u32, 31u32, 32u32, 33u32, 34u32, 35u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32,
+        255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32, 255u32
+    ];
+    mut u8 code = 0;
+    while (true) {
+        byte value = Byte.from_u8(code);
+        usize index = index_of(code);
+        if (categories(value) != expected[index]) return 1;
+        u8 lower = code >= 65 && code <= 90 ? code + 32 : code;
+        u8 upper = code >= 97 && code <= 122 ? code - 32 : code;
+        if (Byte.to_u8(ascii.to_lower(value)) != lower || Byte.to_u8(ascii.to_upper(value)) != upper) return 2;
+        if (!ascii.equal_ignore_case(value, Byte.from_u8(lower))) return 3;
+        if (code < 128) {
+            char scalar = all_chars[index];
+            if (categories(scalar) != expected[index]) return 4;
+            if (ascii.to_lower(scalar) != lower_chars[index] || ascii.to_upper(scalar) != upper_chars[index]) return 5;
+            if (!ascii.equal_ignore_case(scalar, lower_chars[index])) return 6;
+        }
+        mut u32 radix = 2;
+        while (radix <= 36) {
+            u32 digit = digit_table[index];
+            if (!digit_is(ascii.digit_value(value, radix), digit < radix, digit)) return 7;
+            if (code < 128 && !digit_is(ascii.digit_value(all_chars[index], radix), digit < radix, digit)) return 8;
+            radix++;
+        }
+        if (code == 255) break;
+        code++;
+    }
+    mut u32 radix = 2;
+    while (radix <= 36) {
+        mut u32 value = 0;
+        while (value < 38) {
+            char lower = value < 36 ? lower_digits[index_of(value)] : '?';
+            char upper = value < 36 ? upper_digits[index_of(value)] : '?';
+            if (!character_is(ascii.from_digit(value, radix), value < radix, lower)) return 9;
+            if (!character_is(ascii.from_digit(value, radix, uppercase = true), value < radix, upper)) return 10;
+            value++;
+        }
+        radix++;
+    }
+    if (!invalid_digit(ascii.digit_value('0', 0u32)) || !invalid_digit(ascii.digit_value(Byte.from_u8(48u8), 1u32))) return 11;
+    if (!invalid_digit(ascii.digit_value('A', 37u32)) || !invalid_digit(ascii.digit_value(Byte.from_u8(0u8), 4294967295u32))) return 12;
+    if (!invalid_character(ascii.from_digit(0u32, 0u32)) || !invalid_character(ascii.from_digit(0u32, 37u32))) return 13;
+    if (!character_is(ascii.from_digit(4294967295u32, 36u32), false, '?')) return 14;
+    if (categories('é') != 0 || categories('한') != 0 || categories('𝄞') != 0) return 15;
+    if (ascii.to_lower('É') != 'É' || ascii.to_upper('é') != 'é' || ascii.equal_ignore_case('É', 'é')) return 16;
+    if (!digit_is(ascii.digit_value('é', 36u32), false, 0u32)) return 17;
+    if (!ascii.equal_ignore_case("HeLLo", "hello") || !ascii.equal_ignore_case("한A", "한a")) return 18;
+    if (ascii.equal_ignore_case("Éx", "éx") || ascii.equal_ignore_case("a", "ab") || ascii.equal_ignore_case("a", "b")) return 19;
+    if (ascii.compare_ignore_case("ABC", "abc") != 0 || ascii.compare_ignore_case("", "a") != -1 || ascii.compare_ignore_case("b", "A") != 1) return 20;
+    if (ascii.compare_ignore_case("Éx", "éx") != -1 || ascii.compare_ignore_case("éx", "Éx") != 1) return 21;
+    return 0;
+}

@@ -1,0 +1,338 @@
+import error { Error };
+
+public import ordering { Ordering };
+
+/*
+ * Explicit logical helpers. Import boolean; this module does not add Boolean namespace intrinsics.
+ * Source formatting errors use BooleanError rather than conceptual AllocError/BufferError.
+ * @module boolean
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+
+/*
+ * Logical validation and formatting failures. Values contain no borrowed storage.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum BooleanError implements Copy, Error {
+
+/*
+ * Strict logical decoding accepts only integer zero or one.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+InvalidRepresentation;
+
+/*
+ * Parsing accepts only the complete lowercase ASCII tokens true and false.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+InvalidText;
+
+/*
+ * The owned output buffer could not be allocated.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+AllocationFailure;
+
+/*
+ * The entire output is unchanged when there is insufficient capacity.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+BufferTooSmall {
+/*
+ * The complete number of bytes required, excluding a terminator.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize required;
+/*
+ * The length of the supplied output view.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize available;
+};
+
+/*
+ * Return a nonallocating stable code.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public string_view code(&BooleanError self) {
+ switch (*self) {
+ case BooleanError.InvalidRepresentation: return "boolean.invalid_representation"; break;
+ case BooleanError.InvalidText: return "boolean.invalid_text"; break;
+ case BooleanError.AllocationFailure: return "boolean.allocation_failure"; break;
+ case BooleanError.BufferTooSmall: return "boolean.buffer_too_small"; break;
+ }
+}
+
+/*
+ * Return a nonallocating English diagnostic.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public string_view message(&BooleanError self) {
+ switch (*self) {
+ case BooleanError.InvalidRepresentation: return "A logical integer representation must be zero or one."; break;
+ case BooleanError.InvalidText: return "A logical token must be exactly true or false."; break;
+ case BooleanError.AllocationFailure: return "The logical text buffer could not be allocated."; break;
+ case BooleanError.BufferTooSmall: return "The output buffer cannot hold the complete logical token."; break;
+ }
+}
+};
+
+/*
+ * Return the logical complement without allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool not(bool value) {
+return !value;
+}
+
+/*
+ * Arguments are evaluated before the call; return true when both values are true.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool and(bool left, bool right) {
+return left && right;
+}
+
+/*
+ * Arguments are evaluated before the call; return true when either value is true.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool or(bool left, bool right) {
+return left || right;
+}
+
+/*
+ * Return true exactly when the values differ.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool xor(bool left, bool right) {
+return left != right;
+}
+
+/*
+ * Compare the two logical values.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(bool left, bool right) {
+return left == right;
+}
+
+/*
+ * Order false before true without integer coercion.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Ordering compare(bool left, bool right) {
+if (left == right) return Ordering.Equal;
+return left ? Ordering.Greater : Ordering.Less;
+}
+
+/*
+ * Eager arguments move into this call; the unselected argument is destroyed once.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T select<T>(bool condition, T yes, T no) {
+if (condition) return yes;
+return no;
+}
+
+/*
+ * Invoke make exactly once only when true; always destroy its closure captures correctly.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> then<T,F>(bool condition, mut F make) where F implements FnOnce<Tuple<>,T> {
+if (condition) return Optional.some(make());
+return Optional.none();
+}
+
+/*
+ * Return an eager input as Some when true; otherwise destroy it once.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<T> then_some<T>(bool condition, T value) {
+if (condition) return Optional.some(value);
+return Optional.none();
+}
+
+/*
+ * Return unit on true; move the eager error only on false.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit,E> ok_or<E>(bool condition, E error) {
+if (condition) return Result.ok(Unit.value());
+return Result.err(error);
+}
+
+/*
+ * Construct an error exactly once only when false.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<unit,E> ok_or_else<E,F>(bool condition, mut F make_error) where F implements FnOnce<Tuple<>,E> {
+if (condition) return Result.ok(Unit.value());
+return Result.err(make_error());
+}
+
+/*
+ * Accept only integer zero and one; the compiler rejects noninteger type arguments.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool,BooleanError> from_integer<T>(T value) {
+Result<u8,IntegerError> encoded = Integer.convert<u8>(value);
+switch (move encoded) {
+ case Result<u8,IntegerError>.Ok { u8 bits = value }:
+ if (bits <= 1u8) return Result.ok(bits == 1u8);
+ return Result.err(BooleanError.InvalidRepresentation); break;
+ case Result<u8,IntegerError>.Err: return Result.err(BooleanError.InvalidRepresentation); break;
+}
+}
+
+/*
+ * Explicit integer truth policy: zero is false and any other integer is true.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool from_nonzero<T>(T value) {
+Result<u128,IntegerError> encoded = Integer.convert<u128>(value);
+switch (move encoded) {
+ case Result<u128,IntegerError>.Ok { u128 bits = value }: return bits != 0u128; break;
+ case Result<u128,IntegerError>.Err: return true; break;
+}
+}
+
+/*
+ * Return zero or one in an explicitly chosen integer type; no implicit argument conversion.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public T to_integer<T>(bool value) {
+Result<T,IntegerError> encoded = Integer.convert<T>(value ? 1u8 : 0u8);
+switch (move encoded) {
+ case Result<T,IntegerError>.Ok { T bits = value }: return bits; break;
+ case Result<T,IntegerError>.Err: Never.unreachable(); break;
+}
+}
+
+/*
+ * Parse complete lowercase ASCII tokens only, without trimming, aliases, or allocation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<bool,BooleanError> parse(string_view text) {
+if (string.equals(text,"true")) return Result.ok(true);
+if (string.equals(text,"false")) return Result.ok(false);
+return Result.err(BooleanError.InvalidText);
+}
+
+/*
+ * Create owned lowercase ASCII text using one explicit fallible copy.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string,BooleanError> format(bool value) {
+string_view token = value ? "true" : "false";
+Result<string,TextError> copied = string.from_utf8(string.as_bytes(token));
+switch (move copied) {
+ case Result<string,TextError>.Ok { string output = value }: return Result.ok(output); break;
+ case Result<string,TextError>.Err { TextError reason = error }:
+ switch (reason) { case TextError.AllocationFailure: return Result.err(BooleanError.AllocationFailure); break; default: Never.unreachable(); break; }
+ break;
+}
+}
+
+/*
+ * Validate capacity before writing four or five ASCII bytes; append no terminator and allocate nothing.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<usize,BooleanError> format_into(bool value, MutSlice<byte> output) {
+string_view token = value ? "true" : "false";
+Slice<byte> source = string.as_bytes(token);
+usize required = Slice.len(source);
+usize available = Slice.len(&output);
+if (available < required) return Result.err(BooleanError.BufferTooSmall { required = required, available = available });
+mut usize index = 0;
+while (index < required) { output[index] = source[index]; index++; }
+return Result.ok(required);
+}
+
+/*
+ * Visit in order and stop at the first false; the empty slice is true.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool all(Slice<bool> values) {
+for (bool value : values) if (!value) return false;
+return true;
+}
+
+/*
+ * Visit in order and stop at the first true; the empty slice is false.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool any(Slice<bool> values) {
+for (bool value : values) if (value) return true;
+return false;
+}
+
+/*
+ * Count true elements; the result never exceeds the input length.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize count_true(Slice<bool> values) {
+mut usize count = 0;
+for (bool value : values) if (value) count++;
+return count;
+}

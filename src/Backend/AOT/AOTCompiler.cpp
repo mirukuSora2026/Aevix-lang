@@ -24,6 +24,20 @@ namespace aevix
 {
     namespace
     {
+        bool usesScalarMath(std::string_view source)
+        {
+#define AEVIX_SCALAR_MATH_UNARY(name) #name, #name "f",
+#define AEVIX_SCALAR_MATH_BINARY(name) AEVIX_SCALAR_MATH_UNARY(name)
+#define AEVIX_SCALAR_MATH_TERNARY(name) AEVIX_SCALAR_MATH_UNARY(name)
+            for (const char* name : {
+#include "aevix/Native/ScalarMath.def"
+            })
+                if (source.find(std::string("@") + name + "(") != std::string_view::npos) return true;
+#undef AEVIX_SCALAR_MATH_UNARY
+#undef AEVIX_SCALAR_MATH_BINARY
+#undef AEVIX_SCALAR_MATH_TERNARY
+            return false;
+        }
         std::string toolchainHint(std::string target)
         {
             if (target.empty())
@@ -137,20 +151,34 @@ namespace aevix
             if (!options.runtimeObjects.empty())
             {
                 const bool linuxTarget = options.targetTriple.find("linux") != std::string::npos;
+                // C 드라이버도 C++로 빌드한 런타임의 표준 라이브러리를 연결해야 한다.
+                // The C driver must also link the standard library used by the C++ runtime.
+                const bool appleTarget = options.targetTriple.find("apple") != std::string::npos;
+                const bool gnuWindowsTarget = options.targetTriple.find("windows-gnu") != std::string::npos
+                    || options.targetTriple.find("mingw") != std::string::npos;
+                if (appleTarget) arguments.push_back("-lc++");
+                else if (linuxTarget || gnuWindowsTarget) arguments.push_back("-lstdc++");
+#if defined(__APPLE__)
+                else if (options.targetTriple.empty()) arguments.push_back("-lc++");
+#elif defined(__linux__) || defined(__MINGW32__)
+                else if (options.targetTriple.empty()) arguments.push_back("-lstdc++");
+#endif
 #if defined(__linux__)
                 if (options.targetTriple.empty() || linuxTarget) arguments.push_back("-pthread");
 #else
                 if (linuxTarget) arguments.push_back("-pthread");
 #endif
-                // 복소수의 수치 헬퍼가 사용하는 표준 수학 기호를 Linux에서 연결한다.
-                // Link the standard math symbols used by complex numeric helpers on Linux.
-                const bool complexMath = llvmIR.find("@aevix_complex_") != std::string_view::npos;
-#if defined(__linux__)
-                if (complexMath && (options.targetTriple.empty() || linuxTarget)) arguments.push_back("-lm");
-#else
-                if (complexMath && linuxTarget) arguments.push_back("-lm");
-#endif
             }
+            // 스칼라 수학만 쓰는 프로그램도 C++ 런타임 없이 libm을 직접 연결할 수 있다.
+            // Programs using only scalar math can link libm without requiring the C++ runtime archive.
+            const bool nativeMath = usesScalarMath(llvmIR) || llvmIR.find("@aevix_complex_") != std::string_view::npos;
+            bool separateMathLibrary = options.targetTriple.find("linux") != std::string::npos
+                || options.targetTriple.find("windows-gnu") != std::string::npos
+                || options.targetTriple.find("mingw") != std::string::npos;
+#if defined(__linux__) || defined(__MINGW32__)
+            separateMathLibrary = separateMathLibrary || options.targetTriple.empty();
+#endif
+            if (nativeMath && separateMathLibrary) arguments.push_back("-lm");
         }
         ProcessOptions processOptions;
         processOptions.stderrFile = logPath;

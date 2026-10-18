@@ -1,0 +1,100 @@
+import vector;
+
+Result<i32, CollectionError> basic() {
+    i32 data[4] = [1, 2, 3, 4];
+    i32 empty[0] = [];
+    Slice<i32> input = Slice.from_array(&data);
+    Slice<i32> zero = Slice.from_array(&empty);
+    rsn twice = [](&i32 item) -> i32 { return *item * 2; };
+    rsn even = [](&i32 item) -> bool { return *item % 2 == 0; };
+    Vector<i32> copied = vector.copy_from_slice(input)?;
+    if (Vector.len(&copied) != 4 || copied[0] != 1 || copied[3] != 4) return Result.ok(1);
+    Vector<i32> repeated = vector.repeat_copy(3, 8)?;
+    Vector<i32> repeated_empty = vector.repeat_copy(0, 8)?;
+    if (Vector.len(&repeated) != 3 || repeated[0] != 8 || repeated[2] != 8 || Vector.len(&repeated_empty) != 0) return Result.ok(2);
+    Vector<i32> mapped = vector.map_ref<i32, i32>(input, &twice)?;
+    if (mapped[0] != 2 || mapped[3] != 8 || data[3] != 4) return Result.ok(3);
+    Vector<i32> filtered = vector.filter_copy(input, &even)?;
+    Vector<i32> filtered_empty = vector.filter_copy(zero, &even)?;
+    if (Vector.len(&filtered) != 2 || filtered[0] != 2 || filtered[1] != 4 || Vector.len(&filtered_empty) != 0) return Result.ok(4);
+    Vector<i32> concatenated = vector.concat_copy(input, input)?;
+    Vector<i32> left_empty = vector.concat_copy(zero, input)?;
+    Vector<i32> right_empty = vector.concat_copy(input, zero)?;
+    Vector<i32> both_empty = vector.concat_copy(zero, zero)?;
+    if (Vector.len(&concatenated) != 8 || concatenated[4] != 1 || concatenated[7] != 4 ||
+        Vector.len(&left_empty) != 4 || Vector.len(&right_empty) != 4 || Vector.len(&both_empty) != 0) return Result.ok(5);
+    Result<Vector<i32>, CollectionError> overflow = vector.repeat_copy(18446744073709551615usize, 1);
+    switch (move overflow) {
+        case Result<Vector<i32>, CollectionError>.Ok: return Result.ok(6); break;
+        case Result<Vector<i32>, CollectionError>.Err { CollectionError problem = error }:
+            switch (problem) {
+                case CollectionError.SizeOverflow: break;
+                case CollectionError.AllocationFailure: return Result.ok(7); break;
+            }
+            break;
+    }
+    return Result.ok(0);
+}
+
+i32 try_mapping() {
+    i32 valid[3] = [1, 2, 3];
+    i32 invalid[3] = [1, -2, 3];
+    i32 empty[0] = [];
+    rsn checked = [](&i32 item) -> Result<i32, i32> {
+        if (*item < 0) return Result.err(55);
+        return Result.ok(*item * 2);
+    };
+    Result<Vector<i32>, vector.MapError<i32>> success = vector.try_map_ref<i32, i32, i32>(Slice.from_array(&valid), &checked);
+    switch (move success) {
+        case Result<Vector<i32>, vector.MapError<i32>>.Ok { Vector<i32> output = value }:
+            if (Vector.len(&output) != 3 || output[0] != 2 || output[2] != 6) return 8;
+            break;
+        case Result<Vector<i32>, vector.MapError<i32>>.Err: return 9; break;
+    }
+    Result<Vector<i32>, vector.MapError<i32>> absent = vector.try_map_ref<i32, i32, i32>(Slice.from_array(&empty), &checked);
+    if (!Result.is_ok(&absent)) return 10;
+    Result<Vector<i32>, vector.MapError<i32>> failed = vector.try_map_ref<i32, i32, i32>(Slice.from_array(&invalid), &checked);
+    switch (move failed) {
+        case Result<Vector<i32>, vector.MapError<i32>>.Ok: return 11; break;
+        case Result<Vector<i32>, vector.MapError<i32>>.Err { vector.MapError<i32> problem = error }:
+            switch (move problem) {
+                case vector.MapError<i32>.CallbackFailure { i32 code = error }: if (code != 55) return 12; break;
+                case vector.MapError<i32>.AllocationFailure: return 13; break;
+                case vector.MapError<i32>.SizeOverflow: return 14; break;
+            }
+            break;
+    }
+    if (invalid[0] != 1 || invalid[1] != -2 || invalid[2] != 3) return 15;
+    return 0;
+}
+i32 strings() {
+    i32 input[3] = [1, 2, 3];
+    rsn make_text = [](&i32 item) -> Result<string, TextError> { return string.from_view("item"); };
+    Result<Vector<string>, vector.MapError<TextError>> text = vector.try_map_ref<i32, string, TextError>(Slice.from_array(&input), &make_text);
+    switch (move text) {
+        case Result<Vector<string>, vector.MapError<TextError>>.Ok { Vector<string> values = value }:
+            if (Vector.len(&values) != 3 || !string.equals(&values[0], "item") || !string.equals(&values[2], "item")) return 16;
+            rsn length = [](&string item) -> usize { return string.byte_len(item); };
+            Result<Vector<usize>, CollectionError> lengths = vector.map_ref<string, usize>(Slice.from_vector(&values), &length);
+            switch (move lengths) {
+                case Result<Vector<usize>, CollectionError>.Ok { Vector<usize> output = value }:
+                    if (Vector.len(&output) != 3 || output[0] != 4 || output[2] != 4) return 17;
+                    break;
+                case Result<Vector<usize>, CollectionError>.Err: return 18; break;
+            }
+            if (!string.equals(&values[1], "item")) return 19;
+            break;
+        case Result<Vector<string>, vector.MapError<TextError>>.Err: return 20; break;
+    }
+    return 0;
+}
+i32 main() {
+    Result<i32, CollectionError> checked = basic();
+    switch (move checked) {
+        case Result<i32, CollectionError>.Ok { i32 code = value }: if (code != 0) return code; break;
+        case Result<i32, CollectionError>.Err: return 99; break;
+    }
+    i32 mapped = try_mapping();
+    if (mapped != 0) return mapped;
+    return strings();
+}

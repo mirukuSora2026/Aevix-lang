@@ -27,6 +27,7 @@
 <section id="Overview" aria-labelledby="Overview-heading">
 <h2 id="Overview-heading">1입니다. 진입 능력
 </h2>
+<div class="callout note" id="Implementation-03"><p><strong>개발 중인 0.3 소스 항목 권한.</strong> 소스 모듈 <code>map_entry</code> 은 다음 기능을 제공합니다: <code>entry_with(&amp;mut owner, key, code, same)</code> 및 <code>MapEntry&lt;K, V, F&gt;</code>, 동등성 콜백을 명시적으로 소유합니다 <code>F implements Fn&lt;Tuple&lt;&amp;K, &amp;K&gt;, bool&gt;</code>. 이것이 실제 소스의 호출 형식이며, 아래의 타입 매개변수 두 개짜리 서명은 설계 카탈로그로 유지됩니다.</p><p>기존 항목의 연산은 저장한 검색 결과를 사용합니다. 빈 항목에 삽입할 때는 용량을 먼저 확보하고 입력을 이동하기 전에 임시 슬롯 위치를 다시 계산합니다. 검사된 슬롯 도우미는 가변 키를 노출하지 않으며, 슬롯 인덱스는 영구적인 핸들이 아닙니다. 소스의 복구 타입은 <code>EntryInputError&lt;K, V, F&gt;</code> 및 <code>EntryBuildError&lt;K, V, F, E&gt;</code>. 후자에는 추가로 <code>Insertion</code> 항목이 있어, 값을 만든 뒤 삽입이 실패해도 완성된 값의 소유권을 보존합니다.</p><p>등록된 소스 검증 전체가 컴파일러 b18f9833에서 19.62초 만에 통과했습니다. 이동 전용 참조 포함 데이터, 정확한 Drop 호출, 수명이 짧은 참조의 거부, 강제로 발생시킨 할당 실패와 입력 복구를 확인했습니다. 값으로 전달한 엔트리의 효과는 엔트리가 소멸한 뒤에도 원래 소유자의 수명을 유지합니다. 이 범위의 검증이 타입 인자 두 개를 쓰는 설계 카탈로그 전체나 모든 대상 환경의 실행을 보장하지는 않습니다. 다음 문서를 참고하세요: <a href="../../releases/api/Library_Status.html">소스 API 상태</a>.</p></div>
 <p>Map.entry는 한 번 조회를 수행하고 특정 키에 대한 선형 기능을 반환합니다. 이 기능은 전체 맵, 트랙 점유 또는 빈 상태를 독점적으로 대여하고 터미널 작업이 어떤 일이 일어날지 선택할 때까지 들어오는 키를 소유합니다. 그것은 별도로 할당 된 key/value 컨테이너가 아니며지도를 초과 할 수 없습니다.
 </p>
 <blockquote class="callout note">

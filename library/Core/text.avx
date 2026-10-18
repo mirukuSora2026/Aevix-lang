@@ -1,0 +1,466 @@
+/*
+ * Lifecycle of the text public module.
+ * @module text
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * UTF-8 view operations distinguish byte offsets from Unicode scalar counts.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize byte_len(string_view value) { return string.byte_len(value); }
+/*
+ * Version history for the text.scalar_count public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize scalar_count(string_view value) { return string.scalar_count(value); }
+/*
+ * Version history for the text.is_empty public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_empty(string_view value) { return string.is_empty(value); }
+/*
+ * Version history for the text.equal public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(string_view left, string_view right) { return string.equals(left, right); }
+
+/*
+ * Version history for the text.is_ascii public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool is_ascii(string_view value) {
+    Slice<byte> bytes = string.as_bytes(value);
+    mut usize index = 0;
+    while (index < Slice.len(bytes)) {
+        if (Byte.to_u8(bytes[index]) > 127) return false;
+        index++;
+    }
+    return true;
+}
+
+bool matches_at(Slice<byte> haystack, Slice<byte> needle, usize offset) {
+    if (offset > Slice.len(haystack) || Slice.len(needle) > Slice.len(haystack) - offset) return false;
+    mut usize index = 0;
+    while (index < Slice.len(needle)) {
+        if (Byte.to_u8(haystack[offset + index]) != Byte.to_u8(needle[index])) return false;
+        index++;
+    }
+    return true;
+}
+
+/*
+ * Version history for the text.starts_with public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool starts_with(string_view value, string_view prefix) {
+    return matches_at(string.as_bytes(value), string.as_bytes(prefix), 0);
+}
+/*
+ * Version history for the text.ends_with public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool ends_with(string_view value, string_view suffix) {
+    usize length = string.byte_len(value);
+    usize size = string.byte_len(suffix);
+    if (size > length) return false;
+    return matches_at(string.as_bytes(value), string.as_bytes(suffix), length - size);
+}
+/*
+ * Version history for the text.find_from public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> find_from(string_view value, string_view needle, usize start) {
+    Slice<byte> haystack = string.as_bytes(value);
+    Slice<byte> pattern = string.as_bytes(needle);
+    if (start > Slice.len(haystack) || Slice.len(pattern) > Slice.len(haystack) - start) return Optional.none();
+    mut usize position = start;
+    usize last = Slice.len(haystack) - Slice.len(pattern);
+    while (position <= last) {
+        if (matches_at(haystack, pattern, position)) return Optional.some(position);
+        if (position == last) break;
+        position++;
+    }
+    return Optional.none();
+}
+/*
+ * Version history for the text.find public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> find(string_view value, string_view needle) { return find_from(value, needle, 0); }
+/*
+ * Version history for the text.rfind public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<usize> rfind(string_view value, string_view needle) {
+    Slice<byte> haystack = string.as_bytes(value);
+    Slice<byte> pattern = string.as_bytes(needle);
+    if (Slice.len(pattern) > Slice.len(haystack)) return Optional.none();
+    mut usize position = Slice.len(haystack) - Slice.len(pattern);
+    while (true) {
+        if (matches_at(haystack, pattern, position)) return Optional.some(position);
+        if (position == 0) break;
+        position--;
+    }
+    return Optional.none();
+}
+/*
+ * Version history for the text.contains public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains(string_view value, string_view needle) {
+    Optional<usize> found = find(value, needle);
+    return Optional.is_some(&found);
+}
+/*
+ * An empty pattern has count zero; matches are counted without overlap.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize count(string_view value, string_view needle) {
+    if (string.is_empty(needle)) return 0;
+    mut usize position = 0;
+    mut usize total = 0;
+    while (position <= string.byte_len(value)) {
+        Optional<usize> found = find_from(value, needle, position);
+        switch (move found) {
+            case Optional<usize>.Some { usize offset = value }:
+                total++;
+                position = offset + string.byte_len(needle);
+                break;
+            case Optional<usize>.None: return total; break;
+        }
+    }
+    return total;
+}
+bool ascii_space(byte value) {
+    u8 code = Byte.to_u8(value);
+    return code == 32 || (code >= 9 && code <= 13);
+}
+/*
+ * Version history for the text.trim_start_ascii public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string_view, TextError> trim_start_ascii(string_view value) {
+    Slice<byte> bytes = string.as_bytes(value);
+    mut usize first = 0;
+    while (first < Slice.len(bytes) && ascii_space(bytes[first])) first++;
+    return string.slice_bytes(value, first, Slice.len(bytes));
+}
+/*
+ * Version history for the text.trim_end_ascii public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string_view, TextError> trim_end_ascii(string_view value) {
+    Slice<byte> bytes = string.as_bytes(value);
+    mut usize end = Slice.len(bytes);
+    while (end > 0 && ascii_space(bytes[end - 1])) end--;
+    return string.slice_bytes(value, 0, end);
+}
+/*
+ * Version history for the text.trim_ascii public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string_view, TextError> trim_ascii(string_view value) {
+    string_view first = trim_start_ascii(value)?;
+    return trim_end_ascii(first);
+}
+/*
+ * Version history for the text.split_once public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<Tuple<string_view, string_view>>, TextError> split_once(string_view value, string_view delimiter) {
+    Optional<usize> found = find(value, delimiter);
+    switch (move found) {
+        case Optional<usize>.Some { usize offset = value }:
+            string_view left = string.slice_bytes(value, 0, offset)?;
+            string_view right = string.slice_bytes(value, offset + string.byte_len(delimiter), string.byte_len(value))?;
+            Tuple<string_view, string_view> pair = Tuple.make(left, right);
+            Optional<Tuple<string_view, string_view>> present = Optional.some(pair);
+            return Result.ok(present);
+            break;
+        case Optional<usize>.None:
+            Optional<Tuple<string_view, string_view>> absent = Optional.none();
+            return Result.ok(absent);
+            break;
+    }
+}
+/*
+ * Version history for the text.concat public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, TextError> concat(string_view left, string_view right) {
+    mut string output = string.from_view(left)?;
+    string.append(&mut output, right)?;
+    return Result.ok(output);
+}
+/*
+ * Version history for the text.repeat public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, TextError> repeat(string_view value, usize times) {
+    if (string.byte_len(value) > 0 && times > 9223372036854775807 / string.byte_len(value))
+        return Result.err(TextError.SizeOverflow);
+    mut string output = string.from_view("")?;
+    if (string.is_empty(value)) return Result.ok(output);
+    mut usize index = 0;
+    while (index < times) {
+        string.append(&mut output, value)?;
+        index++;
+    }
+    return Result.ok(output);
+}
+/*
+ * Version history for the text.replace public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<string, TextError> replace(string_view value, string_view needle, string_view replacement) {
+    mut string output = string.from_view("")?;
+    if (string.is_empty(needle)) return string.from_view(value);
+    mut usize position = 0;
+    while (position <= string.byte_len(value)) {
+        Optional<usize> found = find_from(value, needle, position);
+        switch (move found) {
+            case Optional<usize>.Some { usize offset = value }:
+                string_view prefix = string.slice_bytes(value, position, offset)?;
+                string.append(&mut output, prefix)?;
+                string.append(&mut output, replacement)?;
+                position = offset + string.byte_len(needle);
+                break;
+            case Optional<usize>.None:
+                string_view suffix = string.slice_bytes(value, position, string.byte_len(value))?;
+                string.append(&mut output, suffix)?;
+                return Result.ok(output);
+                break;
+        }
+    }
+    return Result.ok(output);
+}
+
+/*
+ * Remove a matching prefix without copying bytes. None means the prefix did not match.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<string_view>, TextError> strip_prefix(string_view value, string_view prefix) {
+    if (!starts_with(value, prefix)) return Result.ok(Optional.none());
+    string_view remaining = string.slice_bytes(value, string.byte_len(prefix), string.byte_len(value))?;
+    return Result.ok(Optional.some(remaining));
+}
+
+/*
+ * Remove a matching suffix without copying bytes. An empty suffix matches at the end.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<string_view>, TextError> strip_suffix(string_view value, string_view suffix) {
+    if (!ends_with(value, suffix)) return Result.ok(Optional.none());
+    string_view remaining = string.slice_bytes(value, 0, string.byte_len(value) - string.byte_len(suffix))?;
+    return Result.ok(Optional.some(remaining));
+}
+
+/*
+ * Split at the last delimiter without allocation. An empty delimiter matches at the end.
+ * Returned views borrow value; the delimiter itself is not retained.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<Tuple<string_view, string_view>>, TextError> rsplit_once(string_view value, string_view delimiter) {
+    Optional<usize> found = rfind(value, delimiter);
+    switch (move found) {
+        case Optional<usize>.Some { usize offset = value }:
+            string_view left = string.slice_bytes(value, 0, offset)?;
+            string_view right = string.slice_bytes(value, offset + string.byte_len(delimiter), string.byte_len(value))?;
+            Tuple<string_view, string_view> pair = Tuple.make(left, right);
+            return Result.ok(Optional.some(pair));
+            break;
+        case Optional<usize>.None: return Result.ok(Optional.none()); break;
+    }
+}
+
+Result<Vector<string_view>, TextError> empty_views() {
+    Result<Vector<string_view>, CollectionError> made = [];
+    switch (move made) {
+        case Result<Vector<string_view>, CollectionError>.Ok { Vector<string_view> values = value }: return Result.ok(values); break;
+        case Result<Vector<string_view>, CollectionError>.Err { CollectionError problem = error }:
+            switch (problem) {
+                case CollectionError.AllocationFailure: return Result.err(TextError.AllocationFailure); break;
+                case CollectionError.SizeOverflow: return Result.err(TextError.SizeOverflow); break;
+            }
+            break;
+    }
+}
+
+Result<unit, TextError> push_view(&mut Vector<string_view> output, string_view part) {
+    Result<unit, InputError<string_view>> appended = Vector.push(output, part);
+    switch (move appended) {
+        case Result<unit, InputError<string_view>>.Ok: return Result.ok(Unit.value()); break;
+        case Result<unit, InputError<string_view>>.Err { InputError<string_view> problem = error }:
+            switch (move problem) {
+                case InputError<string_view>.AllocationFailure: return Result.err(TextError.AllocationFailure); break;
+                case InputError<string_view>.SizeOverflow: return Result.err(TextError.SizeOverflow); break;
+                case InputError<string_view>.OutOfBounds: Never.unreachable(); break;
+            }
+            break;
+    }
+}
+
+/*
+ * Collect non-overlapping split views in a fallibly allocated descriptor vector.
+ * Keep leading, adjacent, and trailing empty fields. max_parts == 0 yields no fields;
+ * max_parts == 1 yields the entire input. An empty delimiter splits at Unicode scalar
+ * boundaries, including empty views at both ends, rather than at UTF-8 continuation bytes.
+ * Only descriptors are copied; every result view borrows value, not delimiter.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<string_view>, TextError> split(string_view value, string_view delimiter, usize max_parts = 9223372036854775807usize) {
+    mut Vector<string_view> output = empty_views()?;
+    if (max_parts == 0) return Result.ok(output);
+    if (max_parts == 1) { push_view(&mut output, value)?; return Result.ok(output); }
+    usize length = string.byte_len(value);
+    mut usize start = 0;
+    if (string.is_empty(delimiter)) {
+        push_view(&mut output, string.slice_bytes(value, 0, 0)?)?;
+        Slice<byte> bytes = string.as_bytes(value);
+        while (start < length && Vector.len(&output) + 1 < max_parts) {
+            mut usize end = start + 1;
+            while (end < length && (Byte.to_u8(bytes[end]) & 192) == 128) end++;
+            string_view part = string.slice_bytes(value, start, end)?;
+            push_view(&mut output, part)?;
+            start = end;
+        }
+        push_view(&mut output, string.slice_bytes(value, start, length)?)?;
+        return Result.ok(output);
+    }
+    while (Vector.len(&output) + 1 < max_parts) {
+        Optional<usize> found = find_from(value, delimiter, start);
+        switch (move found) {
+            case Optional<usize>.Some { usize offset = value }:
+                string_view part = string.slice_bytes(value, start, offset)?;
+                push_view(&mut output, part)?;
+                start = offset + string.byte_len(delimiter);
+                break;
+            case Optional<usize>.None:
+                push_view(&mut output, string.slice_bytes(value, start, length)?)?;
+                return Result.ok(output);
+                break;
+        }
+    }
+    push_view(&mut output, string.slice_bytes(value, start, length)?)?;
+    return Result.ok(output);
+}
+
+/*
+ * Collect nonempty views separated by ASCII whitespace (space and U+0009..U+000D).
+ * Unicode whitespace such as U+00A0 is preserved inside a token. The descriptor
+ * vector can allocate; no token bytes are copied and all views borrow value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<string_view>, TextError> split_ascii_whitespace(string_view value) {
+    mut Vector<string_view> output = empty_views()?;
+    Slice<byte> bytes = string.as_bytes(value);
+    mut usize cursor = 0;
+    while (cursor < Slice.len(bytes)) {
+        while (cursor < Slice.len(bytes) && ascii_space(bytes[cursor])) cursor++;
+        if (cursor == Slice.len(bytes)) break;
+        usize first = cursor;
+        while (cursor < Slice.len(bytes) && !ascii_space(bytes[cursor])) cursor++;
+        string_view part = string.slice_bytes(value, first, cursor)?;
+        push_view(&mut output, part)?;
+    }
+    return Result.ok(output);
+}
+
+/*
+ * Collect LF or CRLF-delimited views. A lone CR is ordinary content. Empty input
+ * has no lines and a final line ending does not add an extra empty line.
+ * keep_endings preserves the exact LF or CRLF bytes when true. Descriptor storage
+ * allocates fallibly; line bytes remain borrowed from value.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Vector<string_view>, TextError> lines(string_view value, bool keep_endings = false) {
+    mut Vector<string_view> output = empty_views()?;
+    Slice<byte> bytes = string.as_bytes(value);
+    mut usize start = 0;
+    mut usize cursor = 0;
+    while (cursor < Slice.len(bytes)) {
+        if (Byte.to_u8(bytes[cursor]) == 10) {
+            mut usize end = keep_endings ? cursor + 1 : cursor;
+            if (!keep_endings && end > start && Byte.to_u8(bytes[end - 1]) == 13) end--;
+            push_view(&mut output, string.slice_bytes(value, start, end)?)?;
+            start = cursor + 1;
+        }
+        cursor++;
+    }
+    if (start < Slice.len(bytes)) push_view(&mut output, string.slice_bytes(value, start, Slice.len(bytes))?)?;
+    return Result.ok(output);
+}
+
+/*
+ * Compare validated UTF-8 views by unsigned byte order, returning -1, 0, or 1.
+ * This is a deterministic lexical order, with no locale-dependent collation.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(string_view left, string_view right) {
+    Slice<byte> a = string.as_bytes(left);
+    Slice<byte> b = string.as_bytes(right);
+    usize common = Slice.len(a) < Slice.len(b) ? Slice.len(a) : Slice.len(b);
+    mut usize index = 0;
+    while (index < common) {
+        u8 x = Byte.to_u8(a[index]);
+        u8 y = Byte.to_u8(b[index]);
+        if (x < y) return -1;
+        if (x > y) return 1;
+        index++;
+    }
+    return Slice.len(a) < Slice.len(b) ? -1 : Slice.len(a) > Slice.len(b) ? 1 : 0;
+}

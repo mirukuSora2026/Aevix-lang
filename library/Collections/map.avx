@@ -1,0 +1,2029 @@
+/*
+ * Lifecycle of the map public module.
+ * @module map
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+import memory;
+import hash;
+
+/*
+ * An owned key/value pair. Consume the Pair variant to recover both owners without cloning.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public enum Entry<K, V> { /*
+ * Version history for the map.Entry.Pair public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+Pair { /*
+ * Version history for the map.Entry.Pair.key public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public K key; /*
+ * Version history for the map.Entry.Pair.value public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public V value; }; };
+enum Bucket<K, V> { Empty; Deleted; Full { public K key; public V value; public u64 code; }; };
+
+/*
+ * Owning open-addressed hash table with linear probing, tombstones, and preflight rehashing.
+ * Module functions use hash.value/equal overloads or explicit Hash/Eq implementations.
+ * Low-level *_with methods accept a stable hash code and a borrowed equality callback; equal keys must have equal codes.
+ * Keys remain immutable while stored. Expected lookup/insert/remove is O(1), worst case O(capacity),
+ * plus hashing/equality cost. Default hashing is deterministic and noncryptographic, not randomized.
+ * Growth allocates a complete empty table before moving entries. No operation implicitly clones.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public struct Map<K, V> {
+    Vector<Bucket<K, V>> slots;
+    usize count;
+    usize occupied;
+    u64 seed;
+
+    /*
+     * Create an empty owner with no buckets; O(1). The empty Vector carrier remains explicitly fallible.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, CollectionError> new() { return Self.with_seed(0u64); }
+
+    /*
+     * Select an explicit deterministic bucket seed without taking ownership of any keys; O(1).
+     * This seed changes placement but does not provide cryptographic collision resistance.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Self, CollectionError> with_seed(u64 seed) {
+        Vector<Bucket<K, V>> empty = []?;
+        return Result.ok(Self { slots = empty, count = 0, occupied = 0, seed = seed });
+    }
+
+    /*
+     * Return the number of stored entries without borrowing their payloads; O(1).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize len(&Self self) { return self.count; }
+
+    /*
+     * Test whether no entries are stored; O(1).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool is_empty(&Self self) { return self.count == 0; }
+
+    /*
+     * Report the entry limit before the next growth/compaction check; O(1).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public usize capacity(&Self self) { return Vector.len(&self.slots) / 2; }
+
+    private usize locate<F>(&Self self, &K query, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> {
+        usize size = Vector.len(&self.slots);
+        if (size == 0) return size;
+        mut usize index = hash.bucket(code ^ self.seed, size);
+        mut usize examined = 0;
+        while (examined < size) {
+            switch (self.slots[index]) {
+                case Bucket<K, V>.Empty: return size; break;
+                case Bucket<K, V>.Deleted: break;
+                case Bucket<K, V>.Full { &K stored = key }:
+                    if (same(stored, query)) return index;
+                    break;
+            }
+            index = index + 1 == size ? 0 : index + 1;
+            examined++;
+        }
+        return size;
+    }
+
+    private usize vacant(&Self self, u64 code) {
+        usize size = Vector.len(&self.slots);
+        mut usize index = hash.bucket(code ^ self.seed, size);
+        mut usize examined = 0;
+        while (examined < size) {
+            switch (self.slots[index]) {
+                case Bucket<K, V>.Empty: return index; break;
+                case Bucket<K, V>.Deleted: return index; break;
+                case Bucket<K, V>.Full: break;
+            }
+            index = index + 1 == size ? 0 : index + 1;
+            examined++;
+        }
+        Never.unreachable();
+    }
+
+    private Result<unit, CollectionError> rehash(&mut Self self, usize capacity) {
+        mut Vector<Bucket<K, V>> fresh = []?;
+        Vector.reserve(&mut fresh, capacity)?;
+        mut usize index = 0;
+        while (index < capacity) {
+            Result<unit, InputError<Bucket<K, V>>> appended = Vector.push(&mut fresh, (Bucket<K, V>.Empty));
+            switch (move appended) {
+                case Result<unit, InputError<Bucket<K, V>>>.Ok: break;
+                case Result<unit, InputError<Bucket<K, V>>>.Err { InputError<Bucket<K, V>> problem = error }:
+                    switch (move problem) {
+                        case InputError<Bucket<K, V>>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                        case InputError<Bucket<K, V>>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                        // This path only delegates to push/rehash, which never reports an index error.
+                        case InputError<Bucket<K, V>>.OutOfBounds: Never.unreachable(); break;
+                    }
+                    break;
+            }
+            index++;
+        }
+        index = 0;
+        while (index < Vector.len(&self.slots)) {
+            Bucket<K, V> previous = memory.replace(&mut self.slots[index], (Bucket<K, V>.Deleted));
+            switch (move previous) {
+                case Bucket<K, V>.Full { K key = key, V value = value, u64 code = code }:
+                    mut usize destination = hash.bucket(code ^ self.seed, capacity);
+                    mut bool searching = true;
+                    while (searching) {
+                        switch (fresh[destination]) {
+                            case Bucket<K, V>.Full: destination = destination + 1 == capacity ? 0 : destination + 1; break;
+                            case Bucket<K, V>.Empty: searching = false; break;
+                            case Bucket<K, V>.Deleted: searching = false; break;
+                        }
+                    }
+                    memory.replace(&mut fresh[destination], Bucket<K, V>.Full { key = key, value = value, code = code });
+                    break;
+                case Bucket<K, V>.Empty: break;
+                case Bucket<K, V>.Deleted: break;
+            }
+            index++;
+        }
+        memory.replace(&mut self.slots, fresh);
+        self.occupied = self.count;
+        return Result.ok(Unit.value());
+    }
+
+    /*
+     * Ensure room for additional entries. Failure preserves every existing entry; O(capacity) on rehash.
+     * No key/value owner is consumed. A successful reserve may invalidate previously borrowed views.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<unit, CollectionError> reserve(&mut Self self, usize additional) {
+        if (additional > 18446744073709551615usize - self.count) return Result.err(CollectionError.SizeOverflow);
+        usize required = self.count + additional;
+        mut usize size = Vector.len(&self.slots);
+        if (required <= size / 2 && self.occupied <= size / 2) return Result.ok(Unit.value());
+        if (size == 0) size = 8;
+        while (required > size / 2) {
+            if (size > 9223372036854775807usize) return Result.err(CollectionError.SizeOverflow);
+            size *= 2;
+        }
+        return self.rehash(size);
+    }
+
+    /*
+     * Borrow a value by an equivalent key. The result retains the map loan; expected O(1), worst O(capacity).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&V> get_with<F>(&Self self, &K query, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> {
+        usize index = self.locate(query, code, same);
+        if (index == Vector.len(&self.slots)) return Optional.none();
+        switch (self.slots[index]) {
+            case Bucket<K, V>.Full { &V value = value }: return Optional.some(value); break;
+            case Bucket<K, V>.Empty: return Optional.none(); break;
+            case Bucket<K, V>.Deleted: return Optional.none(); break;
+        }
+    }
+
+    /*
+     * Exclusively borrow a value while keeping its stored key immutable; expected O(1), worst O(capacity).
+     * The result prevents conflicting map mutation until its last use.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&mut V> get_mut_with<F>(&mut Self self, &K query, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> {
+        usize index = self.locate(query, code, same);
+        if (index == Vector.len(&self.slots)) return Optional.none();
+        switch (&mut self.slots[index]) {
+            case Bucket<K, V>.Full { &mut V value = &mut value }: return Optional.some(value); break;
+            case Bucket<K, V>.Empty: return Optional.none(); break;
+            case Bucket<K, V>.Deleted: return Optional.none(); break;
+        }
+    }
+
+    /*
+     * Borrow the canonical stored key without transferring ownership; expected O(1), worst O(capacity).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&K> get_key_with<F>(&Self self, &K query, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> {
+        usize index = self.locate(query, code, same);
+        if (index == Vector.len(&self.slots)) return Optional.none();
+        switch (self.slots[index]) {
+            case Bucket<K, V>.Full { &K key = key }: return Optional.some(key); break;
+            case Bucket<K, V>.Empty: return Optional.none(); break;
+            case Bucket<K, V>.Deleted: return Optional.none(); break;
+        }
+    }
+
+    /*
+     * Test membership without cloning a key or borrowing a value; expected O(1), worst O(capacity).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public bool contains_key_with<F>(&Self self, &K query, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> { return self.locate(query, code, same) < Vector.len(&self.slots); }
+
+    /*
+     * Locate an occupied entry or its prospective insertion slot for an explicit comparator.
+     * The bool reports occupancy. The index is a transient physical position, not a stable handle;
+     * an empty table returns index zero as its no-storage sentinel. Rehashing or mutation may change it.
+     * These positions grant no unchecked access: entry_pair_at/value_at_mut/take_at validate every use.
+     * Expected O(1), worst O(capacity), plus equality callback work; no allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Tuple<bool, usize> entry_slot_with<F>(&Self self, &K query, u64 code, &F same)
+        where F implements Fn<Tuple<&K, &K>, bool> {
+        usize found = self.locate(query, code, same);
+        usize size = Vector.len(&self.slots);
+        if (found < size) return Tuple.make(true, found);
+        if (size == 0) return Tuple.make(false, size);
+        return Tuple.make(false, self.vacant(code));
+    }
+
+    /*
+     * Borrow the immutable key and value at a checked transient position; O(1).
+     * Out-of-range, empty and deleted slots return None. Positions are invalidated by structural
+     * mutation and may later identify a different entry; they must never be retained as stable handles.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Tuple<&K, &V>> entry_pair_at(&Self self, usize index) {
+        if (index >= Vector.len(&self.slots)) return Optional.none();
+        switch (self.slots[index]) {
+            case Bucket<K, V>.Full { &K key = key, &V value = value }:
+                return Optional.some(Tuple.make(key, value)); break;
+            case Bucket<K, V>.Empty: return Optional.none(); break;
+            case Bucket<K, V>.Deleted: return Optional.none(); break;
+        }
+    }
+
+    /*
+     * Exclusively borrow the value currently stored at a checked transient position; O(1).
+     * Keys remain immutable. Out-of-range, empty and deleted positions return None.
+     * The returned reference retains the table loan; an index alone never grants unchecked access.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<&mut V> entry_value_at_mut(&mut Self self, usize index) {
+        if (index >= Vector.len(&self.slots)) return Optional.none();
+        switch (&mut self.slots[index]) {
+            case Bucket<K, V>.Full { &mut V value = &mut value }: return Optional.some(value); break;
+            case Bucket<K, V>.Empty: return Optional.none(); break;
+            case Bucket<K, V>.Deleted: return Optional.none(); break;
+        }
+    }
+
+    /*
+     * Remove both owners from the occupied entry at a checked transient position; O(1).
+     * Invalid or vacant positions leave the table unchanged. Successful removal creates a tombstone
+     * and decrements length while preserving the occupied-bucket accounting used by reserve.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Entry<K, V>> entry_take_at(&mut Self self, usize index) {
+        if (index >= Vector.len(&self.slots)) return Optional.none();
+        switch (self.slots[index]) {
+            case Bucket<K, V>.Full: break;
+            case Bucket<K, V>.Empty: return Optional.none(); break;
+            case Bucket<K, V>.Deleted: return Optional.none(); break;
+        }
+        Bucket<K, V> previous = memory.replace(&mut self.slots[index], (Bucket<K, V>.Deleted));
+        self.count--;
+        switch (move previous) {
+            case Bucket<K, V>.Full { K key = key, V value = value }:
+                return Optional.some(Entry<K, V>.Pair { key = key, value = value }); break;
+            case Bucket<K, V>.Empty: Never.unreachable(); break;
+            case Bucket<K, V>.Deleted: Never.unreachable(); break;
+        }
+    }
+
+    /*
+     * Move inputs into the table and return an old value if replaced. Equal stored keys are preserved.
+     * Allocation/size failure returns both live inputs in InputError<Entry<K,V>> and preserves the table.
+     * Expected amortized O(1), worst O(capacity), plus hashing, equality, and discarded-key Drop work.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Optional<V>, InputError<Entry<K, V>>> insert_with<F>(&mut Self self, K key, V value, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> {
+        usize existing = self.locate(&key, code, same);
+        if (existing < Vector.len(&self.slots)) {
+            switch (&mut self.slots[existing]) {
+                case Bucket<K, V>.Full { &mut V stored = &mut value }:
+                    V previous = memory.replace(stored, value);
+                    return Result.ok(Optional.some(previous));
+                    break;
+                case Bucket<K, V>.Empty: Never.unreachable(); break;
+                case Bucket<K, V>.Deleted: Never.unreachable(); break;
+            }
+        }
+        Result<unit, CollectionError> reserved = self.reserve(1);
+        switch (move reserved) {
+            case Result<unit, CollectionError>.Ok: break;
+            case Result<unit, CollectionError>.Err { CollectionError problem = error }:
+                mut bool allocation = false;
+                switch (problem) {
+                    case CollectionError.AllocationFailure: allocation = true; break;
+                    case CollectionError.SizeOverflow: break;
+                }
+                if (allocation) return Result.err(InputError<Entry<K, V>>.AllocationFailure { input = Entry<K, V>.Pair { key = key, value = value } });
+                return Result.err(InputError<Entry<K, V>>.SizeOverflow { input = Entry<K, V>.Pair { key = key, value = value } });
+                break;
+        }
+        usize destination = self.vacant(code);
+        mut bool empty = false;
+        switch (self.slots[destination]) {
+            case Bucket<K, V>.Empty: empty = true; break;
+            case Bucket<K, V>.Deleted: break;
+            case Bucket<K, V>.Full: Never.unreachable(); break;
+        }
+        memory.replace(&mut self.slots[destination], Bucket<K, V>.Full { key = key, value = value, code = code });
+        self.count++;
+        if (empty) self.occupied++;
+        return Result.ok(Optional.none());
+    }
+
+    /*
+     * Remove a key and return its owned value, dropping the stored key once; expected O(1), worst O(capacity).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<V> remove_with<F>(&mut Self self, &K query, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> {
+        usize index = self.locate(query, code, same);
+        if (index == Vector.len(&self.slots)) return Optional.none();
+        Bucket<K, V> previous = memory.replace(&mut self.slots[index], (Bucket<K, V>.Deleted));
+        self.count--;
+        switch (move previous) {
+            case Bucket<K, V>.Full { V value = value }: return Optional.some(value); break;
+            case Bucket<K, V>.Empty: Never.unreachable(); break;
+            case Bucket<K, V>.Deleted: Never.unreachable(); break;
+        }
+    }
+
+    /*
+     * Remove and return both stored owners without cloning; expected O(1), worst O(capacity).
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Optional<Entry<K, V>> remove_entry_with<F>(&mut Self self, &K query, u64 code, &F same) where F implements Fn<Tuple<&K, &K>, bool> {
+        usize index = self.locate(query, code, same);
+        if (index == Vector.len(&self.slots)) return Optional.none();
+        Bucket<K, V> previous = memory.replace(&mut self.slots[index], (Bucket<K, V>.Deleted));
+        self.count--;
+        switch (move previous) {
+            case Bucket<K, V>.Full { K key = key, V value = value }:
+                return Optional.some(Entry<K, V>.Pair { key = key, value = value });
+                break;
+            case Bucket<K, V>.Empty: Never.unreachable(); break;
+            case Bucket<K, V>.Deleted: Never.unreachable(); break;
+        }
+    }
+
+    /*
+     * Drop all keys/values exactly once, retaining bucket storage; O(capacity) plus destructor work.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit clear(&mut Self self) {
+        mut usize index = 0;
+        while (index < Vector.len(&self.slots)) {
+            memory.replace(&mut self.slots[index], (Bucket<K, V>.Empty));
+            index++;
+        }
+        self.count = 0;
+        self.occupied = 0;
+        return Unit.value();
+    }
+
+    /*
+     * Visit borrowed key/value pairs in unspecified bucket order; O(capacity) plus callback work.
+     * The callback receives no mutable key and cannot structurally mutate this borrowed table.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit for_each<F>(&Self self, mut F visit) where F implements FnMut<Tuple<&K, &V>, unit> {
+        mut usize index = 0;
+        while (index < Vector.len(&self.slots)) {
+            switch (self.slots[index]) {
+                case Bucket<K, V>.Full { &K key = key, &V value = value }: visit(key, value); break;
+                case Bucket<K, V>.Empty: break;
+                case Bucket<K, V>.Deleted: break;
+            }
+            index++;
+        }
+        return Unit.value();
+    }
+
+    /*
+     * Visit immutable keys and exclusive values; O(capacity) plus callback work. Structural mutation remains borrowed.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit for_each_mut<F>(&mut Self self, mut F visit) where F implements FnMut<Tuple<&K, &mut V>, unit> {
+        mut usize index = 0;
+        while (index < Vector.len(&self.slots)) {
+            switch (&mut self.slots[index]) {
+                case Bucket<K, V>.Full { &K key = &key, &mut V value = &mut value }: visit(key, value); break;
+                case Bucket<K, V>.Empty: break;
+                case Bucket<K, V>.Deleted: break;
+            }
+            index++;
+        }
+        return Unit.value();
+    }
+
+    /*
+     * Keep callback-approved entries, dropping removed pairs once; O(capacity) plus callback/destructor work.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public unit retain<F>(&mut Self self, mut F keep) where F implements FnMut<Tuple<&K, &mut V>, bool> {
+        mut usize index = 0;
+        while (index < Vector.len(&self.slots)) {
+            mut bool remove = false;
+            switch (&mut self.slots[index]) {
+                case Bucket<K, V>.Full { &K key = &key, &mut V value = &mut value }: remove = !keep(key, value); break;
+                case Bucket<K, V>.Empty: break;
+                case Bucket<K, V>.Deleted: break;
+            }
+            if (remove) {
+                memory.replace(&mut self.slots[index], (Bucket<K, V>.Deleted));
+                self.count--;
+            }
+            index++;
+        }
+        return Unit.value();
+    }
+
+    /*
+     * Explicitly copy keys into a new Vector, preserving the map; O(capacity), fallible allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Vector<K>, CollectionError> keys_copy(&Self self) where K implements Copy {
+        mut Vector<K> output = []?;
+        Vector.reserve(&mut output, self.count)?;
+        mut usize index = 0;
+        while (index < Vector.len(&self.slots)) {
+            switch (self.slots[index]) {
+                case Bucket<K, V>.Full { &K key = key }:
+                    Result<unit, InputError<K>> appended = Vector.push(&mut output, *key);
+                    switch (move appended) {
+                        case Result<unit, InputError<K>>.Ok: break;
+                        case Result<unit, InputError<K>>.Err { InputError<K> problem = error }:
+                            switch (move problem) {
+                                case InputError<K>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                                case InputError<K>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                                // This path only delegates to push/rehash, which never reports an index error.
+                                case InputError<K>.OutOfBounds: Never.unreachable(); break;
+                            }
+                            break;
+                    }
+                    break;
+                case Bucket<K, V>.Empty: break;
+                case Bucket<K, V>.Deleted: break;
+            }
+            index++;
+        }
+        return Result.ok(output);
+    }
+
+    /*
+     * Explicitly copy values into a new Vector, preserving the map; O(capacity), fallible allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Vector<V>, CollectionError> values_copy(&Self self) where V implements Copy {
+        mut Vector<V> output = []?;
+        Vector.reserve(&mut output, self.count)?;
+        mut usize index = 0;
+        while (index < Vector.len(&self.slots)) {
+            switch (self.slots[index]) {
+                case Bucket<K, V>.Full { &V value = value }:
+                    Result<unit, InputError<V>> appended = Vector.push(&mut output, *value);
+                    switch (move appended) {
+                        case Result<unit, InputError<V>>.Ok: break;
+                        case Result<unit, InputError<V>>.Err { InputError<V> problem = error }:
+                            switch (move problem) {
+                                case InputError<V>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                                case InputError<V>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                                // This path only delegates to push/rehash, which never reports an index error.
+                                case InputError<V>.OutOfBounds: Never.unreachable(); break;
+                            }
+                            break;
+                    }
+                    break;
+                case Bucket<K, V>.Empty: break;
+                case Bucket<K, V>.Deleted: break;
+            }
+            index++;
+        }
+        return Result.ok(output);
+    }
+
+    /*
+     * Explicitly copy entries into a new Vector, preserving the map; O(capacity), fallible allocation.
+     * @since 0.3
+     * @deprecated_at none
+     * @removed_at none
+     */
+    public Result<Vector<Entry<K, V>>, CollectionError> entries_copy(&Self self) where K implements Copy, V implements Copy {
+        mut Vector<Entry<K, V>> output = []?;
+        Vector.reserve(&mut output, self.count)?;
+        mut usize index = 0;
+        while (index < Vector.len(&self.slots)) {
+            switch (self.slots[index]) {
+                case Bucket<K, V>.Full { &K key = key, &V value = value }:
+                    Result<unit, InputError<Entry<K, V>>> appended = Vector.push(&mut output, Entry<K, V>.Pair { key = *key, value = *value });
+                    switch (move appended) {
+                        case Result<unit, InputError<Entry<K, V>>>.Ok: break;
+                        case Result<unit, InputError<Entry<K, V>>>.Err { InputError<Entry<K, V>> problem = error }:
+                            switch (move problem) {
+                                case InputError<Entry<K, V>>.AllocationFailure: return Result.err(CollectionError.AllocationFailure); break;
+                                case InputError<Entry<K, V>>.SizeOverflow: return Result.err(CollectionError.SizeOverflow); break;
+                                // This path only delegates to push/rehash, which never reports an index error.
+                                case InputError<Entry<K, V>>.OutOfBounds: Never.unreachable(); break;
+                            }
+                            break;
+                    }
+                    break;
+                case Bucket<K, V>.Empty: break;
+                case Bucket<K, V>.Deleted: break;
+            }
+            index++;
+        }
+        return Result.ok(output);
+    }
+
+};
+
+/*
+ * get for i8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<i8, V> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for i8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<i8, V> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for i8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i8> get_key<V>(& Map<i8, V> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for i8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<i8, V> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for i8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<i8, V>>> insert<V>(&mut Map<i8, V> table, i8 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for i8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<i8, V> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for i8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i8, V>> remove_entry<V>(&mut Map<i8, V> table, &i8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i8 left, &i8 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for i16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<i16, V> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for i16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<i16, V> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for i16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i16> get_key<V>(& Map<i16, V> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for i16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<i16, V> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for i16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<i16, V>>> insert<V>(&mut Map<i16, V> table, i16 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for i16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<i16, V> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for i16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i16, V>> remove_entry<V>(&mut Map<i16, V> table, &i16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i16 left, &i16 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for i32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<i32, V> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for i32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<i32, V> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for i32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i32> get_key<V>(& Map<i32, V> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for i32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<i32, V> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for i32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<i32, V>>> insert<V>(&mut Map<i32, V> table, i32 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for i32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<i32, V> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for i32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i32, V>> remove_entry<V>(&mut Map<i32, V> table, &i32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i32 left, &i32 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for i64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<i64, V> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for i64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<i64, V> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for i64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i64> get_key<V>(& Map<i64, V> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for i64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<i64, V> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for i64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<i64, V>>> insert<V>(&mut Map<i64, V> table, i64 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for i64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<i64, V> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for i64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i64, V>> remove_entry<V>(&mut Map<i64, V> table, &i64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i64 left, &i64 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for i128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<i128, V> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for i128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<i128, V> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for i128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&i128> get_key<V>(& Map<i128, V> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for i128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<i128, V> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for i128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<i128, V>>> insert<V>(&mut Map<i128, V> table, i128 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for i128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<i128, V> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for i128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<i128, V>> remove_entry<V>(&mut Map<i128, V> table, &i128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&i128 left, &i128 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for isize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<isize, V> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for isize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<isize, V> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for isize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&isize> get_key<V>(& Map<isize, V> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for isize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<isize, V> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for isize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<isize, V>>> insert<V>(&mut Map<isize, V> table, isize key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for isize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<isize, V> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for isize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<isize, V>> remove_entry<V>(&mut Map<isize, V> table, &isize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&isize left, &isize right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for u8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<u8, V> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for u8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<u8, V> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for u8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u8> get_key<V>(& Map<u8, V> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for u8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<u8, V> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for u8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<u8, V>>> insert<V>(&mut Map<u8, V> table, u8 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for u8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<u8, V> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for u8 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u8, V>> remove_entry<V>(&mut Map<u8, V> table, &u8 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u8 left, &u8 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for u16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<u16, V> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for u16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<u16, V> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for u16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u16> get_key<V>(& Map<u16, V> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for u16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<u16, V> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for u16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<u16, V>>> insert<V>(&mut Map<u16, V> table, u16 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for u16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<u16, V> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for u16 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u16, V>> remove_entry<V>(&mut Map<u16, V> table, &u16 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u16 left, &u16 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for u32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<u32, V> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for u32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<u32, V> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for u32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u32> get_key<V>(& Map<u32, V> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for u32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<u32, V> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for u32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<u32, V>>> insert<V>(&mut Map<u32, V> table, u32 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for u32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<u32, V> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for u32 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u32, V>> remove_entry<V>(&mut Map<u32, V> table, &u32 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u32 left, &u32 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for u64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<u64, V> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for u64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<u64, V> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for u64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u64> get_key<V>(& Map<u64, V> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for u64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<u64, V> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for u64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<u64, V>>> insert<V>(&mut Map<u64, V> table, u64 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for u64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<u64, V> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for u64 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u64, V>> remove_entry<V>(&mut Map<u64, V> table, &u64 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u64 left, &u64 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for u128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<u128, V> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for u128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<u128, V> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for u128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&u128> get_key<V>(& Map<u128, V> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for u128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<u128, V> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for u128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<u128, V>>> insert<V>(&mut Map<u128, V> table, u128 key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for u128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<u128, V> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for u128 keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<u128, V>> remove_entry<V>(&mut Map<u128, V> table, &u128 query) {
+    u64 code = hash.value(query);
+    rsn same = [](&u128 left, &u128 right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for usize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<usize, V> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for usize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<usize, V> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for usize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&usize> get_key<V>(& Map<usize, V> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for usize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<usize, V> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for usize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<usize, V>>> insert<V>(&mut Map<usize, V> table, usize key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for usize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<usize, V> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for usize keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<usize, V>> remove_entry<V>(&mut Map<usize, V> table, &usize query) {
+    u64 code = hash.value(query);
+    rsn same = [](&usize left, &usize right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for bool keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<bool, V> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for bool keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<bool, V> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for bool keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&bool> get_key<V>(& Map<bool, V> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for bool keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<bool, V> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for bool keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<bool, V>>> insert<V>(&mut Map<bool, V> table, bool key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for bool keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<bool, V> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for bool keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<bool, V>> remove_entry<V>(&mut Map<bool, V> table, &bool query) {
+    u64 code = hash.value(query);
+    rsn same = [](&bool left, &bool right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for byte keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<byte, V> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for byte keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<byte, V> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for byte keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&byte> get_key<V>(& Map<byte, V> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for byte keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<byte, V> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for byte keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<byte, V>>> insert<V>(&mut Map<byte, V> table, byte key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for byte keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<byte, V> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for byte keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<byte, V>> remove_entry<V>(&mut Map<byte, V> table, &byte query) {
+    u64 code = hash.value(query);
+    rsn same = [](&byte left, &byte right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for string keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<string, V> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for string keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<string, V> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for string keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&string> get_key<V>(& Map<string, V> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for string keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<string, V> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for string keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<string, V>>> insert<V>(&mut Map<string, V> table, string key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for string keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<string, V> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for string keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<string, V>> remove_entry<V>(&mut Map<string, V> table, &string query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string left, &string right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for string_view keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<V>(& Map<string_view, V> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for string_view keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<V>(&mut Map<string_view, V> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for string_view keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&string_view> get_key<V>(& Map<string_view, V> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for string_view keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<V>(& Map<string_view, V> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for string_view keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<string_view, V>>> insert<V>(&mut Map<string_view, V> table, string_view key, V value) {
+    u64 code = hash.value(&key);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for string_view keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<V>(&mut Map<string_view, V> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for string_view keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<string_view, V>> remove_entry<V>(&mut Map<string_view, V> table, &string_view query) {
+    u64 code = hash.value(query);
+    rsn same = [](&string_view left, &string_view right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}
+
+/*
+ * get for custom Hash/Eq keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&V> get<K, V>(& Map<K, V> table, &K query) where K implements hash.Hash, K implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&K left, &K right) -> bool { return hash.equal(left, right); };
+    return table.get_with(query, code, &same);
+}
+
+/*
+ * get_mut for custom Hash/Eq keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&mut V> get_mut<K, V>(&mut Map<K, V> table, &K query) where K implements hash.Hash, K implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&K left, &K right) -> bool { return hash.equal(left, right); };
+    return table.get_mut_with(query, code, &same);
+}
+
+/*
+ * get_key for custom Hash/Eq keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<&K> get_key<K, V>(& Map<K, V> table, &K query) where K implements hash.Hash, K implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&K left, &K right) -> bool { return hash.equal(left, right); };
+    return table.get_key_with(query, code, &same);
+}
+
+/*
+ * contains_key for custom Hash/Eq keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool contains_key<K, V>(& Map<K, V> table, &K query) where K implements hash.Hash, K implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&K left, &K right) -> bool { return hash.equal(left, right); };
+    return table.contains_key_with(query, code, &same);
+}
+
+/*
+ * insert for custom Hash/Eq keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Result<Optional<V>, InputError<Entry<K, V>>> insert<K, V>(&mut Map<K, V> table, K key, V value) where K implements hash.Hash, K implements hash.Eq {
+    u64 code = hash.value(&key);
+    rsn same = [](&K left, &K right) -> bool { return hash.equal(left, right); };
+    return table.insert_with(key, value, code, &same);
+}
+
+/*
+ * remove for custom Hash/Eq keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<V> remove<K, V>(&mut Map<K, V> table, &K query) where K implements hash.Hash, K implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&K left, &K right) -> bool { return hash.equal(left, right); };
+    return table.remove_with(query, code, &same);
+}
+
+/*
+ * remove_entry for custom Hash/Eq keys. Preserves input/query borrows; expected O(1), worst O(capacity), plus key work.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public Optional<Entry<K, V>> remove_entry<K, V>(&mut Map<K, V> table, &K query) where K implements hash.Hash, K implements hash.Eq {
+    u64 code = hash.value(query);
+    rsn same = [](&K left, &K right) -> bool { return hash.equal(left, right); };
+    return table.remove_entry_with(query, code, &same);
+}

@@ -11,10 +11,15 @@
 // ========================
 
 #include "aevix/Frontend/Sema/GenericResolver.hpp"
+#include "aevix/Native/AtomicOperation.hpp"
+#include "aevix/Native/SyncOperation.hpp"
+#include "aevix/Native/TaskOperation.hpp"
+#include "aevix/Frontend/Lexer/LiteralText.hpp"
 #include "aevix/Frontend/Sema/NumericLiteral.hpp"
 #include "aevix/Frontend/Sema/ConstEvaluator.hpp"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <map>
 #include <set>
@@ -84,6 +89,7 @@ namespace aevix
             Node* owner = nullptr;
         };
         using Bindings = std::map<std::string, NodePtr>;
+        constexpr std::size_t maximumGeneratedDeclarations = 4096;
 
         class Resolver final
         {
@@ -97,8 +103,19 @@ namespace aevix
                         declarations_[symbol.declaration] = {const_cast<Node*>(symbol.declaration), symbol.module, symbol.id, nullptr};
                         symbols_[symbol.id] = symbol.declaration;
                     }
+                const auto rememberOriginal = [&](const auto& self, const Node& value) -> void
+                {
+                    originalNodes_.insert(&value);
+                    if (value.kind == "Name" || value.kind == "Type" || value.kind == "Member"
+                        || value.kind == "QualifiedType" || value.kind == "GenericName")
+                        referencePaths_[&value] = flatPath(value);
+                    for (const auto& nested : value.children) self(self, *nested);
+                };
                 for (ModuleId module = 0; module < graph.modules.size(); ++module)
+                {
+                    rememberOriginal(rememberOriginal, *graph.modules[module]->ast);
                     index(*graph.modules[module]->ast, module, nullptr);
+                }
                 for (const auto& [expression, ids] : names.references)
                 {
                     (void)ids;
@@ -112,7 +129,9 @@ namespace aevix
                 for (const auto& [address, declaration] : declarations_)
                 {
                     (void)address;
+                    validateLifecycleConstraints(*declaration.node);
                     if (declaration.node->kind != "Struct" && declaration.node->kind != "Enum") continue;
+                    validateDropContract(*declaration.node, declaration.module);
                     if (const auto* implemented = child(*declaration.node, "Implements"))
                         for (const auto& requirement : implemented->children)
                             if (floatingContract(*requirement, declaration.module))
@@ -182,6 +201,8 @@ namespace aevix
             std::unordered_map<const Node*, std::string> canonicalKeys_;
             std::unordered_map<const Node*, Node*> selfOwners_;
             std::unordered_set<const Node*> rewritten_;
+            std::unordered_set<const Node*> synthesized_;
+            std::unordered_set<const Node*> originalNodes_;
             std::unordered_set<const Node*> validated_;
             std::unordered_set<const Node*> validating_;
             std::size_t generated_ = 0;
@@ -203,17 +224,115 @@ namespace aevix
                 // 임시 추론 노드의 주소 재사용이 이전 원본 정보를 되살리지 않게 한다.
                 // Address reuse by temporary inference nodes must not revive stale provenance.
                 origins_.erase(result.get()); selfOwners_.erase(result.get()); rewritten_.erase(result.get());
+                synthesized_.insert(result.get());
                 return result;
             }
             void error(const Node& location, std::string message)
             {
                 diagnostics_.push_back({location.range, std::move(message)});
             }
+            bool implementsDrop(const Node& owner) const
+            {
+                const auto* implemented = child(owner, "Implements");
+                return implemented && std::any_of(implemented->children.begin(), implemented->children.end(),
+                    [](const auto& marker) { return marker->value == "Drop"; });
+            }
+            void validateLifecycleConstraints(const Node& declaration)
+            {
+                std::map<std::string, std::pair<bool, bool>> markers;
+                for (const auto& item : declaration.children)
+                    if (item->kind == "Constraint" && item->children.size() >= 2)
+                        for (std::size_t index = 1; index < item->children.size(); ++index)
+                        {
+                            const auto& marker = *item->children[index];
+                            auto& selected = markers[item->children[0]->value];
+                            if (marker.value == "Copy") selected.first = true;
+                            if (marker.value == "Drop")
+                            {
+                                selected.second = true;
+                                if (!marker.children.empty()) error(marker, "Drop is a lifecycle marker without type arguments.");
+                            }
+                        }
+                for (const auto& [name, selected] : markers)
+                {
+                    (void)name;
+                    if (selected.first && selected.second) error(declaration, "A generic type parameter cannot require both Copy and Drop.");
+                }
+            }
+            void validateDropContract(const Node& owner, ModuleId module)
+            {
+                const auto* implemented = child(owner, "Implements");
+                if (!implemented || !implementsDrop(owner)) return;
+                unsigned markers = 0;
+                for (const auto& marker : implemented->children)
+                {
+                    if (marker->value == "Copy") error(owner, "A type cannot implement both Copy and Drop.");
+                    if (marker->value == "Drop")
+                    {
+                        ++markers;
+                        if (!marker->children.empty()) error(*marker, "Drop is a lifecycle marker without type arguments.");
+                    }
+                    else if (marker->value != "Copy")
+                    {
+                        const auto contract = declaration(*marker, module);
+                        if (contract.node && contract.node->kind == "Interface")
+                            for (const auto& member : contract.node->children)
+                                if (member->kind == "Function" && member->value == "drop")
+                                    error(*marker, "A Drop cleanup method cannot implement a callable interface method named drop.");
+                    }
+                }
+                if (markers != 1) error(owner, "A type must list the Drop lifecycle marker exactly once.");
+                const Node* method = nullptr;
+                unsigned methods = 0;
+                for (const auto& member : owner.children)
+                    if (member->kind == "Function" && member->value == "drop") { method = member.get(); ++methods; }
+                if (methods != 1)
+                {
+                    error(owner, "Drop requires exactly one public void drop(&mut Self self) method.");
+                    return;
+                }
+                bool valid = modifier(*method, "public") && !modifier(*method, "private")
+                    && !modifier(*method, "override") && !modifier(*method, "mut")
+                    && !modifier(*method, "const") && !modifier(*method, "persist") && !modifier(*method, "extern")
+                    && !child(*method, "Constraint") && child(*method, "Block")
+                    && !method->children.empty() && key(*method->children[0], module) == "void";
+                if (const auto* generics = child(*method, "GenericParameters"); generics && !generics->children.empty()) valid = false;
+                const auto* parameters = child(*method, "Parameters");
+                if (!parameters || parameters->children.size() != 1) valid = false;
+                else
+                {
+                    const auto& self = *parameters->children[0];
+                    valid = valid && self.kind == "Parameter" && self.value == "self"
+                        && !child(self, "Default") && !child(self, "ArraySuffixes") && !child(self, "Modifier")
+                        && self.children.size() == 1 && self.children[0]->kind == "ReferenceType"
+                        && self.children[0]->value == "mut" && self.children[0]->children.size() == 1;
+                    if (valid)
+                    {
+                        const auto& receiver = *self.children[0]->children[0];
+                        auto canonical = portableType(receiver, module, module);
+                        const auto target = declaration(*canonical, module);
+                        valid = target.node == &owner;
+                        const auto arguments = typeArguments(*canonical);
+                        const auto* generics = child(owner, "GenericParameters");
+                        if (receiver.value == "Self") valid = valid && receiver.children.empty();
+                        else if (generics)
+                        {
+                            valid = valid && arguments.size() == generics->children.size();
+                            if (valid)
+                                for (std::size_t index = 0; index < arguments.size(); ++index)
+                                    valid = valid && arguments[index]->value == generics->children[index]->value
+                                        && arguments[index]->children.empty();
+                        }
+                        else valid = valid && arguments.empty();
+                    }
+                }
+                if (!valid) error(*method, "Drop requires the exact public void drop(&mut Self self) contract without generic, variadic, default, or extra parameters.");
+            }
             void mark(Node& declaration, std::string kind)
             {
                 if (!child(declaration, kind)) declaration.children.push_back(node(std::move(kind), "", declaration.range));
             }
-            void index(Node& declaration, ModuleId module, Node* owner)
+            void index(Node& declaration, ModuleId module, Node* owner, Node* function = nullptr)
             {
                 if (owner && declaration.value == "Self") selfOwners_[&declaration] = owner;
                 if (typeDeclaration(declaration) || declaration.kind == "Function")
@@ -222,8 +341,14 @@ namespace aevix
                     if (found == declarations_.end()) declarations_[&declaration] = {&declaration, module, InvalidSymbolId, owner};
                     else found->second.owner = owner;
                 }
+                // 선행 해석의 필드·항목·지역 심벌도 실제 소유 범위를 보존해야 한다.
+                // Preserve lexical owners of original fields, variants, and locals in fallback lookup.
+                if (!typeDeclaration(declaration) && declaration.kind != "Function")
+                    if (const auto found = declarations_.find(&declaration); found != declarations_.end())
+                        found->second.owner = function ? function : owner;
                 Node* nested = typeDeclaration(declaration) || declaration.kind == "Variant" ? &declaration : owner;
-                for (auto& item : declaration.children) index(*item, module, nested);
+                auto* enclosingFunction = declaration.kind == "Function" ? &declaration : function;
+                for (auto& item : declaration.children) index(*item, module, nested, enclosingFunction);
             }
             NodePtr clone(const Node& original)
             {
@@ -231,21 +356,105 @@ namespace aevix
                 result->comments = original.comments; result->height = original.height;
                 if (const auto self = selfOwners_.find(&original); self != selfOwners_.end()) selfOwners_[result.get()] = self->second;
                 const auto origin = origins_.find(&original);
-                origins_[result.get()] = origin == origins_.end() ? &original : origin->second;
+                if (origin != origins_.end() && originalNodes_.contains(origin->second)) origins_[result.get()] = origin->second;
+                else if (!synthesized_.contains(&original) && originalNodes_.contains(&original)) origins_[result.get()] = &original;
                 for (const auto& item : original.children) result->children.push_back(clone(*item));
                 return result;
             }
+            const Node* originalSyntax(const Node& expression) const
+            {
+                if (rewritten_.contains(&expression)) return nullptr;
+                const auto cloned = origins_.find(&expression);
+                if (cloned == origins_.end() && synthesized_.contains(&expression)) return nullptr;
+                const auto* origin = cloned == origins_.end() ? &expression : cloned->second;
+                if (!originalNodes_.contains(origin)) return nullptr;
+                const auto spelling = referencePaths_.find(origin);
+                if (spelling == referencePaths_.end() || spelling->second != flatPath(expression)) return nullptr;
+                return origin;
+            }
+            const std::vector<SymbolId>* originalReferences(const Node& expression) const
+            {
+                const auto* origin = originalSyntax(expression);
+                if (!origin) return nullptr;
+                const auto found = names_.references.find(origin);
+                return found == names_.references.end() ? nullptr : &found->second;
+            }
+            NameResolution constantNamesFor(const Node& expression) const
+            {
+                auto result = names_;
+                const auto bind = [&](const auto& self, const Node& value) -> void
+                {
+                    result.references.erase(&value);
+                    if (const auto* ids = originalReferences(value)) result.references[&value] = *ids;
+                    for (const auto& nested : value.children) self(self, *nested);
+                };
+                bind(bind, expression); return result;
+            }
+            bool builtinReceiver(const Node& expression, std::string_view expected, ModuleId module, const std::map<std::string, const Node*>& locals)
+            {
+                if (expression.kind != "Name" || expression.value != expected || locals.contains(expression.value)) return false;
+                if (const auto* ids = originalReferences(expression))
+                {
+                    if (ids->size() != 1 || ids->front() >= names_.symbols.size()) return false;
+                    const auto& symbol = names_.symbols[ids->front()];
+                    return !symbol.declaration && symbol.module == InvalidModuleId && symbol.name == expected
+                        && (symbol.kind == SymbolKind::Type || symbol.kind == SymbolKind::Intrinsic);
+                }
+                // 새 노드의 주소는 선행 AST의 심벌 키가 아니다. 현재 선언과 내장 이름으로 재해석한다.
+                // A generated address is not an original AST symbol key; resolve current declarations and builtin names.
+                if (!references(expression, module).empty()) return false;
+                return std::any_of(names_.symbols.begin(), names_.symbols.end(), [&](const auto& symbol)
+                { return !symbol.declaration && symbol.module == InvalidModuleId && symbol.name == expected
+                    && (symbol.kind == SymbolKind::Type || symbol.kind == SymbolKind::Intrinsic); });
+            }
+            bool builtinMember(const Node& callee, std::string_view expected, ModuleId module, const std::map<std::string, const Node*>& locals)
+            {
+                // 가져온 모듈 함수와 같은 철자의 내장 네임스페이스를 혼동하지 않는다.
+                // Do not confuse an imported module function with an identically spelled builtin namespace.
+                if (callee.kind != "Member" || callee.children.size() != 1
+                    || !builtinReceiver(*callee.children[0], expected, module, locals)) return false;
+                if (originalSyntax(callee) && originalReferences(*callee.children[0]))
+                {
+                    // 선행 이름 해석의 내장 선택은 간접 의존 모듈 때문에 바뀌지 않는다.
+                    // A canonical builtin binding cannot change because a transitive module is loaded.
+                    return originalReferences(callee) == nullptr;
+                }
+                bool visible = graph_.modules[module]->name == expected;
+                for (const auto& imported : graph_.modules[module]->ast->children)
+                {
+                    if (imported->kind != "Import" || imported->value != expected) continue;
+                    bool selected = false;
+                    for (const auto& name : imported->children)
+                        if (name->kind == "ImportName")
+                        {
+                            selected = true;
+                            if (name->value == "*" || name->value == callee.value) visible = true;
+                        }
+                    if (!selected) visible = true;
+                }
+                return !visible || references(callee, module).empty();
+            }
             std::vector<Declaration> references(const Node& expression, ModuleId module)
             {
-                const Node* origin = &expression;
-                const auto cloned = origins_.find(origin);
-                if (cloned != origins_.end()) origin = cloned->second;
-                const auto found = names_.references.find(origin);
                 std::vector<Declaration> result;
-                const auto originalPath = referencePaths_.find(origin);
-                const bool originalSpelling = originalPath != referencePaths_.end() && flatPath(expression) == originalPath->second;
-                if (!rewritten_.contains(&expression) && originalSpelling && found != names_.references.end())
-                    for (const auto id : found->second)
+                if ((expression.kind == "Member" || expression.kind == "QualifiedType") && !expression.children.empty())
+                {
+                    const auto parent = declaration(*expression.children[0], module);
+                    if (parent.node && canonicalKeys_.contains(parent.node))
+                    {
+                        // Self의 철자가 같아도 구체 소유자의 멤버를 원본 템플릿으로 되돌리지 않는다.
+                        // An unchanged Self spelling must still resolve members on its materialized owner.
+                        for (const auto& member : parent.node->children)
+                            if (member->value == expression.value && (member->kind == "Variant" || member->kind == "Function" || member->kind == "Variable"))
+                            {
+                                const auto known = declarations_.find(member.get());
+                                result.push_back(known == declarations_.end() ? Declaration{member.get(), parent.module, InvalidSymbolId, parent.node} : known->second);
+                            }
+                        return result;
+                    }
+                }
+                if (const auto* ids = originalReferences(expression))
+                    for (const auto id : *ids)
                     {
                         const auto symbol = symbols_.find(id);
                         if (symbol != symbols_.end() && declarations_.contains(symbol->second)) result.push_back(declarations_.at(symbol->second));
@@ -319,8 +528,12 @@ namespace aevix
             NodePtr portableType(const Node& original, ModuleId from, ModuleId into)
             {
                 const auto alias = declaration(original, from);
-                if (original.kind == "Type" && original.value == "Self" && alias.node && !generic(*alias.node))
-                    return use(alias, into, "Type", original.range);
+                if (original.kind == "Type" && original.value == "Self" && alias.node)
+                {
+                    // 제네릭 계약의 추상 Self를 타입 인자가 없는 소유 템플릿으로 바꾸지 않는다.
+                    // Keep abstract Self in a generic contract instead of producing a bare owner template.
+                    return generic(*alias.node) ? clone(original) : use(alias, into, "Type", original.range);
+                }
                 if (alias.node && alias.node->kind == "TypeAlias" && !alias.node->children.empty())
                 {
                     auto result = portableType(*alias.node->children[0], alias.module, into);
@@ -343,6 +556,23 @@ namespace aevix
                     else if (original.kind == "QualifiedType")
                         for (std::size_t index = 1; index < arguments.size(); ++index) result->children.push_back(portableType(*arguments[index], from, into));
                 }
+                else if (original.kind == "Type")
+                {
+                    // 내장 컨테이너에도 원래 모듈의 명목 타입이 중첩될 수 있다.
+                    // Builtin containers may nest nominal types that still belong to the original module.
+                    for (std::size_t index = 0; index < original.children.size(); ++index)
+                    {
+                        if (original.value == "Array" && index == 1)
+                        {
+                            if (const auto value = constantGenericValue(*original.children[index]))
+                            {
+                                result->children[index] = node("ConstantTypeArgument", std::to_string(*value), original.children[index]->range);
+                                continue;
+                            }
+                        }
+                        result->children[index] = portableType(*original.children[index], from, into);
+                    }
+                }
                 return result;
             }
             void substitute(Node& item, const Bindings& bindings, ModuleId argumentModule, ModuleId into)
@@ -364,6 +594,7 @@ namespace aevix
                         if (replacementOrigin) origins_[&item] = replacementOrigin; else origins_.erase(&item);
                         if (replacementOwner) selfOwners_[&item] = replacementOwner; else selfOwners_.erase(&item);
                         rewritten_.erase(&item);
+                        synthesized_.insert(&item);
                         return;
                     }
                 }
@@ -377,7 +608,7 @@ namespace aevix
                     if (const auto* args = child(expression, "TypeArguments"))
                         for (const auto& argument : args->children) result.push_back(argument.get());
                 }
-                else
+                else if (expression.kind != "Member")
                     for (std::size_t index = expression.kind == "QualifiedType" ? 1 : 0; index < expression.children.size(); ++index)
                         result.push_back(expression.children[index].get());
                 return result;
@@ -396,7 +627,22 @@ namespace aevix
                 std::string result = declared.node ? graph_.modules[declared.module]->name + "." + declared.node->value : flatPath(type);
                 if (result == "int") result = "i32";
                 if (result == "float") result = "f64";
-                const auto arguments = typeArguments(type);
+                auto arguments = typeArguments(type);
+                Bindings completed;
+                if (declared.node && typeDeclaration(*declared.node))
+                    if (const auto* parameters = child(*declared.node, "GenericParameters"); parameters
+                        && arguments.size() < parameters->children.size())
+                    {
+                        for (std::size_t index = 0; index < arguments.size(); ++index)
+                            completed[parameters->children[index]->value] = clone(*arguments[index]);
+                        if (completeBindings(declared, completed, module, false))
+                        {
+                            // 생략한 기본 타입 인자도 중첩된 특수화의 동일성에 포함한다.
+                            // Include omitted default type arguments in nested specialization identity.
+                            arguments.clear();
+                            for (const auto& parameter : parameters->children) arguments.push_back(completed.at(parameter->value).get());
+                        }
+                    }
                 if (!arguments.empty())
                 {
                     result += '<';
@@ -415,13 +661,14 @@ namespace aevix
                 if (name == "string") return false;
                 if (name == "Range" && type.children.size() == 1) return copy(*type.children[0], module, visiting);
                 if (name == "Slice" && type.children.size() == 1) return true;
-                if (name == "Array" && !type.children.empty()) return copy(*type.children[0], module, visiting);
-                if (name == "Tuple")
-                { for (const auto& field : type.children) if (!copy(*field, module, visiting)) return false; return true; }
+                // 집합의 명시적 복사와 Copy 계약은 다르며 배열과 튜플은 이동 전용이다.
+                // Explicit aggregate copying is distinct from Copy; arrays and tuples remain move-only.
+                if (name == "Array" || name == "Tuple") return false;
                 static const std::set<std::string> scalars = {"i8","i16","i32","i64","i128","u8","u16","u32","u64","u128","int","isize","usize","f16","bf16","f32","f64","float","bool","char","byte","unit","never","string_view"};
                 if (scalars.contains(name)) return true;
                 const auto declared = declaration(type, module);
                 if (!declared.node) return false;
+                if (child(*declared.node, "CompilerShared") || child(*declared.node, "CompilerWeak") || child(*declared.node, "CompilerAtomic") || child(*declared.node, "CompilerMutex") || child(*declared.node, "CompilerRwLock") || child(*declared.node, "CompilerMutexGuard") || child(*declared.node, "CompilerReadGuard") || child(*declared.node, "CompilerWriteGuard") || child(*declared.node, "CompilerCancellationSource") || child(*declared.node, "CompilerCancellationToken") || child(*declared.node, "CompilerTask") || child(*declared.node, "CompilerTaskScope")) return false;
                 if (child(*declared.node, "CompilerSimd")) return true;
                 const auto identity = key(type, module);
                 if (!visiting.insert(identity).second) return false;
@@ -429,6 +676,7 @@ namespace aevix
                 bool answer = false;
                 if (implemented)
                     for (const auto& interface : implemented->children) if (interface->value == "Copy") answer = true;
+                if (implementsDrop(*declared.node)) answer = false;
                 if (answer)
                 {
                     Bindings parameters;
@@ -495,6 +743,13 @@ namespace aevix
                 if (required.value == "Fn" || required.value == "FnMut" || required.value == "FnOnce") return callableConstraint(concrete, module, required);
                 if (required.value == "Copy") { std::set<std::string> visiting; return copy(concrete, module, visiting); }
                 const auto type = declaration(concrete, module);
+                if (required.value == "Drop")
+                {
+                    if (!required.children.empty()) return false;
+                    if (type.node && type.node->kind == "TypeAlias" && !type.node->children.empty())
+                        return constraint(*type.node->children[0], type.module, required);
+                    return type.node && (type.node->kind == "Struct" || type.node->kind == "Enum") && implementsDrop(*type.node);
+                }
                 const auto* interfaces = type.node ? child(*type.node, "Implements") : nullptr;
                 if (!interfaces) return false;
                 for (const auto& interface : interfaces->children)
@@ -503,15 +758,7 @@ namespace aevix
             }
             std::optional<std::uint64_t> constantGenericValue(const Node& argument)
             {
-                NameResolution constantNames = names_;
-                const auto addOrigins = [&](const auto& self, const Node& value) -> void
-                {
-                    if (const auto origin = origins_.find(&value); origin != origins_.end())
-                        if (const auto reference = names_.references.find(origin->second); reference != names_.references.end())
-                            constantNames.references[&value] = reference->second;
-                    for (const auto& nested : value.children) self(self, *nested);
-                };
-                addOrigins(addOrigins, argument);
+                const auto constantNames = constantNamesFor(argument);
                 const Node* expression = &argument;
                 if (expression->kind == "ConstantTypeArgument" && expression->children.size() == 1) expression = expression->children[0].get();
                 TypeContext constants;
@@ -584,19 +831,19 @@ namespace aevix
                 for (const auto* argument : completed) identity += key(*argument, argumentModule) + ';';
                 const auto existing = specializations_.find(identity);
                 if (existing != specializations_.end()) return existing->second;
-                if (generated_ >= 512 || depth > 64)
-                { error(site, "Generic specialization limit exceeded."); return {}; }
+                if (generated_ >= maximumGeneratedDeclarations || depth > 64)
+                { error(site, "Generic specialization exceeds the 4096 generated-declaration limit or nesting depth 64."); return {}; }
                 for (const auto& requirement : original.node->children)
                     if (requirement->kind == "Constraint" && requirement->children.size() >= 2)
                     {
-                        const auto concrete = bindings.find(requirement->children[0]->value);
-                        if (concrete == bindings.end()) { error(*requirement, "A generic constraint must name a type parameter."); return {}; }
+                        auto concrete = portableType(*requirement->children[0], original.module, argumentModule);
+                        substitute(*concrete, bindings, argumentModule, argumentModule);
                         for (std::size_t index = 1; index < requirement->children.size(); ++index)
                         {
                             auto required = portableType(*requirement->children[index], original.module, argumentModule);
                             substitute(*required, bindings, argumentModule, argumentModule);
-                            if (!constraint(*concrete->second, argumentModule, *required))
-                            { error(site, "Concrete type '" + key(*concrete->second, argumentModule) + "' does not satisfy implements " + flatPath(*requirement->children[index]) + "."); return {}; }
+                            if (!constraint(*concrete, argumentModule, *required))
+                            { error(site, "Concrete type '" + key(*concrete, argumentModule) + "' does not satisfy implements " + flatPath(*requirement->children[index]) + "."); return {}; }
                         }
                     }
                 auto result = clone(*original.node);
@@ -626,6 +873,28 @@ namespace aevix
                 if (original.owner) original.owner->children.push_back(std::move(result));
                 else graph_.modules[original.module]->ast->children.push_back(std::move(result));
                 index(*concrete.node, original.module, original.owner);
+                if (concrete.node->kind == "Struct" || concrete.node->kind == "Enum")
+                {
+                    // 구체 소유자의 모든 메서드 서명과 본문에는 동일한 구체 Self를 사용한다.
+                    // Give every materialized owner's signatures and bodies the same concrete Self identity.
+                    Bindings self; self["Self"] = use(concrete, original.module, "Type", site.range);
+                    substitute(*concrete.node, self, original.module, original.module);
+                }
+                if (typeDeclaration(*concrete.node))
+                    for (auto& method : concrete.node->children)
+                        if (method->kind == "Function" && !generic(*method) && child(*method, "Constraint"))
+                        {
+                            bool satisfied = true;
+                            for (const auto& requirement : method->children)
+                                if (requirement->kind == "Constraint" && requirement->children.size() >= 2)
+                                    for (std::size_t index = 1; index < requirement->children.size(); ++index)
+                                        satisfied = constraint(*requirement->children[0], original.module, *requirement->children[index]) && satisfied;
+                            // 구체 소유 타입의 조건부 메서드는 검증된 경우만 실행 가능한 선언이 된다.
+                            // A conditional method on a concrete owner becomes executable only when its bounds hold.
+                            if (satisfied)
+                                std::erase_if(method->children, [](const auto& value) { return value->kind == "Constraint"; });
+                            else { mark(*method, "CompilerUnavailable"); mark(*method, "CompilerTemplate"); }
+                        }
                 process(*concrete.node, original.module, {}, nullptr, depth + 1);
                 return concrete;
             }
@@ -679,10 +948,13 @@ namespace aevix
             NodePtr infer(const Node& expression, ModuleId module, const Locals& locals, Node* owner, std::size_t depth = 0)
             {
                 if (depth > 64) return {};
+                if ((expression.kind == "CompilerSharedExpression" || expression.kind == "CompilerAtomicExpression" || expression.kind == "CompilerSyncExpression" || expression.kind == "CompilerTaskExpression") && !expression.children.empty()) return clone(*expression.children[0]);
+                if (expression.kind == "CompilerMemoryExpression" && !expression.children.empty())
+                    return expression.value == "swap" ? node("Type", "unit", expression.range) : clone(*expression.children[0]);
                 if ((expression.kind == "CompilerTextExpression" || expression.kind == "CompilerSliceExpression") && !expression.children.empty()) return clone(*expression.children[0]);
                 for (const auto* kind : {"CompilerRangeResult", "CompilerCollectionResult", "CompilerArrayResult"})
                     if (const auto* marker = child(expression, kind); marker && !marker->children.empty()) return clone(*marker->children[0]);
-                if ((expression.kind == "CompilerBoxExpression" || expression.kind == "CompilerNumericExpression") && !expression.children.empty()) return clone(*expression.children[0]);
+                if ((expression.kind == "CompilerBoxExpression" || expression.kind == "CompilerNumericExpression" || expression.kind == "CompilerFloatBitsExpression" || expression.kind == "CompilerCharScalarExpression" || expression.kind == "CompilerRangeInspectExpression") && !expression.children.empty()) return clone(*expression.children[0]);
                 if (expression.kind == "Postfix" && expression.value == "?")
                 {
                     auto carrier = infer(*expression.children[0], module, locals, owner, depth + 1);
@@ -698,18 +970,17 @@ namespace aevix
                 {
                     const auto& text = expression.value;
                     if (!numericSuffix(text).empty()) return node("Type", std::string(numericSuffix(text)), expression.range);
-                    return node("Type", text == "true" || text == "false" ? "bool" : text.starts_with('"') ? "string_view" : text.starts_with('\'') ? "char"
+                    return node("Type", text == "true" || text == "false" ? "bool" : isStringLiteralSpelling(text) ? "string_view" : text.starts_with('\'') ? "char"
                         : !text.starts_with("0x") && !text.starts_with("0X") && text.find_first_of(".eE") != std::string::npos ? "f64" : "i32", expression.range);
                 }
                 if (expression.kind == "Name")
                 {
                     const auto local = locals.find(expression.value);
                     if (local != locals.end()) return clone(*local->second);
-                    const auto origin = origins_.find(&expression);
-                    const auto references = names_.references.find(origin == origins_.end() ? &expression : origin->second);
-                    if (references != names_.references.end() && references->second.size() == 1)
+                    const auto* referenced = originalReferences(expression);
+                    if (referenced && referenced->size() == 1)
                     {
-                        const auto id = references->second[0];
+                        const auto id = referenced->front();
                         if (id < names_.symbols.size())
                         {
                             const auto* declaration = names_.symbols[id].declaration;
@@ -762,16 +1033,95 @@ namespace aevix
                 }
                 if (expression.kind == "Call")
                 {
-                    if (!expression.children.empty() && expression.children[0]->kind == "Member"
-                        && expression.children[0]->children.size() == 1 && expression.children[0]->children[0]->kind == "Name"
-                        && expression.children[0]->children[0]->value == "Byte")
+                    const Node* tupleCallee = expression.children.empty() ? nullptr : expression.children[0].get();
+                    if (tupleCallee && tupleCallee->kind == "GenericName" && !tupleCallee->children.empty()) tupleCallee = tupleCallee->children[0].get();
+                    if (tupleCallee && expression.children[0]->kind != "GenericName")
+                    {
+                        const auto& method = tupleCallee->value;
+                        const bool oneArgument = expression.children.size() == 2 && expression.children[1]->children.size() == 1;
+                        if (oneArgument && method == "into_inner" && tupleCallee->kind == "Member" && !tupleCallee->children.empty())
+                        {
+                            // 추상 계약에서도 실제 봉인 Box 정체성과 인수 T만 사용한다.
+                            // Abstract contracts use only the actual sealed Box identity and its argument T.
+                            const auto box = declaration(*tupleCallee->children[0], module);
+                            if (box.node && child(*box.node, "CompilerBox"))
+                            {
+                                const auto input = infer(*expression.children[1]->children[0], module, locals, owner, depth + 1);
+                                const auto inputBox = input ? declaration(*input, module) : Declaration{};
+                                if (input && input->kind != "ReferenceType" && inputBox.node && child(*inputBox.node, "CompilerBox"))
+                                {
+                                    const auto arguments = typeArguments(*input);
+                                    if (arguments.size() == 1) return clone(*arguments[0]);
+                                    for (const auto& field : inputBox.node->children)
+                                        if (field->kind == "Variable" && !field->children.empty()) return portableType(*field->children[0], inputBox.module, module);
+                                }
+                            }
+                        }
+                        // 고정 반환형의 내장 값 연산도 중첩 호출의 타입 추론에 참여한다.
+                        // Fixed-result builtin value operations participate in nested-call inference.
+                        // 전체 멤버의 정체성을 확인하므로 같은 이름의 사용자 모듈 함수에는 적용하지 않는다.
+                        // Full member identity prevents these shapes from intercepting same-named user module functions.
+                        if (oneArgument && ((method == "len" && builtinMember(*tupleCallee, "Slice", module, locals))
+                            || ((method == "len" || method == "capacity") && builtinMember(*tupleCallee, "Vector", module, locals))
+                            || (method == "len" && builtinMember(*tupleCallee, "Tuple", module, locals))))
+                            return node("Type", "usize", expression.range);
+                        if (oneArgument && method == "is_empty" && builtinMember(*tupleCallee, "Tuple", module, locals))
+                            return node("Type", "bool", expression.range);
+                        if (builtinMember(*tupleCallee, "string", module, locals))
+                        {
+                            if (oneArgument && (method == "byte_len" || method == "scalar_count")) return node("Type", "usize", expression.range);
+                            if ((oneArgument && method == "is_empty") || (expression.children.size() == 3 && method == "equals"))
+                                return node("Type", "bool", expression.range);
+                            if (oneArgument && method == "view") return node("Type", "string_view", expression.range);
+                            if (oneArgument && method == "clear") return node("Type", "unit", expression.range);
+                            if (oneArgument && method == "as_bytes")
+                            {
+                                auto result = node("Type", "Slice", expression.range);
+                                result->children.push_back(node("Type", "byte", expression.range)); return result;
+                            }
+                        }
+                    }
+                    if (tupleCallee && ((tupleCallee->value == "from_copy" && builtinMember(*tupleCallee, "Array", module, locals))
+                        || (tupleCallee->value == "copy" && builtinMember(*tupleCallee, "Tuple", module, locals)))
+                        && expression.children.size() == 2 && expression.children[1]->value.empty()
+                        && expression.children[1]->children.size() == 1 && expression.children[0]->kind != "GenericName")
+                    {
+                        auto reference = infer(*expression.children[1]->children[0], module, locals, owner, depth + 1);
+                        if (reference && reference->kind == "ReferenceType" && reference->children.size() == 1)
+                        {
+                            const auto& target = *reference->children[0];
+                            if ((tupleCallee->value == "from_copy" && target.value == "Array" && target.children.size() == 2)
+                                || (tupleCallee->value == "copy" && target.value == "Tuple")) return clone(target);
+                        }
+                        return {};
+                    }
+                    if (tupleCallee && builtinMember(*tupleCallee, "Tuple", module, locals)
+                        && (tupleCallee->value == "get" || tupleCallee->value == "get_mut") && expression.children.size() == 2
+                        && expression.children[1]->children.size() == 1)
+                    {
+                        const auto arguments = typeArguments(*expression.children[0]);
+                        const auto index = arguments.size() == 1 ? constantGenericValue(*arguments[0]) : std::nullopt;
+                        auto reference = infer(*expression.children[1]->children[0], module, locals, owner, depth + 1);
+                        const bool mutableView = tupleCallee->value == "get_mut";
+                        if (index && reference && reference->kind == "ReferenceType" && reference->children.size() == 1
+                            && (!mutableView || reference->value == "mut"))
+                        {
+                            const auto& tuple = *reference->children[0];
+                            if (tuple.value == "Tuple" && *index < tuple.children.size())
+                            {
+                                auto result = node("ReferenceType", mutableView ? "mut" : "read", expression.range);
+                                result->children.push_back(clone(*tuple.children[*index])); return result;
+                            }
+                        }
+                        return {};
+                    }
+                    if (!expression.children.empty() && builtinMember(*expression.children[0], "Byte", module, locals))
                     {
                         const auto method = expression.children[0]->value;
                         if (method == "from_u8" || method == "to_u8")
                             return node("Type", method == "from_u8" ? "byte" : "u8", expression.range);
                     }
-                    if (expression.children.size() == 2 && expression.children[0]->kind == "Member"
-                        && expression.children[0]->children.size() == 1 && flatPath(*expression.children[0]->children[0]) == "Slice")
+                    if (expression.children.size() == 2 && builtinMember(*expression.children[0], "Slice", module, locals))
                     {
                         const auto& method = expression.children[0]->value;
                         if (method == "from_array" || method == "from_array_mut" || method == "from_vector" || method == "from_vector_mut")
@@ -805,7 +1155,8 @@ namespace aevix
                             }
                         }
                     }
-                    if (!expression.children.empty() && flatPath(*expression.children[0]) == "Tuple.make")
+                    if (!expression.children.empty() && expression.children[0]->value == "make"
+                        && builtinMember(*expression.children[0], "Tuple", module, locals))
                     {
                         auto result = node("Type", "Tuple", expression.range);
                         for (std::size_t index = 1; index < expression.children.size(); ++index)
@@ -817,8 +1168,7 @@ namespace aevix
                         }
                         return result;
                     }
-                    if (!expression.children.empty() && expression.children[0]->kind == "Member" && !expression.children[0]->children.empty()
-                        && expression.children[0]->children[0]->value == "Range" && expression.children.size() == 3)
+                    if (expression.children.size() == 3 && builtinMember(*expression.children[0], "Range", module, locals))
                     {
                         const auto& name = expression.children[0]->value;
                         if (name == "new" || name == "closed" || name == "descending" || name == "descending_closed")
@@ -830,7 +1180,8 @@ namespace aevix
                             auto range = node("Type", "Range", expression.range); range->children.push_back(std::move(element)); return range;
                         }
                     }
-                    if (expression.children.size() == 1 && flatPath(*expression.children[0]) == "Unit.value") return node("Type", "unit", expression.range);
+                    if (expression.children.size() == 1 && expression.children[0]->value == "value"
+                        && builtinMember(*expression.children[0], "Unit", module, locals)) return node("Type", "unit", expression.range);
                     const auto target = declaration(*expression.children[0], module);
                     if (target.node && target.node->kind == "Function" && !target.node->children.empty())
                     {
@@ -849,15 +1200,18 @@ namespace aevix
                         }
                         return result;
                     }
-                    if (expression.children[0]->kind == "Member")
+                    // 중첩 호출도 실제 호출과 같은 후보 순위로 반환 타입을 결정한다.
+                    // Resolve nested-call return types with the same candidate ranking as ordinary calls.
+                    const Node* receiver = nullptr;
+                    const auto candidates = callCandidates(*expression.children[0], module, locals, owner, receiver);
+                    bool failedRequirements = false;
+                    auto matches = matchCalls(expression, candidates, receiver, module, locals, owner, failedRequirements);
+                    const auto* best = uniqueBestCall(matches);
+                    if (best)
                     {
-                        auto receiver = infer(*expression.children[0]->children[0], module, locals, owner, depth + 1);
-                        bool dynamic = false;
-                        const auto type = receiverDeclaration(std::move(receiver), module, owner, &dynamic);
-                        if (type.node)
-                            for (const auto& method : type.node->children)
-                                if (method->kind == "Function" && method->value == expression.children[0]->value && (!dynamic || !generic(*method)))
-                                    return portableType(*method->children[0], type.module, module);
+                        auto result = portableType(*best->declaration.node->children[0], best->declaration.module, module);
+                        substitute(*result, best->bindings, module, module);
+                        return result;
                     }
                 }
                 if (expression.kind == "Index" && !expression.children.empty())
@@ -870,6 +1224,11 @@ namespace aevix
                 if (expression.kind == "Member")
                 {
                     const auto known = declaration(expression, module);
+                    // 모듈의 명시적 변수 타입은 인스턴스 필드나 추론 선언으로 추측하지 않는다.
+                    // Read a module variable's explicit type without guessing instance fields or inferred declarations.
+                    if (known.node && known.node->kind == "Variable" && !known.owner && !known.node->children.empty()
+                        && known.node->children[0]->kind != "InferredType")
+                        return portableType(*localParameterType(*known.node), known.module, module);
                     if (known.node && known.node->kind == "Variant" && known.owner) return use(declarations_.at(known.owner), module, "Type", expression.range);
                     auto receiver = infer(*expression.children[0], module, locals, owner, depth + 1);
                     if (receiver && receiver->kind == "ReferenceType") receiver = std::move(receiver->children[0]);
@@ -910,6 +1269,13 @@ namespace aevix
                     const auto existing = bindings.find(parameter.value);
                     if (existing == bindings.end()) { bindings[parameter.value] = clone(actual); return true; }
                     return key(*existing->second, module) == key(actual, module);
+                }
+                const auto parameterDeclaration = declaration(parameter, module);
+                if (parameterDeclaration.node && logicalTypes_.contains(parameterDeclaration.node))
+                {
+                    const auto& logical = logicalTypes_.at(parameterDeclaration.node);
+                    auto restored = portableType(*logical.first, logical.second, module);
+                    return unify(*restored, actual, variables, bindings, module);
                 }
                 const auto actualDeclaration = declaration(actual, module);
                 if (actualDeclaration.node && logicalTypes_.contains(actualDeclaration.node))
@@ -974,7 +1340,7 @@ namespace aevix
             void validateTemplateContract(const Declaration& declaration)
             {
                 if (!contractsChecked_.insert(declaration.node).second) return;
-                std::set<std::string> variables, copyVariables, floatingVariables;
+                std::set<std::string> variables, copyVariables, floatingVariables, dropVariables, zeroArgumentCallables;
                 std::map<std::string, std::set<std::string>> requirements;
                 std::map<std::string, std::vector<NodePtr>> methods;
                 auto collect = [&](const Node& source)
@@ -989,6 +1355,12 @@ namespace aevix
                                 const auto& subject = requirement->children[0]->value;
                                 requirements[subject].insert(key(wanted, declaration.module));
                                 if (wanted.value == "Copy") copyVariables.insert(subject);
+                                if (wanted.value == "Drop")
+                                {
+                                    dropVariables.insert(subject);
+                                    if (!wanted.children.empty()) error(wanted, "Drop is a lifecycle marker without type arguments.");
+                                    continue;
+                                }
                                 if (floatingContract(wanted, declaration.module))
                                 { floatingVariables.insert(subject); copyVariables.insert(subject); }
                                 if (wanted.value == "Fn" || wanted.value == "FnMut" || wanted.value == "FnOnce")
@@ -996,6 +1368,14 @@ namespace aevix
                                     const auto signatureTypes = typeArguments(wanted);
                                     if (signatureTypes.size() != 2 || signatureTypes[0]->value != "Tuple")
                                     { error(wanted, "Callable constraints use Fn<Tuple<Arguments...>, Output>."); continue; }
+                                    const auto canonicalBuiltin = [&](const Node& type, std::string_view name) {
+                                        const auto* references = originalReferences(type);
+                                        if (!references || references->size() != 1 || references->front() >= names_.symbols.size()) return false;
+                                        const auto& symbol = names_.symbols[references->front()];
+                                        return !symbol.declaration && symbol.module == InvalidModuleId && symbol.name == name;
+                                    };
+                                    if (signatureTypes[0]->children.empty() && canonicalBuiltin(wanted, wanted.value)
+                                        && canonicalBuiltin(*signatureTypes[0], "Tuple")) zeroArgumentCallables.insert(subject);
                                     auto signature = node("Function", "__invoke", wanted.range);
                                     signature->children.push_back(clone(*signatureTypes[1]));
                                     auto parameters = node("Parameters", "", wanted.range);
@@ -1027,6 +1407,8 @@ namespace aevix
                 };
                 if (declaration.owner) collect(*declaration.owner);
                 collect(*declaration.node);
+                for (const auto& variable : dropVariables)
+                    if (copyVariables.contains(variable)) error(*declaration.node, "A generic type parameter cannot require both Copy and Drop.");
                 Locals locals;
                 if (const auto* parameters = child(*declaration.node, "Parameters"))
                     for (const auto& parameter : parameters->children) if (const auto* type = localParameterType(*parameter)) locals[parameter->value] = type;
@@ -1181,23 +1563,39 @@ namespace aevix
                 };
                 // 계약에 없는 구체 동작을 우연히 사용해도 구체화로 합법화하지 않는다.
                 // Specialization must not legitimize incidental concrete behavior absent from a bound.
-                auto walk = [&](auto&& visit, const Node& item, Locals scope, const Node* parent, std::size_t depth) -> void
+                auto walk = [&](auto&& visit, const Node& item, Locals scope, const Node* parent,
+                                const Node* returnType, std::size_t depth) -> void
                 {
                     if (depth > 256) { error(item, "Generic contract traversal limit exceeded."); return; }
+                    // 중첩 클로저는 바깥 함수와 독립된 반환 계약과 매개변수 범위를 갖는다.
+                    // Nested closures have their own return contract and parameter scope.
+                    if (item.kind == "Closure" && item.children.size() == 4)
+                    {
+                        returnType = item.children[2].get();
+                        for (const auto& parameter : item.children[1]->children)
+                            if (const auto* type = localParameterType(*parameter)) scope[parameter->value] = type;
+                    }
                     if (item.kind == "Member" && !item.children.empty())
                     {
                         const auto variable = abstractVariable(*item.children[0], scope);
                         if (!variable.empty() && std::none_of(methods[variable].begin(), methods[variable].end(), [&](const auto& method) { return method->value == item.value; }))
                             error(item, "Generic contract does not declare member '" + item.value + "'; add an interface requirement.");
                     }
-                    if (item.kind == "Return" && !item.children.empty() && !declaration.node->children.empty())
+                    if (item.kind == "Return" && !item.children.empty() && returnType)
                     {
-                        const auto& wanted = *declaration.node->children[0];
+                        const auto& wanted = *returnType;
+                        auto actual = abstractType(*item.children[0], scope, 0);
                         if (wanted.kind == "Type" && variables.contains(wanted.value))
                         {
-                            auto actual = abstractType(*item.children[0], scope, 0);
                             if (actual && key(wanted, declaration.module) != key(*actual, declaration.module))
                                 error(item, "Generic contract cannot produce an arbitrary type parameter from a concrete return value.");
+                        }
+                        else if (actual && actual->kind == "Type" && variables.contains(actual->value))
+                        {
+                            const auto target = key(wanted, declaration.module);
+                            static const std::set<std::string> integers = {"i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128", "isize", "usize"};
+                            if (integers.contains(target))
+                                error(item, "Generic contract cannot return an arbitrary type parameter as a concrete integer.");
                         }
                     }
                     if (item.kind == "Binary" && item.children.size() >= 2)
@@ -1233,6 +1631,26 @@ namespace aevix
                     if (item.kind == "Call" && !item.children.empty())
                     {
                         const Node& callee = item.children[0]->kind == "GenericName" ? *item.children[0]->children[0] : *item.children[0];
+                        if (callee.kind == "Member" && callee.children.size() == 1 && item.children.size() == 3 && !item.children[2]->children.empty())
+                        {
+                            const auto& namespaceExpression = *callee.children[0];
+                            const auto& namespaceName = namespaceExpression.kind == "GenericName" && !namespaceExpression.children.empty()
+                                ? *namespaceExpression.children[0] : namespaceExpression;
+                            const auto task = this->declaration(namespaceName, declaration.module);
+                            if (task.node && child(*task.node, "CompilerTask") && graph_.modules[task.module]->package == "$task")
+                                for (const auto& method : task.node->children)
+                                {
+                                    const auto* marker = method->kind == "Function" && method->value == callee.value
+                                        && child(*method, "CompilerIntrinsic") ? child(*method, "CompilerTaskOperation") : nullptr;
+                                    const auto* operation = marker ? taskOperation(marker->value) : nullptr;
+                                    if (!operation || !operation->worker) continue;
+                                    const auto variable = abstractVariable(*item.children[2]->children[0], scope);
+                                    // 구체화할 때 우연히 클로저가 들어와도 선언에 없는 호출 계약을 추가하지 않는다.
+                                    // Incidental concrete closure arguments cannot add a callable contract absent from the template.
+                                    if (!variable.empty() && !zeroArgumentCallables.contains(variable))
+                                        error(item, "Generic Task workers require a zero-argument Fn, FnMut, or FnOnce interface requirement.");
+                                }
+                        }
                         if (callee.kind == "Member" && !callee.children.empty())
                         {
                             const auto variable = abstractVariable(*callee.children[0], scope);
@@ -1246,6 +1664,9 @@ namespace aevix
                         const Node* receiver = nullptr;
                         const auto candidates = callCandidates(*item.children[0], declaration.module, scope, declaration.owner, receiver);
                         for (const auto& target : candidates)
+                        {
+                            if (target.node->value == "drop" && target.owner && implementsDrop(*target.owner))
+                                error(item, "Drop cleanup methods cannot be called explicitly.");
                             if (generic(*target.node))
                             {
                                 Bindings bindings;
@@ -1271,10 +1692,11 @@ namespace aevix
                                         }
                                     }
                             }
+                        }
                     }
                     for (const auto& nested : item.children)
                     {
-                        visit(visit, *nested, scope, &item, depth + 1);
+                        visit(visit, *nested, scope, &item, returnType, depth + 1);
                         if ((item.kind == "Block" || item.kind == "CaseScope" || item.kind == "For") && nested->kind == "Variable" && !nested->children.empty())
                         {
                             if (nested->children[0]->kind != "InferredType") scope[nested->value] = nested->children[0].get();
@@ -1286,7 +1708,8 @@ namespace aevix
                         }
                     }
                 };
-                if (const auto* body = child(*declaration.node, "Block")) walk(walk, *body, locals, nullptr, 0);
+                if (const auto* body = child(*declaration.node, "Block"))
+                    walk(walk, *body, locals, nullptr, declaration.node->children.empty() ? nullptr : declaration.node->children[0].get(), 0);
                 // Copy 보장이 없는 매개변수는 구체 호출의 우연한 Copy 특성과 무관하게 이동한다.
                 // Unbounded values move regardless of an incidental concrete caller being Copy.
                 using Moves = std::map<std::string, bool>;
@@ -1355,6 +1778,19 @@ namespace aevix
                     for (const auto& nested : item.children) consume(*nested, state, scope, owning, depth + 1);
                 };
                 std::function<bool(const Node&, Moves&, Locals, std::size_t)> statements;
+                const auto returnsFromFunction = [&](const auto& self, const Node& statement) -> bool
+                {
+                    if (statement.kind == "Return") return true;
+                    if (statement.kind == "If" && statement.children.size() >= 3)
+                        return self(self, *statement.children[1]) && self(self, *statement.children[2]);
+                    if (statement.kind == "Block" || statement.kind == "CaseScope")
+                        for (const auto& nested : statement.children)
+                        {
+                            if (nested->kind == "Break" || nested->kind == "Continue") return false;
+                            if (self(self, *nested)) return true;
+                        }
+                    return false;
+                };
                 statements = [&](const Node& item, Moves& state, Locals scope, std::size_t depth) -> bool
                 {
                     if (depth > 256) { error(item, "Generic move traversal limit exceeded."); return false; }
@@ -1411,9 +1847,16 @@ namespace aevix
                         for (std::size_t index = 1; index < item.children.size(); ++index)
                         {
                             auto branch = before;
+                            bool returned = false;
                             for (const auto& nested : item.children[index]->children)
-                                if (nested->kind == "CaseScope") statements(*nested, branch, scope, depth + 1);
-                            merge(state, state, branch);
+                                if (nested->kind == "CaseScope")
+                                {
+                                    statements(*nested, branch, scope, depth + 1);
+                                    returned = returnsFromFunction(returnsFromFunction, *nested);
+                                }
+                            // 함수를 반환한 case의 이동은 switch 뒤로 합류하지 않는다. break는 합류한다.
+                            // Moves in a returning case do not rejoin after the switch; moves before break do.
+                            if (!returned) merge(state, state, branch);
                         }
                         return true;
                     }
@@ -1432,13 +1875,13 @@ namespace aevix
                 for (const auto& requirement : function.node->children)
                     if (requirement->kind == "Constraint" && requirement->children.size() >= 2)
                     {
-                        const auto concrete = bindings.find(requirement->children[0]->value);
-                        if (concrete == bindings.end()) return false;
+                        auto concrete = portableType(*requirement->children[0], function.module, module);
+                        substitute(*concrete, bindings, module, module);
                         for (std::size_t index = 1; index < requirement->children.size(); ++index)
                         {
                             auto required = portableType(*requirement->children[index], function.module, module);
                             substitute(*required, bindings, module, module);
-                            if (!constraint(*concrete->second, module, *required)) return false;
+                            if (!constraint(*concrete, module, *required)) return false;
                         }
                     }
                 return true;
@@ -1506,6 +1949,30 @@ namespace aevix
                 if (generics) for (const auto& item : generics->children) variables.insert(item->value);
                 const bool instance = parameters && !parameters->children.empty() && parameters->children[0]->value == "self";
                 if (receiver && !instance) return false;
+                if (receiver && function.owner)
+                    if (const auto* ownerParameters = child(*function.owner, "GenericParameters"))
+                    {
+                        auto actualOwner = infer(*receiver, module, locals, owner);
+                        if (actualOwner && actualOwner->kind == "ReferenceType") actualOwner = std::move(actualOwner->children[0]);
+                        if (actualOwner)
+                        {
+                            const auto actualDeclaration = declaration(*actualOwner, module);
+                            if (actualDeclaration.node && logicalTypes_.contains(actualDeclaration.node))
+                            {
+                                const auto& logical = logicalTypes_.at(actualDeclaration.node);
+                                actualOwner = portableType(*logical.first, logical.second, module);
+                            }
+                            const auto ownerArguments = typeArguments(*actualOwner);
+                            if (ownerArguments.size() == ownerParameters->children.size())
+                                for (std::size_t index = 0; index < ownerArguments.size(); ++index)
+                                {
+                                    // 수신자 타입의 인자를 먼저 연결하여 외부 모듈의 추상 필드 타입을 그대로 비교하지 않는다.
+                                    // Bind receiver-owner arguments before comparing abstract member types across modules.
+                                    const auto& name = ownerParameters->children[index]->value;
+                                    if (!variables.contains(name)) bindings[name] = clone(*ownerArguments[index]);
+                                }
+                        }
+                    }
                 const std::size_t offset = receiver ? 1 : 0;
                 if (!parameters) return false;
                 const bool variadic = !parameters->children.empty() && parameters->children.back()->kind == "VariadicParameter";
@@ -1569,6 +2036,58 @@ namespace aevix
                 if (generics && !completeBindings(function, bindings, module, false)) return false;
                 return true;
             }
+            struct CallMatch
+            {
+                Declaration declaration;
+                Bindings bindings;
+                int literals;
+                bool generic;
+                bool variadic;
+            };
+            static bool worseCall(const CallMatch& left, const CallMatch& right)
+            {
+                return left.literals != right.literals ? left.literals < right.literals
+                    : left.generic != right.generic ? left.generic && !right.generic : left.variadic && !right.variadic;
+            }
+            static bool sameCallRank(const CallMatch& left, const CallMatch& right)
+            {
+                return left.literals == right.literals && left.generic == right.generic && left.variadic == right.variadic;
+            }
+            static const CallMatch* uniqueBestCall(const std::vector<CallMatch>& matches)
+            {
+                if (matches.empty()) return nullptr;
+                const auto best = std::max_element(matches.begin(), matches.end(), worseCall);
+                return std::count_if(matches.begin(), matches.end(), [&](const CallMatch& value) { return sameCallRank(value, *best); }) == 1 ? &*best : nullptr;
+            }
+            std::vector<CallMatch> matchCalls(const Node& call, const std::vector<Declaration>& candidates, const Node* receiver,
+                ModuleId module, const Locals& locals, Node* owner, bool& failedRequirements)
+            {
+                const auto& callee = *call.children[0];
+                const bool explicitArguments = callee.kind == "GenericName";
+                std::vector<CallMatch> matches;
+                for (const auto& candidate : candidates)
+                {
+                    if (candidate.node->kind != "Function") continue;
+                    if (child(*candidate.node, "CompilerUnavailable")) { failedRequirements = true; continue; }
+                    const bool isGeneric = generic(*candidate.node);
+                    if (explicitArguments && !isGeneric) continue;
+                    Bindings bindings;
+                    if (explicitArguments)
+                    {
+                        const auto arguments = typeArguments(callee);
+                        const auto* parameters = child(*candidate.node, "GenericParameters");
+                        if (arguments.size() > parameters->children.size()) continue;
+                        for (std::size_t index = 0; index < arguments.size(); ++index) bindings[parameters->children[index]->value] = clone(*arguments[index]);
+                    }
+                    int literals = 0;
+                    if (!inferArguments(candidate, call, module, locals, owner, bindings, receiver, &literals)) continue;
+                    if (!requirementsHold(candidate, bindings, module)) { failedRequirements = true; continue; }
+                    const auto* parameters = child(*candidate.node, "Parameters");
+                    const bool variadic = parameters && !parameters->children.empty() && parameters->children.back()->kind == "VariadicParameter";
+                    matches.push_back({candidate, std::move(bindings), literals, isGeneric, variadic});
+                }
+                return matches;
+            }
             std::string carrierName(const Declaration& declaration)
             {
                 const auto* carrier = declaration.node ? child(*declaration.node, "CompilerCarrier") : nullptr;
@@ -1620,6 +2139,9 @@ namespace aevix
                     if (arguments.empty() && expected_) arguments = carrierArguments(*expected_, module, kind);
                     if (arguments.empty() && optional && !empty)
                     {
+                        // 문맥 없는 Some의 중첩 호출부터 구체화하여 템플릿의 T를 값 타입으로 오인하지 않는다.
+                        // Materialize a context-free Some argument before inferring its concrete payload type.
+                        { ExpectedGuard context(expected_); expected_ = nullptr; process(*call.children[1]->children[0], module, locals, owner, depth + 1); }
                         auto inferred = infer(*call.children[1]->children[0], module, locals, owner);
                         if (inferred) arguments.push_back(std::move(inferred));
                     }
@@ -1699,7 +2221,8 @@ namespace aevix
             void lowerClosure(Node& closure, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
             {
                 if (closure.children.size() != 4) { error(closure, "Malformed closure expression."); return; }
-                if (generated_ >= 512) { error(closure, "Closure generation exceeds the compiler declaration limit."); return; }
+                if (generated_ >= maximumGeneratedDeclarations)
+                { error(closure, "Closure generation exceeds the 4096 generated-declaration limit."); return; }
                 const auto identity = "$Closure" + std::to_string(++closureSequence_);
                 auto environment = node("Struct", identity, closure.range);
                 environment->children.push_back(node("Modifier", "public", closure.range));
@@ -1707,6 +2230,7 @@ namespace aevix
                 construction->children.push_back(node("Name", identity, closure.range));
                 struct CaptureInfo { std::string field; std::string mode; };
                 std::map<std::string, CaptureInfo> captures;
+                std::set<std::string> owningArrays;
                 bool exclusive = false; bool consuming = false;
                 for (auto& capture : closure.children[0]->children)
                 {
@@ -1715,7 +2239,11 @@ namespace aevix
                     auto type = closureCaptureType(*capture->children[1], module, locals, owner);
                     if (!type) { error(*capture, "Cannot infer closure capture type for '" + capture->value + "'."); return; }
                     std::set<std::string> visiting;
-                    if (mode == "value" && !copy(*type, module, visiting)) consuming = true;
+                    if (mode == "value" && !copy(*type, module, visiting))
+                    {
+                        if (type->value == "Array") owningArrays.insert(capture->value);
+                        else consuming = true;
+                    }
                     if (mode == "mut") exclusive = true;
                     if (mode != "value")
                     { auto reference = node("ReferenceType", mode == "mut" ? "mut" : "read", capture->range); reference->children.push_back(std::move(type)); type = std::move(reference); }
@@ -1729,6 +2257,45 @@ namespace aevix
                     { auto borrow = node("Prefix", mode == "mut" ? "&mut" : "&", capture->range); borrow->children.push_back(std::move(expression)); expression = std::move(borrow); }
                     initial->children.push_back(std::move(expression)); construction->children.push_back(std::move(initial));
                 }
+                // 배열을 캡처할 때의 이동과 본문에서 배열을 소비하는 호출 권한은 구별한다.
+                // Moving an array into a capture differs from consuming it during invocation.
+                const auto classifyArrayUse = [&](const auto& self, const Node& expression, bool owning) -> void
+                {
+                    if (expression.kind == "Name")
+                    { if (owning && owningArrays.contains(expression.value)) consuming = true; return; }
+                    if (expression.kind == "Closure")
+                    {
+                        if (const auto* nested = child(expression, "Captures"))
+                            for (const auto& capture : nested->children)
+                                if (capture->children.size() == 2) self(self, *capture->children[1], capture->children[0]->value == "value");
+                        return;
+                    }
+                    if (expression.kind == "Index" && expression.children.size() == 2)
+                    {
+                        self(self, *expression.children[0], false); self(self, *expression.children[1], true);
+                        if (owning)
+                        {
+                            auto element = infer(expression, module, locals, owner); std::set<std::string> visiting;
+                            if (element && !copy(*element, module, visiting))
+                            {
+                                const auto& base = *expression.children[0];
+                                if (base.kind == "Name" && owningArrays.contains(base.value)) consuming = true;
+                            }
+                        }
+                        return;
+                    }
+                    if (expression.kind == "Prefix" && !expression.children.empty()
+                        && (expression.value == "&" || expression.value == "&mut" || expression.value == "*"))
+                    { self(self, *expression.children[0], false); return; }
+                    if (expression.kind == "Member" && !expression.children.empty())
+                    { self(self, *expression.children[0], false); return; }
+                    if (expression.kind == "Assignment" && expression.children.size() == 2)
+                    { self(self, *expression.children[0], false); self(self, *expression.children[1], true); return; }
+                    if ((expression.kind == "Prefix" || expression.kind == "Postfix") && (expression.value == "++" || expression.value == "--"))
+                    { for (const auto& value : expression.children) self(self, *value, false); return; }
+                    for (const auto& value : expression.children) self(self, *value, owning);
+                };
+                classifyArrayUse(classifyArrayUse, *closure.children[3], true);
                 const auto mentions = [&](const auto& self, const Node& expression) -> bool
                 {
                     if (expression.kind == "Name" && captures.contains(expression.value)) return true;
@@ -1773,7 +2340,11 @@ namespace aevix
                 auto self = node("Parameter", "self", closure.range); auto receiver = node("Type", identity, closure.range);
                 if (!consuming)
                 { auto reference = node("ReferenceType", exclusive ? "mut" : "read", closure.range); reference->children.push_back(std::move(receiver)); receiver = std::move(reference); }
-                self->children.push_back(std::move(receiver)); parameters->children.push_back(std::move(self));
+                self->children.push_back(std::move(receiver));
+                // 소비 호출의 자체 환경만 수정 가능하게 하며 원래 바인딩의 권한은 바꾸지 않는다.
+                // Permit mutation of the consumed invocation environment without changing caller binding permissions.
+                if (consuming && exclusive) self->children.push_back(node("Modifier", "mut", closure.range));
+                parameters->children.push_back(std::move(self));
                 for (auto& parameter : closure.children[1]->children)
                 {
                     if (owner)
@@ -1826,8 +2397,7 @@ namespace aevix
                 const auto& callee = *call.children[0];
                 if (callee.kind != "Member" || callee.children.size() != 1 || callee.children[0]->kind != "Name"
                     || callee.children[0]->value != "Slice" || (callee.value != "slice" && callee.value != "slice_mut")) return false;
-                const auto refs = names_.references.find(callee.children[0].get());
-                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
+                if (!builtinMember(callee, "Slice", module, locals)) return false;
                 if (call.children.size() != 4) { error(call, "Slice slicing requires a view, start, and end."); return true; }
                 for (std::size_t index = 1; index < call.children.size(); ++index)
                 {
@@ -1856,8 +2426,7 @@ namespace aevix
             {
                 const auto& callee = *call.children[0];
                 if (callee.kind != "Member" || callee.children.size() != 1 || callee.children[0]->kind != "Name" || callee.children[0]->value != "string") return false;
-                const auto refs = names_.references.find(callee.children[0].get());
-                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
+                if (!builtinMember(callee, "string", module, locals)) return false;
                 const auto method = callee.value;
                 if (method != "from_view" && method != "from_utf8" && method != "append" && method != "push_char" && method != "slice_bytes") return false;
                 for (std::size_t index = 1; index < call.children.size(); ++index)
@@ -1877,13 +2446,47 @@ namespace aevix
                 call.kind = "CompilerTextExpression"; call.value = method; call.children = std::move(children);
                 return true;
             }
+            bool rangeInspectCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                if (call.children.empty()) return false;
+                const auto* callee = call.children[0].get();
+                const auto* arguments = callee->kind == "GenericName" ? child(*callee, "TypeArguments") : nullptr;
+                if (arguments && originalReferences(*callee)) return false;
+                if (callee->kind == "GenericName" && !callee->children.empty()) callee = callee->children[0].get();
+                static const std::set<std::string> methods = {"start", "end", "step", "step_magnitude", "is_inclusive", "is_descending", "is_empty"};
+                if (callee->kind != "Member" || !methods.contains(callee->value)
+                    || !builtinMember(*callee, "Range", module, locals)) return false;
+                if (arguments || call.children.size() != 2 || call.children[1]->children.size() != 1
+                    || (!call.children[1]->value.empty() && call.children[1]->value != "range"))
+                { error(call, "Range inspection requires one explicit range borrow and no type arguments; use the argument name range."); return true; }
+                { ExpectedGuard context(expected_); expected_ = nullptr; process(*call.children[1]->children[0], module, locals, owner, depth + 1); }
+                const auto input = infer(*call.children[1]->children[0], module, locals, owner);
+                const auto* range = input && input->kind == "ReferenceType" && input->children.size() == 1 ? input->children[0].get() : nullptr;
+                if (!range || range->kind != "Type" || range->value != "Range" || range->children.size() != 1)
+                { error(call, "Range inspection requires an explicit borrow of a concrete integer Range<T> descriptor."); return true; }
+                const auto element = key(*range->children[0], module);
+                TypeContext scalars;
+                const auto& scalar = scalars.get(scalars.builtin(element));
+                if (scalar.kind != TypeKind::Integer)
+                { error(call, "Range inspection requires an integer element type."); return true; }
+                const auto method = callee->value;
+                NodePtr destination;
+                if (method == "start" || method == "end") destination = clone(*range->children[0]);
+                else if (method == "step" || method == "step_magnitude")
+                    destination = node("Type", element == "isize" || element == "usize" ? "usize" : "u" + std::to_string(scalar.bits), call.range);
+                else destination = node("Type", "bool", call.range);
+                auto replacement = node("CompilerRangeInspectExpression", "Range." + method, call.range);
+                replacement->children.push_back(std::move(destination));
+                replacement->children.push_back(std::move(call.children[1]->children[0]));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
+            }
             bool rangeResultCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
             {
                 const auto& callee = *call.children[0];
                 if (callee.kind != "Member" || callee.children.empty() || callee.children[0]->kind != "Name" || callee.children[0]->value != "Range"
                     || (callee.value != "with_step" && callee.value != "len")) return false;
-                const auto refs = names_.references.find(callee.children[0].get());
-                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
+                if (child(call, "CompilerRangeResult")) return true;
+                if (!builtinMember(callee, "Range", module, locals)) return false;
                 const auto count = callee.value == "len" ? 2U : 3U;
                 if (call.children.size() != count || call.children[1]->children.empty()) return false;
                 ExpectedGuard resultContext(expected_);
@@ -1920,25 +2523,42 @@ namespace aevix
             bool collectionCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
             {
                 const auto& callee = *call.children[0];
+                static const std::set<std::string> methods = {"push", "reserve", "pop", "truncate", "clear", "remove", "swap_remove", "insert"};
                 if (callee.kind != "Member" || callee.children.empty() || callee.children[0]->kind != "Name"
-                    || callee.children[0]->value != "Vector" || (callee.value != "push" && callee.value != "reserve")) return false;
-                const auto refs = names_.references.find(callee.children[0].get());
-                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
-                if (call.children.size() != 3 || call.children[1]->children.empty()) return false;
+                    || callee.children[0]->value != "Vector" || !methods.contains(callee.value)) return false;
+                if (child(call, "CompilerCollectionResult")) return true;
+                if (!builtinMember(callee, "Vector", module, locals)) return false;
+                const bool input = callee.value == "push" || callee.value == "insert";
+                const auto count = callee.value == "pop" || callee.value == "clear" ? 2u : callee.value == "insert" ? 4u : 3u;
+                if (call.children.size() != count || call.children[1]->children.empty())
+                { error(call, "Vector." + callee.value + " has an invalid argument count."); return true; }
                 auto receiver = infer(*call.children[1]->children[0], module, locals, owner);
-                if (!receiver || receiver->kind != "ReferenceType" || receiver->children[0]->value != "Vector" || receiver->children[0]->children.size() != 1) return false;
+                if (!receiver || receiver->kind != "ReferenceType" || receiver->children[0]->value != "Vector" || receiver->children[0]->children.size() != 1)
+                { error(call, "Vector mutation requires an explicit concrete Vector borrow."); return true; }
                 auto element = clone(*receiver->children[0]->children[0]);
                 for (std::size_t i = 1; i < call.children.size(); ++i)
                 {
-                    ExpectedGuard context(expected_); expected_ = i == 2 && callee.value == "push" ? element.get() : nullptr;
+                    ExpectedGuard context(expected_); expected_ = input && i == count - 1 ? element.get() : nullptr;
                     process(*call.children[i], module, locals, owner, depth + 1);
                 }
-                std::vector<NodePtr> errors;
-                if (callee.value == "push") errors.push_back(std::move(element));
-                auto errorType = specializeBuiltin(callee.value == "push" ? "InputError" : "CollectionError", std::move(errors), module, call, depth + 1);
-                if (!errorType) return true;
-                std::vector<NodePtr> arguments; arguments.push_back(node("Type", "unit", call.range)); arguments.push_back(std::move(errorType));
-                auto resultType = specializeBuiltin("Result", std::move(arguments), module, call, depth + 1);
+                NodePtr resultType;
+                if (callee.value == "clear" || callee.value == "truncate") resultType = node("Type", "unit", call.range);
+                else if (callee.value == "pop")
+                {
+                    std::vector<NodePtr> values; values.push_back(std::move(element));
+                    resultType = specializeBuiltin("Optional", std::move(values), module, call, depth + 1);
+                }
+                else
+                {
+                    std::vector<NodePtr> errors;
+                    if (input) errors.push_back(clone(*element));
+                    auto errorType = specializeBuiltin(input ? "InputError" : callee.value == "reserve" ? "CollectionError" : "BoundsError", std::move(errors), module, call, depth + 1);
+                    if (!errorType) return true;
+                    std::vector<NodePtr> arguments;
+                    arguments.push_back(callee.value == "remove" || callee.value == "swap_remove" ? std::move(element) : node("Type", "unit", call.range));
+                    arguments.push_back(std::move(errorType));
+                    resultType = specializeBuiltin("Result", std::move(arguments), module, call, depth + 1);
+                }
                 if (!resultType) return true;
                 auto marker = node("CompilerCollectionResult", "", call.range); marker->children.push_back(std::move(resultType)); call.children.push_back(std::move(marker));
                 return true;
@@ -1955,8 +2575,8 @@ namespace aevix
                 TypeContext constants;
                 const std::unordered_map<const Node*, TypeId> nodeTypes;
                 const std::unordered_map<SymbolId, TypeId> symbolTypes;
-                const auto origin = origins_.find(&expression);
-                const auto evaluated = ConstEvaluator(names_, constants, nodeTypes, symbolTypes).evaluate(origin == origins_.end() ? expression : *origin->second, constants.builtin("usize"));
+                const auto constantNames = constantNamesFor(expression);
+                const auto evaluated = ConstEvaluator(constantNames, constants, nodeTypes, symbolTypes).evaluate(expression, constants.builtin("usize"));
                 if (evaluated.status == ConstStatus::Constant && evaluated.value.kind == ConstantKind::Integer
                     && !evaluated.value.negative && !evaluated.value.highMagnitude && evaluated.value.magnitude > 0 && evaluated.value.magnitude <= 64) return evaluated.value.magnitude;
                 if (expression.kind == "Literal" || expression.kind == "ConstantTypeArgument")
@@ -1967,11 +2587,10 @@ namespace aevix
                 }
                 if (expression.kind == "Name")
                 {
-                    const auto origin = origins_.find(&expression);
-                    const auto refs = names_.references.find(origin == origins_.end() ? &expression : origin->second);
-                    if (refs != names_.references.end() && refs->second.size() == 1)
+                    const auto* refs = originalReferences(expression);
+                    if (refs && refs->size() == 1)
                     {
-                        const auto* source = names_.symbols[refs->second[0]].declaration;
+                        const auto* source = names_.symbols[refs->front()].declaration;
                         if (source && modifier(*source, "const"))
                             for (std::size_t i = 1; i < source->children.size(); ++i)
                                 if (source->children[i]->kind != "Modifier" && source->children[i]->kind != "ArraySuffixes") return rankConstant(*source->children[i], depth + 1);
@@ -2025,6 +2644,358 @@ namespace aevix
                     else { ExpectedGuard context(expected_); expected_ = &element; process(*value, module, locals, owner, depth + 1); }
                 }
             }
+            bool memoryCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                if (call.children.empty()) return false;
+                const auto& callee = *call.children[0];
+                const auto target = declaration(callee.kind == "GenericName" ? *callee.children[0] : callee, module);
+                if (!target.node || !child(*target.node, "CompilerMemory") || !child(*target.node, "CompilerIntrinsic")
+                    || graph_.modules[target.module]->package != "$memory") return false;
+                const bool swap = target.node->value == "swap";
+                if (!swap && target.node->value != "replace") return false;
+                if (call.children.size() != 3) { error(call, "memory operation requires exactly two arguments."); return true; }
+                const std::array<std::string, 2> names = swap ? std::array<std::string, 2>{"left", "right"}
+                    : std::array<std::string, 2>{"target", "replacement"};
+                std::array<std::size_t, 2> roles{}; std::array<bool, 2> supplied{};
+                bool named = false;
+                for (std::size_t index = 1; index < call.children.size(); ++index)
+                {
+                    const auto& argument = *call.children[index];
+                    std::size_t role = index - 1;
+                    if (!argument.value.empty())
+                    {
+                        named = true;
+                        if (argument.value == names[0]) role = 0;
+                        else if (argument.value == names[1]) role = 1;
+                        else { error(argument, "Unknown memory operation argument name."); return true; }
+                    }
+                    else if (named) { error(argument, "Positional arguments must precede named arguments."); return true; }
+                    if (argument.children.size() != 1 || supplied[role])
+                    { error(argument, "Missing or duplicate memory operation argument."); return true; }
+                    supplied[role] = true; roles[index - 1] = role;
+                }
+                NodePtr element;
+                if (callee.kind == "GenericName")
+                {
+                    const auto arguments = typeArguments(callee);
+                    if (arguments.size() != 1) { error(callee, "memory operation accepts exactly one explicit type argument."); return true; }
+                    element = clone(*arguments[0]); process(*element, module, locals, owner, depth + 1);
+                }
+                for (std::size_t index = 1; index < call.children.size(); ++index)
+                    process(*call.children[index]->children[0], module, locals, owner, depth + 1);
+                if (!element)
+                    for (std::size_t index = 1; index < call.children.size(); ++index)
+                        if (roles[index - 1] == 0)
+                        {
+                            auto reference = infer(*call.children[index]->children[0], module, locals, owner);
+                            if (reference && reference->kind == "ReferenceType" && reference->value == "mut" && reference->children.size() == 1)
+                                element = std::move(reference->children[0]);
+                        }
+                if (!element) { error(call, "memory operation requires an initialized exclusive &mut value with a known element type."); return true; }
+                std::vector<NodePtr> children; children.push_back(std::move(element));
+                for (std::size_t index = 1; index < call.children.size(); ++index)
+                {
+                    auto argument = node("CompilerMemoryArgument", names[roles[index - 1]], call.children[index]->range);
+                    argument->children.push_back(std::move(call.children[index]->children[0])); children.push_back(std::move(argument));
+                }
+                call.kind = "CompilerMemoryExpression"; call.value = target.node->value; call.children = std::move(children);
+                return true;
+            }
+            bool systemCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const Node* callee = call.children[0].get();
+                const Node* types = callee->kind == "GenericName" ? child(*callee, "TypeArguments") : nullptr;
+                if (callee->kind == "GenericName") callee = callee->children[0].get();
+                const auto target = declaration(*callee, module);
+                const auto* marker = target.node ? child(*target.node, "CompilerSystem") : nullptr;
+                if (!marker) return false;
+                const auto method = marker->value;
+                const auto count = call.children.size() - 1;
+                if ((types && method != "input") || (types && types->children.size() != 1))
+                { error(call, "Only system.input accepts one explicit scalar type argument."); return true; }
+                const auto library = [&](std::string_view name) -> NodePtr
+                {
+                    for (const auto& [address, candidate] : declarations_)
+                    {
+                        (void)address;
+                        if (candidate.node->value == name && graph_.modules[candidate.module]->name == "error"
+                            && graph_.modules[candidate.module]->package == "$error") return use(candidate, module, "Type", call.range);
+                    }
+                    error(call, "Missing canonical error library type " + std::string(name) + "."); return {};
+                };
+                NodePtr valueType = node("Type", "unit", call.range);
+                if (method == "input")
+                {
+                    if (count) { error(call, "system.input accepts no value arguments."); return true; }
+                    valueType = types ? portableType(*types->children[0], module, module) : node("Type", "string", call.range);
+                    TypeContext scalar;
+                    const auto& type = scalar.get(scalar.builtin(valueType->value));
+                    if (!(type.kind == TypeKind::String || type.kind == TypeKind::Integer || type.kind == TypeKind::Bool
+                        || type.kind == TypeKind::Char || type.kind == TypeKind::Byte
+                        || (type.kind == TypeKind::Float && (type.bits == 32 || type.bits == 64))))
+                    { error(call, "system.input supports string, integer types, f32/f64, bool, char, and byte."); return true; }
+                    std::vector<NodePtr> args; args.push_back(std::move(valueType));
+                    valueType = specializeBuiltin("Optional", std::move(args), module, call, depth + 1);
+                }
+                else if ((method == "flush" && count != 0) || ((method == "print" || method == "println") && count != 1)
+                    || (method == "printf" && count == 0) || (method == "log" && (count < 2 || count > 3)))
+                { error(call, "Incorrect argument count for system." + method + "."); return true; }
+                auto errorType = library(method == "input" ? "ReadError" : "IoError");
+                if (!errorType || !valueType) return true;
+                std::vector<NodePtr> resultArgs; resultArgs.push_back(std::move(valueType)); resultArgs.push_back(std::move(errorType));
+                auto result = specializeBuiltin("Result", std::move(resultArgs), module, call, depth + 1);
+                if (!result) return true;
+                for (std::size_t i = 1; i < call.children.size(); ++i)
+                {
+                    const auto& argument = *call.children[i];
+                    if (argument.children.size() != 1 || (!argument.value.empty()
+                        && method != "log" && !((method == "print" || method == "println") && argument.value == "value")))
+                    { error(call, "system operations require positional arguments (print/println also accept value=)."); return true; }
+                    ExpectedGuard context(expected_); expected_ = nullptr;
+                    process(*call.children[i]->children[0], module, locals, owner, depth + 1);
+                }
+                std::vector<NodePtr> children; children.push_back(std::move(result));
+                const auto text = [&](const Node& expression) -> bool
+                {
+                    auto type = infer(expression, module, locals, owner);
+                    if (type && type->kind == "ReferenceType") type = std::move(type->children[0]);
+                    return type && (type->value == "string" || type->value == "string_view");
+                };
+                const auto composed = [&](const auto& self, const Node& expression) -> bool
+                {
+                    if (expression.kind == "Group") return self(self, *expression.children[0]);
+                    if (expression.kind == "Binary" && expression.value == "+")
+                        return self(self, *expression.children[0]) || self(self, *expression.children[1]);
+                    return text(expression);
+                };
+                const auto append = [&](const auto& self, NodePtr expression) -> void
+                {
+                    if (expression->kind == "Group" && composed(composed, *expression))
+                    { self(self, std::move(expression->children[0])); return; }
+                    if (expression->kind == "Binary" && expression->value == "+" && composed(composed, *expression))
+                    { self(self, std::move(expression->children[0])); self(self, std::move(expression->children[1])); return; }
+                    children.push_back(std::move(expression));
+                };
+                if (method == "print" || method == "println") append(append, std::move(call.children[1]->children[0]));
+                else if (method == "log")
+                {
+                    const std::array<std::string, 3> names = {"level", "message", "code"};
+                    std::array<bool, 3> assigned{};
+                    std::vector<std::size_t> selectedArguments;
+                    std::size_t positional = 0; bool named = false;
+                    const auto wrap = [&](std::size_t index, NodePtr expression)
+                    {
+                        auto part = node("CompilerSystemArgument", names[index], expression->range);
+                        part->children.push_back(std::move(expression)); children.push_back(std::move(part));
+                    };
+                    for (std::size_t i = 1; i < call.children.size(); ++i)
+                    {
+                        const auto& argument = *call.children[i]; std::size_t selected = positional;
+                        if (argument.value.empty())
+                        { if (named) { error(call, "Positional log arguments cannot follow named arguments."); return true; } ++positional; }
+                        else
+                        { named = true; selected = 3; for (std::size_t p = 0; p < names.size(); ++p) if (names[p] == argument.value) selected = p; }
+                        if (selected >= 3 || assigned[selected]) { error(call, "Unknown or duplicated system.log argument."); return true; }
+                        assigned[selected] = true;
+                        selectedArguments.push_back(selected);
+                    }
+                    if (!assigned[0] || !assigned[1]) { error(call, "system.log requires level and message."); return true; }
+                    // 잘못된 호출에도 원래 AST가 완전하게 남도록 검증 후에만 소유 노드를 이동한다.
+                    // Move owned syntax only after validation so rejected calls retain a complete AST.
+                    for (std::size_t i = 1; i < call.children.size(); ++i)
+                    {
+                        const auto selected = selectedArguments[i - 1];
+                        if (selected == 1)
+                        {
+                            const auto begin = children.size(); append(append, std::move(call.children[i]->children[0]));
+                            for (auto p = begin; p < children.size(); ++p)
+                            {
+                                auto part = node("CompilerSystemArgument", "message", children[p]->range);
+                                part->children.push_back(std::move(children[p])); children[p] = std::move(part);
+                            }
+                        }
+                        else wrap(selected, std::move(call.children[i]->children[0]));
+                    }
+                    if (!assigned[2]) wrap(2, node("Literal", "\"\"", call.range));
+                }
+                else if (method == "printf")
+                {
+                    auto& format = *call.children[1]->children[0];
+                    TypeContext scalar; const std::unordered_map<const Node*, TypeId> nodeTypes;
+                    const std::unordered_map<SymbolId, TypeId> symbolTypes;
+                    const auto constantNames = constantNamesFor(format);
+                    const auto evaluated = ConstEvaluator(constantNames, scalar, nodeTypes, symbolTypes).evaluate(format, scalar.builtin("string_view"));
+                    if (evaluated.status != ConstStatus::Constant || evaluated.value.kind != ConstantKind::String)
+                    { error(format, "system.printf requires a compile-time string format."); return true; }
+                    const auto& spelling = evaluated.value.text;
+                    std::string bytes;
+                    if (const auto raw = rawStringContents(spelling)) bytes.assign(*raw);
+                    else for (std::size_t i = 1; i + 1 < spelling.size(); ++i)
+                    {
+                        auto c = spelling[i];
+                        if (c == '\\')
+                        {
+                            c = spelling[++i];
+                            if (c == 'n') c = '\n'; else if (c == 'r') c = '\r'; else if (c == 't') c = '\t'; else if (c == '0') c = '\0';
+                            else if (c == 'u')
+                            {
+                                std::uint32_t value = 0; i += 2;
+                                while (spelling[i] != '}') { const auto d = spelling[i++]; value = value * 16 + (d <= '9' ? d - '0' : d <= 'F' ? d - 'A' + 10 : d - 'a' + 10); }
+                                if (value < 0x80) bytes += char(value);
+                                else if (value < 0x800) { bytes += char(0xc0 | (value >> 6)); bytes += char(0x80 | (value & 63)); }
+                                else if (value < 0x10000) { bytes += char(0xe0 | (value >> 12)); bytes += char(0x80 | ((value >> 6) & 63)); bytes += char(0x80 | (value & 63)); }
+                                else { bytes += char(0xf0 | (value >> 18)); bytes += char(0x80 | ((value >> 12) & 63)); bytes += char(0x80 | ((value >> 6) & 63)); bytes += char(0x80 | (value & 63)); }
+                                continue;
+                            }
+                        }
+                        bytes += c;
+                    }
+                    std::string pending;
+                    std::size_t conversions = 0;
+                    for (std::size_t i = 0; i < bytes.size(); ++i)
+                    {
+                        if (bytes[i] != '%') continue;
+                        if (++i == bytes.size()) { error(format, "Incomplete system.printf conversion."); return true; }
+                        if (bytes[i] == '%') continue;
+                        if (std::string_view("sdufgcb").find(bytes[i]) == std::string_view::npos)
+                        { error(format, "Unsupported printf conversion, width, or precision."); return true; }
+                        ++conversions;
+                    }
+                    if (conversions + 2 < call.children.size()) { error(call, "Unexpected system.printf argument."); return true; }
+                    if (conversions + 2 > call.children.size()) { error(call, "Missing system.printf argument."); return true; }
+                    const auto flush = [&]()
+                    {
+                        if (pending.empty()) return;
+                        std::string literal = "\"";
+                        for (const auto c : pending)
+                            if (c == '\\' || c == '"') { literal += '\\'; literal += c; }
+                            else if (c == '\n') literal += "\\n"; else if (c == '\r') literal += "\\r";
+                            else if (c == '\t') literal += "\\t"; else if (c == '\0') literal += "\\0"; else literal += c;
+                        literal += '"'; children.push_back(node("Literal", std::move(literal), format.range)); pending.clear();
+                    };
+                    std::size_t argument = 2;
+                    for (std::size_t i = 0; i < bytes.size(); ++i)
+                    {
+                        if (bytes[i] != '%') { pending += bytes[i]; continue; }
+                        if (++i == bytes.size()) { error(format, "Incomplete system.printf conversion."); return true; }
+                        if (bytes[i] == '%') { pending += '%'; continue; }
+                        if (std::string_view("sdufgcb").find(bytes[i]) == std::string_view::npos)
+                        { error(format, "Unsupported printf conversion, width, or precision."); return true; }
+                        if (argument >= call.children.size()) { error(call, "Missing system.printf argument."); return true; }
+                        flush();
+                        auto part = node("CompilerFormatValue", std::string(1, bytes[i]), call.children[argument]->range);
+                        part->children.push_back(std::move(call.children[argument++]->children[0])); children.push_back(std::move(part));
+                    }
+                    flush();
+                    if (argument != call.children.size()) { error(call, "Unexpected system.printf argument."); return true; }
+                }
+                call.kind = "CompilerTextExpression"; call.value = "system." + method; call.children = std::move(children);
+                return true;
+            }
+            bool parseCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const auto& callee = *call.children[0];
+                if (callee.kind != "Member" || callee.value != "parse" || callee.children.size() != 1) return false;
+                const auto& receiver = *callee.children[0];
+                const auto aliased = declaration(receiver, module);
+                NodePtr destination;
+                if (aliased.node && aliased.node->kind == "TypeAlias")
+                    destination = portableType(*aliased.node->children[0], aliased.module, module);
+                else
+                {
+                    TypeContext scalar;
+                    if (scalar.builtin(receiver.value) == scalar.error() || !builtinMember(callee, receiver.value, module, locals)) return false;
+                    destination = node("Type", receiver.value, receiver.range);
+                }
+                TypeContext scalars;
+                const auto& target = scalars.get(scalars.builtin(destination->value));
+                if (aliased.node && target.kind == TypeKind::Error) return false;
+                const bool supported = target.kind == TypeKind::Integer || target.kind == TypeKind::Bool
+                    || target.kind == TypeKind::Char || target.kind == TypeKind::Byte
+                    || (target.kind == TypeKind::Float && (target.bits == 32 || target.bits == 64));
+                if (!supported)
+                { error(call, "Type.parse supports integer types, f32/f64, bool, char, and byte only."); return true; }
+                if (call.children.size() != 2 || call.children[1]->children.size() != 1
+                    || (!call.children[1]->value.empty() && call.children[1]->value != "text"))
+                { error(call, "Type.parse requires one text argument."); return true; }
+                { ExpectedGuard context(expected_); expected_ = nullptr; process(*call.children[1]->children[0], module, locals, owner, depth + 1); }
+                auto errors = specializeBuiltin("ParseError", {}, module, call, depth + 1);
+                if (!errors) return true;
+                std::vector<NodePtr> arguments; arguments.push_back(std::move(destination)); arguments.push_back(std::move(errors));
+                auto result = specializeBuiltin("Result", std::move(arguments), module, call, depth + 1);
+                if (!result) return true;
+                std::vector<NodePtr> children; children.push_back(std::move(result)); children.push_back(std::move(call.children[1]->children[0]));
+                call.kind = "CompilerTextExpression"; call.value = "parse"; call.children = std::move(children);
+                return true;
+            }
+            bool charScalarCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                if (call.children.empty()) return false;
+                const auto* callee = call.children[0].get();
+                const auto* arguments = callee->kind == "GenericName" ? child(*callee, "TypeArguments") : nullptr;
+                if (arguments && originalReferences(*callee)) return false;
+                if (callee->kind == "GenericName" && !callee->children.empty()) callee = callee->children[0].get();
+                if (callee->kind != "Member" || callee->children.size() != 1
+                    || (callee->value != "from_u32" && callee->value != "to_u32")
+                    || !builtinMember(*callee, "Char", module, locals)) return false;
+                if (arguments || call.children.size() != 2 || call.children[1]->children.size() != 1)
+                { error(call, "Char scalar conversion requires one value and no type arguments."); return true; }
+                if (!call.children[1]->value.empty() && call.children[1]->value != "value")
+                { error(call, "Unknown Char scalar conversion argument name; use value."); return true; }
+                { ExpectedGuard context(expected_); expected_ = nullptr; process(*call.children[1]->children[0], module, locals, owner, depth + 1); }
+                const bool from = callee->value == "from_u32";
+                NodePtr output;
+                if (from)
+                {
+                    auto errors = specializeBuiltin("CharError", {}, module, call, depth + 1);
+                    if (!errors) return true;
+                    std::vector<NodePtr> parameters;
+                    parameters.push_back(node("Type", "char", call.range)); parameters.push_back(std::move(errors));
+                    output = specializeBuiltin("Result", std::move(parameters), module, call, depth + 1);
+                    if (!output) return true;
+                }
+                else output = node("Type", "u32", call.range);
+                auto replacement = node("CompilerCharScalarExpression", from ? "Char.from_u32" : "Char.to_u32", call.range);
+                replacement->children.push_back(std::move(output));
+                replacement->children.push_back(std::move(call.children[1]->children[0]));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
+            }
+            bool floatBitsCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                if (call.children.empty()) return false;
+                const auto* callee = call.children[0].get();
+                const auto* arguments = callee->kind == "GenericName" ? child(*callee, "TypeArguments") : nullptr;
+                // 명시적 타입 인자가 있으면 실제 함수의 해석 결과는 바깥 GenericName에 저장된다.
+                // With explicit type arguments, the full resolved function binding lives on the outer GenericName.
+                if (arguments && originalReferences(*callee)) return false;
+                if (callee->kind == "GenericName" && !callee->children.empty()) callee = callee->children[0].get();
+                if (callee->kind != "Member" || callee->children.size() != 1
+                    || (callee->value != "to_bits" && callee->value != "from_bits")
+                    || !builtinMember(*callee, "Float", module, locals)) return false;
+                const bool from = callee->value == "from_bits";
+                if (call.children.size() != 2 || call.children[1]->children.size() != 1
+                    || (from ? !arguments || arguments->children.size() != 1 : arguments != nullptr))
+                { error(call, "Float bit conversion requires one value; only from_bits accepts exactly one explicit float destination type."); return true; }
+                if (!call.children[1]->value.empty() && call.children[1]->value != "value")
+                { error(call, "Unknown Float bit conversion argument name; use value."); return true; }
+                { ExpectedGuard context(expected_); expected_ = nullptr; process(*call.children[1]->children[0], module, locals, owner, depth + 1); }
+                auto input = infer(*call.children[1]->children[0], module, locals, owner);
+                if (!input) { error(call, "Cannot determine the concrete Float bit input type."); return true; }
+                auto destination = from ? clone(*arguments->children[0]) : clone(*input);
+                process(*destination, module, locals, owner, depth + 1);
+                TypeContext scalars;
+                const auto& format = scalars.get(scalars.builtin(key(*destination, module)));
+                if (format.kind != TypeKind::Float || (format.bits != 16 && format.bits != 32 && format.bits != 64))
+                { error(call, "Float bit conversion supports f16, bf16, f32, and f64 formats only."); return true; }
+                const auto word = "u" + std::to_string(format.bits);
+                if (from && key(*input, module) != word)
+                { error(call, "Float.from_bits requires the exact same-width unsigned word type " + word + "."); return true; }
+                if (!from) destination = node("Type", word, call.range);
+                auto replacement = node("CompilerFloatBitsExpression", from ? "Float.from_bits" : "Float.to_bits", call.range);
+                replacement->children.push_back(std::move(destination));
+                replacement->children.push_back(std::move(call.children[1]->children[0]));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
+            }
             bool numericCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
             {
                 if (call.children.empty()) return false;
@@ -2034,8 +3005,7 @@ namespace aevix
                 if (callee->kind != "Member" || callee->children.size() != 1 || callee->children[0]->kind != "Name") return false;
                 const auto& name = callee->children[0]->value;
                 if (name != "Integer" && name != "Float") return false;
-                const auto refs = names_.references.find(callee->children[0].get());
-                if (refs != names_.references.end() && (refs->second.size() != 1 || names_.symbols[refs->second[0]].declaration)) return false;
+                if (!builtinMember(*callee, name, module, locals)) return false;
                 const auto method = callee->value;
                 if (method != "convert" && !(name == "Float" && (method == "convert_exact" || method == "to_integer_exact"))) return false;
                 if (!arguments || arguments->children.size() != 1 || call.children.size() != 2 || call.children[1]->children.size() != 1)
@@ -2054,6 +3024,534 @@ namespace aevix
                 replacement->children.push_back(std::move(call.children[1]->children[0]));
                 call = std::move(*replacement); rewritten_.insert(&call); return true;
             }
+            bool syncCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const Node* callee = call.children.empty() ? nullptr : call.children[0].get();
+                const Node* explicitTypes = nullptr;
+                if (callee && callee->kind == "GenericName") { explicitTypes = child(*callee, "TypeArguments"); callee = callee->children[0].get(); }
+                if (!callee || callee->kind != "Member" || callee->children.size() != 1) return false;
+                const auto declared = declaration(*callee->children[0], module);
+                if (!declared.node) return false;
+                std::string prefix;
+                for (const auto& [marker, name] : std::vector<std::pair<std::string, std::string>>{{"CompilerMutex","mutex"},{"CompilerRwLock","rwlock"},{"CompilerMutexGuard","mutex_guard"},{"CompilerReadGuard","read_guard"},{"CompilerWriteGuard","write_guard"},{"CompilerPoisoned","poisoned"}})
+                    if (child(*declared.node, marker)) { prefix = name; break; }
+                if (prefix.empty()) return false;
+                const auto operationName = prefix + "." + callee->value;
+                const auto* operation = syncOperation(operationName);
+                if (!operation) return false;
+                const bool constructing = operation->result == SyncResult::Owner;
+                if (call.children.size() != operation->operands + 1 || (explicitTypes && (!constructing || explicitTypes->children.size() != 1)))
+                { error(call, "Synchronization operation has an invalid argument count or explicit payload type."); return true; }
+                NodePtr payload;
+                const auto receiverTypes = typeArguments(*callee->children[0]);
+                if (explicitTypes) payload = clone(*explicitTypes->children[0]);
+                else if (receiverTypes.size() == 1) payload = clone(*receiverTypes[0]);
+                else if (!generic(*declared.node))
+                    for (const auto& field : declared.node->children)
+                        if (field->kind == "Variable" && !field->children.empty()) payload = portableType(*field->children[0], declared.module, module);
+                if (!payload && constructing && expected_)
+                {
+                    const auto context = declaration(*expected_, module);
+                    if (context.node && (child(*context.node, "CompilerMutex") || child(*context.node, "CompilerRwLock")))
+                        for (const auto& field : context.node->children)
+                            if (field->kind == "Variable" && !field->children.empty()) payload = portableType(*field->children[0], context.module, module);
+                }
+                for (std::size_t i = 1; i < call.children.size(); ++i)
+                {
+                    if (call.children[i]->children.size() != 1 || !call.children[i]->value.empty())
+                    { error(call, "Synchronization operations currently require positional arguments."); return true; }
+                    ExpectedGuard context(expected_); expected_ = constructing && i == 1 ? payload.get() : nullptr;
+                    process(*call.children[i]->children[0], module, locals, owner, depth + 1);
+                }
+                if (constructing && !payload) payload = infer(*call.children[1]->children[0], module, locals, owner);
+                if (!constructing)
+                {
+                    auto input = infer(*call.children[1]->children[0], module, locals, owner);
+                    if (input && input->kind == "ReferenceType") input = std::move(input->children[0]);
+                    const auto actual = input ? declaration(*input, module) : Declaration{};
+                    if (actual.node)
+                        for (const auto& field : actual.node->children)
+                            if (field->kind == "Variable" && !field->children.empty())
+                            {
+                                auto actualPayload = portableType(*field->children[0], actual.module, module);
+                                if (payload && key(*payload, module) != key(*actualPayload, module))
+                                { error(call, "Synchronization namespace payload does not match the owner or guard."); return true; }
+                                payload = std::move(actualPayload);
+                            }
+                }
+                if (!payload) { error(call, "Cannot infer synchronization payload type."); return true; }
+                const auto standardType = [&](const std::string& name, std::vector<NodePtr> arguments) -> NodePtr
+                {
+                    for (const auto& [address, candidate] : declarations_)
+                    {
+                        (void)address;
+                        // 같은 철자의 enum 항목이나 구체화 복제본을 타입 선언으로 선택하지 않는다.
+                        // Do not select same-spelled enum variants or specialized clones as type declarations.
+                        if (candidate.owner || !typeDeclaration(*candidate.node) || !originalNodes_.contains(candidate.node)
+                            || candidate.node->value != name || graph_.modules[candidate.module]->package != "$sync") continue;
+                        const auto* parameters = child(*candidate.node, "GenericParameters");
+                        if ((parameters ? parameters->children.size() : 0) != arguments.size()) continue;
+                        if (arguments.empty()) return use(candidate, module, "Type", call.range);
+                        std::vector<const Node*> borrowed; for (const auto& value : arguments) borrowed.push_back(value.get());
+                        const auto concrete = specialize(candidate, borrowed, module, call, depth + 1);
+                        return concrete.node ? use(concrete, module, "Type", call.range) : NodePtr{};
+                    }
+                    return {};
+                };
+                const auto withPayload = [&](const std::string& name) -> NodePtr
+                { std::vector<NodePtr> args; args.push_back(clone(*payload)); return standardType(name, std::move(args)); };
+                const auto kindName = [](SyncKind kind) -> std::string
+                {
+                    switch (kind) {
+                        case SyncKind::Mutex: return "Mutex";
+                        case SyncKind::RwLock: return "RwLock";
+                        case SyncKind::MutexGuard: return "MutexGuard";
+                        case SyncKind::ReadGuard: return "RwLockReadGuard";
+                        case SyncKind::WriteGuard: return "RwLockWriteGuard";
+                        case SyncKind::Poisoned: return "Poisoned";
+                    }
+                    return {};
+                };
+                NodePtr output, failure;
+                switch (operation->result)
+                {
+                    case SyncResult::Owner: output = withPayload(kindName(operation->kind)); break;
+                    case SyncResult::Acquire:
+                    case SyncResult::OptionalAcquire:
+                    {
+                        output = withPayload(kindName(operation->guard)); if (!output) return true;
+                        std::vector<NodePtr> args; args.push_back(clone(*output)); failure = standardType("LockError", std::move(args));
+                        if (operation->result == SyncResult::OptionalAcquire)
+                        { std::vector<NodePtr> values; values.push_back(std::move(output)); output = specializeBuiltin("Optional", std::move(values), module, call, depth + 1); }
+                        break;
+                    }
+                    case SyncResult::Boolean: output = node("Type", "bool", call.range); break;
+                    case SyncResult::Policy: output = standardType("PoisonPolicy", {}); break;
+                    case SyncResult::UniqueReference:
+                    case SyncResult::IntoInner:
+                    {
+                        output = clone(*payload);
+                        if (operation->result == SyncResult::UniqueReference)
+                        { auto reference = node("ReferenceType", "mut", call.range); reference->children.push_back(std::move(output)); output = std::move(reference); }
+                        std::vector<NodePtr> values; values.push_back(clone(*output));
+                        failure = standardType(operation->result == SyncResult::UniqueReference ? "LockError" : "Poisoned", std::move(values)); break;
+                    }
+                    case SyncResult::Reference:
+                    case SyncResult::MutableReference:
+                        output = node("ReferenceType", operation->result == SyncResult::MutableReference ? "mut" : "read", call.range); output->children.push_back(clone(*payload)); break;
+                    case SyncResult::Recovered: output = clone(*payload); break;
+                    case SyncResult::Unit: output = node("Type", "unit", call.range); break;
+                }
+                if (!output) return true;
+                if (failure)
+                { std::vector<NodePtr> values; values.push_back(std::move(output)); values.push_back(std::move(failure)); output = specializeBuiltin("Result", std::move(values), module, call, depth + 1); }
+                if (!output) return true;
+                auto replacement = node("CompilerSyncExpression", operationName, call.range);
+                replacement->children.push_back(std::move(output)); replacement->children.push_back(std::move(payload));
+                for (std::size_t i = 1; i < call.children.size(); ++i) replacement->children.push_back(std::move(call.children[i]->children[0]));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
+            }
+            bool taskCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const Node* callee = call.children.empty() ? nullptr : call.children[0].get();
+                const Node* explicitTypes = nullptr;
+                if (callee && callee->kind == "GenericName")
+                { explicitTypes = child(*callee, "TypeArguments"); callee = callee->children[0].get(); }
+                if (!callee || callee->kind != "Member" || callee->children.size() != 1) return false;
+                const auto& namespaceExpression = *callee->children[0];
+                const auto& namespaceName = namespaceExpression.kind == "GenericName" && !namespaceExpression.children.empty()
+                    ? *namespaceExpression.children[0] : namespaceExpression;
+                const auto declared = declaration(namespaceName, module);
+                if (!declared.node || !child(*declared.node, "CompilerTask")
+                    || graph_.modules[declared.module]->package != "$task") return false;
+                if (namespaceExpression.kind == "GenericName" && typeArguments(namespaceExpression).size() != 1)
+                { error(call, "An explicit Task<T> namespace requires exactly one result type."); return true; }
+                auto target = declaration(*callee, module);
+                if (!target.node && namespaceExpression.kind == "GenericName")
+                {
+                    // Task<T>의 타입 인자는 이름 해석의 Task 심벌을 바꾸지 않는다.
+                    // Task<T> namespace arguments do not change the canonically bound Task declaration.
+                    for (const auto& method : declared.node->children)
+                        if (method->kind == "Function" && method->value == callee->value)
+                        {
+                            if (target.node) { error(call, "The closed Task method is ambiguous."); return true; }
+                            const auto known = declarations_.find(method.get());
+                            target = known == declarations_.end() ? Declaration{method.get(), declared.module, InvalidSymbolId, declared.node} : known->second;
+                        }
+                }
+                if (!target.node || target.node->kind != "Function" || !target.owner
+                    || !child(*target.owner, "CompilerTask") || !child(*target.node, "CompilerIntrinsic")
+                    || graph_.modules[target.module]->package != "$task") return false;
+                const auto standardType = [&](const std::string& name, std::vector<NodePtr> arguments, const std::string& package = "$task") -> NodePtr
+                {
+                    for (const auto& [address, candidate] : declarations_)
+                    {
+                        (void)address;
+                        if (candidate.owner || !typeDeclaration(*candidate.node) || !originalNodes_.contains(candidate.node)
+                            || candidate.node->value != name || graph_.modules[candidate.module]->package != package) continue;
+                        const auto* parameters = child(*candidate.node, "GenericParameters");
+                        if ((parameters ? parameters->children.size() : 0) != arguments.size()) continue;
+                        if (arguments.empty()) return use(candidate, module, "Type", call.range);
+                        std::vector<const Node*> borrowed; for (const auto& value : arguments) borrowed.push_back(value.get());
+                        const auto concrete = specialize(candidate, borrowed, module, call, depth + 1);
+                        return concrete.node ? use(concrete, module, "Type", call.range) : NodePtr{};
+                    }
+                    error(call, "The trusted Task operation requires its canonical " + name + " declaration."); return {};
+                };
+                if (const auto* sourceAlias = child(*target.node, "CompilerTaskSourceAlias"))
+                {
+                    // 이 별칭은 실제 소스 함수로 연결하며 타이머 opcode나 가짜 실행기 계약을 만들지 않는다.
+                    // Bind this alias to a real source function without inventing a timer opcode or scheduler contract.
+                    if (sourceAlias->value != "deadline_after" || target.node->value != "deadline_after")
+                    { error(call,"Unknown closed Task source alias."); return true; }
+                    if (explicitTypes || !typeArguments(*callee->children[0]).empty())
+                    { error(call,"Task.deadline_after does not accept function or Task result type arguments."); return true; }
+                    auto receiver = standardType("Deadline", {}); if (!receiver) return true;
+                    receiver->kind = receiver->kind == "Type" ? "Name" : receiver->kind == "QualifiedType" ? "Member" : receiver->kind;
+                    auto member = node("Member","after",callee->range); member->children.push_back(std::move(receiver));
+                    call.children[0] = std::move(member); rewritten_.insert(call.children[0].get()); return false;
+                }
+                if (const auto* cancellation = child(*target.node, "CompilerCancellation"))
+                {
+                    // 취소 별칭은 Task<T>를 구체화하지 않고 실제 비제네릭 역할의 선언으로 연결한다.
+                    // Redirect cancellation aliases to their actual nongeneric role declarations without instantiating Task<T>.
+                    std::string role, method;
+                    if (cancellation->value == "source_new") { role = "CancellationSource"; method = "new"; }
+                    else if (cancellation->value == "token_from_source") { role = "CancellationSource"; method = "token"; }
+                    else if (cancellation->value == "token_clone") { role = "CancellationToken"; method = "clone"; }
+                    else if (cancellation->value == "source_request") { role = "CancellationSource"; method = "request"; }
+                    else if (cancellation->value == "token_requested") { role = "CancellationToken"; method = "requested"; }
+                    else { error(call, "Unknown closed Task cancellation alias."); return true; }
+                    if (explicitTypes) { error(call, "Task cancellation aliases do not accept type arguments."); return true; }
+                    auto receiver = standardType(role, {}); if (!receiver) return true;
+                    auto member = node("Member", method, callee->range); receiver->kind = receiver->kind == "Type" ? "Name" : receiver->kind == "QualifiedType" ? "Member" : receiver->kind;
+                    member->children.push_back(std::move(receiver)); call.children[0] = std::move(member);
+                    rewritten_.insert(call.children[0].get()); return false;
+                }
+                const auto* marker = child(*target.node, "CompilerTaskOperation");
+                const auto* operation = marker ? taskOperation(marker->value) : nullptr;
+                if (!operation) return false;
+                if (call.children.size() != operation->operands + 1 || explicitTypes)
+                { error(call, "Task operations infer value and callable types; use Task<T> to specify a result type and provide the exact argument count."); return true; }
+                for (std::size_t index = 1; index < call.children.size(); ++index)
+                {
+                    if (call.children[index]->children.size() != 1 || !call.children[index]->value.empty())
+                    { error(call, "Task operations currently require positional arguments."); return true; }
+                    ExpectedGuard context(expected_); expected_ = nullptr;
+                    process(*call.children[index]->children[0], module, locals, owner, depth + 1);
+                }
+                NodePtr payload;
+                const auto receiverTypes = typeArguments(*callee->children[0]);
+                if (receiverTypes.size() == 1) payload = clone(*receiverTypes[0]);
+                if ((operation->access == TaskAccess::None || operation->access == TaskAccess::ScopeValue || operation->access == TaskAccess::CancellationShared || (!operation->worker && operation->preparation == TaskPreparation::None && operation->access == TaskAccess::ScopeShared)) && payload)
+                { error(call, "Task scope operations do not accept a task result type."); return true; }
+                NodePtr callable = node("Type", "unit", call.range), invoke;
+                if (operation->worker)
+                {
+                    callable = infer(*call.children[2]->children[0], module, locals, owner);
+                    const auto concrete = callable && callable->kind != "ReferenceType" ? declaration(*callable, module) : Declaration{};
+                    const auto* closure = concrete.node ? child(*concrete.node, "CompilerClosure") : nullptr;
+                    if (!closure || (closure->value != "Fn" && closure->value != "FnMut" && closure->value != "FnOnce"))
+                    { error(call, "Task spawning requires an owned concrete zero-argument closure."); return true; }
+                    Declaration implementation;
+                    for (const auto& method : concrete.node->children)
+                        if (method->kind == "Function" && method->value == "__invoke")
+                        {
+                            if (implementation.node) { error(call, "Task closure invocation must be unambiguous."); return true; }
+                            const auto known = declarations_.find(method.get());
+                            implementation = known == declarations_.end() ? Declaration{method.get(), concrete.module, InvalidSymbolId, concrete.node} : known->second;
+                        }
+                    const auto* parameters = implementation.node ? child(*implementation.node, "Parameters") : nullptr;
+                    if (!implementation.node || implementation.node->children.empty() || !parameters
+                        || parameters->children.size() != 1 || parameters->children[0]->value != "self")
+                    { error(call, "Task workers must have no explicit arguments."); return true; }
+                    auto actual = portableType(*implementation.node->children[0], implementation.module, module);
+                    // 새 클로저 선언을 방문하기 전에도 결과 메타데이터는 같은 명목 구체 타입이어야 한다.
+                    // Materialize fresh closure return metadata before freezing it into the closed Task expression.
+                    process(*actual, module, locals, owner, depth + 1);
+                    if (actual->value == "void" || actual->value == "never" || actual->kind == "DynamicType" || actual->kind == "InferredType")
+                    { error(call, "Task workers require a concrete storable result; use unit for an empty result."); return true; }
+                    if (payload && key(*payload, module) != key(*actual, module))
+                    { error(call, "Task namespace result type does not match its closure result."); return true; }
+                    payload = std::move(actual);
+                    invoke = node("CompilerTaskInvoke", "", call.range);
+                    auto selected = node("Member", "__invoke", call.range);
+                    selected->children.push_back(use(concrete, module, "Name", call.range)); invoke->children.push_back(std::move(selected));
+                }
+                else if (operation->preparation == TaskPreparation::Ready)
+                {
+                    if (!payload) payload = infer(*call.children[2]->children[0], module, locals, owner);
+                    if (!payload || payload->kind == "InferredType" || payload->kind == "DynamicType"
+                        || payload->value == "void" || payload->value == "never")
+                    { error(call,"Task.ready requires a concrete storable owned value; use unit for an empty result."); return true; }
+                    process(*payload,module,locals,owner,depth + 1);
+                }
+                else if (operation->access == TaskAccess::TaskValue || operation->access == TaskAccess::TaskShared || operation->access == TaskAccess::TaskExclusive)
+                {
+                    auto input = infer(*call.children[1]->children[0], module, locals, owner);
+                    if (input && input->kind == "ReferenceType" && !input->children.empty()) input = std::move(input->children[0]);
+                    const auto actual = input ? declaration(*input, module) : Declaration{};
+                    if (!actual.node || !child(*actual.node, "CompilerTask") || graph_.modules[actual.module]->package != "$task")
+                    { error(call, "Task operation requires its exact concrete Task owner or borrow."); return true; }
+                    NodePtr actualPayload;
+                    const auto arguments = typeArguments(*input);
+                    if (arguments.size() == 1) actualPayload = clone(*arguments[0]);
+                    else for (const auto& field : actual.node->children)
+                        if (field->kind == "Variable" && !field->children.empty()) actualPayload = portableType(*field->children[0], actual.module, module);
+                    if (!actualPayload) { error(call, "Cannot determine the concrete Task result type."); return true; }
+                    if (payload && key(*payload, module) != key(*actualPayload, module))
+                    { error(call, "Task namespace result type does not match its input owner."); return true; }
+                    payload = std::move(actualPayload);
+                }
+                if (operation->access == TaskAccess::CancellationShared)
+                {
+                    auto input = infer(*call.children[1]->children[0], module, locals, owner);
+                    const bool borrowed = input && input->kind == "ReferenceType" && !input->children.empty();
+                    const auto token = borrowed ? declaration(*input->children[0], module) : Declaration{};
+                    if (!token.node || !child(*token.node, "CompilerCancellationToken") || graph_.modules[token.module]->package != "$task")
+                    { error(call, "Task.check_cancel requires an explicit CancellationToken borrow."); return true; }
+                }
+                if (!payload) payload = node("Type", "unit", call.range);
+                NodePtr output, failure;
+                switch (operation->result)
+                {
+                    case TaskResult::Scope: output = standardType("TaskScope", {}); failure = standardType("SpawnError", {}); break;
+                    case TaskResult::Spawn:
+                    { std::vector<NodePtr> values; values.push_back(clone(*payload)); output = standardType("Task", std::move(values)); failure = standardType("SpawnError", {}); break; }
+                    case TaskResult::Join: output = clone(*payload); failure = standardType("TaskError", {}, "$error"); break;
+                    case TaskResult::TryTake:
+                    { std::vector<NodePtr> values; values.push_back(clone(*payload)); output = specializeBuiltin("Optional", std::move(values), module, call, depth + 1); failure = standardType("TaskError", {}, "$error"); break; }
+                    case TaskResult::Discard: output = node("Type", "unit", call.range); failure = standardType("TaskError", {}, "$error"); break;
+                    case TaskResult::Status: output = standardType("TaskStatus", {}); break;
+                    case TaskResult::Boolean: output = node("Type", "bool", call.range); break;
+                    case TaskResult::Token: output = standardType("CancellationToken", {}); failure = standardType("TaskError", {}, "$error"); break;
+                    case TaskResult::Executor: output = standardType("ExecutorId", {}); break;
+                    case TaskResult::Identity: output = standardType("TaskId", {}); break;
+                    case TaskResult::CloseAdmission: output = node("Type", "unit", call.range); failure = standardType("ScopeError", {}); break;
+                    case TaskResult::ActiveCount: output = node("Type", "usize", call.range); break;
+                    case TaskResult::ScopeState: output = standardType("ScopeStatus", {}); break;
+                    case TaskResult::Completion: output = node("Type", "unit", call.range); failure = standardType("TaskError", {}, "$error"); break;
+                    case TaskResult::CheckCancel: output = node("Type", "unit", call.range); failure = standardType("Cancelled", {}); break;
+                    case TaskResult::Wait: output = standardType("WaitStatus", {}); failure = standardType("TaskError", {}, "$error"); break;
+                    case TaskResult::Request: output = standardType("TaskCancelRequest", {}); failure = standardType("TaskError", {}, "$error"); break;
+                    case TaskResult::Close: output = standardType("ScopeReport", {}); failure = standardType("ScopeError", {}); break;
+                }
+                if (!output) return true;
+                if (taskFallible(operation->result))
+                {
+                    if (!failure) return true;
+                    std::vector<NodePtr> values; values.push_back(std::move(output)); values.push_back(std::move(failure));
+                    output = specializeBuiltin("Result", std::move(values), module, call, depth + 1);
+                }
+                if (!output) return true;
+                auto replacement = node("CompilerTaskExpression", std::string(operation->name), call.range);
+                replacement->children.push_back(std::move(output)); replacement->children.push_back(std::move(payload)); replacement->children.push_back(std::move(callable));
+                for (std::size_t index = 1; index < call.children.size(); ++index) replacement->children.push_back(std::move(call.children[index]->children[0]));
+                if (invoke) replacement->children.push_back(std::move(invoke));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
+            }
+            bool atomicCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const Node* callee = call.children.empty() ? nullptr : call.children[0].get();
+                const Node* explicitTypes = nullptr;
+                if (callee && callee->kind == "GenericName") { explicitTypes = child(*callee, "TypeArguments"); callee = callee->children[0].get(); }
+                if (!callee || callee->kind != "Member" || callee->children.size() != 1) return false;
+                const auto declared = declaration(*callee->children[0], module);
+                if (!declared.node || !child(*declared.node, "CompilerAtomic")) return false;
+                const auto* operation = atomicOperation(callee->value);
+                if (!operation) return false;
+                const bool query = operation->result == AtomicResult::Boolean || operation->result == AtomicResult::Alignment;
+                if (call.children.size() != operation->operands + 1 || (explicitTypes && ((callee->value != "new" && !query) || explicitTypes->children.size() != 1)))
+                { error(call, "Atomic operation has an invalid argument count or explicit scalar type."); return true; }
+                NodePtr payload;
+                const auto receiverTypes = typeArguments(*callee->children[0]);
+                if (explicitTypes) payload = clone(*explicitTypes->children[0]);
+                else if (receiverTypes.size() == 1) payload = clone(*receiverTypes[0]);
+                else if (!generic(*declared.node))
+                    for (const auto& field : declared.node->children)
+                        if (field->kind == "Variable" && !field->children.empty()) payload = portableType(*field->children[0], declared.module, module);
+                if (!payload && callee->value == "new" && expected_)
+                {
+                    const auto context = declaration(*expected_, module);
+                    if (context.node && child(*context.node, "CompilerAtomic"))
+                        for (const auto& field : context.node->children)
+                            if (field->kind == "Variable" && !field->children.empty()) payload = portableType(*field->children[0], context.module, module);
+                }
+                for (std::size_t i = 1; i < call.children.size(); ++i)
+                {
+                    if (call.children[i]->children.size() != 1 || !call.children[i]->value.empty())
+                    { error(call, "Atomic operations currently require positional arguments."); return true; }
+                    ExpectedGuard context(expected_); expected_ = callee->value == "new" ? payload.get() : nullptr;
+                    process(*call.children[i]->children[0], module, locals, owner, depth + 1);
+                }
+                if (!payload && callee->value == "new") payload = infer(*call.children[1]->children[0], module, locals, owner);
+                if (operation->cell)
+                {
+                    auto input = infer(*call.children[1]->children[0], module, locals, owner);
+                    if (input && input->kind == "ReferenceType") input = std::move(input->children[0]);
+                    const auto actual = input ? declaration(*input, module) : Declaration{};
+                    if (actual.node && child(*actual.node, "CompilerAtomic"))
+                        for (const auto& field : actual.node->children)
+                            if (field->kind == "Variable" && !field->children.empty())
+                            {
+                                auto actualPayload = portableType(*field->children[0], actual.module, module);
+                                if (payload && key(*payload, module) != key(*actualPayload, module))
+                                { error(call, "Atomic namespace scalar does not match the borrowed cell."); return true; }
+                                payload = std::move(actualPayload);
+                            }
+                }
+                if (!payload && (callee->value == "fence" || callee->value == "compiler_fence")) payload = node("Type", "unit", call.range);
+                if (!payload) { error(call, "Cannot infer Atomic scalar type; use an explicit <T> query."); return true; }
+                const auto standardType = [&](const std::string& name, std::vector<NodePtr> arguments) -> NodePtr
+                {
+                    for (const auto& [address, candidate] : declarations_)
+                    {
+                        (void)address;
+                        // 같은 철자의 enum 항목이나 구체화 복제본을 타입 선언으로 선택하지 않는다.
+                        // Do not select same-spelled enum variants or specialized clones as type declarations.
+                        if (candidate.owner || !typeDeclaration(*candidate.node) || !originalNodes_.contains(candidate.node)
+                            || candidate.node->value != name || graph_.modules[candidate.module]->package != "$atomic") continue;
+                        const auto* parameters = child(*candidate.node, "GenericParameters");
+                        if ((parameters ? parameters->children.size() : 0) != arguments.size()) continue;
+                        if (arguments.empty()) return use(candidate, module, "Type", call.range);
+                        std::vector<const Node*> borrowed; for (const auto& value : arguments) borrowed.push_back(value.get());
+                        const auto concrete = specialize(candidate, borrowed, module, call, depth + 1);
+                        return concrete.node ? use(concrete, module, "Type", call.range) : NodePtr{};
+                    }
+                    return {};
+                };
+                NodePtr output;
+                if (operation->result == AtomicResult::Cell || operation->result == AtomicResult::Cas || operation->result == AtomicResult::Wait)
+                {
+                    std::vector<NodePtr> args; args.push_back(clone(*payload));
+                    output = standardType(operation->result == AtomicResult::Cell ? "Atomic" : operation->result == AtomicResult::Cas ? "CasOutcome" : "WaitOutcome", std::move(args));
+                }
+                else if (operation->result == AtomicResult::Scalar) output = clone(*payload);
+                else if (operation->result == AtomicResult::MutableReference)
+                { output = node("ReferenceType", "mut", call.range); output->children.push_back(clone(*payload)); }
+                else output = node("Type", operation->result == AtomicResult::Boolean ? "bool" : operation->result == AtomicResult::Alignment ? "usize" : "unit", call.range);
+                if (!output) return true;
+                if (operation->fallible)
+                {
+                    auto failure = standardType("AtomicError", {}); if (!failure) return true;
+                    std::vector<NodePtr> args; args.push_back(std::move(output)); args.push_back(std::move(failure));
+                    output = specializeBuiltin("Result", std::move(args), module, call, depth + 1);
+                }
+                if (!output) return true;
+                auto replacement = node("CompilerAtomicExpression", callee->value, call.range);
+                replacement->children.push_back(std::move(output)); replacement->children.push_back(std::move(payload));
+                for (std::size_t i = 1; i < call.children.size(); ++i) replacement->children.push_back(std::move(call.children[i]->children[0]));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
+            }
+            bool sharedCall(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
+            {
+                const Node* callee = call.children.empty() ? nullptr : call.children[0].get();
+                const Node* explicitTypes = nullptr;
+                if (callee && callee->kind == "GenericName") { explicitTypes = child(*callee, "TypeArguments"); callee = callee->children[0].get(); }
+                if (!callee || callee->kind != "Member" || callee->children.size() != 1) return false;
+                const auto declared = declaration(*callee->children[0], module);
+                if (!declared.node || (!child(*declared.node, "CompilerShared") && !child(*declared.node, "CompilerWeak"))) return false;
+                const bool weak = child(*declared.node, "CompilerWeak") != nullptr;
+                const auto method = callee->value;
+                static const std::set<std::string> strongMethods = {"new","clone","as_ref","downgrade","get_mut","try_unwrap","strong_count","weak_count","ptr_equal"};
+                static const std::set<std::string> weakMethods = {"new","clone","upgrade","strong_count","weak_count","ptr_equal","is_empty","is_expired","clear"};
+                if (!(weak ? weakMethods : strongMethods).contains(method)) return false;
+                const auto count = weak && method == "new" ? 0u : method == "ptr_equal" ? 2u : 1u;
+                if (call.children.size() != count + 1 || (explicitTypes && (method != "new" || explicitTypes->children.size() != 1)))
+                { error(call, "Invalid Shared/Weak argument count or explicit payload type."); return true; }
+                for (std::size_t i = 1; i < call.children.size(); ++i)
+                    if (call.children[i]->children.size() != 1 || !call.children[i]->value.empty())
+                    { error(call, "Shared/Weak currently require positional arguments."); return true; }
+                NodePtr payload;
+                const auto receiverTypes = typeArguments(*callee->children[0]);
+                if (explicitTypes) payload = clone(*explicitTypes->children[0]);
+                else if (receiverTypes.size() == 1) payload = clone(*receiverTypes[0]);
+                else if (!generic(*declared.node))
+                    for (const auto& field : declared.node->children)
+                        if (field->kind == "Variable" && !field->children.empty()) payload = portableType(*field->children[0], declared.module, module);
+                for (std::size_t i = 1; i < call.children.size(); ++i)
+                {
+                    ExpectedGuard context(expected_); expected_ = method == "new" ? payload.get() : nullptr;
+                    process(*call.children[i]->children[0], module, locals, owner, depth + 1);
+                }
+                if (method == "new" && !weak && !payload) payload = infer(*call.children[1]->children[0], module, locals, owner);
+                else if (method != "new")
+                {
+                    auto input = infer(*call.children[1]->children[0], module, locals, owner);
+                    if (input && input->kind == "ReferenceType") input = std::move(input->children[0]);
+                    const auto actual = input ? declaration(*input, module) : Declaration{};
+                    if (actual.node && child(*actual.node, weak ? "CompilerWeak" : "CompilerShared"))
+                        for (const auto& field : actual.node->children)
+                            if (field->kind == "Variable" && !field->children.empty())
+                            {
+                                auto actualPayload = portableType(*field->children[0], actual.module, module);
+                                if (payload && key(*payload, module) != key(*actualPayload, module))
+                                { error(call, "Shared/Weak namespace payload does not match the borrowed owner."); return true; }
+                                payload = std::move(actualPayload);
+                            }
+                }
+                else if (!payload && expected_)
+                {
+                    const auto expected = declaration(*expected_, module);
+                    if (expected.node && child(*expected.node, "CompilerWeak"))
+                        for (const auto& field : expected.node->children)
+                            if (field->kind == "Variable" && !field->children.empty()) payload = portableType(*field->children[0], expected.module, module);
+                }
+                if (!payload) { error(call, "Cannot infer Shared/Weak payload type; specify <T> for empty Weak.new."); return true; }
+                const auto ownerType = [&](bool makeWeak) -> NodePtr
+                {
+                    for (const auto& [address, candidate] : declarations_)
+                    {
+                        (void)address;
+                        if (generic(*candidate.node) && child(*candidate.node, makeWeak ? "CompilerWeak" : "CompilerShared")
+                            && graph_.modules[candidate.module]->package == "$memory")
+                        {
+                            const auto concrete = specialize(candidate, {payload.get()}, module, call, depth + 1);
+                            return concrete.node ? use(concrete, module, "Type", call.range) : NodePtr{};
+                        }
+                    }
+                    return {};
+                };
+                NodePtr output;
+                if (weak && method == "new") output = ownerType(true);
+                else if (method == "strong_count" || method == "weak_count") output = node("Type", "usize", call.range);
+                else if (method == "is_empty" || method == "is_expired" || method == "ptr_equal") output = node("Type", "bool", call.range);
+                else if (method == "clear") output = node("Type", "unit", call.range);
+                else if (method == "as_ref" || method == "get_mut")
+                {
+                    output = node("ReferenceType", method == "get_mut" ? "mut" : "read", call.range); output->children.push_back(clone(*payload));
+                    if (method == "get_mut") { std::vector<NodePtr> args; args.push_back(std::move(output)); output = specializeBuiltin("Optional", std::move(args), module, call, depth + 1); }
+                }
+                else
+                {
+                    NodePtr value, failure;
+                    if (method == "new")
+                    {
+                        value = ownerType(false); std::vector<NodePtr> args; args.push_back(clone(*payload));
+                        failure = specializeBuiltin("InputError", std::move(args), module, call, depth + 1);
+                    }
+                    else if (method == "try_unwrap") { value = clone(*payload); failure = ownerType(false); }
+                    else
+                    {
+                        value = ownerType(method == "downgrade" || (weak && method == "clone"));
+                        if (method == "upgrade") { std::vector<NodePtr> args; args.push_back(std::move(value)); value = specializeBuiltin("Optional", std::move(args), module, call, depth + 1); }
+                        for (const auto& [address, candidate] : declarations_)
+                        {
+                            (void)address;
+                            if (candidate.node->value == "RefCountError" && graph_.modules[candidate.module]->package == "$memory")
+                            { failure = use(candidate, module, "Type", call.range); break; }
+                        }
+                    }
+                    if (!value || !failure) return true;
+                    std::vector<NodePtr> args; args.push_back(std::move(value)); args.push_back(std::move(failure));
+                    output = specializeBuiltin("Result", std::move(args), module, call, depth + 1);
+                }
+                if (!output) return true;
+                auto replacement = node("CompilerSharedExpression", (weak ? "weak." : "shared.") + method, call.range);
+                replacement->children.push_back(std::move(output));
+                for (std::size_t i = 1; i < call.children.size(); ++i) replacement->children.push_back(std::move(call.children[i]->children[0]));
+                call = std::move(*replacement); rewritten_.insert(&call); return true;
+            }
             bool boxConstructor(Node& call, ModuleId module, const Locals& locals, Node* owner, std::size_t depth)
             {
                 if (call.children.empty()) return false;
@@ -2064,7 +3562,7 @@ namespace aevix
                 const auto box = declaration(*callee->children[0], module);
                 if (!box.node || !child(*box.node, "CompilerBox")) return false;
                 const auto method = callee->value;
-                if (method != "new" && method != "into_dyn" && method != "as_ref" && method != "as_mut") return false;
+                if (method != "new" && method != "into_dyn" && method != "into_inner" && method != "as_ref" && method != "as_mut") return false;
                 if (call.children.size() != 2 || call.children[1]->children.size() != 1)
                 { error(call, "Box intrinsic requires exactly one value argument."); return true; }
                 if (!call.children[1]->value.empty() && call.children[1]->value != (method == "new" ? "value" : "owner"))
@@ -2103,6 +3601,21 @@ namespace aevix
                     if (!result.node) return true;
                     output = use(result, module, "Type", call.range);
                 }
+                else if (method == "into_inner")
+                {
+                    // 대여가 아닌 구체 Box 값 전체에서만 결과 타입을 가져온다.
+                    // Infer the result only from one complete concrete Box value, never from an owner borrow.
+                    // 다른 모듈의 반환 서명에서 추론한 Box<T>도 먼저 실제 구체 소유자로 연결한다.
+                    // Materialize Box<T> inferred from another module's return signature before selecting its concrete payload.
+                    if (input->kind != "ReferenceType") process(*input, module, locals, owner, depth + 1);
+                    const auto inputBox = declaration(*input, module);
+                    if (input->kind == "ReferenceType" || !inputBox.node || !child(*inputBox.node, "CompilerBox"))
+                    { error(call, "Box.into_inner requires an owned Box value."); return true; }
+                    const Node* payload = nullptr;
+                    for (const auto& field : inputBox.node->children) if (field->kind == "Variable" && !field->children.empty()) payload = field->children[0].get();
+                    if (!payload) { error(call, "Box.into_inner has no canonical payload type."); return true; }
+                    output = portableType(*payload, inputBox.module, module);
+                }
                 else if (method == "into_dyn")
                 {
                     if (!expected_) { error(call, "Box.into_dyn requires a destination Box<dyn Interface> type."); return true; }
@@ -2138,6 +3651,23 @@ namespace aevix
                 if (child(item, "CompilerTemplate") || item.kind == "Interface") return;
                 if (item.kind == "Closure") { lowerClosure(item, module, locals, owner, depth); return; }
                 if (item.kind.starts_with("Compiler")) return;
+                if (item.kind == "Name" || item.kind == "Member")
+                {
+                    const auto constant = declaration(item, module);
+                    if (const auto* level = constant.node ? child(*constant.node, "CompilerSystemLevel") : nullptr)
+                    {
+                        for (const auto& [address, candidate] : declarations_)
+                        {
+                            (void)address;
+                            if (candidate.module == constant.module && candidate.node->kind == "Enum" && candidate.node->value == "LogLevel")
+                            {
+                                auto value = node("Member", level->value, item.range);
+                                value->children.push_back(use(candidate, module, "Name", item.range));
+                                item = std::move(*value); rewritten_.insert(&item); break;
+                            }
+                        }
+                    }
+                }
                 if (item.kind == "Struct" || item.kind == "Enum") owner = &item;
                 if (item.kind == "Type" || item.kind == "QualifiedType")
                 {
@@ -2269,11 +3799,21 @@ namespace aevix
                 }
                 if (item.kind == "Call" && !item.children.empty())
                 {
+                    if (taskCall(item, module, locals, owner, depth)) return;
+                    if (memoryCall(item, module, locals, owner, depth)) return;
+                    if (systemCall(item, module, locals, owner, depth)) return;
+                    if (parseCall(item, module, locals, owner, depth)) return;
                     if (sliceResultCall(item, module, locals, owner, depth)) return;
                     if (textResultCall(item, module, locals, owner, depth)) return;
+                    if (charScalarCall(item, module, locals, owner, depth)) return;
+                    if (floatBitsCall(item, module, locals, owner, depth)) return;
                     if (numericCall(item, module, locals, owner, depth)) return;
+                    if (rangeInspectCall(item, module, locals, owner, depth)) return;
                     if (rangeResultCall(item, module, locals, owner, depth)) return;
                     if (collectionCall(item, module, locals, owner, depth)) return;
+                    if (syncCall(item, module, locals, owner, depth)) return;
+                    if (atomicCall(item, module, locals, owner, depth)) return;
+                    if (sharedCall(item, module, locals, owner, depth)) return;
                     if (boxConstructor(item, module, locals, owner, depth)) return;
                     if (coreConstructor(item, module, locals, owner, depth)) return;
                     // 인수의 중첩 호출을 먼저 구체화하여 반환 타입 추론에 사용한다.
@@ -2300,34 +3840,12 @@ namespace aevix
                     const bool explicitArguments = callee.kind == "GenericName";
                     const Node* receiver = nullptr;
                     const auto candidates = callCandidates(callee, module, locals, owner, receiver);
-                    struct Match { Declaration declaration; Bindings bindings; int literals; bool generic; bool variadic; };
-                    std::vector<Match> matches;
                     bool failedRequirements = false;
-                    for (const auto& candidate : candidates)
-                    {
-                        if (candidate.node->kind != "Function") continue;
-                        const bool isGeneric = generic(*candidate.node);
-                        if (explicitArguments && !isGeneric) continue;
-                        Bindings bindings;
-                        if (explicitArguments)
-                        {
-                            const auto arguments = typeArguments(callee);
-                            const auto* parameters = child(*candidate.node, "GenericParameters");
-                            if (arguments.size() > parameters->children.size()) continue;
-                            for (std::size_t index = 0; index < arguments.size(); ++index) bindings[parameters->children[index]->value] = clone(*arguments[index]);
-                        }
-                        int literals = 0;
-                        if (!inferArguments(candidate, item, module, locals, owner, bindings, receiver, &literals)) continue;
-                        if (!requirementsHold(candidate, bindings, module)) { failedRequirements = true; continue; }
-                        const auto* parameters = child(*candidate.node, "Parameters");
-                        const bool variadic = parameters && !parameters->children.empty() && parameters->children.back()->kind == "VariadicParameter";
-                        matches.push_back({candidate, std::move(bindings), literals, isGeneric, variadic});
-                    }
+                    auto matches = matchCalls(item, candidates, receiver, module, locals, owner, failedRequirements);
                     if (!matches.empty())
                     {
-                        const auto best = std::max_element(matches.begin(), matches.end(), [](const Match& left, const Match& right)
-                        { return left.literals != right.literals ? left.literals < right.literals : left.generic != right.generic ? left.generic && !right.generic : left.variadic && !right.variadic; });
-                        const auto count = std::count_if(matches.begin(), matches.end(), [&](const Match& value) { return value.literals == best->literals && value.generic == best->generic && value.variadic == best->variadic; });
+                        const auto best = std::max_element(matches.begin(), matches.end(), worseCall);
+                        const auto count = std::count_if(matches.begin(), matches.end(), [&](const CallMatch& value) { return sameCallRank(value, *best); });
                         if (best->generic)
                         {
                             if (count != 1) error(item, "Generic call is ambiguous; specify type arguments or use a distinct overload.");
@@ -2352,7 +3870,8 @@ namespace aevix
                     }
                     else
                     {
-                        const bool hasTemplate = std::any_of(candidates.begin(), candidates.end(), [](const auto& target) { return target.node->kind == "Function" && generic(*target.node); });
+                        const bool hasTemplate = std::any_of(candidates.begin(), candidates.end(), [](const auto& target)
+                        { return target.node->kind == "Function" && (generic(*target.node) || child(*target.node, "CompilerUnavailable")); });
                         if (hasTemplate) error(item, failedRequirements ? "Concrete type does not satisfy the generic implements requirements." : "Cannot infer a complete, consistent generic type argument list.");
                     }
                     // 비제네릭 후보를 고른 호출은 기존 오버로드 검사에 맡긴다.
@@ -2387,6 +3906,9 @@ namespace aevix
                                 { fieldExpected = portableType(*localParameterType(*field), target.module, module); expected_ = fieldExpected.get(); }
                     }
                     process(nested, module, locals, owner, depth + 1);
+                    if (item.kind == "Case" && nested.kind == "PatternBindings")
+                        for (const auto& binding : nested.children)
+                            if (const auto* boundType = localParameterType(*binding)) locals[binding->value] = boundType;
                     if ((item.kind == "Block" || item.kind == "CaseScope" || item.kind == "For") && nested.kind == "Variable" && !nested.children.empty())
                     {
                         if (nested.children[0]->kind != "InferredType") locals[nested.value] = localParameterType(nested);
@@ -2448,49 +3970,85 @@ namespace aevix
                 }
                 for (const auto& nested : item.children) validateDefaultAccess(*nested, contract);
             }
-            std::map<std::string, std::string> genericNames(const Node& function) const
+            std::map<std::string, std::string> genericNames(const Node& function, std::string_view self = {}) const
             {
                 std::map<std::string, std::string> result;
                 if (const auto* parameters = child(function, "GenericParameters"))
                     for (std::size_t index = 0; index < parameters->children.size(); ++index) result[parameters->children[index]->value] = "$generic" + std::to_string(index);
+                if (!self.empty()) result["Self"] = std::string(self);
                 return result;
             }
-            std::string normalizedSpelling(const Node& item, const std::map<std::string, std::string>& names) const
+            std::string normalizedSpelling(const Node& item, const std::map<std::string, std::string>& names, ModuleId module)
             {
-                if (const auto found = names.find(item.value); found != names.end() && item.children.empty()) return found->second;
-                if (item.kind == "ReferenceType") return "&" + item.value + normalizedSpelling(*item.children[0], names);
-                if (item.kind == "QualifiedType" || item.kind == "Member") return normalizedSpelling(*item.children[0], names) + "." + item.value;
+                if (const auto found = names.find(item.value); found != names.end() && item.children.empty())
+                {
+                    if (item.value != "Self") return found->second;
+                    auto concrete = node("Type", found->second, item.range);
+                    return normalizedSpelling(*concrete, {}, module);
+                }
+                if (item.kind == "ReferenceType") return "&" + item.value + normalizedSpelling(*item.children[0], names, module);
+                if (item.kind == "Type" || item.kind == "QualifiedType")
+                {
+                    const auto selected = declaration(item, module);
+                    if (selected.node && selected.node->kind == "TypeAlias" && !selected.node->children.empty())
+                    {
+                        auto expanded = portableType(*selected.node->children[0], selected.module, module);
+                        return normalizedSpelling(*expanded, names, module);
+                    }
+                    if (selected.node && logicalTypes_.contains(selected.node))
+                    {
+                        const auto& logical = logicalTypes_.at(selected.node);
+                        auto restored = portableType(*logical.first, logical.second, module);
+                        return normalizedSpelling(*restored, names, module);
+                    }
+                    // 소스 타입과 이미 구체화된 타입을 같은 명목 타입·인자 구조로 비교한다.
+                    // Compare source types and materialized types through the same nominal identity and arguments.
+                    std::string result = selected.node ? graph_.modules[selected.module]->name + "." + selected.node->value : flatPath(item);
+                    if (result == "int") result = "i32";
+                    if (result == "float") result = "f64";
+                    const auto arguments = typeArguments(item);
+                    if (!arguments.empty())
+                    {
+                        result += '<';
+                        for (const auto* argument : arguments) result += normalizedSpelling(*argument, names, module) + ',';
+                        result += '>';
+                    }
+                    return result;
+                }
+                if (item.kind == "Member") return normalizedSpelling(*item.children[0], names, module) + "." + item.value;
                 std::string result = item.value == "int" ? "i32" : item.value == "float" ? "f64" : item.value;
                 if (!item.children.empty())
                 {
                     result += '<';
-                    for (const auto& argument : item.children) result += normalizedSpelling(*argument, names) + ',';
+                    for (const auto& argument : item.children) result += normalizedSpelling(*argument, names, module) + ',';
                     result += '>';
                 }
                 return result;
             }
-            std::string resultKey(const Node& function) const
+            std::string resultKey(const Node& function, ModuleId module, std::string_view self = {})
             {
-                return function.children.empty() ? std::string{} : normalizedSpelling(*function.children[0], genericNames(function));
+                return function.children.empty() ? std::string{} : normalizedSpelling(*function.children[0], genericNames(function, self), module);
             }
-            std::set<std::string> requirementKeys(const Node& function) const
+            std::set<std::string> requirementKeys(const Node& function, ModuleId module, std::string_view self = {})
             {
                 std::set<std::string> result;
-                const auto names = genericNames(function);
+                const auto names = genericNames(function, self);
                 for (const auto& item : function.children)
-                    if (item->kind == "Constraint") result.insert(normalizedSpelling(*item, names));
+                    if (item->kind == "Constraint") result.insert(normalizedSpelling(*item, names, module));
                 return result;
             }
-            std::string methodKey(const Node& function) const
+            std::string methodKey(const Node& function, ModuleId module, std::string_view self = {})
             {
-                const auto names = genericNames(function);
-                std::string result = function.value + '<' + std::to_string(names.size()) + ">(";
+                const auto names = genericNames(function, self);
+                const auto* parameters = child(function, "GenericParameters");
+                const auto arity = parameters ? parameters->children.size() : 0;
+                std::string result = function.value + '<' + std::to_string(arity) + ">(";
                 if (const auto* parameters = child(function, "Parameters"))
                     for (const auto& parameter : parameters->children)
                     {
                         result += parameter->kind == "VariadicParameter" ? "variadic:" : "";
-                        if (!parameter->children.empty()) result += normalizedSpelling(*parameter->children[0], names);
-                        if (const auto* arrays = child(*parameter, "ArraySuffixes")) result += normalizedSpelling(*arrays, names);
+                        if (!parameter->children.empty()) result += normalizedSpelling(*parameter->children[0], names, module);
+                        if (const auto* arrays = child(*parameter, "ArraySuffixes")) result += normalizedSpelling(*arrays, names, module);
                         result += ';';
                     }
                 return result + ')';
@@ -2507,7 +4065,7 @@ namespace aevix
                 if (interfaces)
                     for (const auto& implemented : interfaces->children)
                     {
-                        if (implemented->value == "Copy") continue;
+                        if (implemented->value == "Copy" || implemented->value == "Drop") continue;
                         const auto target = declaration(*implemented, module);
                         if (!target.node || target.node->kind != "Interface")
                         { error(*implemented, "An implements entry must identify an interface."); continue; }
@@ -2520,7 +4078,7 @@ namespace aevix
                             auto signature = clone(*method);
                             relocate(*signature, target.module, module);
                             substitute(*signature, self, module, module);
-                            const auto key = methodKey(*signature);
+                            const auto key = methodKey(*signature, module);
                             required[key].push_back({std::move(signature), target.module, child(*method, "Block") != nullptr});
                         }
                     }
@@ -2529,20 +4087,22 @@ namespace aevix
                 {
                     Node* implementation = nullptr;
                     for (auto& method : owner.children)
-                        if (method->kind == "Function" && methodKey(*method) == key) { implementation = method.get(); break; }
+                        if (method->kind == "Function" && methodKey(*method, module, owner.value) == key) { implementation = method.get(); break; }
                     const auto defaults = std::count_if(contracts.begin(), contracts.end(), [](const Requirement& item) { return item.hasDefault; });
                     for (const auto& requirement : contracts)
                     {
                         if (!contracts[0].function->children.empty() && !requirement.function->children.empty()
-                            && resultKey(*contracts[0].function) != resultKey(*requirement.function))
+                            && resultKey(*contracts[0].function, module) != resultKey(*requirement.function, module))
                             error(owner, "Static interfaces require incompatible return types for the same method signature.");
                     }
                     if (implementation)
                     {
+                        if (implementation->value == "drop" && implementsDrop(owner))
+                            error(*implementation, "A Drop cleanup method cannot implement a callable interface method named drop.");
                         if (!implementation->children.empty() && !contracts[0].function->children.empty()
-                            && resultKey(*implementation) != resultKey(*contracts[0].function))
+                            && resultKey(*implementation, module, owner.value) != resultKey(*contracts[0].function, module))
                             error(*implementation, "Interface implementation return type does not match its contract.");
-                        if (requirementKeys(*implementation) != requirementKeys(*contracts[0].function))
+                        if (requirementKeys(*implementation, module, owner.value) != requirementKeys(*contracts[0].function, module))
                             error(*implementation, "Generic interface implementation requirements do not match its contract.");
                         if (!modifier(*implementation, "public")) error(*implementation, "An interface implementation method must be public.");
                         if (defaults && !modifier(*implementation, "override")) error(*implementation, "Replacing an interface default implementation requires override.");
@@ -2575,7 +4135,7 @@ namespace aevix
                     if (method->kind == "Function" && !child(*method, "CompilerMethodSpecialization") && modifier(*method, "override") && !acceptedOverrides.contains(method.get()))
                     {
                         bool known = false;
-                        const auto matching = required.find(methodKey(*method));
+                        const auto matching = required.find(methodKey(*method, module, owner.value));
                         if (matching != required.end()) known = std::any_of(matching->second.begin(), matching->second.end(), [](const Requirement& item) { return item.hasDefault; });
                         if (!known) error(*method, "override does not match an inherited default method.");
                     }

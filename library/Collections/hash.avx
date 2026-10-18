@@ -1,0 +1,540 @@
+/*
+ * Lifecycle of the hash public module.
+ * @module hash
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * Deterministic noncryptographic hashing. Equal keys must hash equally; mutating stored keys is forbidden.
+ * Integer hashing is O(1); text hashing is O(bytes). This is not a collision-resistant or randomized policy.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+/*
+ * Custom key hashing contract. The result must stay stable while the key is stored.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public interface Hash { /*
+ * Version history for the hash.Hash.hash public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 hash(&Self self); };
+/*
+ * Custom key equivalence contract. equal must be reflexive, symmetric, transitive, and agree with Hash.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public interface Eq { /*
+ * Version history for the hash.Eq.equal public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&Self self, &Self other); };
+/*
+ * Custom total order. compare returns a negative, zero, or positive value and agrees with Eq.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public interface Ord { /*
+ * Version history for the hash.Ord.compare public API.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&Self self, &Self other); };
+private u64 mix(u64 state, u64 digit) { return ((state ^ digit) * 257u64 + 17u64) % 4294967291u64; }
+private u64 digits(mut u128 number, u64 seed) {
+    mut u64 state = seed;
+    mut usize index = 0;
+    while (index < 16) {
+        Result<u64, IntegerError> narrowed = Integer.convert<u64>(number % 256u128);
+        switch (move narrowed) {
+            case Result<u64, IntegerError>.Ok { u64 digit = value }: state = mix(state, digit); break;
+            case Result<u64, IntegerError>.Err: Never.unreachable(); break;
+        }
+        number /= 256u128;
+        index++;
+    }
+    return state;
+}
+private u64 signed_digits(i128 number) {
+    i128 magnitude = number < 0i128 ? -(number + 1i128) : number;
+    Result<u128, IntegerError> widened = Integer.convert<u128>(magnitude);
+    switch (move widened) {
+        case Result<u128, IntegerError>.Ok { u128 positive = value }: return digits(positive, number < 0i128 ? 1u64 : 0u64); break;
+        case Result<u128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Hash a borrowed i8 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&i8 input) {
+    Result<i128, IntegerError> widened = Integer.convert<i128>(*input);
+    switch (move widened) {
+        case Result<i128, IntegerError>.Ok { i128 number = value }: return signed_digits(number); break;
+        case Result<i128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed i8 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&i8 left, &i8 right) { return *left == *right; }
+/*
+ * Order borrowed i8 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&i8 left, &i8 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed i16 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&i16 input) {
+    Result<i128, IntegerError> widened = Integer.convert<i128>(*input);
+    switch (move widened) {
+        case Result<i128, IntegerError>.Ok { i128 number = value }: return signed_digits(number); break;
+        case Result<i128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed i16 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&i16 left, &i16 right) { return *left == *right; }
+/*
+ * Order borrowed i16 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&i16 left, &i16 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed i32 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&i32 input) {
+    Result<i128, IntegerError> widened = Integer.convert<i128>(*input);
+    switch (move widened) {
+        case Result<i128, IntegerError>.Ok { i128 number = value }: return signed_digits(number); break;
+        case Result<i128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed i32 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&i32 left, &i32 right) { return *left == *right; }
+/*
+ * Order borrowed i32 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&i32 left, &i32 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed i64 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&i64 input) {
+    Result<i128, IntegerError> widened = Integer.convert<i128>(*input);
+    switch (move widened) {
+        case Result<i128, IntegerError>.Ok { i128 number = value }: return signed_digits(number); break;
+        case Result<i128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed i64 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&i64 left, &i64 right) { return *left == *right; }
+/*
+ * Order borrowed i64 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&i64 left, &i64 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed i128 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&i128 input) {
+    Result<i128, IntegerError> widened = Integer.convert<i128>(*input);
+    switch (move widened) {
+        case Result<i128, IntegerError>.Ok { i128 number = value }: return signed_digits(number); break;
+        case Result<i128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed i128 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&i128 left, &i128 right) { return *left == *right; }
+/*
+ * Order borrowed i128 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&i128 left, &i128 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed isize without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&isize input) {
+    Result<i128, IntegerError> widened = Integer.convert<i128>(*input);
+    switch (move widened) {
+        case Result<i128, IntegerError>.Ok { i128 number = value }: return signed_digits(number); break;
+        case Result<i128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed isize keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&isize left, &isize right) { return *left == *right; }
+/*
+ * Order borrowed isize keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&isize left, &isize right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed u8 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&u8 input) {
+    Result<u128, IntegerError> widened = Integer.convert<u128>(*input);
+    switch (move widened) {
+        case Result<u128, IntegerError>.Ok { u128 number = value }: return digits(number, 0u64); break;
+        case Result<u128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed u8 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&u8 left, &u8 right) { return *left == *right; }
+/*
+ * Order borrowed u8 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&u8 left, &u8 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed u16 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&u16 input) {
+    Result<u128, IntegerError> widened = Integer.convert<u128>(*input);
+    switch (move widened) {
+        case Result<u128, IntegerError>.Ok { u128 number = value }: return digits(number, 0u64); break;
+        case Result<u128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed u16 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&u16 left, &u16 right) { return *left == *right; }
+/*
+ * Order borrowed u16 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&u16 left, &u16 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed u32 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&u32 input) {
+    Result<u128, IntegerError> widened = Integer.convert<u128>(*input);
+    switch (move widened) {
+        case Result<u128, IntegerError>.Ok { u128 number = value }: return digits(number, 0u64); break;
+        case Result<u128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed u32 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&u32 left, &u32 right) { return *left == *right; }
+/*
+ * Order borrowed u32 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&u32 left, &u32 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed u64 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&u64 input) {
+    Result<u128, IntegerError> widened = Integer.convert<u128>(*input);
+    switch (move widened) {
+        case Result<u128, IntegerError>.Ok { u128 number = value }: return digits(number, 0u64); break;
+        case Result<u128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed u64 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&u64 left, &u64 right) { return *left == *right; }
+/*
+ * Order borrowed u64 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&u64 left, &u64 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed u128 without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&u128 input) {
+    Result<u128, IntegerError> widened = Integer.convert<u128>(*input);
+    switch (move widened) {
+        case Result<u128, IntegerError>.Ok { u128 number = value }: return digits(number, 0u64); break;
+        case Result<u128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed u128 keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&u128 left, &u128 right) { return *left == *right; }
+/*
+ * Order borrowed u128 keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&u128 left, &u128 right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed usize without allocation, mutation, overflow, or implicit cloning; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&usize input) {
+    Result<u128, IntegerError> widened = Integer.convert<u128>(*input);
+    switch (move widened) {
+        case Result<u128, IntegerError>.Ok { u128 number = value }: return digits(number, 0u64); break;
+        case Result<u128, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
+/*
+ * Compare borrowed usize keys for equivalence without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&usize left, &usize right) { return *left == *right; }
+/*
+ * Order borrowed usize keys without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&usize left, &usize right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+/*
+ * Hash a borrowed bool without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&bool input) { return *input ? 1u64 : 0u64; }
+/*
+ * Compare borrowed bool keys for equivalence; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&bool left, &bool right) { return *left == *right; }
+/*
+ * Order false before true; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&bool left, &bool right) { return *left == *right ? 0 : *left ? 1 : -1; }
+/*
+ * Hash a borrowed byte by its numeric value without taking ownership; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&byte input) { u8 number = Byte.to_u8(*input); return value(&number); }
+/*
+ * Compare borrowed byte keys for equivalence; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&byte left, &byte right) { return *left == *right; }
+/*
+ * Order borrowed bytes by unsigned numeric value; O(1).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&byte left, &byte right) { return *left < *right ? -1 : *left > *right ? 1 : 0; }
+private u64 text_digits(Slice<byte> bytes) {
+    mut u64 state = 0;
+    mut usize index = 0;
+    while (index < Slice.len(bytes)) { state = mix(state, value(&bytes[index])); index++; }
+    return state;
+}
+private i32 text_compare(Slice<byte> left, Slice<byte> right) {
+    mut usize index = 0;
+    while (index < Slice.len(left) && index < Slice.len(right)) {
+        if (left[index] < right[index]) return -1;
+        if (left[index] > right[index]) return 1;
+        index++;
+    }
+    return Slice.len(left) < Slice.len(right) ? -1 : Slice.len(left) > Slice.len(right) ? 1 : 0;
+}
+/*
+ * Hash the borrowed UTF-8 bytes of string; O(bytes), with no allocation or ownership transfer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&string input) { return text_digits(string.as_bytes(input)); }
+/*
+ * Compare borrowed string keys by their UTF-8 bytes; O(bytes).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&string left, &string right) { return string.equals(left, right); }
+/*
+ * Lexicographically order borrowed string keys by UTF-8 bytes; O(bytes).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&string left, &string right) { return text_compare(string.as_bytes(left), string.as_bytes(right)); }
+/*
+ * Hash the borrowed UTF-8 bytes of string_view; O(bytes), with no allocation or ownership transfer.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value(&string_view input) { return text_digits(string.as_bytes(*input)); }
+/*
+ * Compare borrowed string_view keys by their UTF-8 bytes; O(bytes).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal(&string_view left, &string_view right) { return string.equals(*left, *right); }
+/*
+ * Lexicographically order borrowed string_view keys by UTF-8 bytes; O(bytes).
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare(&string_view left, &string_view right) { return text_compare(string.as_bytes(*left), string.as_bytes(*right)); }
+/*
+ * Hash a custom key through its explicit Hash implementation, preserving ownership. Cost is the custom method cost.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public u64 value<K>(&K input) where K implements Hash { return input.hash(); }
+/*
+ * Compare custom keys through their explicit Eq implementation, preserving ownership.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public bool equal<K>(&K left, &K right) where K implements Eq { return left.equal(right); }
+/*
+ * Order custom keys through their explicit Ord implementation, preserving ownership.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public i32 compare<K>(&K left, &K right) where K implements Ord { return left.compare(right); }
+/*
+ * Select a bucket for a nonzero capacity; O(1). The caller must ensure capacity is nonzero.
+ * @since 0.3
+ * @deprecated_at none
+ * @removed_at none
+ */
+public usize bucket(u64 code, usize capacity) {
+    if (capacity == 0) Never.unreachable();
+    Result<u64, IntegerError> widened = Integer.convert<u64>(capacity);
+    switch (move widened) {
+        case Result<u64, IntegerError>.Ok { u64 count = value }:
+            Result<usize, IntegerError> narrowed = Integer.convert<usize>(code % count);
+            switch (move narrowed) {
+                case Result<usize, IntegerError>.Ok { usize index = value }: return index; break;
+                case Result<usize, IntegerError>.Err: Never.unreachable(); break;
+            }
+            break;
+        case Result<u64, IntegerError>.Err: Never.unreachable(); break;
+    }
+}
