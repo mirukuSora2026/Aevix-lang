@@ -10,18 +10,20 @@
 #
 # ========================
 
-Aevix 0.2V preview installers
-============================
+Aevix 0.3V installers
+=====================
 
-Download the compiler package for your platform and aevix-0.2.0.vsix from:
-https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0
+Download the compiler package for your platform and aevix-0.3.0.vsix from:
+https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.3.0
 
-The compiler packages retain their 0.2.0-dev filenames. The POSIX installers
-and Windows Setup also use that package version; the macOS PKG receipt uses
-0.2.0. The compiler and VS Code extension both report version 0.2.0.
+The compiler, installers, macOS package receipt and VS Code extension use
+version 0.3.0. Historical 0.1 and 0.2 downloads remain on their release pages.
 
 These installers include aevixc, the matching Aevix runtime, and the bundled
-numeric/complex library modules. When required,
+CPU library source modules, including the generated Unicode 17.0.0 module
+and its notices. Source API coverage is documented separately; packaging a
+module does not imply that every API in the design catalog is implemented.
+When required,
 the macOS and Linux packages also carry the compiler's shared LLVM dependencies
 and their license notices. Debian-based bundles record each dependency's package
 owner, verbatim copyright notice and referenced common license texts in
@@ -32,8 +34,9 @@ target-aware report. GNU GCC is not a universal requirement.
 macOS on Apple Silicon
 ----------------------
 
-These preview packages require macOS 26.0 or newer on Apple Silicon.
-Open Aevix-0.2.0-dev-macOS-arm64.pkg and follow Apple's Installer. The package installs
+Check the attached macOS runtime-requirements.txt sidecar for the minimum
+OS version. The installer also checks this requirement before making changes.
+Open Aevix-0.3.0-macOS-arm64.pkg and follow Apple's Installer. The package installs
 under /Library/Aevix and adds /Library/Aevix/bin to /etc/paths.d/aevix. No personal
 shell configuration is changed by the PKG. Open a new terminal after installing.
 
@@ -53,7 +56,7 @@ its matching paths.d entry.
 
 A per-user alternative does not require administrator access:
 
-    sh Aevix-0.2.0-dev-Darwin-arm64.run
+    sh Aevix-0.3.0-Darwin-arm64.run
 
 It uses the same per-user paths and shell PATH setup described below for Linux.
 
@@ -62,8 +65,8 @@ Linux on ARM64 or x86-64
 
 Use the installer matching the machine architecture:
 
-    sh Aevix-0.2.0-dev-Linux-arm64.run
-    sh Aevix-0.2.0-dev-Linux-x86_64.run
+    sh Aevix-0.3.0-Linux-arm64.run
+    sh Aevix-0.3.0-Linux-x86_64.run
 
 Only run one of those commands, according to the machine. The default install
 directory is ~/.local/share/aevix. The command ~/.local/bin/aevixc is a symlink
@@ -88,7 +91,7 @@ Removal deletes the installer-owned command link and marked PATH blocks; it does
 not remove other PATH entries. For another installation prefix, run uninstall.sh
 inside that prefix instead.
 
-These preview packages are built for Ubuntu 24.04/glibc 2.39 environments.
+These packages are built for Ubuntu 24.04/glibc 2.39 environments.
 They use the host system's C runtime. Other distributions may need a source
 build; these packages do not target musl. Build on the oldest supported
 distribution when wider glibc compatibility is needed. An ARM64 build
@@ -102,7 +105,7 @@ include an LLVM-enabled Windows JIT build.
 This MinGW-w64 build needs Clang and a matching MinGW-w64 linker/runtime for AOT
 execution. Run aevixc --check-deps to diagnose missing tools after installation.
 
-Open Aevix-0.2.0-dev-Windows-x86_64-Setup.exe. The native installer needs no separate
+Open Aevix-0.3.0-Windows-x86_64-Setup.exe. The native installer needs no separate
 NSIS, Inno Setup, PowerShell package, or administrator account. It installs under
 %LOCALAPPDATA%\Programs\Aevix, adds its bin directory to the current user's PATH,
 and broadcasts the Windows environment-change notification. Open a new terminal
@@ -115,7 +118,7 @@ Uninstalling uses a temporary copy of the setup executable so that the installed
 Uninstall.exe can be deleted; the temporary copy may remain in Windows TEMP.
 
 The installer executable is unsigned. A portable alternative is supplied as
-Aevix-0.2.0-dev-Windows-x86_64-portable.zip. Extract the Aevix directory and use
+Aevix-0.3.0-Windows-x86_64-portable.zip. Extract the Aevix directory and use
 its bin\aevixc.exe directly, or add that bin directory to your user PATH.
 The portable ZIP does not register PATH automatically.
 
@@ -132,6 +135,12 @@ Open a new terminal and run:
     aevixc --version
     aevixc --check-deps
 
+If the toolchain is installed as clang-22 without an unversioned clang command,
+select it explicitly (adjust the path for your installation):
+
+    aevixc --check-deps --clang /usr/bin/clang-22
+    aevixc --clang /usr/bin/clang-22 main.avx
+
 Save a program as main.avx, then run aevixc main.avx to compile and execute it.
 The runtime and compiler dependencies are included, but Clang and the platform
 linker/SDK still need to be available for AOT compilation.
@@ -139,10 +148,10 @@ linker/SDK still need to be available for AOT compilation.
 VS Code extension
 ------------------
 
-Requires VS Code 1.96 or newer. Download aevix-0.2.0.vsix and use
+Requires VS Code 1.96 or newer. Download aevix-0.3.0.vsix and use
 Extensions > ... > Install from VSIX..., or run:
 
-    code --install-extension aevix-0.2.0.vsix
+    code --install-extension aevix-0.3.0.vsix
 
 The extension and compiler are installed separately. Set aevix.compilerPath
 to the installed compiler if it is not found on PATH. Remote workspaces need
@@ -156,23 +165,23 @@ defaults from embedding machine-specific build runtime and Clang locations.
 
     cmake -S . -B build-package -DCMAKE_BUILD_TYPE=Release -DAEVIX_PORTABLE_PACKAGE=ON
     cmake --build build-package --parallel
-    sh tools/packaging/build-installers.sh --build-dir build-package --version 0.2.0
+    sh tools/packaging/build-installers.sh --build-dir build-package --version 0.3.0
 
 For a multi-configuration generator, select the same configuration for building
 and packaging. The optional --config value is passed to cmake --install; without
 it, CMake uses its default install configuration. For example:
 
     cmake --build build-package --config Release --parallel
-    sh tools/packaging/build-installers.sh --build-dir build-package --config Release --version 0.2.0
+    sh tools/packaging/build-installers.sh --build-dir build-package --config Release --version 0.3.0
 
-macOS packaging needs Apple's pkgbuild, install_name_tool, codesign, CMake, tar,
+macOS packaging needs Apple's pkgbuild, xar, install_name_tool, codesign, CMake, tar,
 and a SHA-256 utility. Linux uses CMake's runtime dependency discovery; patchelf
 is used when present, with a shell launcher fallback when absent. Build each Linux
 architecture on a matching host or VM.
 
 For the Windows setup, supply an existing x86-64 Windows cross-build:
 
-    sh tools/packaging/build-windows-installer.sh --build-dir WINDOWS_BUILD --version 0.2.0
+    sh tools/packaging/build-windows-installer.sh --build-dir WINDOWS_BUILD --version 0.3.0
 
 For a multi-configuration Windows build, add --config Release. The script first
 looks for WINDOWS_BUILD/Release/aevixc.exe and
@@ -183,7 +192,7 @@ That command uses x86_64-w64-mingw32-g++ and x86_64-w64-mingw32-windres. Overrid
 them with AEVIX_WINDOWS_CXX and AEVIX_WINDOWS_WINDRES if needed. The compiler
 payload must be statically linked; the setup does not currently bundle DLLs.
 
-Outputs default to releases/0.2V/installers. The build commands above use version
-0.2.0; use --version 0.2.0-dev to retain the preview package names. SHA256SUMS
+Outputs default to releases/0.3V/installers. The build commands above use version
+0.3.0. SHA256SUMS
 records installer checksums. Building packages does not publish them automatically.
 CPack source packaging is disabled; use the repository's public GitHub source archives.

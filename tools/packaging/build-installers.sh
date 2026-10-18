@@ -35,6 +35,11 @@ system=$(uname -s)
 arch=$(uname -m)
 case "$arch" in arm64|aarch64) arch=arm64 ;; x86_64|amd64) arch=x86_64 ;; *) echo 'Only ARM64 and x86-64 installers are supported.' >&2; exit 2 ;; esac
 case "$system/$arch" in Darwin/arm64|Linux/arm64|Linux/x86_64) ;; *) echo 'Supported hosts: macOS ARM64 and Linux ARM64/x86-64.' >&2; exit 2 ;; esac
+if [ "$system" = Darwin ]; then
+    # 배포 파일에 호스트 확장 속성이나 AppleDouble 메타데이터를 포함하지 않는다.
+    # Exclude host extended attributes and AppleDouble metadata from distributable files.
+    export COPYFILE_DISABLE=1
+fi
 mkdir -p "$output_dir"
 output_dir=$(CDPATH= cd -- "$output_dir" && pwd -P)
 work=$(mktemp -d "${TMPDIR:-/tmp}/aevix-package.XXXXXXXX")
@@ -105,9 +110,10 @@ chmod 755 "$run"
 printf 'Created %s\n' "$run"
 if [ "$system" = Darwin ]; then
     command -v pkgbuild >/dev/null 2>&1 || { echo 'pkgbuild is required for the macOS package.' >&2; exit 2; }
+    command -v xar >/dev/null 2>&1 || { echo 'xar is required to remove builder metadata from the macOS package.' >&2; exit 2; }
     root="$work/pkgroot"
     mkdir -p "$root/Library" "$root/etc/paths.d"
-    cp -R "$stage" "$root/Library/Aevix"
+    cp -R -X "$stage" "$root/Library/Aevix"
     rm "$root/Library/Aevix/uninstall.sh"
     cp "$source_root/packaging/macos/uninstall.command" "$root/Library/Aevix/uninstall.command"
     chmod 755 "$root/Library/Aevix/uninstall.command"
@@ -121,6 +127,17 @@ if [ "$system" = Darwin ]; then
     cp "$stage/share/aevix/runtime-requirements.txt" "$stage/share/aevix/check-runtime-requirements.sh" "$scripts/"
     chmod 755 "$scripts/preinstall"
     pkgbuild --root "$root" --identifier org.aevix.compiler --version "$pkg_version" --install-location / --ownership recommended --scripts "$scripts" "$pkg"
+    # 외부 XAR에도 빌더의 사용자 이름과 UID가 남지 않도록 배포 속성만 보관한다.
+    # Keep distribution properties in the outer XAR without the builder's user name or UID.
+    pkg_contents="$work/pkg-contents"
+    mkdir -p "$pkg_contents"
+    xar -xf "$pkg" -C "$pkg_contents"
+    (
+        cd "$pkg_contents"
+        xar -cf "$work/distribution.pkg" --distribution --prop-exclude=user --prop-exclude=group \
+            --prop-exclude=uid --prop-exclude=gid --compression=none Bom Payload Scripts PackageInfo
+    )
+    mv "$work/distribution.pkg" "$pkg"
     printf 'Created %s\n' "$pkg"
 fi
 cp "$source_root/packaging/INSTALL.txt" "$output_dir/INSTALL.txt"

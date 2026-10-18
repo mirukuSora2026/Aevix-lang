@@ -16,24 +16,24 @@ Description :
 
 Aevix is a statically typed language with ownership and borrow checking. It compiles `.avx` files to native code and supports execution through LLVM ORC JIT. Memory uses native storage and ownership-based cleanup, without a tracing garbage collector or a reserved JVM-style heap.
 
-**[Download 0.2V preview](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0)** · [Installation guide](packaging/INSTALL.txt) · [0.2 implementation profile](htmls/releases/0_2.html)
+**[Download 0.3V](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.3.0)** · [Installation guide](packaging/INSTALL.txt) · [Source API inventory](htmls/releases/api/Library_Status.html)
 
-The download and installation instructions below describe the 0.2 preview packages, whose compiler installer filenames retain `0.2.0-dev`. The [0.1V release](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0) is also available. The broader [language reference](htmls/index.html) includes design proposals and APIs that are not implemented.
+Compiler packages and the VS Code extension use version **0.3.0**. The [0.2V preview](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0) and [0.1V release](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.1.0) remain available. The broader [language reference](htmls/index.html) includes design proposals and APIs that are not implemented.
 
-## 0.3 source snapshot
+## New in 0.3
 
-The current source identifies as **0.3.0**. This source commit does not publish new installers, a VSIX package, or a GitHub Release.
+0.3 adds console IO, resource cleanup and imported CPU library modules to the existing native execution model.
 
 - Add console IO through `import system`, typed parsing, structured logging, and the common Result-based error model.
 - Extend resource cleanup with `Drop`, typed native handles and borrowed buffers. Add imported CPU modules for collections, text and Unicode, numeric operations, filesystem and process access, shared ownership, synchronization and threaded Tasks.
 - Refine raw literals, closure consumption, generic inference, resource lifetimes and parallel worker checks. Include an experimental, opt-in range-proof pass; unproved arithmetic and accesses retain their runtime checks.
 - Include reproducible native benchmark controls, exact-output oracles and differential/metamorphic test tools. Performance reports distinguish timed code from setup, actual generated instructions from source abstractions, and measured features from planned ones.
 
-The [source API inventory](htmls/releases/api/Library_Status.html) describes the provided surface. **The full CPU catalog is not complete.** Async/coroutines and GPU execution remain deferred, while reusable worker pools and adaptive JIT tiering are not implemented. A generated-program ASan discrepancy for zero-sized `Box<unit>` at O0 remains under investigation; see the [recorded issue](benchmarks/Comparison/cpu4096/reports/proof_zero_size_issue.json). This source snapshot does not establish fresh Linux or Windows execution results.
+The [source API inventory](htmls/releases/api/Library_Status.html) describes the provided surface. **The full CPU catalog is not complete.** Async/coroutines and GPU execution remain deferred, while reusable worker pools and adaptive JIT tiering are not implemented. A generated-program ASan discrepancy for zero-sized `Box<unit>` at O0 remains under investigation; see the [recorded issue](benchmarks/Comparison/cpu4096/reports/proof_zero_size_issue.json). The Windows package is cross-built and remains experimental; native Windows execution is unverified.
 
 ## Install
 
-Choose the package for your operating system and CPU on the [0.2V preview release page](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0). Follow the [installation guide](packaging/INSTALL.txt) for commands, installation locations, PATH setup, upgrades and removal.
+Choose the package for your operating system and CPU on the [0.3V release page](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.3.0). Follow the [installation guide](packaging/INSTALL.txt) for commands, installation locations, PATH setup, upgrades and removal.
 
 - macOS Apple Silicon: a system `.pkg` or a per-user `.run` installer.
 - Linux ARM64/x86-64: a per-user `.run` installer with marked shell PATH entries.
@@ -50,7 +50,7 @@ The packages include the Aevix runtime and required compiler libraries. AOT exec
 
 `--check-deps` compiles and links a small runtime probe without executing it. Use `-c` for an object-generation-only probe. Full cross-target checks need a matching runtime through `--runtime FILE` and the target toolchain/sysroot.
 
-The macOS preview requires **macOS 26.0 or newer**. The compiler and bundled libraries are ad hoc signed; the `.pkg` is unsigned and is not notarized. Each installer records and checks its minimum OS version.
+The macOS package requires **macOS 26.0 or newer**. The compiler and bundled libraries are ad hoc signed; the `.pkg` is unsigned and is not notarized. Each installer records and checks its minimum OS version.
 
 ## First program
 
@@ -78,11 +78,22 @@ aevixc --with-starter main.avx
 
 The first command compiles and runs, then removes temporary output. `--check` checks types and ownership. `--jit` requires a JIT-enabled compiler and runs on the host architecture. `--with-starter` keeps an executable beside the source and a `.sh` launcher on macOS/Linux; Windows uses an `.exe`. Existing output files are not overwritten.
 
-This example prints nothing and returns zero on success. Console IO through `system.print`, `println`, `printf` and `input` is available in the 0.3 source and is outside the downloadable 0.2 profile.
+This example prints nothing and returns zero on success. To write to the terminal, import `system`:
 
-## Implemented in 0.2
+```aevix
+import system;
 
-The compiler supports structs, payload enums, interfaces, explicit `dyn`, generic functions, imports, `Optional`, `Result`, `?`, `persist`, fixed/dynamic arrays, Range loops and homogeneous variadic arguments. The preview adds:
+i32 main() {
+    system.println("Hello, Aevix!");
+    return 0;
+}
+```
+
+`system` also provides `print`, `printf`, typed `input` and structured logging. Input and output operations return error values; handle those results when the program needs to recover from IO failures.
+
+## Language features
+
+The compiler supports structs, payload enums, interfaces, explicit `dyn`, generic functions, imports, `Optional`, `Result`, `?`, `persist`, fixed/dynamic arrays, Range loops and homogeneous variadic arguments. Features retained from 0.2 include:
 
 - Typed numeric literals, checked conversions, `i128`/`u128`, and portable `f16`/`bf16` values.
 - UTF-8 owners and views, byte/scalar operations, checked subslices, tuples and repeated fixed arrays.
@@ -90,18 +101,18 @@ The compiler supports structs, payload enums, interfaces, explicit `dyn`, generi
 - Imported CPU SIMD and scoped parallel iteration with named, validated workers.
 - `@bench` function timing and sampled process RSS, improved JIT module management, dependency diagnostics and native installers.
 
-The [implementation profile](htmls/releases/0_2.html) specifies the supported operations and restrictions. GPU/Tensor execution, the full standard-library catalog, user-defined resource destructors, a formatter and a debugger are outside this release.
+The [0.2 implementation profile](htmls/releases/0_2.html) records the previous baseline; the [source API inventory](htmls/releases/api/Library_Status.html) tracks the expanded library surface. 0.3 adds user-defined `Drop` cleanup. GPU execution, the full standard-library catalog, async/coroutines, a formatter and a debugger remain outside this release.
 
 ## Platform support
 
-| Target | Preview scope |
+| Target | Package scope |
 | --- | --- |
 | macOS Apple Silicon | AOT and ORC JIT; macOS 26.0+; per-user `.run` and system `.pkg` |
 | Linux ARM64 | AOT and ORC JIT; per-user `.run`; execution checked in an ARM64 VM |
 | Linux x86-64 | AOT and ORC JIT; per-user `.run`; execution checked under QEMU |
 | Windows x86-64 | Experimental AOT-only setup/ZIP; cross-built packages, with native Windows and MSVC execution unverified |
 
-A successful cross-build does not prove native execution. The macOS per-user `.run` was exercised; the `.pkg` payload was inspected without a system installation. macOS Intel, Windows ARM64 and 32-bit targets are outside this preview.
+A successful cross-build does not prove native execution. The macOS per-user `.run` was exercised; the `.pkg` payload was inspected without a system installation. macOS Intel, Windows ARM64 and 32-bit targets are outside this release.
 
 The current Linux artifacts were qualified on Ubuntu 24.04.5 LTS with glibc 2.39. They target glibc-based systems; broader distribution compatibility requires separate checks.
 
@@ -133,7 +144,7 @@ To build distributable installers, follow [packaging/INSTALL.txt](packaging/INST
 
 ## VS Code
 
-Download the VSIX from the [0.2V preview release page](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.2.0), then use **Extensions → … → Install from VSIX…** in VS Code 1.96 or newer.
+Download the VSIX from the [0.3V release page](https://github.com/mirukuSora2026/Aevix-lang/releases/tag/v0.3.0), then use **Extensions → … → Install from VSIX…** in VS Code 1.96 or newer.
 
 To build the extension from source, run these commands from the repository root:
 
@@ -158,7 +169,7 @@ Save the file and trust the workspace before using **Aevix: Check Current File**
 
 ## Next versions
 
-These milestones build on the 0.3 source snapshot. See the [roadmap to 0.5](htmls/roadmap/index.html) for the broader language and self-hosting plan. Correctness checks apply to every optimization release.
+These milestones build on 0.3. See the [roadmap to 0.5](htmls/roadmap/index.html) for the broader language and self-hosting plan. Correctness checks apply to every optimization release.
 
 | Version | Planned work |
 | --- | --- |

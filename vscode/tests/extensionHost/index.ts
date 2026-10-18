@@ -164,8 +164,15 @@ i32 main() { return 42; }
     assert.ok(Array.isArray(folding), 'folding provider runs');
     await vscode.commands.executeCommand('aevix.check');
     await waitFor(() => vscode.languages.getDiagnostics(uri).length === 0, 'valid program has no diagnostics');
+    // 0.3의 진입 함수 bool 반환 편의 규칙은 유효하므로 오류 예제로 사용하지 않는다.
+    // The 0.3 boolean entry-return convenience is valid and must not be an error fixture.
+    const booleanReturn = new vscode.WorkspaceEdit();
+    booleanReturn.replace(uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), 'i32 main() { return true; }\n');
+    assert.ok(await vscode.workspace.applyEdit(booleanReturn));
+    await vscode.commands.executeCommand('aevix.check');
+    assert.equal(vscode.languages.getDiagnostics(uri).length, 0, 'boolean entry return is accepted by the 0.3 compiler');
     const invalid = new vscode.WorkspaceEdit();
-    invalid.replace(uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), 'i32 main() { return true; }\n');
+    invalid.replace(uri, new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)), 'i32 main() { return "invalid"; }\n');
     assert.ok(await vscode.workspace.applyEdit(invalid));
     await document.save();
     await vscode.commands.executeCommand('aevix.check');

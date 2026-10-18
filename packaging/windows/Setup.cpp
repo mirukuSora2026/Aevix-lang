@@ -49,7 +49,10 @@ constexpr LibraryFile libraryFiles[] = {
     {108, L"share/aevix/licenses/GCC-GPL-3.0.txt", L".aevix-license-gcc-gpl"},
     {109, L"share/aevix/licenses/GCC-RUNTIME-EXCEPTION.txt", L".aevix-license-gcc-runtime"},
     {110, L"share/aevix/licenses/MinGW-w64-COPYING.txt", L".aevix-license-mingw"},
-    {111, L"share/aevix/licenses/SOURCES.txt", L".aevix-license-sources"}
+    {111, L"share/aevix/licenses/SOURCES.txt", L".aevix-license-sources"},
+// 패키징 시 생성한 목록으로 모든 라이브러리 모듈과 Unicode 고지를 설치한다.
+// Install every library module and Unicode notice from the packaging-generated list.
+#include "AevixPayloadFiles.inc"
 };
 
 struct RegistryValue {
@@ -226,10 +229,21 @@ bool ownsLibrary(const fs::path& root, const LibraryFile& file) {
     return !fingerprint.empty() && readText(root / file.marker) == fingerprint;
 }
 
+void checkLibraryParents(const fs::path& root, const LibraryFile& file) {
+    // 중첩 모듈의 모든 상위 경로를 검사하여 링크를 통한 설치·제거를 거부한다.
+    // Check every parent of nested modules to reject installation or removal through links.
+    auto directory = fs::path(file.relative).parent_path();
+    while (!directory.empty()) {
+        if (isReparsePoint(root / directory)) fail("Refusing to access a library directory link.");
+        directory = directory.parent_path();
+    }
+}
+
 void preflightLibraries(const fs::path& root) {
     for (const auto* directory : {L"share", L"share/aevix", L"share/aevix/library", L"share/aevix/library/Math", L"share/aevix/licenses"})
         if (isReparsePoint(root / directory)) fail("Refusing to install through a library directory link.");
     for (const auto& file : libraryFiles) {
+        checkLibraryParents(root, file);
         if (isReparsePoint(root / file.marker) || isReparsePoint(root / file.relative))
             fail("Refusing to replace a library link.");
         if (fs::exists(root / file.relative) && !ownsLibrary(root, file))
@@ -241,6 +255,7 @@ void installLibraries(const fs::path& root) {
     fs::create_directories(root / L"share" / L"aevix" / L"library" / L"Math");
     fs::create_directories(root / L"share" / L"aevix" / L"licenses");
     for (const auto& file : libraryFiles) {
+        fs::create_directories((root / file.relative).parent_path());
         writeResource(file.resource, root / file.relative);
         writeText(root / file.marker, libraryFingerprint(root / file.relative));
     }
@@ -250,8 +265,19 @@ void removeLibraries(const fs::path& root) {
     // 명시적으로 소유하며 바뀌지 않은 파일만 제거한다. 추가·수정된 파일은 보존한다.
     // Remove only owned, unchanged files; preserve additions and user modifications.
     for (const auto& file : libraryFiles) {
+        checkLibraryParents(root, file);
         if (ownsLibrary(root, file)) fs::remove(root / file.relative);
         if (!isReparsePoint(root / file.marker)) fs::remove(root / file.marker);
+    }
+    // 비어 있는 패키지 디렉터리만 정리하고 사용자 추가 파일이 있는 경로는 보존한다.
+    // Remove only empty package directories, preserving paths containing user-added files.
+    for (const auto& file : libraryFiles) {
+        auto directory = fs::path(file.relative).parent_path();
+        while (!directory.empty()) {
+            std::error_code ignored;
+            fs::remove(root / directory, ignored);
+            directory = directory.parent_path();
+        }
     }
 }
 

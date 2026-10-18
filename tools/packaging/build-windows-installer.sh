@@ -60,6 +60,32 @@ cp "$source_root/design/logo/aevix-logo.png" "$work/logo.png"
 cp "$source_root/library/Math/numeric.avx" "$work/numeric.avx"
 cp "$source_root/library/Math/complex.avx" "$work/complex.avx"
 cp "$source_root/packaging/licenses/"*.txt "$work/"
+# 모든 소스 모듈과 Unicode 고지를 고정 리소스 목록에 추가한다.
+# Add every source module and Unicode notice to the fixed resource payload.
+mkdir -p "$work/payload"
+find "$source_root/library" -type f -name '*.avx' | LC_ALL=C sort > "$work/module-files"
+: > "$work/AevixPayloadFiles.inc"
+: > "$work/extra-resources.rc"
+resource_id=112
+while IFS= read -r module; do
+    relative=${module#"$source_root/library/"}
+    case "$relative" in
+        Math/numeric.avx|Math/complex.avx) continue ;;
+        *[!A-Za-z0-9_./-]*) echo 'A library path cannot be encoded safely in the Windows payload.' >&2; exit 2 ;;
+    esac
+    mkdir -p "$work/payload/$(dirname -- "$relative")"
+    cp "$module" "$work/payload/$relative"
+    marker=$(printf '%s' "$relative" | tr '/' '!')
+    printf '%s RCDATA "payload/%s"\n' "$resource_id" "$relative" >> "$work/extra-resources.rc"
+    printf '    {%s, L"share/aevix/library/%s", L".aevix-file-%s"},\n' "$resource_id" "$relative" "$marker" >> "$work/AevixPayloadFiles.inc"
+    resource_id=$((resource_id + 1))
+done < "$work/module-files"
+for notice in LICENSE-UNICODE.txt NOTICE.txt; do
+    cp "$source_root/third_party/unicode/17.0.0/$notice" "$work/payload/$notice"
+    printf '%s RCDATA "payload/%s"\n' "$resource_id" "$notice" >> "$work/extra-resources.rc"
+    printf '    {%s, L"share/aevix/licenses/%s", L".aevix-unicode-%s"},\n' "$resource_id" "$notice" "$notice" >> "$work/AevixPayloadFiles.inc"
+    resource_id=$((resource_id + 1))
+done
 cat > "$work/payload.rc" <<'AEVIX_RESOURCES'
 #include <windows.h>
 101 RCDATA "compiler.bin"
@@ -75,6 +101,7 @@ cat > "$work/payload.rc" <<'AEVIX_RESOURCES'
 111 RCDATA "SOURCES.txt"
 1 RT_MANIFEST "setup.manifest"
 AEVIX_RESOURCES
+cat "$work/extra-resources.rc" >> "$work/payload.rc"
 cat > "$work/setup.manifest" <<'AEVIX_MANIFEST'
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
@@ -88,7 +115,7 @@ cd "$work"
 output="$output_dir/Aevix-$version-Windows-x86_64-Setup.exe"
 "$cxx" -std=c++20 -O2 -Wall -Wextra -Wpedantic -Werror -municode -mwindows -static -static-libgcc -static-libstdc++ -fno-ident \
     "-ffile-prefix-map=$source_root=." "-DAEVIX_SETUP_VERSION=L\"$version\"" \
-    "$source_root/packaging/windows/Setup.cpp" payload.o -o "$output" -lshell32 -lole32 -luuid -ladvapi32 -luser32
+    -I "$work" "$source_root/packaging/windows/Setup.cpp" payload.o -o "$output" -lshell32 -lole32 -luuid -ladvapi32 -luser32
 printf 'Created %s\n' "$output"
 cp "$source_root/packaging/INSTALL.txt" "$output_dir/INSTALL.txt"
 sh "$source_root/tools/packaging/checksums.sh" "$output_dir"

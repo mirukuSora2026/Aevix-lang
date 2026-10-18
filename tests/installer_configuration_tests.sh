@@ -45,7 +45,33 @@ cat > "$work/tools/windres" <<'STUB'
 set -eu
 cmp compiler.bin "$AEVIX_CONFIG_EXPECT_COMPILER"
 cmp runtime.bin "$AEVIX_CONFIG_EXPECT_RUNTIME"
-for payload in LICENSE.txt CONTRIBUTING.txt logo.png numeric.avx complex.avx GCC-GPL-3.0.txt GCC-RUNTIME-EXCEPTION.txt MinGW-w64-COPYING.txt SOURCES.txt; do test -s "$payload"; done
+for payload in LICENSE.txt CONTRIBUTING.txt logo.png numeric.avx complex.avx GCC-GPL-3.0.txt GCC-RUNTIME-EXCEPTION.txt MinGW-w64-COPYING.txt SOURCES.txt payload/LICENSE-UNICODE.txt payload/NOTICE.txt; do test -s "$payload"; done
+# 중첩 모듈과 고지문이 리소스 목록과 설치 목록 양쪽에 포함되는지 검사한다.
+# Check nested modules and notices occur in both resource and installation lists.
+test -s payload/Core/unicode.avx
+test -s payload/System/process.avx
+grep -q 'share/aevix/library/Core/unicode.avx' AevixPayloadFiles.inc
+grep -q 'share/aevix/library/System/process.avx' AevixPayloadFiles.inc
+grep -q 'share/aevix/licenses/LICENSE-UNICODE.txt' AevixPayloadFiles.inc
+grep -q 'share/aevix/licenses/NOTICE.txt' AevixPayloadFiles.inc
+grep -q 'payload/Core/unicode.avx' payload.rc
+grep -q 'payload/System/process.avx' payload.rc
+find "$AEVIX_CONFIG_SOURCE_ROOT/library" -type f -name '*.avx' > module-expected
+while IFS= read -r module; do
+    relative=${module#"$AEVIX_CONFIG_SOURCE_ROOT/library/"}
+    case "$relative" in
+        Math/numeric.avx) cmp "$module" numeric.avx ;;
+        Math/complex.avx) cmp "$module" complex.avx ;;
+        *)
+            cmp "$module" "payload/$relative"
+            grep -Fq "share/aevix/library/$relative" AevixPayloadFiles.inc
+            grep -Fq "payload/$relative" payload.rc
+            ;;
+    esac
+done < module-expected
+for notice in LICENSE-UNICODE.txt NOTICE.txt; do
+    cmp "$AEVIX_CONFIG_SOURCE_ROOT/third_party/unicode/17.0.0/$notice" "payload/$notice"
+done
 printf '%s\n' resources > payload.o
 STUB
 cat > "$work/tools/cxx" <<'STUB'
@@ -59,6 +85,7 @@ exit 2
 STUB
 chmod 755 "$work/tools/windres" "$work/tools/cxx"
 export AEVIX_WINDOWS_CXX="$work/tools/cxx" AEVIX_WINDOWS_WINDRES="$work/tools/windres"
+export AEVIX_CONFIG_SOURCE_ROOT="$source_root"
 export AEVIX_CONFIG_EXPECT_COMPILER="$work/windows build/CustomRelease/aevixc.exe"
 export AEVIX_CONFIG_EXPECT_RUNTIME="$work/windows build/runtime-payload/CustomRelease/libaevix_runtime.a"
 sh "$source_root/tools/packaging/build-windows-installer.sh" --build-dir "$work/windows build" --config CustomRelease --output-dir "$work/windows selected" --version 0.2.0-config-test > "$work/windows-selected.log"
