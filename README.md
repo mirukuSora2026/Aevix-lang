@@ -112,6 +112,8 @@ The [0.2 implementation profile](htmls/releases/0_2.html) records the previous b
 | Linux x86-64 | AOT and ORC JIT; per-user `.run`; execution checked under QEMU |
 | Windows x86-64 | Experimental AOT-only setup/ZIP; cross-built packages, with native Windows and MSVC execution unverified |
 
+The Windows packages use MinGW-w64. MSVC source builds are currently unsupported.
+
 A successful cross-build does not prove native execution. The macOS per-user `.run` was exercised; the `.pkg` payload was inspected without a system installation. macOS Intel, Windows ARM64 and 32-bit targets are outside this release.
 
 The current Linux artifacts were qualified on Ubuntu 24.04.5 LTS with glibc 2.39. They target glibc-based systems; broader distribution compatibility requires separate checks.
