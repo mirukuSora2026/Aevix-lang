@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, ubuntu-24.04, ubuntu-24.04-arm]
+        runner: [macos-26, ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
@@ -42,6 +42,7 @@ jobs:
           echo "LLVM_DIR=$(brew --prefix llvm@22)/lib/cmake/llvm" >> "$GITHUB_ENV"
           echo "CC=$(brew --prefix llvm@22)/bin/clang" >> "$GITHUB_ENV"
           echo "CXX=$(brew --prefix llvm@22)/bin/clang++" >> "$GITHUB_ENV"
+          echo 'MACOSX_DEPLOYMENT_TARGET=26.0' >> "$GITHUB_ENV"
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR="$LLVM_DIR" -DAEVIX_CLANG_EXECUTABLE="$CC"
       - name: Build
@@ -62,10 +63,33 @@ jobs:
       - uses: actions/checkout@v7
       - name: Configure Windows x86-64 with the installed Clang toolchain
         shell: pwsh
-        run: >-
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-          -DAEVIX_ENABLE_JIT=OFF
-          '-DAEVIX_CLANG_EXECUTABLE=C:/Program Files/LLVM/bin/clang.exe'
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          if (-not (Test-Path -LiteralPath $vswhere)) { throw 'vswhere is unavailable on this runner.' }
+          $instancesJson = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -format json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot query the installed Visual Studio C++ toolchain.' }
+          $instance = @($instancesJson | ConvertFrom-Json)[0]
+          if (-not $instance) { throw 'No installed Visual Studio x86/x64 C++ toolchain was found.' }
+          $major = ([version]$instance.installationVersion).Major
+          $capabilitiesJson = & cmake -E capabilities
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot query CMake generators.' }
+          $capabilities = $capabilitiesJson | ConvertFrom-Json
+          $generators = @($capabilities.generators | Where-Object { $_.name -match "^Visual Studio $major " })
+          if ($generators.Count -ne 1) { throw "CMake does not provide one generator for installed Visual Studio $major." }
+          $generator = $generators[0].name
+          $clangCandidates = @(& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\Tools\Llvm\x64\bin\clang.exe')
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot query the installed Visual Studio Clang driver.' }
+          $pathClang = Get-Command clang.exe -ErrorAction SilentlyContinue
+          if ($pathClang) { $clangCandidates += $pathClang.Source }
+          $clang = $clangCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+          if (-not $clang) { throw 'No installed Clang driver was found.' }
+          $clang = $clang.Replace('\', '/')
+          Write-Host "Configuring with $generator at $($instance.installationPath), Clang: $clang"
+          $configureArgs = @('-S', '.', '-B', 'build', '-G', $generator, '-A', 'x64',
+            "-DCMAKE_GENERATOR_INSTANCE=$($instance.installationPath)", '-DAEVIX_ENABLE_JIT=OFF',
+            "-DAEVIX_CLANG_EXECUTABLE=$clang")
+          & cmake @configureArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build
         run: cmake --build build --config Release --parallel 3
       - name: Test Windows frontend, AOT, runtime, and installation
